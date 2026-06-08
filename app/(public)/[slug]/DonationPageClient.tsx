@@ -44,78 +44,74 @@ function useCountdown(endAt: string | null) {
 
 /* ─── Sub-components ─── */
 
+const NAV_LINKS = [
+  { label: 'אודות', href: '#about' },
+  { label: 'שאלות ותשובות', href: '#faq' },
+  { label: 'עדויות', href: '#testimonials' },
+  { label: 'תורמים', href: '#donors' },
+  { label: 'צור קשר', href: '#contact' },
+]
+
 function StickyHeader({ org, campaign, primaryColor }: { org: Org; campaign: Campaign; primaryColor: string }) {
   const [menuOpen, setMenuOpen] = useState(false)
-  const [scrolled, setScrolled] = useState(false)
-
-  useEffect(() => {
-    const fn = () => setScrolled(window.scrollY > 40)
-    window.addEventListener('scroll', fn, { passive: true })
-    return () => window.removeEventListener('scroll', fn)
-  }, [])
+  const settings = campaign.settings as { tagline?: string | null; about_text?: string | null }
+  const tagline = settings?.tagline || settings?.about_text?.split('\n')[0] || null
 
   return (
-    <header
-      className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${
-        scrolled ? 'bg-white/95 backdrop-blur shadow-md' : 'bg-transparent'
-      }`}
-      role="banner"
-    >
+    <header className="sticky top-0 inset-x-0 z-50 bg-white border-b border-gray-100 shadow-sm" role="banner">
       <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
-        {/* Logo */}
-        <div className="flex items-center gap-2 shrink-0">
+
+        {/* Logo + tagline */}
+        <div className="flex items-center gap-2.5 shrink-0">
           {org.logo_url
-            ? <img src={org.logo_url} alt={org.name} className="h-9 w-9 object-contain rounded-lg" />
-            : <div className="h-9 w-9 rounded-lg flex items-center justify-center text-white font-black text-sm" style={{ backgroundColor: primaryColor }}>{org.name[0]}</div>
+            ? <img src={org.logo_url} alt={org.name} className="h-10 object-contain" />
+            : <div className="h-10 px-3 rounded-xl flex items-center justify-center text-white font-black text-sm" style={{ backgroundColor: primaryColor }}>{org.name}</div>
           }
-          <span className={`font-bold text-sm hidden sm:block transition-colors ${scrolled ? 'text-gray-800' : 'text-white'}`}>{org.name}</span>
+          {tagline && (
+            <div className="hidden lg:block border-r border-gray-200 pr-3 mr-1">
+              <p className="text-[11px] text-gray-400 leading-tight max-w-[180px]">{tagline}</p>
+            </div>
+          )}
         </div>
 
         {/* Desktop nav */}
-        <nav className="hidden md:flex items-center gap-6" aria-label="ניווט ראשי">
-          {[{ label: 'אודות', href: '#about' }, { label: 'תורמים', href: '#donors' }, { label: 'קבוצות', href: '#groups' }].map(l => (
+        <nav className="hidden md:flex items-center gap-5" aria-label="ניווט ראשי">
+          {NAV_LINKS.map(l => (
             <a key={l.href} href={l.href}
-              className={`text-sm font-medium transition-colors hover:opacity-80 ${scrolled ? 'text-gray-700' : 'text-white/90'}`}>
+              className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
               {l.label}
             </a>
           ))}
         </nav>
 
-        {/* Right actions */}
-        <div className="flex items-center gap-2">
+        {/* Actions */}
+        <div className="flex items-center gap-2 shrink-0">
           <button
-            aria-label="שתף"
             onClick={() => navigator.share?.({ title: campaign.title, url: window.location.href }) ?? navigator.clipboard.writeText(window.location.href)}
-            className={`hidden sm:flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-full border transition-all ${
-              scrolled ? 'border-gray-200 text-gray-600 hover:bg-gray-50' : 'border-white/40 text-white hover:bg-white/10'
-            }`}
+            className="hidden sm:flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-full border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all"
           >
             <Share2 className="w-3.5 h-3.5" />
-            שתף
+            שיתוף
           </button>
           <a href={`/${campaign.slug}/donate`}
-            className="text-sm font-bold px-4 py-2 rounded-full text-white shadow-md hover:opacity-90 transition-all"
+            className="flex items-center gap-1.5 text-sm font-bold px-4 py-2 rounded-full text-white shadow-md hover:opacity-90 transition-all"
             style={{ backgroundColor: primaryColor }}>
-            לתרומה
+            <Heart className="w-3.5 h-3.5" />
+            לתרומה עכשיו
           </a>
-          {/* Mobile hamburger */}
           <button
             className="md:hidden p-1.5"
             aria-label={menuOpen ? 'סגור תפריט' : 'פתח תפריט'}
             onClick={() => setMenuOpen(v => !v)}
           >
-            {menuOpen
-              ? <X className={`w-5 h-5 ${scrolled ? 'text-gray-700' : 'text-white'}`} />
-              : <Menu className={`w-5 h-5 ${scrolled ? 'text-gray-700' : 'text-white'}`} />
-            }
+            {menuOpen ? <X className="w-5 h-5 text-gray-700" /> : <Menu className="w-5 h-5 text-gray-700" />}
           </button>
         </div>
       </div>
 
-      {/* Mobile menu */}
       {menuOpen && (
         <nav className="md:hidden bg-white border-t shadow-lg px-4 py-4 space-y-3" aria-label="תפריט נייד">
-          {[{ label: 'אודות', href: '#about' }, { label: 'תורמים', href: '#donors' }, { label: 'קבוצות', href: '#groups' }].map(l => (
+          {NAV_LINKS.map(l => (
             <a key={l.href} href={l.href} onClick={() => setMenuOpen(false)}
               className="block text-sm font-medium text-gray-700 py-1.5">{l.label}</a>
           ))}
@@ -125,63 +121,55 @@ function StickyHeader({ org, campaign, primaryColor }: { org: Org; campaign: Cam
   )
 }
 
-function HeroSection({ campaign, org, primaryColor, countdown }: {
-  campaign: Campaign; org: Org; primaryColor: string
+function HeroSection({ campaign, primaryColor, countdown }: {
+  campaign: Campaign; primaryColor: string
   countdown: { d: number; h: number; m: number; s: number } | null
 }) {
-  const logoSrc = campaign.logo_url || org.logo_url
-  const settings = campaign.settings as { about_text?: string | null }
-  const tagline = settings?.about_text?.split('\n')[0] ?? ''
-
   return (
-    <section
-      className="relative h-[42vh] min-h-[280px] max-h-[480px] flex flex-col justify-end overflow-hidden"
-      aria-label="Hero"
-    >
-      {/* Background */}
-      {campaign.cover_image_url
-        ? <img src={campaign.cover_image_url} alt="" aria-hidden className="absolute inset-0 w-full h-full object-cover" loading="eager" />
-        : <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${primaryColor} 0%, ${primaryColor}cc 100%)` }} />
-      }
-      {/* Gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/10 to-black/70" />
-
-      {/* Content */}
-      <div className="relative z-10 max-w-6xl mx-auto px-4 pt-16 pb-8 md:pb-12 text-white text-center">
-        {logoSrc && (
-          <img src={logoSrc} alt={org.name}
-            className="w-16 h-16 md:w-20 md:h-20 rounded-full border-4 border-white/30 object-cover mx-auto mb-3 shadow-2xl" />
-        )}
-        <h1 className="text-3xl md:text-4xl font-black leading-tight mb-2 drop-shadow-lg">
-          {campaign.title}
-        </h1>
-        <p className="text-base text-white/80 max-w-xl mx-auto mb-1">{org.name}</p>
-        {tagline && (
-          <p className="text-sm text-white/70 max-w-lg mx-auto mb-4 italic">"{tagline}"</p>
-        )}
-
-        {/* Countdown */}
-        {countdown && (
-          <div className="inline-flex items-center gap-3 bg-white/15 backdrop-blur rounded-xl px-4 py-2.5 mb-4 border border-white/20">
-            {[{ val: countdown.d, label: 'ימים' }, { val: countdown.h, label: 'שעות' }, { val: countdown.m, label: 'דקות' }, { val: countdown.s, label: 'שניות' }].map((item, i) => (
-              <div key={item.label} className="flex items-center gap-3">
-                {i > 0 && <span className="text-white/40 text-base font-bold">:</span>}
-                <div className="text-center">
-                  <div className="text-xl md:text-2xl font-black tabular-nums">{String(item.val).padStart(2, '0')}</div>
-                  <div className="text-[9px] text-white/60 uppercase tracking-wider">{item.label}</div>
-                </div>
-              </div>
-            ))}
+    <section className="w-full overflow-hidden" aria-label="באנר קמפיין">
+      {campaign.cover_image_url ? (
+        <img
+          src={campaign.cover_image_url}
+          alt={campaign.title}
+          className="w-full object-cover max-h-[500px]"
+          loading="eager"
+        />
+      ) : (
+        <div
+          className="w-full flex flex-col items-center justify-center gap-3 py-20 border-2 border-dashed border-gray-200 bg-gray-50"
+          style={{ minHeight: 260 }}
+        >
+          <div className="text-gray-300">
+            <svg className="w-16 h-16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/>
+              <path strokeLinecap="round" d="M21 15l-5-5L5 21"/>
+            </svg>
           </div>
-        )}
+          <p className="text-gray-400 font-medium text-sm">אזור הבאנר של הקמפיין</p>
+          <p className="text-gray-300 text-xs">כאן יופיע הבאנר / ויזואל של הקמפיין</p>
+        </div>
+      )}
 
-        <a href={`/${campaign.slug}/donate`}
-          className="inline-block px-7 py-3 rounded-full text-white font-black text-base shadow-xl hover:scale-105 active:scale-95 transition-transform"
-          style={{ backgroundColor: primaryColor }}>
-          לתרומה עכשיו →
-        </a>
-
-      </div>
+      {/* Countdown — מתחת לבאנר אם קיים */}
+      {countdown && (
+        <div className="bg-white border-b border-gray-100 py-3 px-4">
+          <div className="max-w-md mx-auto flex items-center justify-center gap-4">
+            <span className="text-sm text-gray-500 font-medium">נותר:</span>
+            <div className="flex items-center gap-3">
+              {[{ val: countdown.d, label: 'ימים' }, { val: countdown.h, label: 'שעות' }, { val: countdown.m, label: 'דקות' }, { val: countdown.s, label: 'שניות' }].map((item, i) => (
+                <div key={item.label} className="flex items-center gap-3">
+                  {i > 0 && <span className="text-gray-300 font-bold">:</span>}
+                  <div className="text-center">
+                    <div className="text-xl font-black tabular-nums text-gray-800">{String(item.val).padStart(2, '0')}</div>
+                    <div className="text-[9px] text-gray-400 uppercase tracking-wider">{item.label}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   )
 }
@@ -707,7 +695,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
       <StickyHeader org={org} campaign={campaign} primaryColor={primaryColor} />
 
       {/* 2. Hero */}
-      <HeroSection campaign={campaign} org={org} primaryColor={primaryColor} countdown={countdown} />
+      <HeroSection campaign={campaign} primaryColor={primaryColor} countdown={countdown} />
 
       {/* 3. Donation Plans */}
       <DonationPlans plans={donationPlans} primaryColor={primaryColor} campaignSlug={campaign.slug} groups={groups} />
