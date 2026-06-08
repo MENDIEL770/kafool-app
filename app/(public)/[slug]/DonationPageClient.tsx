@@ -135,7 +135,7 @@ function HeroSection({ campaign, org, primaryColor, countdown }: {
 
   return (
     <section
-      className="relative min-h-screen flex flex-col justify-end overflow-hidden"
+      className="relative h-[42vh] min-h-[280px] max-h-[480px] flex flex-col justify-end overflow-hidden"
       aria-label="Hero"
     >
       {/* Background */}
@@ -144,31 +144,31 @@ function HeroSection({ campaign, org, primaryColor, countdown }: {
         : <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${primaryColor} 0%, ${primaryColor}cc 100%)` }} />
       }
       {/* Gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/20 to-black/80" />
+      <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/10 to-black/70" />
 
       {/* Content */}
-      <div className="relative z-10 max-w-6xl mx-auto px-4 pt-28 pb-16 md:pb-24 text-white text-center">
+      <div className="relative z-10 max-w-6xl mx-auto px-4 pt-16 pb-8 md:pb-12 text-white text-center">
         {logoSrc && (
           <img src={logoSrc} alt={org.name}
-            className="w-24 h-24 md:w-32 md:h-32 rounded-full border-4 border-white/30 object-cover mx-auto mb-6 shadow-2xl" />
+            className="w-16 h-16 md:w-20 md:h-20 rounded-full border-4 border-white/30 object-cover mx-auto mb-3 shadow-2xl" />
         )}
-        <h1 className="text-4xl md:text-6xl font-black leading-tight mb-4 drop-shadow-lg">
+        <h1 className="text-3xl md:text-4xl font-black leading-tight mb-2 drop-shadow-lg">
           {campaign.title}
         </h1>
-        <p className="text-lg md:text-xl text-white/80 max-w-xl mx-auto mb-2">{org.name}</p>
+        <p className="text-base text-white/80 max-w-xl mx-auto mb-1">{org.name}</p>
         {tagline && (
-          <p className="text-base text-white/70 max-w-lg mx-auto mb-8 italic">"{tagline}"</p>
+          <p className="text-sm text-white/70 max-w-lg mx-auto mb-4 italic">"{tagline}"</p>
         )}
 
         {/* Countdown */}
         {countdown && (
-          <div className="inline-flex items-center gap-4 bg-white/15 backdrop-blur rounded-2xl px-6 py-4 mb-8 border border-white/20">
+          <div className="inline-flex items-center gap-3 bg-white/15 backdrop-blur rounded-xl px-4 py-2.5 mb-4 border border-white/20">
             {[{ val: countdown.d, label: 'ימים' }, { val: countdown.h, label: 'שעות' }, { val: countdown.m, label: 'דקות' }, { val: countdown.s, label: 'שניות' }].map((item, i) => (
-              <div key={item.label} className="flex items-center gap-4">
-                {i > 0 && <span className="text-white/40 text-xl font-bold">:</span>}
+              <div key={item.label} className="flex items-center gap-3">
+                {i > 0 && <span className="text-white/40 text-base font-bold">:</span>}
                 <div className="text-center">
-                  <div className="text-3xl md:text-4xl font-black tabular-nums">{String(item.val).padStart(2, '0')}</div>
-                  <div className="text-[10px] text-white/60 uppercase tracking-wider">{item.label}</div>
+                  <div className="text-xl md:text-2xl font-black tabular-nums">{String(item.val).padStart(2, '0')}</div>
+                  <div className="text-[9px] text-white/60 uppercase tracking-wider">{item.label}</div>
                 </div>
               </div>
             ))}
@@ -176,15 +176,11 @@ function HeroSection({ campaign, org, primaryColor, countdown }: {
         )}
 
         <a href={`/${campaign.slug}/donate`}
-          className="inline-block px-10 py-4 rounded-full text-white font-black text-lg shadow-2xl hover:scale-105 active:scale-95 transition-transform"
+          className="inline-block px-7 py-3 rounded-full text-white font-black text-base shadow-xl hover:scale-105 active:scale-95 transition-transform"
           style={{ backgroundColor: primaryColor }}>
           לתרומה עכשיו →
         </a>
 
-        {/* Scroll indicator */}
-        <div className="mt-12 flex justify-center animate-bounce">
-          <ChevronDown className="w-6 h-6 text-white/60" />
-        </div>
       </div>
     </section>
   )
