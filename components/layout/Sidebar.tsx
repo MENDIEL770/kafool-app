@@ -42,7 +42,8 @@ const navItems = [
 ]
 
 const settingsItems = [
-  { href: '/settings/payment', label: 'הגדרות סליקה', icon: CreditCard },
+  { href: '/settings/kesher', label: 'חיבור קשר', icon: CreditCard },
+  { href: '/settings/payment', label: 'הגדרות סליקה ישנות', icon: CreditCard },
   { href: '/settings', label: 'הגדרות', icon: Settings },
 ]
 
