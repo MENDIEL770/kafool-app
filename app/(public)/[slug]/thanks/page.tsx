@@ -33,18 +33,17 @@ export default async function ThanksPage({
   const primaryColor = (campaign.settings as { primary_color?: string })?.primary_color || '#2563eb'
   const receiptUrl = sp.receipturl || sp.receipt_url || sp.receiptUrl || sp.receiptLink || null
 
-  // קשר שולח פרמטרים ב-successurl — נעדכן את הסכום כאן
-  const total = Number(sp.total ?? sp.Sum ?? 0)
+  // קשר שולח total באגורות (100 = ₪1)
+  const totalAgorot = Number(sp.total ?? sp.Sum ?? 0)
+  const totalShekels = totalAgorot / 100
   const transactionNumber = sp.transactionNumber || sp.NumTransaction || null
-  const kesherStatus = Number(sp.KesherStatus ?? sp.status ?? 0)
-  const SUCCESS_CODES = [4, 11]
-  const isSuccess = SUCCESS_CODES.includes(kesherStatus) || (total > 0 && !sp.errorCode)
+  const isSuccess = totalAgorot > 0 && !sp.errorCode && transactionNumber
 
-  if (isSuccess && total > 0 && transactionNumber) {
+  if (isSuccess) {
     const { createServiceClient } = await import('@/lib/supabase/server')
     const supabaseService = await createServiceClient()
 
-    // בדוק שהעסקה לא קיימת כבר
+    // בדוק שהעסקה לא קיימת כבר (idempotency)
     const { data: existing } = await supabaseService
       .from('donations')
       .select('id')
@@ -52,21 +51,20 @@ export default async function ThanksPage({
       .single()
 
     if (!existing) {
-      const donorName = sp.ReceiptName || null
       await supabaseService.from('donations').insert({
         campaign_id: campaign.id,
         org_id: campaign.org_id,
-        amount: total,
-        donor_name: donorName,
+        amount: totalShekels,
+        donor_name: null, // יתעדכן מ-localStorage בצד הלקוח
         kesher_transaction_id: transactionNumber,
         payment_status: 'completed',
         kesher_raw: sp,
       })
       await supabaseService.rpc('increment_campaign_amount', {
         campaign_id: campaign.id,
-        amount_agorot: Math.round(total * 100),
+        amount_agorot: totalAgorot,
       })
-      console.log(`✅ Thanks page: recorded ₪${total} donation for campaign ${campaign.id}`)
+      console.log(`✅ Thanks page: ₪${totalShekels} for campaign ${campaign.id}`)
     }
   }
 

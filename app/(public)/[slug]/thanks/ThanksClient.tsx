@@ -14,6 +14,15 @@ interface Props {
 export default function ThanksClient({ slug, orgName, campaignTitle, primaryColor, receiptUrl }: Props) {
   const router = useRouter()
   const [seconds, setSeconds] = useState(10)
+  const [donorName, setDonorName] = useState<string | null>(null)
+
+  useEffect(() => {
+    const name = localStorage.getItem('kafool_donor_name')
+    if (name) {
+      setDonorName(name)
+      localStorage.removeItem('kafool_donor_name')
+    }
+  }, [])
 
   function goToCampaign() {
     const url = `/${slug}`
@@ -54,6 +63,7 @@ export default function ThanksClient({ slug, orgName, campaignTitle, primaryColo
         <div>
           <h1 className="text-3xl font-black text-gray-900 mb-2">תודה רבה!</h1>
           <p className="text-gray-500 text-lg">תרומתך התקבלה בהצלחה</p>
+          {donorName && <p className="text-gray-700 font-bold mt-1">{donorName}</p>}
           {orgName && <p className="text-gray-400 text-sm mt-1">{orgName}</p>}
         </div>
 
