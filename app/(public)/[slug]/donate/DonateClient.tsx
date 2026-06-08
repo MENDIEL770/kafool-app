@@ -62,6 +62,9 @@ export default function DonateClient({
     if (form.dedication) params.set('comment', form.dedication)
     if (groupSlug) params.set('group', groupSlug)
 
+    const origin = typeof window !== 'undefined' ? window.location.origin : ''
+    params.set('successurl', `${origin}/${campaign.slug}/thanks`)
+
     const separator = donationUrl.includes('?') ? '&' : '?'
     return `${donationUrl}${separator}${params.toString()}`
   }
