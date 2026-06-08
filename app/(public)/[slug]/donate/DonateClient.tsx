@@ -48,32 +48,7 @@ export default function DonateClient({
   }
 
   function buildPaymentUrl(): string {
-    const params = new URLSearchParams()
-    if (finalAmount) params.set('total', String(finalAmount))
-
-    if (!form.anonymous) {
-      if (form.firstName) params.set('firstname', form.firstName)
-      if (form.lastName) params.set('lastname', form.lastName)
-      if (form.phone) params.set('tel', form.phone)
-      if (form.email) params.set('mail', form.email)
-    }
-
-    params.set('lang', 'Hebrew')
-
-    const addActionData = [
-      campaign.id,
-      groupSlug || '',
-      callerId || '',
-      form.dedication ? encodeURIComponent(form.dedication) : '',
-    ].join('|')
-    params.set('addactiondata', addActionData)
-
-    const origin = typeof window !== 'undefined' ? window.location.origin : ''
-    params.set('successurl', `${origin}/${campaign.slug}/thanks`)
-    params.set('failedurl', `${origin}/${campaign.slug}/donate?error=1`)
-
-    const separator = donationUrl.includes('?') ? '&' : '?'
-    return `${donationUrl}${separator}${params.toString()}`
+    return donationUrl
   }
 
   // Payment not configured
