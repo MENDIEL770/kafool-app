@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { encryptPassword, decryptPassword } from '@/lib/kesher/client'
+import { encryptPassword, decryptPassword } from '@/lib/kesher/crypto'
 import { Check, Eye, EyeOff, Info } from 'lucide-react'
 
 export default function KesherSettingsPage() {

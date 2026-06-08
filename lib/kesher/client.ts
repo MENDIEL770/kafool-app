@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+export { encryptPassword, decryptPassword } from './crypto'
 
 /* ─── Types ─── */
 export interface KesherCredentials {
@@ -27,25 +28,8 @@ export interface GetLinkTokenResponse {
   iframeUrl: string
 }
 
-/* ─── Encryption helpers ─── */
-const ENC_KEY = process.env.KESHER_ENCRYPTION_KEY || 'kafool-default-key-32chars-padded'
-
-export function encryptPassword(plain: string): string {
-  // Simple base64 + key XOR — in production use AES-GCM via crypto.subtle
-  const key = ENC_KEY.slice(0, 32).padEnd(32, '0')
-  const buf = Buffer.from(plain, 'utf8')
-  const keyBuf = Buffer.from(key, 'utf8')
-  const xored = buf.map((b, i) => b ^ keyBuf[i % keyBuf.length])
-  return Buffer.from(xored).toString('base64')
-}
-
-export function decryptPassword(encrypted: string): string {
-  const key = ENC_KEY.slice(0, 32).padEnd(32, '0')
-  const buf = Buffer.from(encrypted, 'base64')
-  const keyBuf = Buffer.from(key, 'utf8')
-  const xored = buf.map((b, i) => b ^ keyBuf[i % keyBuf.length])
-  return Buffer.from(xored).toString('utf8')
-}
+/* ─── Encryption (re-exported from crypto.ts) ─── */
+import { decryptPassword } from './crypto'
 
 /* ─── Get credentials from DB ─── */
 export async function getKesherCredentials(campaignId: string): Promise<KesherCredentials | null> {
