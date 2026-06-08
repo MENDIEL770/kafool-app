@@ -65,6 +65,19 @@ export default async function ThanksPage({
         amount_agorot: totalAgorot,
       })
       console.log(`✅ Thanks page: ₪${totalShekels} for campaign ${campaign.id}`)
+
+      // הפעל SMS automations (fire & forget)
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://kafool.com'
+      fetch(`${baseUrl}/api/sms/trigger`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          campaign_id: campaign.id,
+          amount: totalShekels,
+          donor_phone: null, // יתעדכן מ-localStorage בצד הלקוח
+          donor_name: null,
+        }),
+      }).catch(() => {})
     }
   }
 
