@@ -25,7 +25,7 @@ function BannerSlider({ banners }: { banners: string[] }) {
   if (!banners.length) return null
 
   return (
-    <div className="relative w-full overflow-hidden" style={{ maxHeight: 420 }}>
+    <div className="relative w-full overflow-hidden">
       {banners.map((url, i) => (
         <img
           key={url}
@@ -33,7 +33,12 @@ function BannerSlider({ banners }: { banners: string[] }) {
           alt=""
           aria-hidden
           className="w-full object-cover transition-opacity duration-700"
-          style={{ opacity: i === idx ? 1 : 0, position: i === 0 ? 'relative' : 'absolute', top: 0, left: 0, maxHeight: 420 }}
+          style={{
+            opacity: i === idx ? 1 : 0,
+            position: i === 0 ? 'relative' : 'absolute',
+            top: 0, left: 0,
+            maxHeight: 480,
+          }}
           loading={i === 0 ? 'eager' : 'lazy'}
         />
       ))}
@@ -80,9 +85,10 @@ export default function GroupPageClient({ org, campaign, group, donations: initi
 
   return (
     <div className="min-h-screen bg-gray-50" dir="rtl">
-      {/* Header */}
+
+      {/* ── Sticky header ── */}
       <header className="bg-white border-b border-gray-100 sticky top-0 z-40">
-        <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
+        <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
           <a href={`/${campaign.slug}`} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors">
             <ArrowRight className="w-4 h-4" />
             חזרה לקמפיין
@@ -97,114 +103,118 @@ export default function GroupPageClient({ org, campaign, group, donations: initi
         </div>
       </header>
 
-      {/* Group name above banner */}
-      <div className="bg-white border-b border-gray-100 py-5 px-4 text-center">
-        <h1 className="text-3xl font-black text-gray-900">{group.name}</h1>
-        {group.manager_name && (
-          <p className="text-sm text-gray-400 mt-1">מגייס: {group.manager_name}</p>
-        )}
-      </div>
-
-      {/* Campaign banner */}
-      {banners.length > 0 && <BannerSlider banners={banners} />}
-
-      <div className="max-w-2xl mx-auto px-4 py-6 space-y-5">
-
-        {/* Stats card */}
-        <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 space-y-4">
-          {group.description && (
-            <p className="text-sm text-gray-600 leading-relaxed text-center">{group.description}</p>
-          )}
-
-          <div className="text-center">
-            <div className="text-4xl font-black tabular-nums" style={{ color: primaryColor }}>
-              ₪{raisedAmount.toLocaleString('he-IL')}
-            </div>
-            <div className="text-sm text-gray-400 mt-0.5">
-              מתוך יעד ₪{group.goal_amount.toLocaleString('he-IL')}
-            </div>
-          </div>
+      {/* ── Stats strip — above banner ── */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-5xl mx-auto px-4 py-4 space-y-3">
 
           {/* Progress bar */}
-          <div>
-            <div className="h-4 bg-gray-100 rounded-full overflow-hidden shadow-inner">
-              <div
-                className="h-full rounded-full relative overflow-hidden"
-                style={{
-                  width: `${animPct}%`,
-                  backgroundColor: primaryColor,
-                  transition: 'width 1.6s cubic-bezier(0.4,0,0.2,1)',
-                }}
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse" />
+          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all duration-1000"
+              style={{ width: `${animPct}%`, backgroundColor: primaryColor }}
+            />
+          </div>
+
+          {/* Row: group name + stats + donate */}
+          <div className="flex items-center gap-4 flex-wrap">
+
+            {/* Group name */}
+            <div className="flex-1 min-w-0">
+              <h1 className="text-xl font-black text-gray-900 truncate">{group.name}</h1>
+              {group.manager_name && (
+                <p className="text-xs text-gray-400 mt-0.5">מגייס: {group.manager_name}</p>
+              )}
+            </div>
+
+            {/* Amount raised */}
+            <div className="text-center shrink-0">
+              <div className="text-2xl font-black tabular-nums" style={{ color: primaryColor }}>
+                ₪{raisedAmount.toLocaleString('he-IL')}
+              </div>
+              <div className="text-[11px] text-gray-400">
+                מתוך ₪{group.goal_amount.toLocaleString('he-IL')} יעד
               </div>
             </div>
-            <div className="flex justify-between text-xs text-gray-400 mt-1">
-              <span>{pct}% הושלם</span>
-              {group.goal_amount > raisedAmount
-                ? <span>נותר ₪{(group.goal_amount - raisedAmount).toLocaleString('he-IL')}</span>
-                : <span className="font-bold" style={{ color: primaryColor }}>היעד הושג! 🎉</span>
-              }
-            </div>
-          </div>
 
-          {/* Stats pill */}
-          <div className="flex justify-center">
-            <div className="flex items-center gap-1.5 bg-gray-50 rounded-2xl px-4 py-2 border border-gray-100">
-              <span className="text-base font-black text-gray-800">{donations.length}</span>
-              <span className="text-sm text-gray-400">תורמים</span>
-              <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse mr-2" />
+            {/* Donors count */}
+            <div className="text-center shrink-0">
+              <div className="text-2xl font-black text-gray-700 tabular-nums">{donations.length}</div>
+              <div className="text-[11px] text-gray-400">תורמים</div>
             </div>
+
+            {/* Donate button */}
+            <a
+              href={`/${campaign.slug}/donate?group=${group.id}`}
+              className="shrink-0 px-6 py-2.5 rounded-full text-white font-black text-sm shadow hover:opacity-90 active:scale-95 transition-all"
+              style={{ backgroundColor: primaryColor }}
+            >
+              תרום
+            </a>
           </div>
         </div>
+      </div>
 
-        {/* Donate button */}
-        <a
-          href={`/${campaign.slug}/donate?group=${group.id}`}
-          className="block w-full py-4 rounded-2xl text-white font-black text-base text-center shadow-lg hover:opacity-90 active:scale-95 transition-all"
-          style={{ backgroundColor: primaryColor }}
-        >
-          תרום לקבוצה זו →
-        </a>
+      {/* ── Campaign banner ── */}
+      {banners.length > 0
+        ? <BannerSlider banners={banners} />
+        : (
+          <div className="w-full bg-gray-100 flex items-center justify-center" style={{ minHeight: 200 }}>
+            <p className="text-gray-300 text-sm">אין באנר</p>
+          </div>
+        )
+      }
 
-        {/* Donors */}
+      {/* ── Content ── */}
+      <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
+
+        {group.description && (
+          <p className="text-sm text-gray-600 leading-relaxed text-center bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+            {group.description}
+          </p>
+        )}
+
+        {/* Donors list */}
         {donations.length > 0 && (
           <div className="space-y-3">
             <h2 className="text-lg font-black text-gray-900">תורמי הקבוצה</h2>
-            {donations.map(d => (
-              <article
-                key={d.id}
-                className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex gap-3"
-              >
-                <div
-                  className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0"
-                  style={{ backgroundColor: primaryColor }}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {donations.map(d => (
+                <article
+                  key={d.id}
+                  className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex gap-3"
                 >
-                  {(d.donor_name || 'א')[0]}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="font-bold text-sm text-gray-800">{d.donor_name || 'אנונימי'}</span>
-                    <span className="font-black text-sm shrink-0" style={{ color: primaryColor }}>₪{d.amount.toLocaleString()}</span>
+                  <div
+                    className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0"
+                    style={{ backgroundColor: primaryColor }}
+                  >
+                    {(d.donor_name || 'א')[0]}
                   </div>
-                  {d.dedication && (
-                    <p className="text-xs text-gray-600 mt-1 bg-gray-50 rounded-lg px-2 py-1 border-r-2 leading-relaxed" style={{ borderColor: primaryColor }}>
-                      {d.dedication}
-                    </p>
-                  )}
-                  <time className="text-[11px] text-gray-300 mt-1 block" dateTime={d.created_at}>
-                    {new Date(d.created_at).toLocaleDateString('he-IL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                  </time>
-                </div>
-                <button
-                  onClick={() => setLiked(s => { const n = new Set(s); n.has(d.id) ? n.delete(d.id) : n.add(d.id); return n })}
-                  className="self-start pt-0.5 transition-colors"
-                  style={{ color: liked.has(d.id) ? '#ef4444' : '#d1d5db' }}
-                >
-                  <Heart className={`w-4 h-4 ${liked.has(d.id) ? 'fill-red-500' : ''}`} />
-                </button>
-              </article>
-            ))}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="font-bold text-sm text-gray-800 truncate">{d.donor_name || 'אנונימי'}</span>
+                      <span className="font-black text-sm shrink-0" style={{ color: primaryColor }}>
+                        ₪{d.amount.toLocaleString()}
+                      </span>
+                    </div>
+                    {d.dedication && (
+                      <p className="text-xs text-gray-600 mt-1 bg-gray-50 rounded-lg px-2 py-1 border-r-2 leading-relaxed" style={{ borderColor: primaryColor }}>
+                        {d.dedication}
+                      </p>
+                    )}
+                    <time className="text-[11px] text-gray-300 mt-1 block" dateTime={d.created_at}>
+                      {new Date(d.created_at).toLocaleDateString('he-IL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    </time>
+                  </div>
+                  <button
+                    onClick={() => setLiked(s => { const n = new Set(s); n.has(d.id) ? n.delete(d.id) : n.add(d.id); return n })}
+                    className="self-start pt-0.5 transition-colors"
+                    style={{ color: liked.has(d.id) ? '#ef4444' : '#d1d5db' }}
+                  >
+                    <Heart className={`w-4 h-4 ${liked.has(d.id) ? 'fill-red-500' : ''}`} />
+                  </button>
+                </article>
+              ))}
+            </div>
           </div>
         )}
 
@@ -215,6 +225,27 @@ export default function GroupPageClient({ org, campaign, group, donations: initi
           </div>
         )}
       </div>
+
+      {/* ── Floating donate bar ── */}
+      <div className="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur border-t border-gray-200 shadow-2xl">
+        <div className="max-w-lg mx-auto flex gap-2 px-4 py-3">
+          <a
+            href={`/${campaign.slug}/donate?group=${group.id}`}
+            className="flex-[2] py-3 text-white font-black text-sm text-center rounded-full shadow-md hover:opacity-90 active:scale-95 transition-all"
+            style={{ backgroundColor: primaryColor }}
+          >
+            לתרומה
+          </a>
+          <button
+            onClick={() => navigator.share?.({ title: group.name, url: window.location.href }) ?? navigator.clipboard.writeText(window.location.href)}
+            className="flex-1 py-3 border-2 font-bold text-sm rounded-full transition-colors hover:bg-gray-50"
+            style={{ borderColor: primaryColor, color: primaryColor }}
+          >
+            שתף
+          </button>
+        </div>
+      </div>
+      <div className="h-20" />
     </div>
   )
 }
