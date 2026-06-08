@@ -68,6 +68,9 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
               🌐 פתח דף גיוס
             </Link>
           )}
+          <Link href={`/campaigns/${id}/donors`} className={buttonVariants({ variant: 'outline' })}>
+            👥 תורמים
+          </Link>
           <Link href={`/campaigns/${id}/media`} className={buttonVariants({ variant: 'outline' })}>
             🖼️ מדיה
           </Link>
