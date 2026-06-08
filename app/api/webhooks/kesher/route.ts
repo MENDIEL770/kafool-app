@@ -17,6 +17,14 @@ export async function POST(req: NextRequest) {
 
   try {
     // Kesher שולח flat JSON — לא nested תחת Transaction
+    // סנן רק עסקאות מדפי התשלום שמוגדרים בקמפיינים שלנו
+    const paymentPageNum = String(body?.PaymentPageNum ?? body?.ProjectNumber ?? '')
+    const ALLOWED_PAGES = (process.env.KESHER_ALLOWED_PAGES || '').split(',').map(s => s.trim()).filter(Boolean)
+    if (ALLOWED_PAGES.length > 0 && paymentPageNum && !ALLOWED_PAGES.includes(paymentPageNum)) {
+      console.log(`Kesher webhook: ignoring page ${paymentPageNum} (not in allowed list)`)
+      return NextResponse.json({ ok: true })
+    }
+
     const kesherStatus = Number(body?.KesherStatus ?? 0)
     const isSuccess = SUCCESS_CODES.includes(kesherStatus)
 
