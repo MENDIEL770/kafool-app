@@ -37,7 +37,6 @@ export default async function ThanksPage({
   // קשר שולח total באגורות (100 = ₪1)
   const totalAgorot = Number(sp.total ?? sp.Sum ?? 0)
   const totalShekels = totalAgorot / 100
-  const transactionNumber = sp.transactionNumber || sp.NumTransaction || null
   const isSuccess = totalAgorot > 0 && !sp.errorCode && !!transactionNumber
 
   if (isSuccess) {
