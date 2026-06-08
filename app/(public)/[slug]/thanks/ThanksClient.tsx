@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 
 interface Props {
   slug: string
@@ -9,24 +10,46 @@ interface Props {
   campaignTitle: string
   primaryColor: string
   receiptUrl: string | null
+  transactionNumber: string | null
 }
 
-export default function ThanksClient({ slug, orgName, campaignTitle, primaryColor, receiptUrl }: Props) {
+export default function ThanksClient({ slug, orgName, campaignTitle, primaryColor, receiptUrl, transactionNumber }: Props) {
   const router = useRouter()
   const [seconds, setSeconds] = useState(10)
   const [donorName, setDonorName] = useState<string | null>(null)
+  const [receipt, setReceipt] = useState<string | null>(receiptUrl)
 
   useEffect(() => {
-    const name = localStorage.getItem('kafool_donor_name')
-    if (name) {
-      setDonorName(name)
-      localStorage.removeItem('kafool_donor_name')
+    // קרא פרטי תורם מ-localStorage ועדכן ב-DB
+    const raw = localStorage.getItem('kafool_donor')
+    if (raw) {
+      try {
+        const donor = JSON.parse(raw)
+        if (!donor.anonymous && donor.name) setDonorName(donor.name)
+        localStorage.removeItem('kafool_donor')
+
+        // עדכן donation ב-DB עם פרטי התורם
+        if (transactionNumber) {
+          const supabase = createClient()
+          supabase
+            .from('donations')
+            .update({
+              donor_name: donor.anonymous ? null : donor.name || null,
+              donor_phone: donor.phone || null,
+              donor_email: donor.email || null,
+              dedication: donor.dedication || null,
+            })
+            .eq('kesher_transaction_id', transactionNumber)
+            .then(({ error }) => {
+              if (error) console.error('Failed to update donor details:', error)
+            })
+        }
+      } catch {}
     }
-  }, [])
+  }, [transactionNumber])
 
   function goToCampaign() {
     const url = `/${slug}`
-    // אם אנחנו בתוך iframe — צא לדף האב
     if (typeof window !== 'undefined' && window.self !== window.top) {
       window.top!.location.href = url
     } else {
@@ -37,11 +60,7 @@ export default function ThanksClient({ slug, orgName, campaignTitle, primaryColo
   useEffect(() => {
     const t = setInterval(() => {
       setSeconds(s => {
-        if (s <= 1) {
-          clearInterval(t)
-          goToCampaign()
-          return 0
-        }
+        if (s <= 1) { clearInterval(t); goToCampaign(); return 0 }
         return s - 1
       })
     }, 1000)
@@ -51,7 +70,6 @@ export default function ThanksClient({ slug, orgName, campaignTitle, primaryColo
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4" dir="rtl">
       <div className="text-center space-y-6 max-w-md w-full">
-        {/* Icon */}
         <div
           className="w-24 h-24 rounded-full flex items-center justify-center text-5xl mx-auto shadow-lg"
           style={{ backgroundColor: primaryColor + '20' }}
@@ -59,7 +77,6 @@ export default function ThanksClient({ slug, orgName, campaignTitle, primaryColo
           🙏
         </div>
 
-        {/* Title */}
         <div>
           <h1 className="text-3xl font-black text-gray-900 mb-2">תודה רבה!</h1>
           <p className="text-gray-500 text-lg">תרומתך התקבלה בהצלחה</p>
@@ -67,17 +84,15 @@ export default function ThanksClient({ slug, orgName, campaignTitle, primaryColo
           {orgName && <p className="text-gray-400 text-sm mt-1">{orgName}</p>}
         </div>
 
-        {/* Card */}
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-4">
           <p className="text-gray-600 text-sm leading-relaxed">
             קבלה תישלח לאימייל שלך בקרוב.
             <br />
             תרומתך תשנה חיים.
           </p>
-
-          {receiptUrl && (
+          {(receipt) && (
             <a
-              href={receiptUrl}
+              href={receipt}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center justify-center gap-2 w-full py-3 rounded-xl border-2 font-bold text-sm transition-colors hover:bg-gray-50"
@@ -89,7 +104,6 @@ export default function ThanksClient({ slug, orgName, campaignTitle, primaryColo
           )}
         </div>
 
-        {/* Back button + countdown */}
         <div className="space-y-2">
           <button
             onClick={goToCampaign}
@@ -98,9 +112,7 @@ export default function ThanksClient({ slug, orgName, campaignTitle, primaryColo
           >
             חזרה לדף הקמפיין
           </button>
-          <p className="text-gray-400 text-xs">
-            חוזר אוטומטית בעוד {seconds} שניות...
-          </p>
+          <p className="text-gray-400 text-xs">חוזר אוטומטית בעוד {seconds} שניות...</p>
         </div>
       </div>
     </div>

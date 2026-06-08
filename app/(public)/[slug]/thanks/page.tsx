@@ -31,7 +31,8 @@ export default async function ThanksPage({
   if (!org) notFound()
 
   const primaryColor = (campaign.settings as { primary_color?: string })?.primary_color || '#2563eb'
-  const receiptUrl = sp.receipturl || sp.receipt_url || sp.receiptUrl || sp.receiptLink || null
+  const receiptUrl = sp.receiptLink || sp.receipturl || sp.receipt_url || sp.receiptUrl || null
+  const transactionNumber = sp.transactionNumber || sp.NumTransaction || null
 
   // קשר שולח total באגורות (100 = ₪1)
   const totalAgorot = Number(sp.total ?? sp.Sum ?? 0)
@@ -75,6 +76,7 @@ export default async function ThanksPage({
       campaignTitle={campaign.title}
       primaryColor={primaryColor}
       receiptUrl={receiptUrl}
+      transactionNumber={transactionNumber}
     />
   )
 }

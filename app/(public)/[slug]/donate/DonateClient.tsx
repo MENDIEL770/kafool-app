@@ -239,9 +239,14 @@ export default function DonateClient({
               </button>
               <button
                 onClick={() => {
-                  // שמור שם תורם ל-localStorage לשימוש בדף תודה
-                  const name = [form.firstName, form.lastName].filter(Boolean).join(' ')
-                  if (name) localStorage.setItem('kafool_donor_name', name)
+                  // שמור פרטי תורם ל-localStorage לשימוש בדף תודה
+                  localStorage.setItem('kafool_donor', JSON.stringify({
+                    name: [form.firstName, form.lastName].filter(Boolean).join(' ') || null,
+                    phone: form.phone || null,
+                    email: form.email || null,
+                    dedication: form.dedication || null,
+                    anonymous: form.anonymous,
+                  }))
                   setStep('payment')
                 }}
                 className="flex-[2] py-3 rounded-xl font-bold text-white text-sm transition-opacity hover:opacity-90"
