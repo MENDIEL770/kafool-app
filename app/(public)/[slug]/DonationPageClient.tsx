@@ -14,9 +14,12 @@ interface Props { org: Org; campaign: Campaign; donations: Donation[]; groups: G
 /* ─── Helpers ─── */
 function getVideoEmbed(url: string): string | null {
   const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/)
-  if (yt) return `https://www.youtube.com/embed/${yt[1]}?rel=0`
+  if (yt) return `https://www.youtube.com/embed/${yt[1]}?rel=0&autoplay=1`
   const vi = url.match(/vimeo\.com\/(\d+)/)
-  if (vi) return `https://player.vimeo.com/video/${vi[1]}`
+  if (vi) return `https://player.vimeo.com/video/${vi[1]}?autoplay=1`
+  // Google Drive: /file/d/FILE_ID/view → embed
+  const gd = url.match(/drive\.google\.com\/(?:file\/d\/|open\?id=)([^/?&]+)/)
+  if (gd) return `https://drive.google.com/file/d/${gd[1]}/preview`
   return null
 }
 
@@ -121,6 +124,43 @@ function StickyHeader({ org, campaign, primaryColor }: { org: Org; campaign: Cam
   )
 }
 
+function VideoModal({ embedUrl, onClose }: { embedUrl: string; onClose: () => void }) {
+  useEffect(() => {
+    const fn = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    window.addEventListener('keydown', fn)
+    return () => window.removeEventListener('keydown', fn)
+  }, [onClose])
+
+  return (
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="relative w-full max-w-3xl rounded-2xl overflow-hidden shadow-2xl bg-black"
+        onClick={e => e.stopPropagation()}
+      >
+        <button
+          onClick={onClose}
+          className="absolute top-3 left-3 z-10 w-9 h-9 rounded-full bg-black/60 flex items-center justify-center text-white hover:bg-black/80 transition-colors"
+          aria-label="סגור וידאו"
+        >
+          <X className="w-5 h-5" />
+        </button>
+        <div className="aspect-video">
+          <iframe
+            src={embedUrl}
+            className="w-full h-full"
+            allowFullScreen
+            allow="autoplay; accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            title="וידאו"
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function HeroSection({ campaign, countdown }: {
   campaign: Campaign
   countdown: { d: number; h: number; m: number; s: number } | null
@@ -131,6 +171,9 @@ function HeroSection({ campaign, countdown }: {
     : campaign.cover_image_url ? [campaign.cover_image_url] : []
 
   const [idx, setIdx] = useState(0)
+  const [videoOpen, setVideoOpen] = useState(false)
+  const videoEmbed = campaign.video_url ? getVideoEmbed(campaign.video_url) : null
+
   useEffect(() => {
     if (banners.length <= 1) return
     const t = setInterval(() => setIdx(i => (i + 1) % banners.length), 4000)
@@ -138,63 +181,94 @@ function HeroSection({ campaign, countdown }: {
   }, [banners.length])
 
   return (
-    <section className="w-full" aria-label="באנר קמפיין">
-      {banners.length > 0 ? (
-        <div className="relative overflow-hidden">
-          {banners.map((url, i) => (
-            <img
-              key={url}
-              src={url}
-              alt=""
-              aria-hidden
-              className="w-full object-cover max-h-[500px] absolute top-0 left-0 transition-opacity duration-700"
-              style={{ opacity: i === idx ? 1 : 0, position: i === 0 ? 'relative' : 'absolute' }}
-              loading={i === 0 ? 'eager' : 'lazy'}
-            />
-          ))}
-          {/* נקודות ניווט */}
-          {banners.length > 1 && (
-            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
-              {banners.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => setIdx(i)}
-                  className={`transition-all rounded-full ${i === idx ? 'w-5 h-2 bg-white' : 'w-2 h-2 bg-white/50'}`}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="w-full flex flex-col items-center justify-center gap-3 py-20 border-2 border-dashed border-gray-200 bg-gray-50" style={{ minHeight: 260 }}>
-          <svg className="w-16 h-16 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
-            <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
-            <path strokeLinecap="round" d="M21 15l-5-5L5 21"/>
-          </svg>
-          <p className="text-gray-400 font-medium text-sm">אזור הבאנר של הקמפיין</p>
-          <p className="text-gray-300 text-xs">העלה באנרים בהגדרות הקמפיין</p>
-        </div>
-      )}
+    <>
+      <section className="w-full" aria-label="באנר קמפיין">
+        {banners.length > 0 ? (
+          <div className="relative overflow-hidden">
+            {banners.map((url, i) => (
+              <img
+                key={url}
+                src={url}
+                alt=""
+                aria-hidden
+                className="w-full object-cover max-h-[500px] absolute top-0 left-0 transition-opacity duration-700"
+                style={{ opacity: i === idx ? 1 : 0, position: i === 0 ? 'relative' : 'absolute' }}
+                loading={i === 0 ? 'eager' : 'lazy'}
+              />
+            ))}
 
-      {countdown && (
-        <div className="bg-white border-b border-gray-100 py-3 px-4">
-          <div className="max-w-md mx-auto flex items-center justify-center gap-4">
-            <span className="text-sm text-gray-500 font-medium">נותר:</span>
-            <div className="flex items-center gap-3">
-              {[{ val: countdown.d, label: 'ימים' }, { val: countdown.h, label: 'שעות' }, { val: countdown.m, label: 'דקות' }, { val: countdown.s, label: 'שניות' }].map((item, i) => (
-                <div key={item.label} className="flex items-center gap-3">
-                  {i > 0 && <span className="text-gray-300 font-bold">:</span>}
-                  <div className="text-center">
-                    <div className="text-xl font-black tabular-nums text-gray-800">{String(item.val).padStart(2, '0')}</div>
-                    <div className="text-[9px] text-gray-400 uppercase tracking-wider">{item.label}</div>
-                  </div>
+            {/* כפתור פלאי צף */}
+            {videoEmbed && (
+              <button
+                onClick={() => setVideoOpen(true)}
+                className="absolute inset-0 flex items-center justify-center z-10 group"
+                aria-label="הפעל וידאו"
+              >
+                <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow-2xl transition-all duration-200 group-hover:scale-110 group-hover:bg-white group-active:scale-95">
+                  <svg className="w-7 h-7 md:w-9 md:h-9 text-gray-900 translate-x-0.5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7z"/>
+                  </svg>
                 </div>
-              ))}
+              </button>
+            )}
+
+            {/* נקודות ניווט */}
+            {banners.length > 1 && (
+              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
+                {banners.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setIdx(i)}
+                    className={`transition-all rounded-full ${i === idx ? 'w-5 h-2 bg-white' : 'w-2 h-2 bg-white/50'}`}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="w-full relative flex flex-col items-center justify-center gap-3 py-20 border-2 border-dashed border-gray-200 bg-gray-50" style={{ minHeight: 260 }}>
+            <svg className="w-16 h-16 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+              <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+              <path strokeLinecap="round" d="M21 15l-5-5L5 21"/>
+            </svg>
+            <p className="text-gray-400 font-medium text-sm">אזור הבאנר של הקמפיין</p>
+            <p className="text-gray-300 text-xs">העלה באנרים בהגדרות הקמפיין</p>
+            {videoEmbed && (
+              <button
+                onClick={() => setVideoOpen(true)}
+                className="mt-2 flex items-center gap-2 px-4 py-2 rounded-full bg-gray-800 text-white text-sm font-bold hover:bg-gray-700 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                צפה בוידאו
+              </button>
+            )}
+          </div>
+        )}
+
+        {countdown && (
+          <div className="bg-white border-b border-gray-100 py-3 px-4">
+            <div className="max-w-md mx-auto flex items-center justify-center gap-4">
+              <span className="text-sm text-gray-500 font-medium">נותר:</span>
+              <div className="flex items-center gap-3">
+                {[{ val: countdown.d, label: 'ימים' }, { val: countdown.h, label: 'שעות' }, { val: countdown.m, label: 'דקות' }, { val: countdown.s, label: 'שניות' }].map((item, i) => (
+                  <div key={item.label} className="flex items-center gap-3">
+                    {i > 0 && <span className="text-gray-300 font-bold">:</span>}
+                    <div className="text-center">
+                      <div className="text-xl font-black tabular-nums text-gray-800">{String(item.val).padStart(2, '0')}</div>
+                      <div className="text-[9px] text-gray-400 uppercase tracking-wider">{item.label}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
+        )}
+      </section>
+
+      {videoOpen && videoEmbed && (
+        <VideoModal embedUrl={videoEmbed} onClose={() => setVideoOpen(false)} />
       )}
-    </section>
+    </>
   )
 }
 
