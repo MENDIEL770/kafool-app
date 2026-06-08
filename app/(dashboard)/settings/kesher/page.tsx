@@ -30,7 +30,8 @@ export default function KesherSettingsPage() {
       if (!profile?.org_id) return
       setOrgId(profile.org_id)
 
-      const base = process.env.NEXT_PUBLIC_BASE_URL || window.location.origin
+      const rawBase = process.env.NEXT_PUBLIC_BASE_URL || window.location.origin
+      const base = rawBase.replace(/^http:/, 'https:')
       setWebhookUrl(`${base}/api/webhooks/kesher`)
 
       const { data: conn } = await supabase

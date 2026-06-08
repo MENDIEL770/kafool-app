@@ -1,10 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { buttonVariants } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import CampaignStatusToggle from './CampaignStatusToggle'
 
 export default async function CampaignPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -17,12 +14,6 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
     .single()
 
   if (!campaign) notFound()
-
-  const { data: org } = await supabase
-    .from('organizations')
-    .select('slug')
-    .eq('id', campaign.org_id)
-    .single()
 
   const [{ data: donations }, { count: donationCount }] = await Promise.all([
     supabase
@@ -50,39 +41,6 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <h1 className="text-2xl font-bold text-gray-900">{campaign.title}</h1>
-            <Badge variant={campaign.status === 'active' ? 'default' : 'secondary'}>
-              {campaign.status === 'active' ? 'פעיל' : campaign.status === 'draft' ? 'טיוטה' : 'הסתיים'}
-            </Badge>
-          </div>
-          <div className="text-sm text-gray-400">kafool.com/{campaign.slug}</div>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <CampaignStatusToggle campaignId={id} currentStatus={campaign.status} />
-          {org?.slug && (
-            <Link href={`/${org.slug}`} target="_blank" className={buttonVariants({ variant: 'outline' })}>
-              🌐 פתח דף גיוס
-            </Link>
-          )}
-          <Link href={`/campaigns/${id}/donors`} className={buttonVariants({ variant: 'outline' })}>
-            👥 תורמים
-          </Link>
-          <Link href={`/campaigns/${id}/media`} className={buttonVariants({ variant: 'outline' })}>
-            🖼️ מדיה
-          </Link>
-          <Link href={`/campaigns/${id}/settings`} className={buttonVariants({ variant: 'outline' })}>
-            הגדרות
-          </Link>
-          <Link href={`/campaigns/${id}/builder`} className={buttonVariants({ variant: 'outline' })}>
-            🎨 עורך תבנית
-          </Link>
-        </div>
-      </div>
-
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
