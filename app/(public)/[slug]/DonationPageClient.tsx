@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import type { Campaign, Group } from '@/types'
 import { Search, Share2, Heart, Menu, X, ChevronDown, Globe } from 'lucide-react'
 import DonationModal from './DonationModal'
+import CreateGroupModal from './CreateGroupModal'
 
 /* ─── Types ─── */
 interface Org { id: string; name: string; slug: string; logo_url: string | null }
@@ -491,7 +492,7 @@ function ProgressSection({ raised, goal, donorsCount, primaryColor }: { raised: 
 type SortBy = 'recent' | 'amount_desc' | 'amount_asc'
 type CommunityTab = 'donors' | 'groups' | 'communities'
 
-function CommunitySection({ donations, groups, primaryColor, campaignSlug }: { donations: Donation[]; groups: Group[]; primaryColor: string; campaignSlug: string }) {
+function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCreateGroup }: { donations: Donation[]; groups: Group[]; primaryColor: string; campaignSlug: string; onCreateGroup: () => void }) {
   const [tab, setTab] = useState<CommunityTab>('donors')
   const [search, setSearch] = useState('')
   const [sortBy, setSortBy] = useState<SortBy>('recent')
@@ -646,35 +647,49 @@ function CommunitySection({ donations, groups, primaryColor, campaignSlug }: { d
 
         {/* ── Groups Tab ── */}
         {tab === 'groups' && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="space-y-4">
+            <button
+              onClick={onCreateGroup}
+              className="w-full py-3 rounded-2xl font-bold text-sm border-2 border-dashed transition-all hover:opacity-80"
+              style={{ borderColor: primaryColor, color: primaryColor }}
+            >
+              + פתח קבוצת גיוס משלך
+            </button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {groups.map(g => {
               const pct = g.goal_amount > 0 ? Math.min(100, Math.round((g.raised_amount / g.goal_amount) * 100)) : 0
               return (
                 <a
                   key={g.id}
                   href={`/${campaignSlug}/g/${g.slug}`}
-                  className="block bg-white rounded-3xl p-5 shadow-sm border border-gray-100 hover:shadow-md hover:-translate-y-0.5 transition-all"
+                  className="block bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-md hover:-translate-y-0.5 transition-all"
                 >
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <h3 className="font-bold text-gray-800">{g.name}</h3>
-                      {g.manager_name && <p className="text-xs text-gray-400 mt-0.5">{g.manager_name}</p>}
+                  {g.image_url && (
+                    <img src={g.image_url} alt="" className="w-full h-28 object-cover" />
+                  )}
+                  <div className="p-5">
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <h3 className="font-bold text-gray-800">{g.name}</h3>
+                        {g.manager_name && <p className="text-xs text-gray-400 mt-0.5">{g.manager_name}</p>}
+                      </div>
+                      <span className="text-xs font-bold px-2 py-1 rounded-full text-white" style={{ backgroundColor: primaryColor }}>{pct}%</span>
                     </div>
-                    <span className="text-xs font-bold px-2 py-1 rounded-full text-white" style={{ backgroundColor: primaryColor }}>{pct}%</span>
-                  </div>
-                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-2">
-                    <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: primaryColor }} />
-                  </div>
-                  <div className="flex justify-between text-xs text-gray-400">
-                    <span>₪{(g.raised_amount || 0).toLocaleString()} גויס</span>
-                    <span>יעד ₪{(g.goal_amount || 0).toLocaleString()}</span>
-                  </div>
-                  <div className="mt-3 text-xs font-semibold text-center py-1.5 rounded-xl" style={{ color: primaryColor, backgroundColor: `${primaryColor}15` }}>
-                    פתח עמוד קבוצה ←
+                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-2">
+                      <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: primaryColor }} />
+                    </div>
+                    <div className="flex justify-between text-xs text-gray-400">
+                      <span>₪{(g.raised_amount || 0).toLocaleString()} גויס</span>
+                      <span>יעד ₪{(g.goal_amount || 0).toLocaleString()}</span>
+                    </div>
+                    <div className="mt-3 text-xs font-semibold text-center py-1.5 rounded-xl" style={{ color: primaryColor, backgroundColor: `${primaryColor}15` }}>
+                      פתח עמוד קבוצה ←
+                    </div>
                   </div>
                 </a>
               )
             })}
+            </div>
           </div>
         )}
       </div>
@@ -780,6 +795,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
   const [modalOpen, setModalOpen] = useState(false)
   const [modalAmount, setModalAmount] = useState<number | undefined>()
   const [modalGroupSlug, setModalGroupSlug] = useState<string | undefined>()
+  const [createGroupOpen, setCreateGroupOpen] = useState(false)
   const countdownEnd = (campaign.settings as { countdown_end?: string })?.countdown_end || campaign.end_at
   const countdown = useCountdown(countdownEnd)
 
@@ -907,7 +923,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
             </div>
             {/* שמאל — תורמים */}
             <div className="flex-1 min-w-0">
-              <CommunitySection donations={donations} groups={groups} primaryColor={primaryColor} campaignSlug={campaign.slug} />
+              <CommunitySection donations={donations} groups={groups} primaryColor={primaryColor} campaignSlug={campaign.slug} onCreateGroup={() => setCreateGroupOpen(true)} />
             </div>
           </div>
         </div>
@@ -931,6 +947,13 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
       )}
 
       <FloatingBar campaign={campaign} primaryColor={primaryColor} buttonRadius={buttonRadius} onDonate={() => openDonate()} />
+
+      <CreateGroupModal
+        isOpen={createGroupOpen}
+        onClose={() => setCreateGroupOpen(false)}
+        campaignId={campaign.id}
+        primaryColor={primaryColor}
+      />
 
       <DonationModal
         isOpen={modalOpen}

@@ -86,6 +86,7 @@ export interface Group {
   raised_amount: number
   manager_name: string | null
   manager_phone: string | null
+  image_url: string | null
   created_at: string
 }
 

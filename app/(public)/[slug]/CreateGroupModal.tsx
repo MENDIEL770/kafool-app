@@ -1,0 +1,193 @@
+'use client'
+
+import { useState } from 'react'
+import { X, Upload, Check, Loader2, ExternalLink } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
+
+interface Props {
+  isOpen: boolean
+  onClose: () => void
+  campaignId: string
+  primaryColor: string
+}
+
+export default function CreateGroupModal({ isOpen, onClose, campaignId, primaryColor }: Props) {
+  const [form, setForm] = useState({
+    name: '', managerName: '', managerPhone: '', goalAmount: '', imageUrl: '',
+  })
+  const [uploading, setUploading] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [result, setResult] = useState<{ groupUrl: string; name: string } | null>(null)
+  const [error, setError] = useState('')
+
+  function set(k: string, v: string) { setForm(p => ({ ...p, [k]: v })) }
+
+  async function uploadImage(file: File) {
+    setUploading(true)
+    const supabase = createClient()
+    const ext = file.name.split('.').pop()
+    const path = `groups/public/${Date.now()}.${ext}`
+    const { error } = await supabase.storage.from('campaign-media').upload(path, file, { upsert: true })
+    if (!error) {
+      const { data: { publicUrl } } = supabase.storage.from('campaign-media').getPublicUrl(path)
+      set('imageUrl', publicUrl)
+    }
+    setUploading(false)
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setSubmitting(true)
+    setError('')
+    try {
+      const res = await fetch('/api/groups/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          campaignId,
+          name: form.name,
+          managerName: form.managerName,
+          managerPhone: form.managerPhone,
+          goalAmount: form.goalAmount,
+          imageUrl: form.imageUrl,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setError(data.error || 'שגיאה'); return }
+      setResult({ groupUrl: data.groupUrl, name: form.name })
+    } catch {
+      setError('שגיאת רשת')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  function handleClose() {
+    setForm({ name: '', managerName: '', managerPhone: '', goalAmount: '', imageUrl: '' })
+    setResult(null)
+    setError('')
+    onClose()
+  }
+
+  if (!isOpen) return null
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center" dir="rtl">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={handleClose} />
+      <div className="relative w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl z-10 max-h-[92vh] flex flex-col">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-gray-100 shrink-0">
+          <div>
+            <h2 className="font-black text-gray-900 text-lg">פתח קבוצת גיוס</h2>
+            <p className="text-xs text-gray-400 mt-0.5">צור קבוצה ושתף עם חברים ומשפחה</p>
+          </div>
+          <button onClick={handleClose} className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors">
+            <X className="w-4 h-4 text-gray-600" />
+          </button>
+        </div>
+
+        <div className="overflow-y-auto flex-1 px-5 py-5">
+          {result ? (
+            /* Success state */
+            <div className="text-center space-y-5 py-4">
+              <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto text-white text-3xl shadow-lg"
+                style={{ backgroundColor: primaryColor }}>
+                ✓
+              </div>
+              <div>
+                <h3 className="font-black text-xl text-gray-900">הקבוצה נוצרה!</h3>
+                <p className="text-sm text-gray-500 mt-1">נשלח SMS עם הקישור למספר שהוזן</p>
+              </div>
+              <div className="bg-gray-50 rounded-2xl p-4 space-y-2">
+                <p className="text-xs text-gray-500">הקישור לקבוצה שלך:</p>
+                <p className="text-sm font-mono text-blue-600 break-all">{result.groupUrl}</p>
+                <a href={result.groupUrl} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold mt-2 px-4 py-2 rounded-xl text-white transition-colors"
+                  style={{ backgroundColor: primaryColor }}>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  פתח עמוד הקבוצה
+                </a>
+              </div>
+              <button onClick={handleClose} className="w-full py-3 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
+                סגור
+              </button>
+            </div>
+          ) : (
+            /* Form */
+            <form onSubmit={handleSubmit} className="space-y-4">
+
+              {/* Image upload */}
+              <div className="flex justify-center">
+                <label className="relative cursor-pointer">
+                  <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-dashed border-gray-300 hover:border-gray-400 flex items-center justify-center bg-gray-50 transition-colors"
+                    style={form.imageUrl ? { borderColor: primaryColor, borderStyle: 'solid' } : {}}>
+                    {form.imageUrl ? (
+                      <img src={form.imageUrl} alt="" className="w-full h-full object-cover" />
+                    ) : uploading ? (
+                      <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+                    ) : (
+                      <div className="text-center">
+                        <Upload className="w-5 h-5 text-gray-400 mx-auto" />
+                        <p className="text-[10px] text-gray-400 mt-1">תמונה</p>
+                      </div>
+                    )}
+                  </div>
+                  <input type="file" accept="image/*" className="hidden"
+                    onChange={e => e.target.files?.[0] && uploadImage(e.target.files[0])} />
+                </label>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-gray-600">שם הקבוצה *</label>
+                <input value={form.name} onChange={e => set('name', e.target.value)} required
+                  placeholder="משפחת כהן / חברי שיר..."
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-400" />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-gray-600">שם מנהל הקבוצה</label>
+                <input value={form.managerName} onChange={e => set('managerName', e.target.value)}
+                  placeholder="ישראל ישראלי"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-400" />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-gray-600">
+                  טלפון *
+                  <span className="text-gray-400 font-normal mr-1">(ישלח SMS עם הקישור)</span>
+                </label>
+                <input type="tel" value={form.managerPhone} onChange={e => set('managerPhone', e.target.value)} required
+                  dir="ltr" placeholder="050-0000000"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-400" />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-gray-600">יעד גיוס (₪) — אופציונלי</label>
+                <input type="number" value={form.goalAmount} onChange={e => set('goalAmount', e.target.value)}
+                  dir="ltr" placeholder="5000" min="0"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-400" />
+              </div>
+
+              {error && (
+                <div className="bg-red-50 border border-red-200 rounded-xl px-3 py-2.5 text-sm text-red-600 text-center">
+                  {error}
+                </div>
+              )}
+
+              <button type="submit" disabled={submitting}
+                className="w-full py-3.5 rounded-xl font-black text-white text-sm disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                style={{ backgroundColor: primaryColor }}>
+                {submitting ? <><Loader2 className="w-4 h-4 animate-spin" /> יוצר...</> : <><Check className="w-4 h-4" /> צור קבוצה</>}
+              </button>
+
+              <p className="text-center text-xs text-gray-400">
+                לאחר יצירת הקבוצה תקבל SMS עם הקישור האישי שלך
+              </p>
+            </form>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
