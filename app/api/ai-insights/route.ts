@@ -15,19 +15,27 @@ export async function POST(request: NextRequest) {
     const [{ data: campaigns }, { data: donations }, { data: callers }] = await Promise.all([
       supabase.from('campaigns').select('id, title, goal_amount, raised_amount, status').eq('org_id', org_id).eq('status', 'active'),
       supabase.from('donations').select('amount, donor_name, created_at, caller_id').eq('org_id', org_id).eq('payment_status', 'completed').gte('created_at', today),
-      supabase.from('callers').select('total_donated, total_called, profiles(full_name)').eq('org_id', org_id).order('total_donated', { ascending: false }).limit(5),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      supabase.from('callers').select('total_donated, total_called, profiles(full_name)').eq('org_id', org_id).order('total_donated', { ascending: false }).limit(5) as any,
     ])
 
-    const totalToday = donations?.reduce((s, d) => s + (d.amount || 0), 0) || 0
+    const totalToday = donations?.reduce((s: number, d: {amount: number}) => s + (d.amount || 0), 0) || 0
     const campaign = campaigns?.[0]
     const pct = campaign ? Math.round((campaign.raised_amount / campaign.goal_amount) * 100) : 0
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const callerNames = (callers as any[])?.map((c: any) => {
+      const profiles = c.profiles
+      const name = Array.isArray(profiles) ? profiles[0]?.full_name : profiles?.full_name
+      return `${name || 'טלפן'}: ₪${Number(c.total_donated || 0).toLocaleString()}`
+    }).join(', ') || ''
 
     const prompt = `נתוני יום גיוס של ארגון:
 קמפיין פעיל: ${campaign?.title || 'אין'}
 יעד: ₪${campaign?.goal_amount?.toLocaleString() || 0}
 גויס עד כה: ₪${campaign?.raised_amount?.toLocaleString() || 0} (${pct}%)
 תרומות היום: ${donations?.length || 0} תרומות על סך ₪${totalToday.toLocaleString()}
-טלפנים מובילים: ${callers?.map((c: { profiles: unknown; total_donated: unknown }) => { const p = c.profiles as { full_name?: string } | null; const name = Array.isArray(p) ? (p[0] as { full_name?: string })?.full_name : p?.full_name; return `${name || 'טלפן'}: ₪${Number(c.total_donated || 0).toLocaleString()}` }).join(', ')}
+טלפנים מובילים: ${callerNames}
 
 ספק:
 1. סיכום קצר של היום (2-3 משפטים)
