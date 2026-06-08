@@ -459,14 +459,6 @@ function ProgressSection({ raised, goal, donorsCount, primaryColor }: { raised: 
           </div>
         </div>
 
-        {/* Stats — תורמים בלבד, קטן */}
-        <div className="flex justify-center pt-1">
-          <div className="flex items-center gap-1.5 bg-white rounded-2xl px-5 py-2.5 shadow-sm border border-gray-100">
-            <span className="text-lg font-black text-gray-800">{donorsCount.toLocaleString()}</span>
-            <span className="text-sm text-gray-400">תורמים</span>
-          </div>
-        </div>
-
       </div>
     </section>
   )
