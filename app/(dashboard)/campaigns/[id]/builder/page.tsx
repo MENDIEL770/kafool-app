@@ -127,22 +127,220 @@ function SortableBlockRow({ block, selected, onSelect, onToggle }: {
   )
 }
 
-/* ─── Preview Strip ─── */
-function PreviewStrip({ block, onEdit }: { block: Block; onEdit: () => void }) {
-  return (
-    <div className={`relative flex items-center gap-3 px-4 py-3 bg-white rounded-xl border border-gray-100 shadow-sm group border-r-4 ${BORDER_COLOR_MAP[block.color]}`}>
-      <span className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${COLOR_MAP[block.color]}`}>
-        {ICON_MAP[block.iconName]}
-      </span>
-      <span className="flex-1 text-sm font-medium text-gray-700">{block.label}</span>
-      <span className="text-[11px] px-2 py-0.5 rounded-full bg-green-50 text-green-700 font-medium">גלוי</span>
+/* ─── Block Preview — realistic renders ─── */
+function BlockPreview({ block, data, design, onEdit }: {
+  block: Block; data: BlockData; design: DesignSettings; onEdit: () => void
+}) {
+  const p = design.primary
+  const r = { none: 'rounded-none', md: 'rounded-xl', full: 'rounded-full' }[design.radius]
+
+  const Wrapper = ({ children }: { children: React.ReactNode }) => (
+    <div className="relative group">
+      {children}
       <button
         onClick={onEdit}
-        className="opacity-0 group-hover:opacity-100 absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-all"
+        className="opacity-0 group-hover:opacity-100 absolute top-2 left-2 z-10 text-xs font-semibold px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-all shadow-lg"
       >
-        ערוך
+        ✏️ ערוך
       </button>
     </div>
+  )
+
+  if (block.id === 'hero') return (
+    <Wrapper>
+      <div className="relative h-48 rounded-2xl overflow-hidden flex flex-col items-center justify-center text-white text-center px-6"
+        style={{ background: `linear-gradient(135deg, ${p}ee, ${p}88)` }}>
+        <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 30% 40%, white 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
+        <h1 className="text-2xl font-black drop-shadow relative z-10">{(data.title as string) || 'כותרת הקמפיין'}</h1>
+        <p className="text-sm text-white/80 mt-1 relative z-10">{(data.subtitle as string) || 'תיאור קצר של הקמפיין שלך'}</p>
+        <button className={`mt-4 px-6 py-2 bg-white font-bold text-sm relative z-10 ${r}`} style={{ color: p }}>
+          {(data.btnText as string) || 'לתרומה עכשיו →'}
+        </button>
+      </div>
+    </Wrapper>
+  )
+
+  if (block.id === 'goal') return (
+    <Wrapper>
+      <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+        <div className="text-center mb-4">
+          <div className="text-3xl font-black" style={{ color: p }}>₪48,200</div>
+          <div className="text-sm text-gray-400">גויסו מתוך יעד ₪{((data.goal as number) || 100000).toLocaleString()}</div>
+        </div>
+        <div className="h-4 bg-gray-100 rounded-full overflow-hidden mb-2">
+          <div className="h-full rounded-full" style={{ width: '48%', backgroundColor: p }} />
+        </div>
+        <div className="flex justify-between text-xs text-gray-400"><span>48% הושלם</span><span>נותר ₪51,800</span></div>
+      </div>
+    </Wrapper>
+  )
+
+  if (block.id === 'amounts') {
+    const amounts = [180, 360, 720, 1800, 3600]
+    return (
+      <Wrapper>
+        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+          <p className="text-sm font-bold text-gray-600 text-center mb-4">בחר סכום תרומה</p>
+          <div className="flex gap-3 justify-center flex-wrap">
+            {amounts.map((a, i) => (
+              <div key={a} className={`flex flex-col items-center gap-1.5`}>
+                <div className="w-16 h-16 rounded-full flex items-center justify-center text-white font-black text-sm shadow-sm"
+                  style={{ background: i === 1 ? p : `${p}55` }}>
+                  ₪{a >= 1000 ? `${a/1000}k` : a}
+                </div>
+                <span className="text-xs text-gray-500">₪{a.toLocaleString()}</span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 flex gap-2 justify-center">
+            <button className={`px-8 py-2.5 text-white font-bold text-sm ${r}`} style={{ backgroundColor: p }}>תרום</button>
+            <button className={`px-6 py-2.5 border-2 font-bold text-sm ${r}`} style={{ borderColor: p, color: p }}>שתף</button>
+          </div>
+        </div>
+      </Wrapper>
+    )
+  }
+
+  if (block.id === 'impact') return (
+    <Wrapper>
+      <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+        <p className="text-base font-black text-gray-800 text-center mb-4">ההשפעה שלכם</p>
+        <div className="grid grid-cols-2 gap-3">
+          {[['❤️', '₪180', 'ארוחה חמה ליום'], ['📚', '₪360', 'ספרי לימוד לחודש'], ['🏠', '₪720', 'סיוע בשכר דירה'], ['✨', '₪1,800', 'שנה של תמיכה']].map(([icon, amt, desc]) => (
+            <div key={desc} className="text-center p-3 rounded-xl bg-gray-50 border border-gray-100">
+              <div className="text-2xl mb-1">{icon}</div>
+              <div className="font-black text-sm" style={{ color: p }}>{amt}</div>
+              <div className="text-xs text-gray-500 mt-0.5">{desc}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </Wrapper>
+  )
+
+  if (block.id === 'video') return (
+    <Wrapper>
+      <div className="relative bg-gray-900 rounded-2xl overflow-hidden aspect-video flex items-center justify-center">
+        <div className="absolute inset-0 opacity-30" style={{ background: `linear-gradient(135deg, ${p}, transparent)` }} />
+        <div className="w-16 h-16 rounded-full bg-white/90 flex items-center justify-center shadow-xl">
+          <Play className="w-7 h-7 text-gray-900 translate-x-0.5" fill="currentColor" />
+        </div>
+        {!!data.title && <p className="absolute bottom-4 text-white text-sm font-bold">{String(data.title)}</p>}
+      </div>
+    </Wrapper>
+  )
+
+  if (block.id === 'donors') return (
+    <Wrapper>
+      <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+        <p className="text-base font-black text-gray-800 mb-4">תורמים אחרונים</p>
+        <div className="space-y-2">
+          {[['ישראל כהן', '₪360', 'לעילוי נשמת אמי'], ['שרה לוי', '₪180', ''], ['משה ברוך', '₪720', 'לרפואת כל חולי ישראל']].map(([name, amt, ded]) => (
+            <div key={name} className="flex items-center gap-3 p-2.5 rounded-xl border border-gray-50 bg-gray-50/50">
+              <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0" style={{ backgroundColor: p }}>{name[0]}</div>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-bold text-gray-800">{name}</div>
+                {ded && <div className="text-xs text-gray-500 truncate">{ded}</div>}
+              </div>
+              <div className="font-black text-sm shrink-0" style={{ color: p }}>{amt}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </Wrapper>
+  )
+
+  if (block.id === 'stats') return (
+    <Wrapper>
+      <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+        <div className="grid grid-cols-4 gap-3 text-center">
+          {[['1,240', 'תורמים'], ['₪48K', 'גויס'], ['94%', 'מהיעד'], ['12', 'ימים']].map(([n, l]) => (
+            <div key={l}><div className="text-xl font-black" style={{ color: p }}>{n}</div><div className="text-xs text-gray-400 mt-0.5">{l}</div></div>
+          ))}
+        </div>
+      </div>
+    </Wrapper>
+  )
+
+  if (block.id === 'testimonials') return (
+    <Wrapper>
+      <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+        <p className="text-base font-black text-gray-800 mb-4">מה אומרים עלינו</p>
+        <div className="grid grid-cols-2 gap-3">
+          {[['רחל גולד', 'תורמת', 'הארגון הזה שינה חיים'], ['אברהם כץ', 'מתנדב', 'חוויה מרגשת ומשמעותית']].map(([name, role, quote]) => (
+            <div key={name} className="p-3 rounded-xl bg-gray-50 border border-gray-100">
+              <p className="text-xs text-gray-600 mb-2 leading-relaxed">"{quote}"</p>
+              <div className="text-xs font-bold text-gray-800">{name}</div>
+              <div className="text-[11px] text-gray-400">{role}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </Wrapper>
+  )
+
+  if (block.id === 'faq') return (
+    <Wrapper>
+      <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+        <p className="text-base font-black text-gray-800 mb-3">שאלות ותשובות</p>
+        <div className="space-y-2">
+          {[['איך התרומה מגיעה ליעד?', 'כל תרומה מועברת ישירות לארגון ללא עמלות.'], ['האם יש קבלה?', 'כן, קבלה נשלחת למייל מיידית.']].map(([q, a]) => (
+            <div key={q} className="border border-gray-100 rounded-xl overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50">
+                <span className="text-sm font-semibold text-gray-800">{q}</span>
+                <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
+              </div>
+              <div className="px-4 py-2 text-xs text-gray-500">{a}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </Wrapper>
+  )
+
+  if (block.id === 'map') return (
+    <Wrapper>
+      <div className="rounded-2xl overflow-hidden border border-gray-100 shadow-sm h-36 bg-gray-100 flex items-center justify-center relative">
+        <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'repeating-linear-gradient(0deg,#aaa 0,#aaa 1px,transparent 1px,transparent 40px),repeating-linear-gradient(90deg,#aaa 0,#aaa 1px,transparent 1px,transparent 40px)' }} />
+        <div className="text-center relative z-10">
+          <MapPin className="w-8 h-8 mx-auto mb-1" style={{ color: p }} />
+          <p className="text-sm text-gray-600 font-medium">{(data.address as string) || 'כתובת הארגון'}</p>
+        </div>
+      </div>
+    </Wrapper>
+  )
+
+  if (block.id === 'cta') return (
+    <Wrapper>
+      <div className="rounded-2xl p-6 text-center text-white" style={{ backgroundColor: (data.bgColor as string) || p }}>
+        <h2 className="text-xl font-black mb-1">{(data.title as string) || 'הצטרף אלינו עכשיו'}</h2>
+        <p className="text-sm text-white/80 mb-4">{(data.subtitle as string) || 'יחד נשנה את העולם לטובה'}</p>
+        <button className={`px-8 py-2.5 bg-white font-bold text-sm ${r}`} style={{ color: (data.bgColor as string) || p }}>
+          {(data.btnText as string) || 'לתרומה'}
+        </button>
+      </div>
+    </Wrapper>
+  )
+
+  if (block.id === 'gallery') return (
+    <Wrapper>
+      <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+        <p className="text-base font-black text-gray-800 mb-3">גלריה</p>
+        <div className="grid grid-cols-3 gap-2">
+          {Array(6).fill(null).map((_, i) => (
+            <div key={i} className="aspect-square rounded-xl bg-gray-100 flex items-center justify-center text-gray-300">
+              <Images className="w-5 h-5" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </Wrapper>
+  )
+
+  return (
+    <Wrapper>
+      <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 text-center text-gray-400 text-sm">{block.label}</div>
+    </Wrapper>
   )
 }
 
@@ -546,7 +744,7 @@ export default function CampaignPageBuilder() {
               </div>
             ) : (
               activeBlocks.map(block => (
-                <PreviewStrip key={block.id} block={block} onEdit={() => setSelectedBlock(block.id)} />
+                <BlockPreview key={block.id} block={block} data={blockData[block.id] || {}} design={design} onEdit={() => setSelectedBlock(block.id)} />
               ))
             )}
             {activeBlocks.length > 0 && (
