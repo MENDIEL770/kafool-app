@@ -498,9 +498,9 @@ function CommunitySection({ donations, groups, primaryColor, campaignSlug }: { d
   const tabs = allTabs.filter(t => t.show)
 
   return (
-    <section id="donors" className="py-10 px-4 bg-white" aria-label="קהילת התורמים">
-      <div className="max-w-6xl mx-auto">
-        <h2 className="text-2xl font-black text-gray-900 mb-6 text-center">קהילת התורמים</h2>
+    <div id="donors">
+      <div>
+        <h2 className="text-2xl font-black text-gray-900 mb-6">קהילת התורמים</h2>
 
         {/* Tabs */}
         <div className="flex justify-center gap-1 mb-8">
@@ -662,7 +662,7 @@ function CommunitySection({ donations, groups, primaryColor, campaignSlug }: { d
           </div>
         )}
       </div>
-    </section>
+    </div>
   )
 }
 
@@ -681,9 +681,8 @@ function AboutSection({ campaign, gallery }: { campaign: Campaign; gallery: Gall
   if (!aboutText && !videoEmbed && gallery.length === 0) return null
 
   return (
-    <section id="about" className="py-10 px-4 bg-white border-t border-gray-100" aria-label="אודות הקמפיין">
-      <div className="max-w-3xl mx-auto space-y-6">
-        <h2 className="text-2xl font-black text-gray-900 text-center">אודות הקמפיין</h2>
+    <div className="space-y-6">
+      <h2 className="text-2xl font-black text-gray-900">אודות הקמפיין</h2>
 
         {gallery.length > 0 && (
           <div className="relative rounded-3xl overflow-hidden aspect-video shadow-md cursor-pointer" onClick={() => {}}>
@@ -717,8 +716,7 @@ function AboutSection({ campaign, gallery }: { campaign: Campaign; gallery: Gall
               title={`וידאו — ${campaign.title}`} />
           </div>
         )}
-      </div>
-    </section>
+    </div>
   )
 }
 
@@ -805,11 +803,21 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
       {/* 4. Progress */}
       <ProgressSection raised={raisedAmount} goal={campaign.goal_amount} donorsCount={donations.length} primaryColor={primaryColor} />
 
-      {/* 5. Community (donors + groups tabs) */}
-      <CommunitySection donations={donations} groups={groups} primaryColor={primaryColor} campaignSlug={campaign.slug} />
-
-      {/* 7. About */}
-      <AboutSection campaign={campaign} gallery={gallery} />
+      {/* 5+7. About (right) + Community (left) — two columns */}
+      <section className="py-10 px-4 bg-white border-t border-gray-100" id="about">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex flex-col lg:flex-row gap-10">
+            {/* ימין — אודות */}
+            <div className="lg:w-[45%] shrink-0">
+              <AboutSection campaign={campaign} gallery={gallery} />
+            </div>
+            {/* שמאל — תורמים */}
+            <div className="flex-1 min-w-0">
+              <CommunitySection donations={donations} groups={groups} primaryColor={primaryColor} campaignSlug={campaign.slug} />
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* 8. Floating bar */}
       <FloatingBar campaign={campaign} primaryColor={primaryColor} buttonRadius={buttonRadius} />
