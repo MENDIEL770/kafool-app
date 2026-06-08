@@ -36,6 +36,12 @@ export default async function DonatePage({
   const settings = campaign.settings as { donation_amounts?: number[]; primary_color?: string; donation_page_url?: string }
   const donationUrl = settings?.donation_page_url || org.kesher_page_url || ''
 
+  const { data: groups } = await supabase
+    .from('groups')
+    .select('id, name, slug')
+    .eq('campaign_id', campaign.id)
+    .order('name')
+
   return (
     <DonateClient
       org={org}
@@ -46,6 +52,7 @@ export default async function DonatePage({
       groupSlug={group}
       callerId={caller}
       paymentError={error === '1'}
+      groups={(groups || []) as { id: string; name: string; slug: string }[]}
     />
   )
 }

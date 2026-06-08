@@ -12,6 +12,7 @@ interface Props {
   groupSlug?: string
   callerId?: string
   paymentError?: boolean
+  groups?: { id: string; name: string; slug: string }[]
 }
 
 export default function DonateClient({
@@ -20,9 +21,10 @@ export default function DonateClient({
   settings,
   donationUrl,
   presetAmount,
-  groupSlug,
+  groupSlug: initialGroupSlug,
   callerId,
   paymentError,
+  groups = [],
 }: Props) {
   const primaryColor = settings?.primary_color || '#2563eb'
   const donationAmounts = settings?.donation_amounts || [180, 360, 720, 1800, 3600]
@@ -32,6 +34,7 @@ export default function DonateClient({
   )
   const [amount, setAmount] = useState(presetAmount || 0)
   const [customAmount, setCustomAmount] = useState('')
+  const [selectedGroupSlug, setSelectedGroupSlug] = useState(initialGroupSlug || '')
   const [form, setForm] = useState({
     firstName: '',
     lastName: '',
@@ -60,7 +63,7 @@ export default function DonateClient({
     }
 
     if (form.dedication) params.set('comment', form.dedication)
-    if (groupSlug) params.set('group', groupSlug)
+    if (selectedGroupSlug) params.set('group', selectedGroupSlug)
 
     // campaign ID — יחזור בwebhook כ-adddata
     params.set('addactiondata', campaign.id)
@@ -229,6 +232,24 @@ export default function DonateClient({
                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-400 resize-none"
               />
             </div>
+
+            {groups.length > 0 && (
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-gray-500">
+                  שיוך לקבוצה <span className="text-gray-300">(אופציונלי)</span>
+                </label>
+                <select
+                  value={selectedGroupSlug}
+                  onChange={e => setSelectedGroupSlug(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+                >
+                  <option value="">ללא קבוצה</option>
+                  {groups.map(g => (
+                    <option key={g.id} value={g.slug}>{g.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div className="flex gap-2 pt-1">
               <button
