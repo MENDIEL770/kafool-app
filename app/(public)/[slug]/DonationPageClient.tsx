@@ -782,7 +782,8 @@ function FloatingBar({ campaign, primaryColor, buttonRadius }: { campaign: Campa
 export default function DonationPageClient({ org, campaign, donations: initialDonations, groups, gallery }: Props) {
   const [donations, setDonations] = useState<Donation[]>(initialDonations)
   const [raisedAmount, setRaisedAmount] = useState(campaign.raised_amount)
-  const countdown = useCountdown(campaign.end_at)
+  const countdownEnd = (campaign.settings as { countdown_end?: string })?.countdown_end || campaign.end_at
+  const countdown = useCountdown(countdownEnd)
 
   const settings = campaign.settings as {
     donation_amounts?: number[]

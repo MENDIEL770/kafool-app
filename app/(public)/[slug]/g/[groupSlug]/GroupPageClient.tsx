@@ -14,6 +14,41 @@ function useAnimPct(pct: number) {
   return anim
 }
 
+function BannerSlider({ banners }: { banners: string[] }) {
+  const [idx, setIdx] = useState(0)
+  useEffect(() => {
+    if (banners.length <= 1) return
+    const t = setInterval(() => setIdx(i => (i + 1) % banners.length), 4000)
+    return () => clearInterval(t)
+  }, [banners.length])
+
+  if (!banners.length) return null
+
+  return (
+    <div className="relative w-full overflow-hidden" style={{ maxHeight: 420 }}>
+      {banners.map((url, i) => (
+        <img
+          key={url}
+          src={url}
+          alt=""
+          aria-hidden
+          className="w-full object-cover transition-opacity duration-700"
+          style={{ opacity: i === idx ? 1 : 0, position: i === 0 ? 'relative' : 'absolute', top: 0, left: 0, maxHeight: 420 }}
+          loading={i === 0 ? 'eager' : 'lazy'}
+        />
+      ))}
+      {banners.length > 1 && (
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
+          {banners.map((_, i) => (
+            <button key={i} onClick={() => setIdx(i)}
+              className={`transition-all rounded-full ${i === idx ? 'w-5 h-2 bg-white' : 'w-2 h-2 bg-white/50'}`} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function GroupPageClient({ org, campaign, group, donations: initialDonations }: {
   org: Org; campaign: Campaign; group: Group; donations: Donation[]
 }) {
@@ -21,8 +56,12 @@ export default function GroupPageClient({ org, campaign, group, donations: initi
   const [raisedAmount, setRaisedAmount] = useState(group.raised_amount)
   const [liked, setLiked] = useState<Set<string>>(new Set())
 
-  const settings = campaign.settings as { primary_color?: string }
+  const settings = campaign.settings as { primary_color?: string; banners?: { url: string; sort_order: number }[] }
   const primaryColor = settings?.primary_color || '#2563eb'
+  const banners = settings?.banners?.length
+    ? [...settings.banners].sort((a, b) => a.sort_order - b.sort_order).map(b => b.url)
+    : []
+
   const pct = group.goal_amount > 0 ? Math.min(100, Math.round((raisedAmount / group.goal_amount) * 100)) : 0
   const animPct = useAnimPct(pct)
 
@@ -58,28 +97,26 @@ export default function GroupPageClient({ org, campaign, group, donations: initi
         </div>
       </header>
 
-      <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
+      {/* Group name above banner */}
+      <div className="bg-white border-b border-gray-100 py-5 px-4 text-center">
+        <h1 className="text-3xl font-black text-gray-900">{group.name}</h1>
+        {group.manager_name && (
+          <p className="text-sm text-gray-400 mt-1">מגייס: {group.manager_name}</p>
+        )}
+      </div>
 
-        {/* Group hero */}
-        <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 text-center space-y-4">
-          <div
-            className="w-16 h-16 rounded-full flex items-center justify-center text-white text-2xl font-black mx-auto shadow-md"
-            style={{ backgroundColor: primaryColor }}
-          >
-            {group.name[0]}
-          </div>
-          <div>
-            <h1 className="text-2xl font-black text-gray-900">{group.name}</h1>
-            {group.manager_name && (
-              <p className="text-sm text-gray-400 mt-1">מגייס: {group.manager_name}</p>
-            )}
-            {group.description && (
-              <p className="text-sm text-gray-600 mt-2 leading-relaxed">{group.description}</p>
-            )}
-          </div>
+      {/* Campaign banner */}
+      {banners.length > 0 && <BannerSlider banners={banners} />}
 
-          {/* Amount */}
-          <div>
+      <div className="max-w-2xl mx-auto px-4 py-6 space-y-5">
+
+        {/* Stats card */}
+        <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 space-y-4">
+          {group.description && (
+            <p className="text-sm text-gray-600 leading-relaxed text-center">{group.description}</p>
+          )}
+
+          <div className="text-center">
             <div className="text-4xl font-black tabular-nums" style={{ color: primaryColor }}>
               ₪{raisedAmount.toLocaleString('he-IL')}
             </div>
