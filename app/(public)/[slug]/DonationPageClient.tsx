@@ -121,37 +121,61 @@ function StickyHeader({ org, campaign, primaryColor }: { org: Org; campaign: Cam
   )
 }
 
-function HeroSection({ campaign, primaryColor, countdown }: {
-  campaign: Campaign; primaryColor: string
+function HeroSection({ campaign, countdown }: {
+  campaign: Campaign
   countdown: { d: number; h: number; m: number; s: number } | null
 }) {
+  const settings = campaign.settings as { banners?: { url: string; sort_order: number }[] }
+  const banners = settings?.banners?.length
+    ? [...settings.banners].sort((a, b) => a.sort_order - b.sort_order).map(b => b.url)
+    : campaign.cover_image_url ? [campaign.cover_image_url] : []
+
+  const [idx, setIdx] = useState(0)
+  useEffect(() => {
+    if (banners.length <= 1) return
+    const t = setInterval(() => setIdx(i => (i + 1) % banners.length), 4000)
+    return () => clearInterval(t)
+  }, [banners.length])
+
   return (
-    <section className="w-full overflow-hidden" aria-label="באנר קמפיין">
-      {campaign.cover_image_url ? (
-        <img
-          src={campaign.cover_image_url}
-          alt={campaign.title}
-          className="w-full object-cover max-h-[500px]"
-          loading="eager"
-        />
+    <section className="w-full" aria-label="באנר קמפיין">
+      {banners.length > 0 ? (
+        <div className="relative overflow-hidden">
+          {banners.map((url, i) => (
+            <img
+              key={url}
+              src={url}
+              alt=""
+              aria-hidden
+              className="w-full object-cover max-h-[500px] absolute top-0 left-0 transition-opacity duration-700"
+              style={{ opacity: i === idx ? 1 : 0, position: i === 0 ? 'relative' : 'absolute' }}
+              loading={i === 0 ? 'eager' : 'lazy'}
+            />
+          ))}
+          {/* נקודות ניווט */}
+          {banners.length > 1 && (
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
+              {banners.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setIdx(i)}
+                  className={`transition-all rounded-full ${i === idx ? 'w-5 h-2 bg-white' : 'w-2 h-2 bg-white/50'}`}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       ) : (
-        <div
-          className="w-full flex flex-col items-center justify-center gap-3 py-20 border-2 border-dashed border-gray-200 bg-gray-50"
-          style={{ minHeight: 260 }}
-        >
-          <div className="text-gray-300">
-            <svg className="w-16 h-16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
-              <rect x="3" y="3" width="18" height="18" rx="2"/>
-              <circle cx="8.5" cy="8.5" r="1.5"/>
-              <path strokeLinecap="round" d="M21 15l-5-5L5 21"/>
-            </svg>
-          </div>
+        <div className="w-full flex flex-col items-center justify-center gap-3 py-20 border-2 border-dashed border-gray-200 bg-gray-50" style={{ minHeight: 260 }}>
+          <svg className="w-16 h-16 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+            <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+            <path strokeLinecap="round" d="M21 15l-5-5L5 21"/>
+          </svg>
           <p className="text-gray-400 font-medium text-sm">אזור הבאנר של הקמפיין</p>
-          <p className="text-gray-300 text-xs">כאן יופיע הבאנר / ויזואל של הקמפיין</p>
+          <p className="text-gray-300 text-xs">העלה באנרים בהגדרות הקמפיין</p>
         </div>
       )}
 
-      {/* Countdown — מתחת לבאנר אם קיים */}
       {countdown && (
         <div className="bg-white border-b border-gray-100 py-3 px-4">
           <div className="max-w-md mx-auto flex items-center justify-center gap-4">
@@ -174,11 +198,12 @@ function HeroSection({ campaign, primaryColor, countdown }: {
   )
 }
 
-function DonationPlans({ plans, primaryColor, campaignSlug, groups }: {
+function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius }: {
   plans: { amount: number; label?: string; image_url?: string | null }[]
   primaryColor: string
   campaignSlug: string
   groups: Group[]
+  buttonRadius: string
 }) {
   const [selected, setSelected] = useState<number | null>(null)
   const [custom, setCustom] = useState('')
@@ -298,14 +323,14 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups }: {
         <div className="flex flex-col sm:flex-row justify-center gap-3 mt-6 max-w-md mx-auto">
           <a
             href={donateHref}
-            className="flex-1 py-3.5 rounded-2xl text-white font-black text-base text-center shadow-lg hover:opacity-90 active:scale-95 transition-all"
+            className={`flex-1 py-3.5 text-white font-black text-base text-center shadow-lg hover:opacity-90 active:scale-95 transition-all ${buttonRadius}`}
             style={{ backgroundColor: primaryColor }}
           >
             {finalAmount ? `תרום ₪${finalAmount.toLocaleString()}` : 'לתרומה'}
           </a>
           <button
             onClick={() => navigator.share?.({ title: 'שתף את הקמפיין', url: window.location.href }) ?? navigator.clipboard.writeText(window.location.href)}
-            className="flex-none px-6 py-3.5 rounded-2xl border-2 font-bold text-sm transition-colors hover:bg-gray-50"
+            className={`flex-none px-6 py-3.5 border-2 font-bold text-sm transition-colors hover:bg-gray-50 ${buttonRadius}`}
             style={{ borderColor: primaryColor, color: primaryColor }}
           >
             שתף
@@ -623,7 +648,7 @@ function AboutSection({ campaign, gallery }: { campaign: Campaign; gallery: Gall
   )
 }
 
-function FloatingBar({ campaign, primaryColor }: { campaign: Campaign; primaryColor: string }) {
+function FloatingBar({ campaign, primaryColor, buttonRadius }: { campaign: Campaign; primaryColor: string; buttonRadius: string }) {
   const [visible, setVisible] = useState(false)
   useEffect(() => {
     const fn = () => setVisible(window.scrollY > 400)
@@ -642,14 +667,14 @@ function FloatingBar({ campaign, primaryColor }: { campaign: Campaign; primaryCo
       <div className="max-w-lg mx-auto flex gap-2 px-4 py-3">
         <a
           href={`/${campaign.slug}/donate`}
-          className="flex-[2] py-3 rounded-2xl text-white font-black text-sm text-center shadow-md hover:opacity-90 active:scale-95 transition-all"
+          className={`flex-[2] py-3 text-white font-black text-sm text-center shadow-md hover:opacity-90 active:scale-95 transition-all ${buttonRadius}`}
           style={{ backgroundColor: primaryColor }}
         >
           לתרומה
         </a>
         <button
           onClick={() => navigator.share?.({ title: campaign.title, url: window.location.href }) ?? navigator.clipboard.writeText(window.location.href)}
-          className="flex-1 py-3 rounded-2xl border-2 font-bold text-sm transition-colors hover:bg-gray-50"
+          className={`flex-1 py-3 border-2 font-bold text-sm transition-colors hover:bg-gray-50 ${buttonRadius}`}
           style={{ borderColor: primaryColor, color: primaryColor }}
           aria-label="שתף קמפיין"
         >
@@ -670,10 +695,13 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
     donation_amounts?: number[]
     donation_plans?: { amount: number; label?: string; image_url?: string | null }[]
     primary_color?: string
+    button_radius?: string
   }
   const primaryColor = settings?.primary_color || '#2563eb'
   const donationPlans = settings?.donation_plans ||
     (settings?.donation_amounts || [180, 360, 720, 1800, 3600]).map(amount => ({ amount }))
+  const buttonRadiusMap: Record<string, string> = { pill: 'rounded-full', rounded: 'rounded-xl', square: 'rounded-md' }
+  const buttonRadius = buttonRadiusMap[settings?.button_radius || 'pill'] || 'rounded-full'
 
   // Realtime
   useEffect(() => {
@@ -695,10 +723,10 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
       <StickyHeader org={org} campaign={campaign} primaryColor={primaryColor} />
 
       {/* 2. Hero */}
-      <HeroSection campaign={campaign} primaryColor={primaryColor} countdown={countdown} />
+      <HeroSection campaign={campaign} countdown={countdown} />
 
       {/* 3. Donation Plans */}
-      <DonationPlans plans={donationPlans} primaryColor={primaryColor} campaignSlug={campaign.slug} groups={groups} />
+      <DonationPlans plans={donationPlans} primaryColor={primaryColor} campaignSlug={campaign.slug} groups={groups} buttonRadius={buttonRadius} />
 
       {/* 4. Progress */}
       <ProgressSection raised={raisedAmount} goal={campaign.goal_amount} donorsCount={donations.length} primaryColor={primaryColor} />
@@ -710,7 +738,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
       <AboutSection campaign={campaign} gallery={gallery} />
 
       {/* 8. Floating bar */}
-      <FloatingBar campaign={campaign} primaryColor={primaryColor} />
+      <FloatingBar campaign={campaign} primaryColor={primaryColor} buttonRadius={buttonRadius} />
 
       {/* Bottom padding for floating bar */}
       <div className="h-20" />
