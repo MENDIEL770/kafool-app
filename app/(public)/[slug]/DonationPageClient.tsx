@@ -388,7 +388,7 @@ function ProgressSection({ raised, goal, donorsCount, primaryColor }: { raised: 
 type SortBy = 'recent' | 'amount_desc' | 'amount_asc'
 type CommunityTab = 'donors' | 'groups' | 'communities'
 
-function CommunitySection({ donations, groups, primaryColor }: { donations: Donation[]; groups: Group[]; primaryColor: string }) {
+function CommunitySection({ donations, groups, primaryColor, campaignSlug }: { donations: Donation[]; groups: Group[]; primaryColor: string; campaignSlug: string }) {
   const [tab, setTab] = useState<CommunityTab>('donors')
   const [search, setSearch] = useState('')
   const [sortBy, setSortBy] = useState<SortBy>('recent')
@@ -547,7 +547,11 @@ function CommunitySection({ donations, groups, primaryColor }: { donations: Dona
             {groups.map(g => {
               const pct = g.goal_amount > 0 ? Math.min(100, Math.round((g.raised_amount / g.goal_amount) * 100)) : 0
               return (
-                <div key={g.id} className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100">
+                <a
+                  key={g.id}
+                  href={`/${campaignSlug}/g/${g.slug}`}
+                  className="block bg-white rounded-3xl p-5 shadow-sm border border-gray-100 hover:shadow-md hover:-translate-y-0.5 transition-all"
+                >
                   <div className="flex justify-between items-start mb-3">
                     <div>
                       <h3 className="font-bold text-gray-800">{g.name}</h3>
@@ -562,7 +566,10 @@ function CommunitySection({ donations, groups, primaryColor }: { donations: Dona
                     <span>₪{(g.raised_amount || 0).toLocaleString()} גויס</span>
                     <span>יעד ₪{(g.goal_amount || 0).toLocaleString()}</span>
                   </div>
-                </div>
+                  <div className="mt-3 text-xs font-semibold text-center py-1.5 rounded-xl" style={{ color: primaryColor, backgroundColor: `${primaryColor}15` }}>
+                    פתח עמוד קבוצה ←
+                  </div>
+                </a>
               )
             })}
           </div>
@@ -709,7 +716,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
       <ProgressSection raised={raisedAmount} goal={campaign.goal_amount} donorsCount={donations.length} primaryColor={primaryColor} />
 
       {/* 5. Community (donors + groups tabs) */}
-      <CommunitySection donations={donations} groups={groups} primaryColor={primaryColor} />
+      <CommunitySection donations={donations} groups={groups} primaryColor={primaryColor} campaignSlug={campaign.slug} />
 
       {/* 7. About */}
       <AboutSection campaign={campaign} gallery={gallery} />
