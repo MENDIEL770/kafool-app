@@ -276,16 +276,16 @@ function HeroSection({ campaign, countdown }: {
 
         {countdown && (
           <div className="bg-white border-b border-gray-100 py-3 px-4">
-            <div className="max-w-md mx-auto flex items-center justify-center gap-4">
+            <div className="max-w-md mx-auto flex items-center justify-center gap-4" dir="rtl">
               <span className="text-sm text-gray-500 font-medium">נותר:</span>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3" dir="ltr">
                 {[{ val: countdown.d, label: 'ימים' }, { val: countdown.h, label: 'שעות' }, { val: countdown.m, label: 'דקות' }, { val: countdown.s, label: 'שניות' }].map((item, i) => (
                   <div key={item.label} className="flex items-center gap-3">
-                    {i > 0 && <span className="text-gray-300 font-bold">:</span>}
                     <div className="text-center">
                       <div className="text-xl font-black tabular-nums text-gray-800">{String(item.val).padStart(2, '0')}</div>
                       <div className="text-[9px] text-gray-400 uppercase tracking-wider">{item.label}</div>
                     </div>
+                    {i < 3 && <span className="text-gray-300 font-bold">:</span>}
                   </div>
                 ))}
               </div>
