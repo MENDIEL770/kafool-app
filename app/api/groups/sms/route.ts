@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
   const { groupIds, message } = await req.json()
   if (!groupIds?.length || !message) return NextResponse.json({ error: 'חסר מידע' }, { status: 400 })
 
-  const apiKey = process.env.SMS_API_KEY
+  const apiKey = process.env.YEMOT_API_KEY
   if (!apiKey) return NextResponse.json({ error: 'SMS לא מוגדר' }, { status: 500 })
 
   // Fetch groups and verify they belong to current user's org
