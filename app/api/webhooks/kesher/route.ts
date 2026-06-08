@@ -113,6 +113,58 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ ok: true })
 }
 
-export async function GET() {
-  return NextResponse.json({ ok: true, service: 'kafool-kesher-webhook' })
+export async function GET(req: NextRequest) {
+  // קשר שולח GET עם query params
+  const { searchParams } = new URL(req.url)
+  if (searchParams.size === 0) {
+    return NextResponse.json({ ok: true, service: 'kafool-kesher-webhook' })
+  }
+
+  // המר query params לאובייקט ועבד
+  const body: Record<string, unknown> = {}
+  searchParams.forEach((value, key) => { body[key] = value })
+
+  console.log('Kesher GET webhook params:', JSON.stringify(body))
+
+  try {
+    const kesherStatus = Number(body?.KesherStatus ?? 0)
+    const isSuccess = SUCCESS_CODES.includes(kesherStatus)
+
+    if (!isSuccess) {
+      console.log(`Kesher GET webhook: not success, status=${kesherStatus}`)
+      return NextResponse.json({ ok: true })
+    }
+
+    const amountTotal = Number(body?.Sum ?? body?.total ?? 0)
+    const amountAgorot = Math.round(amountTotal * 100)
+    const numTransaction = String(body?.NumTransaction ?? body?.transactionNumber ?? '')
+    const campaignId = String(body?.Details ?? body?.adddata ?? body?.ref ?? '').trim() || null
+    const donorName = String(body?.ReceiptName ?? '').trim() || null
+
+    if (!campaignId) {
+      console.warn('Kesher GET webhook: no campaignId')
+      return NextResponse.json({ ok: true })
+    }
+
+    const supabase = await createServiceClient()
+    const { data: campaign } = await supabase.from('campaigns').select('org_id').eq('id', campaignId).single()
+    if (!campaign) return NextResponse.json({ ok: true })
+
+    await supabase.from('donations').insert({
+      campaign_id: campaignId,
+      org_id: campaign.org_id,
+      amount: amountTotal,
+      donor_name: donorName,
+      kesher_transaction_id: numTransaction || null,
+      payment_status: 'completed',
+      kesher_raw: body,
+    })
+
+    await supabase.rpc('increment_campaign_amount', { campaign_id: campaignId, amount_agorot: amountAgorot })
+    console.log(`✅ GET webhook: ₪${amountTotal} for campaign ${campaignId}`)
+  } catch (err) {
+    console.error('Kesher GET webhook error:', err)
+  }
+
+  return NextResponse.json({ ok: true })
 }
