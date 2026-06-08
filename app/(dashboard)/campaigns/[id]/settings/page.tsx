@@ -25,6 +25,8 @@ export default function CampaignSettingsPage() {
     about_text: '',
     button_radius: 'pill' as 'pill' | 'rounded' | 'square',
     countdown_end: '',
+    whatsapp_phone: '',
+    whatsapp_message: '',
   })
 
   useEffect(() => {
@@ -41,6 +43,8 @@ export default function CampaignSettingsPage() {
           about_text: data.settings?.about_text || '',
           button_radius: data.settings?.button_radius || 'pill',
           countdown_end: data.settings?.countdown_end || '',
+          whatsapp_phone: data.settings?.whatsapp_phone || '',
+          whatsapp_message: data.settings?.whatsapp_message || '',
         })
       }
     }
@@ -70,6 +74,8 @@ export default function CampaignSettingsPage() {
         about_text: form.about_text || null,
         button_radius: form.button_radius,
         countdown_end: form.countdown_end || null,
+        whatsapp_phone: form.whatsapp_phone || null,
+        whatsapp_message: form.whatsapp_message || null,
       },
     }).eq('id', id)
     setLoading(false)
@@ -151,6 +157,48 @@ export default function CampaignSettingsPage() {
               >
                 הסר ספירה לאחור
               </button>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* ── וואטסאפ ── */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <span className="text-lg">💬</span> כפתור WhatsApp
+            </CardTitle>
+            <p className="text-xs text-gray-400 mt-1">כפתור צף בדף הגיוס שפותח שיחת WhatsApp עם מנהל הקמפיין</p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-1">
+              <Label>מספר טלפון (עם קידומת מדינה)</Label>
+              <Input
+                type="tel"
+                value={form.whatsapp_phone}
+                onChange={(e) => set('whatsapp_phone', e.target.value.replace(/\s/g, ''))}
+                dir="ltr"
+                placeholder="+972501234567"
+              />
+              <p className="text-[11px] text-gray-400">השאר ריק כדי להסתיר את הכפתור</p>
+            </div>
+            <div className="space-y-1">
+              <Label>הודעה פותחת (אופציונלי)</Label>
+              <Textarea
+                value={form.whatsapp_message}
+                onChange={(e) => set('whatsapp_message', e.target.value)}
+                rows={2}
+                placeholder="שלום, אשמח לקבל מידע נוסף על הקמפיין..."
+              />
+            </div>
+            {form.whatsapp_phone && (
+              <a
+                href={`https://wa.me/${form.whatsapp_phone.replace(/\D/g, '')}${form.whatsapp_message ? `?text=${encodeURIComponent(form.whatsapp_message)}` : ''}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-xs text-green-600 hover:underline"
+              >
+                <span className="text-base">✅</span> בדוק את הקישור
+              </a>
             )}
           </CardContent>
         </Card>
