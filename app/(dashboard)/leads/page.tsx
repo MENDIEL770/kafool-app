@@ -7,6 +7,161 @@ import { cn } from '@/lib/utils'
 import { buttonVariants } from '@/components/ui/button'
 import type { Lead, Caller } from '@/types'
 
+/* ── Phone Import Guide Modal ── */
+const IPHONE_STEPS = [
+  { icon: '🌐', title: 'פתח דפדפן', desc: 'עבור ל-icloud.com בדפדפן הפלאפון' },
+  { icon: '🔑', title: 'היכנס ל-iCloud', desc: 'התחבר עם Apple ID שלך' },
+  { icon: '👥', title: 'אנשי קשר', desc: 'לחץ על "אנשי קשר"' },
+  { icon: '☑️', title: 'בחר הכל', desc: 'לחץ Ctrl+A או בחר את כל אנשי הקשר' },
+  { icon: '⚙️', title: 'ייצוא vCard', desc: 'לחץ על גלגל השיניים → "ייצא vCard"' },
+  { icon: '📤', title: 'העלה כאן', desc: 'לחץ על כפתור "העלה קובץ .vcf" למטה' },
+]
+
+const ANDROID_STEPS = [
+  { icon: '📱', title: 'פתח אנשי קשר', desc: 'פתח את אפליקציית "אנשי קשר" בטלפון' },
+  { icon: '⋮', title: 'תפריט', desc: 'לחץ על שלוש הנקודות (⋮) בפינה' },
+  { icon: '📋', title: 'נהל/ייצוא', desc: 'בחר "ניהול אנשי קשר" → "ייצוא"' },
+  { icon: '💾', title: 'שמור .vcf', desc: 'בחר "שמור בזיכרון הפנימי" כקובץ vcf' },
+  { icon: '📤', title: 'העלה כאן', desc: 'לחץ על כפתור "העלה קובץ .vcf" למטה' },
+]
+
+function parseVcf(text: string): { name: string; phone: string }[] {
+  const cards = text.split(/BEGIN:VCARD/i).slice(1)
+  return cards.flatMap(card => {
+    const fnMatch = card.match(/FN[^:]*:(.+)/i)
+    const telMatches = [...card.matchAll(/TEL[^:]*:([0-9+\-\s()]+)/gi)]
+    const name = fnMatch?.[1]?.trim() ?? ''
+    if (!name && telMatches.length === 0) return []
+    return telMatches.length > 0
+      ? telMatches.map(m => ({ name, phone: m[1].replace(/\s/g, '').trim() }))
+      : [{ name, phone: '' }]
+  }).filter(c => c.name || c.phone)
+}
+
+function PhoneImportGuide({ campaignId, orgId, onImported }: { campaignId: string; orgId: string; onImported: () => void }) {
+  const supabase = createClient()
+  const [open, setOpen] = useState(false)
+  const [tab, setTab] = useState<'iphone' | 'android'>('iphone')
+  const [visibleStep, setVisibleStep] = useState(0)
+  const [status, setStatus] = useState('')
+  const fileRef = useRef<HTMLInputElement>(null)
+  const steps = tab === 'iphone' ? IPHONE_STEPS : ANDROID_STEPS
+
+  useEffect(() => {
+    if (!open) return
+    setVisibleStep(0)
+    const interval = setInterval(() => {
+      setVisibleStep(v => {
+        if (v >= steps.length - 1) { clearInterval(interval); return v }
+        return v + 1
+      })
+    }, 600)
+    return () => clearInterval(interval)
+  }, [open, tab])
+
+  async function handleVcf(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setStatus('מעבד...')
+    const text = await file.text()
+    const contacts = parseVcf(text)
+    if (contacts.length === 0) { setStatus('לא נמצאו אנשי קשר'); return }
+    const leads = contacts.map(c => ({
+      org_id: orgId,
+      campaign_id: campaignId,
+      name: c.name,
+      phone: c.phone,
+      status: 'new' as Lead['status'],
+      priority: 0,
+    }))
+    const { error } = await supabase.from('leads').insert(leads)
+    if (error) { setStatus(`שגיאה: ${error.message}`); return }
+    setStatus(`יובאו ${leads.length} אנשי קשר ✓`)
+    onImported()
+    setTimeout(() => { setOpen(false); setStatus('') }, 1500)
+    if (fileRef.current) fileRef.current.value = ''
+  }
+
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className={cn(buttonVariants({ variant: 'outline' }), 'gap-2')}
+      >
+        📱 ייבא מהפלאפון
+      </button>
+
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setOpen(false)}>
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 relative" onClick={e => e.stopPropagation()}>
+            <button onClick={() => setOpen(false)} className="absolute top-4 left-4 text-gray-400 hover:text-gray-700 text-xl leading-none">✕</button>
+            <h2 className="text-xl font-black text-gray-900 mb-1 text-center">ייבא אנשי קשר</h2>
+            <p className="text-sm text-gray-500 text-center mb-5">עקוב אחרי השלבים לפי הפלאפון שלך</p>
+
+            {/* Tabs */}
+            <div className="flex gap-2 mb-6 bg-gray-100 p-1 rounded-2xl">
+              {(['iphone', 'android'] as const).map(t => (
+                <button
+                  key={t}
+                  onClick={() => setTab(t)}
+                  className={cn(
+                    'flex-1 py-2 rounded-xl text-sm font-bold transition-all',
+                    tab === t ? 'bg-white shadow text-gray-900' : 'text-gray-500'
+                  )}
+                >
+                  {t === 'iphone' ? '🍎 iPhone' : '🤖 Android'}
+                </button>
+              ))}
+            </div>
+
+            {/* Steps */}
+            <div className="space-y-3 mb-6">
+              {steps.map((step, i) => (
+                <div
+                  key={`${tab}-${i}`}
+                  className={cn(
+                    'flex items-start gap-3 p-3 rounded-2xl border transition-all duration-500',
+                    i <= visibleStep
+                      ? 'opacity-100 translate-y-0 border-gray-100 bg-gray-50'
+                      : 'opacity-0 translate-y-2 border-transparent'
+                  )}
+                  style={{ transitionDelay: `${i * 60}ms` }}
+                >
+                  <div className="w-9 h-9 rounded-full bg-white shadow-sm border border-gray-100 flex items-center justify-center text-lg shrink-0">
+                    {step.icon}
+                  </div>
+                  <div>
+                    <div className="text-sm font-bold text-gray-800">
+                      <span className="text-gray-400 ml-1">{i + 1}.</span>
+                      {step.title}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-0.5">{step.desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Upload */}
+            <input ref={fileRef} type="file" accept=".vcf,.vcard" className="hidden" id="vcf-upload" onChange={handleVcf} />
+            <label
+              htmlFor="vcf-upload"
+              className="block w-full py-3.5 rounded-2xl text-white font-black text-center text-sm cursor-pointer transition-all hover:opacity-90 active:scale-95"
+              style={{ background: 'linear-gradient(135deg, #3b82f6, #6366f1)' }}
+            >
+              📂 העלה קובץ .vcf
+            </label>
+            {status && (
+              <p className={cn('text-center text-sm mt-3 font-medium', status.includes('✓') ? 'text-green-600' : 'text-gray-500')}>
+                {status}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
 type LeadStatus = Lead['status']
 
 interface CallerWithProfile extends Caller {
@@ -191,7 +346,12 @@ export default function LeadsPage() {
     <div className="space-y-6" dir="rtl">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h1 className="text-2xl font-bold text-gray-900">📋 ניהול לידים</h1>
-        {campaignId && <LeadsImport campaignId={campaignId} orgId={orgId} onImported={() => fetchLeads(orgId, campaignId)} />}
+        {campaignId && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <LeadsImport campaignId={campaignId} orgId={orgId} onImported={() => fetchLeads(orgId, campaignId)} />
+            <PhoneImportGuide campaignId={campaignId} orgId={orgId} onImported={() => fetchLeads(orgId, campaignId)} />
+          </div>
+        )}
       </div>
 
       {/* Filter tabs */}
