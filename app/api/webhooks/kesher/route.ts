@@ -34,44 +34,66 @@ export async function POST(req: NextRequest) {
 
     const isSuccess = isSuccessfulPayment(payload)
 
-    if (!donationId) {
-      // legacy: try parsing from addactiondata
-      const parsed = parseKesherPayload(payload)
-      console.warn('Kesher webhook: no donationId in adddata', parsed)
+    if (!isSuccess) {
+      console.warn('Kesher webhook: payment not successful, status:', kesherStatus)
       return NextResponse.json({ ok: true })
     }
 
-    // עדכן donation
-    const { data: donation } = await supabase
-      .from('donations')
-      .update({
-        kesher_transaction_id: numTransaction,
-        kesher_status_code: kesherStatus,
-        payment_status: isSuccess ? 'completed' : 'failed',
-        status: isSuccess ? 'success' : 'failed',
-        receipt_link: receiptLink || null,
-        kesher_raw: body,
-      })
-      .eq('id', donationId)
-      .select('campaign_id, org_id, amount_agorot, amount, donor_name')
+    const amountTotal =
+      Number(payload?.Transaction?.Total ?? payload?.Total ?? 0)
+    const amountAgorot = Math.round(amountTotal * 100)
+
+    const donorName = [
+      payload?.Transaction?.FirstName ?? payload?.FirstName ?? '',
+      payload?.Transaction?.LastName ?? payload?.LastName ?? '',
+    ].filter(Boolean).join(' ') || null
+
+    const donorPhone = payload?.Transaction?.Tel ?? payload?.Tel ?? null
+    const donorEmail = payload?.Transaction?.Mail ?? payload?.Mail ?? null
+
+    // adddata = campaign UUID (שנשלח מהאתר כ-addactiondata)
+    const campaignId = donationId // כי adddata = campaign.id
+
+    if (!campaignId) {
+      console.warn('Kesher webhook: no campaignId in adddata')
+      return NextResponse.json({ ok: true })
+    }
+
+    // הכנס תרומה חדשה
+    const { data: campaign } = await supabase
+      .from('campaigns')
+      .select('org_id')
+      .eq('id', campaignId)
       .single()
 
-    if (!donation) {
-      console.warn('Kesher webhook: donation not found', donationId)
+    if (!campaign) {
+      console.warn('Kesher webhook: campaign not found', campaignId)
       return NextResponse.json({ ok: true })
     }
 
-    if (isSuccess) {
-      const amountAgorot = donation.amount_agorot || Math.round((donation.amount || 0) * 100)
+    await supabase.from('donations').insert({
+      campaign_id: campaignId,
+      org_id: campaign.org_id,
+      amount: amountTotal,
+      amount_agorot: amountAgorot,
+      donor_name: donorName,
+      donor_phone: donorPhone,
+      donor_email: donorEmail,
+      kesher_transaction_id: numTransaction,
+      kesher_status_code: kesherStatus,
+      payment_status: 'completed',
+      status: 'success',
+      receipt_link: receiptLink || null,
+      kesher_raw: body,
+    })
 
-      // עדכן סכום קמפיין
-      await supabase.rpc('increment_campaign_amount', {
-        campaign_id: donation.campaign_id,
-        amount_agorot: amountAgorot,
-      })
+    // עדכן סכום קמפיין
+    await supabase.rpc('increment_campaign_amount', {
+      campaign_id: campaignId,
+      amount_agorot: amountAgorot,
+    })
 
-      console.log(`✅ Kesher success: donation ${donationId} — ₪${donation.amount} from ${donation.donor_name}`)
-    }
+    console.log(`✅ Kesher webhook: ₪${amountTotal} for campaign ${campaignId} from ${donorName}`)
   } catch (err) {
     console.error('Kesher webhook error:', err)
   }

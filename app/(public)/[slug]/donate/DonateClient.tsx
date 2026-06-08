@@ -62,6 +62,9 @@ export default function DonateClient({
     if (form.dedication) params.set('comment', form.dedication)
     if (groupSlug) params.set('group', groupSlug)
 
+    // campaign ID — יחזור בwebhook כ-adddata
+    params.set('addactiondata', campaign.id)
+
     const origin = typeof window !== 'undefined' ? window.location.origin : ''
     params.set('successurl', `${origin}/${campaign.slug}/thanks`)
 
