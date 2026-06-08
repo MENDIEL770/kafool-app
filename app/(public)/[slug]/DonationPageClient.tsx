@@ -200,7 +200,7 @@ function DonationPlans({ plans, primaryColor, campaignSlug }: {
     <section className="bg-white border-b border-gray-100 py-8 px-4" aria-label="מסלולי תרומה">
       <div className="max-w-6xl mx-auto">
         <h2 className="text-lg font-bold text-gray-700 mb-6 text-center">בחר סכום תרומה</h2>
-        <div className="flex gap-5 overflow-x-auto pb-4 pt-3 px-3 scrollbar-hide snap-x justify-start md:justify-center flex-nowrap">
+        <div className="flex gap-5 overflow-x-auto pb-6 pt-4 px-4 scrollbar-hide snap-x justify-start md:justify-center flex-nowrap" style={{ overflowY: 'visible' }}>
           {plans.map(({ amount, label, image_url }) => {
             const isActive = selected === amount
             return (
@@ -214,9 +214,9 @@ function DonationPlans({ plans, primaryColor, campaignSlug }: {
                 <div
                   className="w-[110px] h-[110px] rounded-full overflow-hidden transition-all duration-200 relative"
                   style={{
-                    outline: isActive ? `4px solid ${primaryColor}` : '4px solid transparent',
-                  outlineOffset: '3px',
-                  boxShadow: isActive ? `0 6px 20px ${primaryColor}44` : '0 2px 10px rgba(0,0,0,0.08)',
+                    boxShadow: isActive
+                    ? `0 0 0 4px white, 0 0 0 7px ${primaryColor}, 0 6px 20px ${primaryColor}44`
+                    : '0 2px 10px rgba(0,0,0,0.08)',
                   transform: 'scale(1)',
                   }}
                 >
