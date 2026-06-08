@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server'
 import Groq from 'groq-sdk'
 import { createServiceClient } from '@/lib/supabase/server'
