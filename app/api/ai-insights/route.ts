@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
 יעד: ₪${campaign?.goal_amount?.toLocaleString() || 0}
 גויס עד כה: ₪${campaign?.raised_amount?.toLocaleString() || 0} (${pct}%)
 תרומות היום: ${donations?.length || 0} תרומות על סך ₪${totalToday.toLocaleString()}
-טלפנים מובילים: ${callers?.map((c: { profiles?: { full_name?: string } | null, total_donated?: number }) => `${(c.profiles as { full_name?: string } | null)?.full_name || 'טלפן'}: ₪${c.total_donated?.toLocaleString()}`).join(', ')}
+טלפנים מובילים: ${callers?.map((c: { profiles: unknown; total_donated: unknown }) => { const p = c.profiles as { full_name?: string } | null; const name = Array.isArray(p) ? (p[0] as { full_name?: string })?.full_name : p?.full_name; return `${name || 'טלפן'}: ₪${Number(c.total_donated || 0).toLocaleString()}` }).join(', ')}
 
 ספק:
 1. סיכום קצר של היום (2-3 משפטים)
