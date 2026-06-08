@@ -77,6 +77,9 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
           <Link href={`/campaigns/${id}/settings`} className={buttonVariants({ variant: 'outline' })}>
             הגדרות
           </Link>
+          <Link href={`/campaigns/${id}/builder`} className={buttonVariants({ variant: 'outline' })}>
+            🎨 עורך תבנית
+          </Link>
         </div>
       </div>
 
