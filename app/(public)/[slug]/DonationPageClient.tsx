@@ -186,7 +186,11 @@ function HeroSection({ campaign, org, primaryColor, countdown }: {
   )
 }
 
-function DonationPlans({ amounts, primaryColor, campaignSlug }: { amounts: number[]; primaryColor: string; campaignSlug: string }) {
+function DonationPlans({ plans, primaryColor, campaignSlug }: {
+  plans: { amount: number; label?: string; image_url?: string | null }[]
+  primaryColor: string
+  campaignSlug: string
+}) {
   const [selected, setSelected] = useState<number | null>(null)
   const [custom, setCustom] = useState('')
 
@@ -195,46 +199,64 @@ function DonationPlans({ amounts, primaryColor, campaignSlug }: { amounts: numbe
   return (
     <section className="bg-white border-b border-gray-100 py-8 px-4" aria-label="מסלולי תרומה">
       <div className="max-w-6xl mx-auto">
-        <h2 className="text-lg font-bold text-gray-700 mb-5 text-center">בחר סכום תרומה</h2>
-        <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide snap-x justify-start md:justify-center flex-nowrap">
-          {amounts.map((amount) => {
+        <h2 className="text-lg font-bold text-gray-700 mb-6 text-center">בחר סכום תרומה</h2>
+        <div className="flex gap-5 overflow-x-auto pb-2 scrollbar-hide snap-x justify-start md:justify-center flex-nowrap">
+          {plans.map(({ amount, label, image_url }) => {
             const isActive = selected === amount
             return (
               <button
                 key={amount}
                 onClick={() => { setSelected(isActive ? null : amount); setCustom('') }}
                 aria-pressed={isActive}
-                className="flex-none snap-start flex flex-col items-center rounded-2xl px-6 py-4 border-2 transition-all duration-200 focus:outline-none focus-visible:ring-2 cursor-pointer"
-                style={{
-                  borderColor: isActive ? primaryColor : '#e5e7eb',
-                  backgroundColor: isActive ? primaryColor : 'white',
-                  color: isActive ? 'white' : '#374151',
-                  transform: isActive ? 'scale(1.04)' : 'scale(1)',
-                  boxShadow: isActive ? `0 4px 20px ${primaryColor}44` : 'none',
-                  minWidth: 100,
-                }}
+                className="flex-none snap-start flex flex-col items-center gap-2 cursor-pointer focus:outline-none group"
               >
-                <span className="text-xl font-black">₪{amount.toLocaleString()}</span>
-                <span className="text-[11px] mt-0.5 opacity-70">תרומה חד-פעמית</span>
+                {/* עיגול */}
+                <div
+                  className="w-[110px] h-[110px] rounded-full overflow-hidden transition-all duration-200 relative"
+                  style={{
+                    boxShadow: isActive ? `0 0 0 4px ${primaryColor}, 0 6px 24px ${primaryColor}44` : '0 2px 12px rgba(0,0,0,0.10)',
+                    transform: isActive ? 'scale(1.08)' : 'scale(1)',
+                  }}
+                >
+                  {image_url ? (
+                    <img src={image_url} alt={label || `₪${amount}`} className="w-full h-full object-cover" />
+                  ) : (
+                    <div
+                      className="w-full h-full flex items-center justify-center"
+                      style={{ background: `linear-gradient(135deg, ${primaryColor}dd, ${primaryColor}88)` }}
+                    >
+                      <span className="text-white font-black text-xl">₪{amount.toLocaleString()}</span>
+                    </div>
+                  )}
+                </div>
+                {/* טקסט מתחת */}
+                <div className="text-center">
+                  <div className="text-sm font-bold text-gray-800">₪{amount.toLocaleString()}</div>
+                  {label && <div className="text-[11px] text-gray-400 mt-0.5">{label}</div>}
+                </div>
               </button>
             )
           })}
 
-          {/* Custom amount */}
-          <div className="flex-none snap-start flex flex-col items-center justify-center rounded-2xl px-4 py-3 border-2 border-dashed border-gray-200 min-w-[110px]">
-            <span className="text-[11px] text-gray-400 mb-1">סכום אחר</span>
-            <div className="flex items-center gap-1">
-              <span className="text-sm font-bold text-gray-500">₪</span>
-              <input
-                type="number"
-                value={custom}
-                onChange={(e) => { setCustom(e.target.value); setSelected(null) }}
-                placeholder="0"
-                min="1"
-                className="w-16 text-center text-sm font-bold outline-none bg-transparent"
-                dir="ltr"
-                aria-label="סכום תרומה מותאם"
-              />
+          {/* סכום אחר */}
+          <div className="flex-none snap-start flex flex-col items-center gap-2">
+            <div className="w-[110px] h-[110px] rounded-full border-2 border-dashed border-gray-300 flex flex-col items-center justify-center bg-gray-50">
+              <span className="text-xs text-gray-400 mb-1">סכום אחר</span>
+              <div className="flex items-center gap-0.5">
+                <span className="text-sm font-bold text-gray-500">₪</span>
+                <input
+                  type="number"
+                  value={custom}
+                  onChange={(e) => { setCustom(e.target.value); setSelected(null) }}
+                  placeholder="0"
+                  min="1"
+                  className="w-14 text-center text-sm font-bold outline-none bg-transparent"
+                  dir="ltr"
+                />
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="text-sm font-bold text-gray-400">אחר</div>
             </div>
           </div>
         </div>
@@ -590,9 +612,14 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
   const [raisedAmount, setRaisedAmount] = useState(campaign.raised_amount)
   const countdown = useCountdown(campaign.end_at)
 
-  const settings = campaign.settings as { donation_amounts?: number[]; primary_color?: string }
-  const donationAmounts: number[] = settings?.donation_amounts || [180, 360, 720, 1800, 3600]
+  const settings = campaign.settings as {
+    donation_amounts?: number[]
+    donation_plans?: { amount: number; label?: string; image_url?: string | null }[]
+    primary_color?: string
+  }
   const primaryColor = settings?.primary_color || '#2563eb'
+  const donationPlans = settings?.donation_plans ||
+    (settings?.donation_amounts || [180, 360, 720, 1800, 3600]).map(amount => ({ amount }))
 
   // Realtime
   useEffect(() => {
@@ -617,7 +644,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
       <HeroSection campaign={campaign} org={org} primaryColor={primaryColor} countdown={countdown} />
 
       {/* 3. Donation Plans */}
-      <DonationPlans amounts={donationAmounts} primaryColor={primaryColor} campaignSlug={campaign.slug} />
+      <DonationPlans plans={donationPlans} primaryColor={primaryColor} campaignSlug={campaign.slug} />
 
       {/* 4. Progress */}
       <ProgressSection raised={raisedAmount} goal={campaign.goal_amount} donorsCount={donations.length} primaryColor={primaryColor} />

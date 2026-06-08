@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
@@ -8,6 +8,13 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Upload, X } from 'lucide-react'
+
+interface DonationPlan {
+  amount: number
+  label: string
+  image_url: string | null
+}
 
 export default function CampaignSettingsPage() {
   const router = useRouter()
@@ -16,6 +23,14 @@ export default function CampaignSettingsPage() {
 
   const [loading, setLoading] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [plans, setPlans] = useState<DonationPlan[]>([
+    { amount: 180, label: '', image_url: null },
+    { amount: 360, label: '', image_url: null },
+    { amount: 720, label: '', image_url: null },
+    { amount: 1800, label: '', image_url: null },
+    { amount: 3600, label: '', image_url: null },
+  ])
+  const [uploadingPlan, setUploadingPlan] = useState<number | null>(null)
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -42,6 +57,11 @@ export default function CampaignSettingsPage() {
           about_text: data.settings?.about_text || '',
           donation_page_url: data.settings?.donation_page_url || '',
         })
+        if (data.settings?.donation_plans?.length) {
+          setPlans(data.settings.donation_plans)
+        } else if (data.settings?.donation_amounts?.length) {
+          setPlans(data.settings.donation_amounts.map((a: number) => ({ amount: a, label: '', image_url: null })))
+        }
       }
     }
     load()
@@ -62,7 +82,8 @@ export default function CampaignSettingsPage() {
       bonus_goal_amount: form.bonus_goal_amount ? Number(form.bonus_goal_amount) : null,
       video_url: form.video_url || null,
       settings: {
-        donation_amounts: [180, 360, 720, 1800, 3600],
+        donation_amounts: plans.map(p => p.amount),
+        donation_plans: plans,
         primary_color: form.primary_color,
         secondary_color: '#1e40af',
         about_text: form.about_text || null,
@@ -73,6 +94,19 @@ export default function CampaignSettingsPage() {
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
     router.refresh()
+  }
+
+  async function uploadPlanImage(planIndex: number, file: File) {
+    setUploadingPlan(planIndex)
+    const supabase = createClient()
+    const ext = file.name.split('.').pop()
+    const path = `${id}/plans/plan_${plans[planIndex].amount}.${ext}`
+    const { error } = await supabase.storage.from('campaign-media').upload(path, file, { upsert: true })
+    if (!error) {
+      const { data: { publicUrl } } = supabase.storage.from('campaign-media').getPublicUrl(path)
+      setPlans(ps => ps.map((p, i) => i === planIndex ? { ...p, image_url: publicUrl } : p))
+    }
+    setUploadingPlan(null)
   }
 
   return (
@@ -132,6 +166,76 @@ export default function CampaignSettingsPage() {
               <Label>קישור לדף תרומה</Label>
               <Input type="url" value={form.donation_page_url} onChange={(e) => set('donation_page_url', e.target.value)} dir="ltr" placeholder="https://..." />
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">עיגולי תרומה</CardTitle>
+            <p className="text-xs text-gray-400 mt-1">
+              גודל גרפיקה מומלץ: <strong>240×240px</strong> (עיגול, PNG/JPG)
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex gap-4 flex-wrap">
+              {plans.map((plan, i) => (
+                <div key={i} className="flex flex-col items-center gap-2">
+                  {/* עיגול */}
+                  <div className="relative w-[90px] h-[90px]">
+                    <div className="w-full h-full rounded-full overflow-hidden border-2 border-gray-200 bg-gray-50">
+                      {plan.image_url ? (
+                        <img src={plan.image_url} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-300">
+                          <Upload className="w-6 h-6" />
+                        </div>
+                      )}
+                    </div>
+                    {/* כפתורי פעולה */}
+                    <label className="absolute inset-0 rounded-full cursor-pointer flex items-center justify-center bg-black/0 hover:bg-black/30 transition-all group">
+                      <Upload className="w-5 h-5 text-white opacity-0 group-hover:opacity-100" />
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={e => e.target.files?.[0] && uploadPlanImage(i, e.target.files[0])}
+                      />
+                    </label>
+                    {plan.image_url && (
+                      <button
+                        type="button"
+                        onClick={() => setPlans(ps => ps.map((p, j) => j === i ? { ...p, image_url: null } : p))}
+                        className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white shadow"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
+                    {uploadingPlan === i && (
+                      <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center">
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      </div>
+                    )}
+                  </div>
+                  {/* כמות + תווית */}
+                  <div className="text-center space-y-1 w-[90px]">
+                    <Input
+                      type="number"
+                      value={plan.amount}
+                      onChange={e => setPlans(ps => ps.map((p, j) => j === i ? { ...p, amount: Number(e.target.value) } : p))}
+                      className="h-7 text-xs text-center px-1"
+                      dir="ltr"
+                    />
+                    <Input
+                      value={plan.label}
+                      onChange={e => setPlans(ps => ps.map((p, j) => j === i ? { ...p, label: e.target.value } : p))}
+                      placeholder="תווית..."
+                      className="h-7 text-xs text-center px-1"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-gray-400">לחץ על עיגול להעלאת גרפיקה. ניתן לשנות סכום ותווית.</p>
           </CardContent>
         </Card>
 
