@@ -38,7 +38,7 @@ export default async function ThanksPage({
   const totalAgorot = Number(sp.total ?? sp.Sum ?? 0)
   const totalShekels = totalAgorot / 100
   const transactionNumber = sp.transactionNumber || sp.NumTransaction || null
-  const isSuccess = totalAgorot > 0 && !sp.errorCode && transactionNumber
+  const isSuccess = totalAgorot > 0 && !sp.errorCode && !!transactionNumber
 
   if (isSuccess) {
     const { createServiceClient } = await import('@/lib/supabase/server')
