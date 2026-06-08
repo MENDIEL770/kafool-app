@@ -4,6 +4,16 @@ import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
 
 interface Group { id: string; name: string; slug: string }
+interface PaymentUrls { one_time: string; hok: string; bit: string; bank: string }
+
+const PAYMENT_METHODS = [
+  { key: 'one_time', label: 'תרומה חד"פ', icon: '💳' },
+  { key: 'hok',      label: 'הוראת קבע',  icon: '🔄' },
+  { key: 'bit',      label: 'ביט',         icon: '📱' },
+  { key: 'bank',     label: 'העברה בנקאית', icon: '🏦' },
+] as const
+
+type PaymentMethod = typeof PAYMENT_METHODS[number]['key']
 
 interface Props {
   isOpen: boolean
@@ -11,6 +21,7 @@ interface Props {
   presetAmount?: number
   presetGroupSlug?: string
   donationUrl: string
+  paymentUrls?: PaymentUrls
   campaign: { id: string; title: string; slug: string }
   primaryColor: string
   buttonRadius: string
@@ -23,15 +34,28 @@ export default function DonationModal({
   presetAmount,
   presetGroupSlug,
   donationUrl,
+  paymentUrls,
   campaign,
   primaryColor,
   buttonRadius,
   groups,
 }: Props) {
-  const [step, setStep] = useState<'details' | 'payment'>(presetAmount ? 'details' : 'details')
+  const [step, setStep] = useState<'details' | 'payment'>('details')
   const [amount, setAmount] = useState(presetAmount || 0)
   const [customAmount, setCustomAmount] = useState('')
   const [selectedGroupSlug, setSelectedGroupSlug] = useState(presetGroupSlug || '')
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('one_time')
+
+  // Available methods = only those with a URL configured
+  const availableMethods = PAYMENT_METHODS.filter(m =>
+    m.key === 'one_time' ? !!donationUrl : !!(paymentUrls?.[m.key])
+  )
+  const hasMultipleMethods = availableMethods.length > 1
+
+  function getActiveUrl(): string {
+    if (paymentMethod === 'one_time') return donationUrl
+    return paymentUrls?.[paymentMethod] || donationUrl
+  }
   const [form, setForm] = useState({
     firstName: '', lastName: '', phone: '', email: '', dedication: '', anonymous: false,
   })
@@ -59,6 +83,7 @@ export default function DonationModal({
   }
 
   function buildPaymentUrl() {
+    const activeUrl = getActiveUrl()
     const params = new URLSearchParams()
     if (finalAmount) params.set('total', String(finalAmount))
     if (!form.anonymous) {
@@ -72,8 +97,8 @@ export default function DonationModal({
     params.set('addactiondata', campaign.id)
     const origin = typeof window !== 'undefined' ? window.location.origin : ''
     params.set('successurl', `${origin}/${campaign.slug}/thanks`)
-    const sep = donationUrl.includes('?') ? '&' : '?'
-    return `${donationUrl}${sep}${params.toString()}`
+    const sep = activeUrl.includes('?') ? '&' : '?'
+    return `${activeUrl}${sep}${params.toString()}`
   }
 
   if (!isOpen) return null
@@ -199,6 +224,30 @@ export default function DonationModal({
                     <option value="">ללא קבוצה</option>
                     {groups.map(g => <option key={g.id} value={g.slug}>{g.name}</option>)}
                   </select>
+                </div>
+              )}
+
+              {hasMultipleMethods && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-gray-500">אמצעי תשלום</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {availableMethods.map(m => (
+                      <button
+                        key={m.key}
+                        type="button"
+                        onClick={() => setPaymentMethod(m.key)}
+                        className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 text-sm font-medium transition-all ${
+                          paymentMethod === m.key
+                            ? 'border-current text-current'
+                            : 'border-gray-200 text-gray-500 hover:border-gray-300'
+                        }`}
+                        style={paymentMethod === m.key ? { borderColor: primaryColor, color: primaryColor, backgroundColor: `${primaryColor}10` } : {}}
+                      >
+                        <span>{m.icon}</span>
+                        {m.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
 

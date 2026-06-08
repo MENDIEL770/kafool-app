@@ -12,7 +12,8 @@ interface Org { id: string; name: string; slug: string; logo_url: string | null 
 interface Donation { id: string; donor_name: string | null; amount: number; dedication: string | null; created_at: string }
 interface GalleryItem { id: string; image_url: string; caption: string | null }
 interface ActiveGroup { id: string; name: string; slug: string; goal_amount: number; raised_amount: number; manager_name: string | null }
-interface Props { org: Org; campaign: Campaign; donations: Donation[]; groups: Group[]; gallery: GalleryItem[]; activeGroup?: ActiveGroup; donationUrl?: string }
+interface PaymentUrls { one_time: string; hok: string; bit: string; bank: string }
+interface Props { org: Org; campaign: Campaign; donations: Donation[]; groups: Group[]; gallery: GalleryItem[]; activeGroup?: ActiveGroup; donationUrl?: string; paymentUrls?: PaymentUrls }
 
 /* ─── Helpers ─── */
 function getVideoEmbed(url: string): string | null {
@@ -789,7 +790,7 @@ function FloatingBar({ primaryColor, buttonRadius, onDonate }: { campaign: Campa
 }
 
 /* ─── Main Page ─── */
-export default function DonationPageClient({ org, campaign, donations: initialDonations, groups, gallery, activeGroup, donationUrl = '' }: Props) {
+export default function DonationPageClient({ org, campaign, donations: initialDonations, groups, gallery, activeGroup, donationUrl = '', paymentUrls }: Props) {
   const [donations, setDonations] = useState<Donation[]>(initialDonations)
   const [raisedAmount, setRaisedAmount] = useState(campaign.raised_amount)
   const [modalOpen, setModalOpen] = useState(false)
@@ -961,6 +962,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
         presetAmount={modalAmount}
         presetGroupSlug={modalGroupSlug}
         donationUrl={donationUrl}
+        paymentUrls={paymentUrls}
         campaign={campaign}
         primaryColor={primaryColor}
         buttonRadius={buttonRadius}
