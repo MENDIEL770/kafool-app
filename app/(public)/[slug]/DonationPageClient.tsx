@@ -186,21 +186,34 @@ function HeroSection({ campaign, org, primaryColor, countdown }: {
   )
 }
 
-function DonationPlans({ plans, primaryColor, campaignSlug }: {
+function DonationPlans({ plans, primaryColor, campaignSlug, groups }: {
   plans: { amount: number; label?: string; image_url?: string | null }[]
   primaryColor: string
   campaignSlug: string
+  groups: Group[]
 }) {
   const [selected, setSelected] = useState<number | null>(null)
   const [custom, setCustom] = useState('')
+  const [selectedGroup, setSelectedGroup] = useState<string>('')
 
   const finalAmount = selected ?? (custom ? Number(custom) : null)
+
+  const donateHref = `/${campaignSlug}/donate${
+    finalAmount || selectedGroup
+      ? '?' + new URLSearchParams({
+          ...(finalAmount ? { amount: String(finalAmount) } : {}),
+          ...(selectedGroup ? { group: selectedGroup } : {}),
+        }).toString()
+      : ''
+  }`
 
   return (
     <section className="bg-white border-b border-gray-100 py-8 px-4" aria-label="מסלולי תרומה">
       <div className="max-w-6xl mx-auto">
         <h2 className="text-lg font-bold text-gray-700 mb-6 text-center">בחר סכום תרומה</h2>
-        <div className="flex gap-5 overflow-x-auto pb-6 pt-4 px-4 scrollbar-hide snap-x justify-start md:justify-center flex-nowrap" style={{ overflowY: 'visible' }}>
+
+        {/* Grid: 3 columns on mobile, scrollable row on md+ */}
+        <div className="grid grid-cols-3 gap-4 pb-2 px-1 md:flex md:gap-5 md:overflow-x-auto md:pb-6 md:pt-4 md:px-4 md:scrollbar-hide md:snap-x md:justify-center md:flex-nowrap" style={{ overflowY: 'visible' }}>
           {plans.map(({ amount, label, image_url }) => {
             const isActive = selected === amount
             return (
@@ -208,16 +221,16 @@ function DonationPlans({ plans, primaryColor, campaignSlug }: {
                 key={amount}
                 onClick={() => { setSelected(isActive ? null : amount); setCustom('') }}
                 aria-pressed={isActive}
-                className="flex-none snap-start flex flex-col items-center gap-2 cursor-pointer focus:outline-none group"
+                className="flex-none snap-start flex flex-col items-center gap-2 cursor-pointer focus:outline-none"
               >
                 {/* עיגול */}
                 <div
-                  className="w-[110px] h-[110px] rounded-full overflow-hidden transition-all duration-200 relative"
+                  className="w-[90px] h-[90px] md:w-[110px] md:h-[110px] rounded-full overflow-hidden transition-all duration-200 relative"
                   style={{
                     boxShadow: isActive
-                    ? `0 0 0 4px white, 0 0 0 7px ${primaryColor}, 0 6px 20px ${primaryColor}44`
-                    : '0 2px 10px rgba(0,0,0,0.08)',
-                  transform: 'scale(1)',
+                      ? `0 0 0 4px white, 0 0 0 7px ${primaryColor}, 0 6px 20px ${primaryColor}44`
+                      : '0 2px 10px rgba(0,0,0,0.08)',
+                    transform: isActive ? 'scale(1.08)' : 'scale(1)',
                   }}
                 >
                   {image_url ? (
@@ -227,14 +240,21 @@ function DonationPlans({ plans, primaryColor, campaignSlug }: {
                       className="w-full h-full flex items-center justify-center"
                       style={{ background: `linear-gradient(135deg, ${primaryColor}dd, ${primaryColor}88)` }}
                     >
-                      <span className="text-white font-black text-xl">₪{amount.toLocaleString()}</span>
+                      <span className="text-white font-black text-lg md:text-xl">₪{amount.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {isActive && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/10 rounded-full">
+                      <svg className="w-7 h-7 text-white drop-shadow" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
                     </div>
                   )}
                 </div>
                 {/* טקסט מתחת */}
                 <div className="text-center">
-                  <div className="text-sm font-bold text-gray-800">₪{amount.toLocaleString()}</div>
-                  {label && <div className="text-[11px] text-gray-400 mt-0.5">{label}</div>}
+                  <div className="text-xs md:text-sm font-bold text-gray-800">₪{amount.toLocaleString()}</div>
+                  {label && <div className="text-[10px] md:text-[11px] text-gray-400 mt-0.5">{label}</div>}
                 </div>
               </button>
             )
@@ -242,8 +262,8 @@ function DonationPlans({ plans, primaryColor, campaignSlug }: {
 
           {/* סכום אחר */}
           <div className="flex-none snap-start flex flex-col items-center gap-2">
-            <div className="w-[110px] h-[110px] rounded-full border-2 border-dashed border-gray-300 flex flex-col items-center justify-center bg-gray-50">
-              <span className="text-xs text-gray-400 mb-1">סכום אחר</span>
+            <div className="w-[90px] h-[90px] md:w-[110px] md:h-[110px] rounded-full border-2 border-dashed border-gray-300 flex flex-col items-center justify-center bg-gray-50">
+              <span className="text-[10px] md:text-xs text-gray-400 mb-1">סכום אחר</span>
               <div className="flex items-center gap-0.5">
                 <span className="text-sm font-bold text-gray-500">₪</span>
                 <input
@@ -252,21 +272,44 @@ function DonationPlans({ plans, primaryColor, campaignSlug }: {
                   onChange={(e) => { setCustom(e.target.value); setSelected(null) }}
                   placeholder="0"
                   min="1"
-                  className="w-14 text-center text-sm font-bold outline-none bg-transparent"
+                  className="w-12 md:w-14 text-center text-sm font-bold outline-none bg-transparent"
                   dir="ltr"
                 />
               </div>
             </div>
             <div className="text-center">
-              <div className="text-sm font-bold text-gray-400">אחר</div>
+              <div className="text-xs md:text-sm font-bold text-gray-400">אחר</div>
             </div>
           </div>
         </div>
 
+        {/* בחירת קבוצה */}
+        {groups.length > 0 && (
+          <div className="mt-5 max-w-md mx-auto">
+            <label className="block text-xs font-semibold text-gray-500 mb-2 text-center">תרום בשם קבוצה (אופציונלי)</label>
+            <div className="flex flex-wrap gap-2 justify-center">
+              {groups.map(g => (
+                <button
+                  key={g.id}
+                  onClick={() => setSelectedGroup(selectedGroup === g.id ? '' : g.id)}
+                  aria-pressed={selectedGroup === g.id}
+                  className="px-4 py-2 rounded-full text-sm font-semibold border-2 transition-all duration-150"
+                  style={selectedGroup === g.id
+                    ? { backgroundColor: primaryColor, borderColor: primaryColor, color: 'white' }
+                    : { backgroundColor: 'white', borderColor: '#e5e7eb', color: '#374151' }
+                  }
+                >
+                  {g.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Payment actions */}
         <div className="flex flex-col sm:flex-row justify-center gap-3 mt-6 max-w-md mx-auto">
           <a
-            href={`/${campaignSlug}/donate${finalAmount ? `?amount=${finalAmount}` : ''}`}
+            href={donateHref}
             className="flex-1 py-3.5 rounded-2xl text-white font-black text-base text-center shadow-lg hover:opacity-90 active:scale-95 transition-all"
             style={{ backgroundColor: primaryColor }}
           >
@@ -646,7 +689,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
       <HeroSection campaign={campaign} org={org} primaryColor={primaryColor} countdown={countdown} />
 
       {/* 3. Donation Plans */}
-      <DonationPlans plans={donationPlans} primaryColor={primaryColor} campaignSlug={campaign.slug} />
+      <DonationPlans plans={donationPlans} primaryColor={primaryColor} campaignSlug={campaign.slug} groups={groups} />
 
       {/* 4. Progress */}
       <ProgressSection raised={raisedAmount} goal={campaign.goal_amount} donorsCount={donations.length} primaryColor={primaryColor} />
