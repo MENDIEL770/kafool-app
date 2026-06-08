@@ -7,9 +7,7 @@ interface Props {
   org: { id: string; name: string; slug: string }
   campaign: { id: string; title: string; slug: string; goal_amount: number; raised_amount: number }
   settings: { donation_amounts?: number[]; primary_color?: string }
-  kesherPageId: string
-  kesherPageUrl: string
-  kesherActive: boolean
+  donationUrl: string
   presetAmount?: number
   groupSlug?: string
   callerId?: string
@@ -20,9 +18,7 @@ export default function DonateClient({
   org,
   campaign,
   settings,
-  kesherPageId,
-  kesherPageUrl,
-  kesherActive,
+  donationUrl,
   presetAmount,
   groupSlug,
   callerId,
@@ -51,14 +47,8 @@ export default function DonateClient({
     setForm((prev) => ({ ...prev, [key]: value }))
   }
 
-  function buildKesherUrl(): string {
-    // Use Page ID if available, otherwise fall back to direct URL
-    const base = kesherPageId
-      ? `https://kesherhk.info/PaymentPage/PaymentPage`
-      : kesherPageUrl
-
+  function buildPaymentUrl(): string {
     const params = new URLSearchParams()
-    if (kesherPageId) params.set('id', kesherPageId)
     if (finalAmount) params.set('total', String(finalAmount))
 
     if (!form.anonymous) {
@@ -70,7 +60,6 @@ export default function DonateClient({
 
     params.set('lang', 'Hebrew')
 
-    // Encode our metadata — returned as "adddata" in webhook
     const addActionData = [
       campaign.id,
       groupSlug || '',
@@ -83,11 +72,12 @@ export default function DonateClient({
     params.set('successurl', `${origin}/${campaign.slug}/thanks`)
     params.set('failedurl', `${origin}/${campaign.slug}/donate?error=1`)
 
-    return `${base}?${params.toString()}`
+    const separator = donationUrl.includes('?') ? '&' : '?'
+    return `${donationUrl}${separator}${params.toString()}`
   }
 
-  // Kesher not configured
-  if (!kesherActive || (!kesherPageId && !kesherPageUrl)) {
+  // Payment not configured
+  if (!donationUrl) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4" dir="rtl">
         <div className="text-center space-y-4 max-w-sm">
@@ -275,7 +265,7 @@ export default function DonateClient({
               </span>
             </div>
             <iframe
-              src={buildKesherUrl()}
+              src={buildPaymentUrl()}
               className="w-full"
               style={{ height: '580px', border: 'none' }}
               title="דף תשלום מאובטח"

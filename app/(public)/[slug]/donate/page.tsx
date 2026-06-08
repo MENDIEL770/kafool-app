@@ -33,16 +33,15 @@ export default async function DonatePage({
 
   if (!org) notFound()
 
-  const settings = campaign.settings as { donation_amounts?: number[]; primary_color?: string }
+  const settings = campaign.settings as { donation_amounts?: number[]; primary_color?: string; donation_page_url?: string }
+  const donationUrl = settings?.donation_page_url || org.kesher_page_url || ''
 
   return (
     <DonateClient
       org={org}
       campaign={campaign}
       settings={settings}
-      kesherPageId={org.kesher_page_id || ''}
-      kesherPageUrl={org.kesher_page_url || ''}
-      kesherActive={org.kesher_active || false}
+      donationUrl={donationUrl}
       presetAmount={amount ? Number(amount) : undefined}
       groupSlug={group}
       callerId={caller}

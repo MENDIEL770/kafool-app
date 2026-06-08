@@ -3,33 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Campaign, Group } from '@/types'
-import { Search, Share2, Heart, Menu, X, ChevronDown, Globe, ExternalLink } from 'lucide-react'
-
-/* ─── Donation Modal ─── */
-function DonationModal({ url, onClose }: { url: string; onClose: () => void }) {
-  useEffect(() => {
-    document.body.style.overflow = 'hidden'
-    return () => { document.body.style.overflow = '' }
-  }, [])
-
-  return (
-    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 bg-white w-full sm:w-[480px] sm:rounded-2xl shadow-2xl flex flex-col" style={{ height: '90dvh' }}>
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 shrink-0">
-          <button onClick={onClose} className="p-1.5 rounded-full hover:bg-gray-100 transition-colors">
-            <X className="w-5 h-5 text-gray-500" />
-          </button>
-          <span className="font-bold text-gray-800 text-sm">דף תרומה</span>
-          <a href={url} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-full hover:bg-gray-100 transition-colors" title="פתח בכרטיסייה חדשה">
-            <ExternalLink className="w-4 h-4 text-gray-400" />
-          </a>
-        </div>
-        <iframe src={url} className="flex-1 w-full border-0" allow="payment" title="דף תרומה" />
-      </div>
-    </div>
-  )
-}
+import { Search, Share2, Heart, Menu, X, ChevronDown, Globe } from 'lucide-react'
 
 /* ─── Types ─── */
 interface Org { id: string; name: string; slug: string; logo_url: string | null }
@@ -70,7 +44,7 @@ function useCountdown(endAt: string | null) {
 
 /* ─── Sub-components ─── */
 
-function StickyHeader({ org, campaign, primaryColor, onDonate, donationHref }: { org: Org; campaign: Campaign; primaryColor: string; onDonate: (e: React.MouseEvent) => void; donationHref: string }) {
+function StickyHeader({ org, campaign, primaryColor }: { org: Org; campaign: Campaign; primaryColor: string }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
 
@@ -119,7 +93,7 @@ function StickyHeader({ org, campaign, primaryColor, onDonate, donationHref }: {
             <Share2 className="w-3.5 h-3.5" />
             שתף
           </button>
-          <a href={donationHref} onClick={onDonate}
+          <a href={`/${campaign.slug}/donate`}
             className="text-sm font-bold px-4 py-2 rounded-full text-white shadow-md hover:opacity-90 transition-all"
             style={{ backgroundColor: primaryColor }}>
             לתרומה
@@ -151,10 +125,9 @@ function StickyHeader({ org, campaign, primaryColor, onDonate, donationHref }: {
   )
 }
 
-function HeroSection({ campaign, org, primaryColor, countdown, onDonate, donationHref }: {
+function HeroSection({ campaign, org, primaryColor, countdown }: {
   campaign: Campaign; org: Org; primaryColor: string
   countdown: { d: number; h: number; m: number; s: number } | null
-  onDonate: (e: React.MouseEvent) => void; donationHref: string
 }) {
   const logoSrc = campaign.logo_url || org.logo_url
   const settings = campaign.settings as { about_text?: string | null }
@@ -202,7 +175,7 @@ function HeroSection({ campaign, org, primaryColor, countdown, onDonate, donatio
           </div>
         )}
 
-        <a href={donationHref} onClick={onDonate}
+        <a href={`/${campaign.slug}/donate`}
           className="inline-block px-10 py-4 rounded-full text-white font-black text-lg shadow-2xl hover:scale-105 active:scale-95 transition-transform"
           style={{ backgroundColor: primaryColor }}>
           לתרומה עכשיו →
@@ -217,7 +190,7 @@ function HeroSection({ campaign, org, primaryColor, countdown, onDonate, donatio
   )
 }
 
-function DonationPlans({ amounts, primaryColor, campaignSlug, onDonate, donationPageUrl }: { amounts: number[]; primaryColor: string; campaignSlug: string; onDonate: (e: React.MouseEvent) => void; donationPageUrl: string | null }) {
+function DonationPlans({ amounts, primaryColor, campaignSlug }: { amounts: number[]; primaryColor: string; campaignSlug: string }) {
   const [selected, setSelected] = useState<number | null>(null)
   const [custom, setCustom] = useState('')
 
@@ -273,8 +246,7 @@ function DonationPlans({ amounts, primaryColor, campaignSlug, onDonate, donation
         {/* Payment actions */}
         <div className="flex flex-col sm:flex-row justify-center gap-3 mt-6 max-w-md mx-auto">
           <a
-            href={donationPageUrl ? '#' : `/${campaignSlug}/donate${finalAmount ? `?amount=${finalAmount}` : ''}`}
-            onClick={donationPageUrl ? onDonate : undefined}
+            href={`/${campaignSlug}/donate${finalAmount ? `?amount=${finalAmount}` : ''}`}
             className="flex-1 py-3.5 rounded-2xl text-white font-black text-base text-center shadow-lg hover:opacity-90 active:scale-95 transition-all"
             style={{ backgroundColor: primaryColor }}
           >
@@ -579,7 +551,7 @@ function AboutSection({ campaign, gallery }: { campaign: Campaign; gallery: Gall
   )
 }
 
-function FloatingBar({ campaign, primaryColor, onDonate, donationHref }: { campaign: Campaign; primaryColor: string; onDonate: (e: React.MouseEvent) => void; donationHref: string }) {
+function FloatingBar({ campaign, primaryColor }: { campaign: Campaign; primaryColor: string }) {
   const [visible, setVisible] = useState(false)
   useEffect(() => {
     const fn = () => setVisible(window.scrollY > 400)
@@ -597,8 +569,7 @@ function FloatingBar({ campaign, primaryColor, onDonate, donationHref }: { campa
     >
       <div className="max-w-lg mx-auto flex gap-2 px-4 py-3">
         <a
-          href={donationHref}
-          onClick={onDonate}
+          href={`/${campaign.slug}/donate`}
           className="flex-[2] py-3 rounded-2xl text-white font-black text-sm text-center shadow-md hover:opacity-90 active:scale-95 transition-all"
           style={{ backgroundColor: primaryColor }}
         >
@@ -623,16 +594,9 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
   const [raisedAmount, setRaisedAmount] = useState(campaign.raised_amount)
   const countdown = useCountdown(campaign.end_at)
 
-  const [donationModalOpen, setDonationModalOpen] = useState(false)
-
-  const settings = campaign.settings as { donation_amounts?: number[]; primary_color?: string; donation_page_url?: string }
+  const settings = campaign.settings as { donation_amounts?: number[]; primary_color?: string }
   const donationAmounts: number[] = settings?.donation_amounts || [180, 360, 720, 1800, 3600]
   const primaryColor = settings?.primary_color || '#2563eb'
-  const donationPageUrl = settings?.donation_page_url || null
-
-  function openDonation(e: React.MouseEvent) {
-    if (donationPageUrl) { e.preventDefault(); setDonationModalOpen(true) }
-  }
 
   // Realtime
   useEffect(() => {
@@ -650,18 +614,14 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
 
   return (
     <div className="min-h-screen bg-gray-50" dir="rtl">
-      {donationModalOpen && donationPageUrl && (
-        <DonationModal url={donationPageUrl} onClose={() => setDonationModalOpen(false)} />
-      )}
-
       {/* 1. Sticky Header */}
-      <StickyHeader org={org} campaign={campaign} primaryColor={primaryColor} onDonate={openDonation} donationHref={donationPageUrl ? '#' : `/${campaign.slug}/donate`} />
+      <StickyHeader org={org} campaign={campaign} primaryColor={primaryColor} />
 
       {/* 2. Hero */}
-      <HeroSection campaign={campaign} org={org} primaryColor={primaryColor} countdown={countdown} onDonate={openDonation} donationHref={donationPageUrl ? '#' : `/${campaign.slug}/donate`} />
+      <HeroSection campaign={campaign} org={org} primaryColor={primaryColor} countdown={countdown} />
 
       {/* 3. Donation Plans */}
-      <DonationPlans amounts={donationAmounts} primaryColor={primaryColor} campaignSlug={campaign.slug} onDonate={openDonation} donationPageUrl={donationPageUrl} />
+      <DonationPlans amounts={donationAmounts} primaryColor={primaryColor} campaignSlug={campaign.slug} />
 
       {/* 4. Progress */}
       <ProgressSection raised={raisedAmount} goal={campaign.goal_amount} donorsCount={donations.length} primaryColor={primaryColor} />
@@ -676,7 +636,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
       <AboutSection campaign={campaign} gallery={gallery} />
 
       {/* 8. Floating bar */}
-      <FloatingBar campaign={campaign} primaryColor={primaryColor} onDonate={openDonation} donationHref={donationPageUrl ? '#' : `/${campaign.slug}/donate`} />
+      <FloatingBar campaign={campaign} primaryColor={primaryColor} />
 
       {/* Bottom padding for floating bar */}
       <div className="h-20" />
