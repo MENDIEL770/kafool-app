@@ -377,8 +377,10 @@ function ProgressSection({ raised, goal, donorsCount, primaryColor }: { raised: 
 }
 
 type SortBy = 'recent' | 'amount_desc' | 'amount_asc'
+type CommunityTab = 'donors' | 'groups' | 'communities'
 
-function DonorsSection({ donations, primaryColor }: { donations: Donation[]; primaryColor: string }) {
+function CommunitySection({ donations, groups, primaryColor }: { donations: Donation[]; groups: Group[]; primaryColor: string }) {
+  const [tab, setTab] = useState<CommunityTab>('donors')
   const [search, setSearch] = useState('')
   const [sortBy, setSortBy] = useState<SortBy>('recent')
   const [liked, setLiked] = useState<Set<string>>(new Set())
@@ -392,42 +394,53 @@ function DonorsSection({ donations, primaryColor }: { donations: Donation[]; pri
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     })
 
-  const avg = donations.length ? Math.round(donations.reduce((s, d) => s + d.amount, 0) / donations.length) : 0
-  const total = donations.reduce((s, d) => s + d.amount, 0)
+  const allTabs: { key: CommunityTab; label: string; count?: number; show: boolean }[] = [
+    { key: 'donors' as CommunityTab, label: 'תורמים', count: donations.length, show: true },
+    { key: 'groups' as CommunityTab, label: 'קבוצות', count: groups.length, show: groups.length > 0 },
+    { key: 'communities' as CommunityTab, label: 'קהילות', show: false },
+  ]
+  const tabs = allTabs.filter(t => t.show)
 
   return (
-    <section id="donors" className="py-10 px-4 bg-white" aria-label="תורמים">
+    <section id="donors" className="py-10 px-4 bg-white" aria-label="קהילת התורמים">
       <div className="max-w-6xl mx-auto">
         <h2 className="text-2xl font-black text-gray-900 mb-6 text-center">קהילת התורמים</h2>
 
-        <div className="flex flex-col lg:flex-row gap-8">
+        {/* Tabs */}
+        <div className="flex justify-center gap-1 mb-8">
+          {tabs.map(t => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className="flex items-center gap-1.5 px-5 py-2.5 rounded-full text-sm font-bold transition-all"
+              style={tab === t.key
+                ? { backgroundColor: primaryColor, color: 'white' }
+                : { backgroundColor: '#f3f4f6', color: '#6b7280' }
+              }
+            >
+              {t.label}
+              {t.count !== undefined && (
+                <span className={`text-xs px-1.5 py-0.5 rounded-full font-black ${
+                  tab === t.key ? 'bg-white/25 text-white' : 'bg-white text-gray-500'
+                }`}>
+                  {t.count}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
 
-          {/* Right — Stats */}
-          <aside className="lg:w-72 space-y-4 shrink-0" aria-label="סטטיסטיקות תורמים">
-            <div className="bg-gray-50 rounded-3xl p-6 space-y-4 border border-gray-100">
-              <h3 className="font-bold text-gray-700 text-sm uppercase tracking-wider">נתונים</h3>
-              {[
-                { label: 'תורמים', val: donations.length.toLocaleString() },
-                { label: 'סה"כ גויס', val: `₪${total.toLocaleString('he-IL')}` },
-                { label: 'ממוצע תרומה', val: `₪${avg.toLocaleString()}` },
-              ].map(s => (
-                <div key={s.label} className="flex justify-between items-center py-2 border-b border-gray-200 last:border-0">
-                  <span className="text-sm text-gray-500">{s.label}</span>
-                  <span className="font-black text-gray-800">{s.val}</span>
-                </div>
-              ))}
-            </div>
+        {/* Live indicator */}
+        <div className="flex justify-center mb-6">
+          <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-100 rounded-2xl px-4 py-2">
+            <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+            <span className="text-xs text-emerald-700 font-medium">עדכון בזמן אמת</span>
+          </div>
+        </div>
 
-            {/* Live indicator */}
-            <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-100 rounded-2xl px-4 py-3">
-              <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-              <span className="text-xs text-emerald-700 font-medium">עדכון בזמן אמת</span>
-            </div>
-          </aside>
-
-          {/* Left — Donors grid */}
-          <div className="flex-1 space-y-4">
-            {/* Search + sort */}
+        {/* ── Donors Tab ── */}
+        {tab === 'donors' && (
+          <div className="space-y-4">
             <div className="flex gap-2">
               <div className="flex-1 relative">
                 <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden />
@@ -466,7 +479,6 @@ function DonorsSection({ donations, primaryColor }: { donations: Donation[]; pri
                       key={d.id}
                       className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm hover:shadow-md transition-shadow flex gap-3"
                     >
-                      {/* Avatar */}
                       <div
                         className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0 shadow-sm"
                         style={{ backgroundColor: primaryColor }}
@@ -474,7 +486,6 @@ function DonorsSection({ donations, primaryColor }: { donations: Donation[]; pri
                       >
                         {(d.donor_name || 'א')[0]}
                       </div>
-                      {/* Content */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
                           <span className="font-bold text-sm text-gray-800 truncate">{d.donor_name || 'אנונימי'}</span>
@@ -483,7 +494,9 @@ function DonorsSection({ donations, primaryColor }: { donations: Donation[]; pri
                           </span>
                         </div>
                         {d.dedication && (
-                          <p className="text-xs text-gray-500 mt-0.5 leading-relaxed line-clamp-2">{d.dedication}</p>
+                          <p className="text-xs text-gray-600 mt-1 leading-relaxed bg-gray-50 rounded-lg px-2 py-1 border-r-2" style={{ borderColor: primaryColor }}>
+                            {d.dedication}
+                          </p>
                         )}
                         <div className="flex items-center justify-between mt-1.5">
                           <time className="text-[11px] text-gray-300" dateTime={d.created_at}>
@@ -503,7 +516,6 @@ function DonorsSection({ donations, primaryColor }: { donations: Donation[]; pri
                     </article>
                   ))}
                 </div>
-
                 {visible < filtered.length && (
                   <div className="text-center pt-2">
                     <button
@@ -518,41 +530,34 @@ function DonorsSection({ donations, primaryColor }: { donations: Donation[]; pri
               </>
             )}
           </div>
-        </div>
-      </div>
-    </section>
-  )
-}
+        )}
 
-function GroupsSection({ groups, primaryColor }: { groups: Group[]; primaryColor: string }) {
-  if (groups.length === 0) return null
-  return (
-    <section id="groups" className="py-10 px-4 bg-gray-50 border-t border-gray-100" aria-label="קבוצות גיוס">
-      <div className="max-w-6xl mx-auto">
-        <h2 className="text-2xl font-black text-gray-900 mb-6 text-center">קבוצות גיוס</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {groups.map(g => {
-            const pct = g.goal_amount > 0 ? Math.min(100, Math.round((g.raised_amount / g.goal_amount) * 100)) : 0
-            return (
-              <div key={g.id} className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100">
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <h3 className="font-bold text-gray-800">{g.name}</h3>
-                    {g.manager_name && <p className="text-xs text-gray-400 mt-0.5">{g.manager_name}</p>}
+        {/* ── Groups Tab ── */}
+        {tab === 'groups' && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {groups.map(g => {
+              const pct = g.goal_amount > 0 ? Math.min(100, Math.round((g.raised_amount / g.goal_amount) * 100)) : 0
+              return (
+                <div key={g.id} className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100">
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <h3 className="font-bold text-gray-800">{g.name}</h3>
+                      {g.manager_name && <p className="text-xs text-gray-400 mt-0.5">{g.manager_name}</p>}
+                    </div>
+                    <span className="text-xs font-bold px-2 py-1 rounded-full text-white" style={{ backgroundColor: primaryColor }}>{pct}%</span>
                   </div>
-                  <span className="text-xs font-bold px-2 py-1 rounded-full text-white" style={{ backgroundColor: primaryColor }}>{pct}%</span>
+                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-2">
+                    <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: primaryColor }} />
+                  </div>
+                  <div className="flex justify-between text-xs text-gray-400">
+                    <span>₪{(g.raised_amount || 0).toLocaleString()} גויס</span>
+                    <span>יעד ₪{(g.goal_amount || 0).toLocaleString()}</span>
+                  </div>
                 </div>
-                <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-2">
-                  <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: primaryColor }} />
-                </div>
-                <div className="flex justify-between text-xs text-gray-400">
-                  <span>₪{(g.raised_amount || 0).toLocaleString()} גויס</span>
-                  <span>יעד ₪{(g.goal_amount || 0).toLocaleString()}</span>
-                </div>
-              </div>
-            )
-          })}
-        </div>
+              )
+            })}
+          </div>
+        )}
       </div>
     </section>
   )
@@ -694,11 +699,8 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
       {/* 4. Progress */}
       <ProgressSection raised={raisedAmount} goal={campaign.goal_amount} donorsCount={donations.length} primaryColor={primaryColor} />
 
-      {/* 5. Donors */}
-      <DonorsSection donations={donations} primaryColor={primaryColor} />
-
-      {/* 6. Groups */}
-      <GroupsSection groups={groups} primaryColor={primaryColor} />
+      {/* 5. Community (donors + groups tabs) */}
+      <CommunitySection donations={donations} groups={groups} primaryColor={primaryColor} />
 
       {/* 7. About */}
       <AboutSection campaign={campaign} gallery={gallery} />
