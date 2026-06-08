@@ -24,6 +24,7 @@ export default function CampaignSettingsPage() {
     video_url: '',
     primary_color: '#2563eb',
     about_text: '',
+    donation_page_url: '',
   })
 
   useEffect(() => {
@@ -39,6 +40,7 @@ export default function CampaignSettingsPage() {
           video_url: data.video_url || '',
           primary_color: data.settings?.primary_color || '#2563eb',
           about_text: data.settings?.about_text || '',
+          donation_page_url: data.settings?.donation_page_url || '',
         })
       }
     }
@@ -64,6 +66,7 @@ export default function CampaignSettingsPage() {
         primary_color: form.primary_color,
         secondary_color: '#1e40af',
         about_text: form.about_text || null,
+        donation_page_url: form.donation_page_url || null,
       },
     }).eq('id', id)
     setLoading(false)
@@ -117,6 +120,17 @@ export default function CampaignSettingsPage() {
             <div className="space-y-1">
               <Label>קישור וידאו (YouTube / Vimeo / Google Drive)</Label>
               <Input type="url" value={form.video_url} onChange={(e) => set('video_url', e.target.value)} dir="ltr" placeholder="https://youtube.com/watch?v=..." />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle className="text-base">דף תרומה</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-gray-500">הדבק קישור לדף תרומה קיים (קשר, ירושלים, PayPal וכו׳). לחיצה על "לתרומה" תפתח אותו ב-popup.</p>
+            <div className="space-y-1">
+              <Label>קישור לדף תרומה</Label>
+              <Input type="url" value={form.donation_page_url} onChange={(e) => set('donation_page_url', e.target.value)} dir="ltr" placeholder="https://..." />
             </div>
           </CardContent>
         </Card>
