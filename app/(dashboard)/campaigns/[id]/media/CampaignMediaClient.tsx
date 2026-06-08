@@ -26,8 +26,6 @@ interface Props {
   initialSettings: Record<string, unknown>
 }
 
-const SUPABASE_URL = 'https://dkvxbzxnqfqprkxuksqv.supabase.co'
-const BUCKET = 'campaign-media'
 
 type Tab = 'banner' | 'gallery' | 'buttons'
 
@@ -245,13 +243,15 @@ export default function CampaignMediaClient({
   const [savingAmounts, setSavingAmounts] = useState(false)
   const [savedAmounts, setSavedAmounts] = useState(false)
 
-  /* ─── Upload helper ─── */
+  /* ─── Upload helper — uses server-side API to bypass RLS ─── */
   async function uploadFile(file: File, path: string): Promise<string | null> {
-    const ext = file.name.split('.').pop() || 'jpg'
-    const fullPath = `${path}.${ext}`
-    const { error } = await supabase.storage.from(BUCKET).upload(fullPath, file, { upsert: true })
-    if (error) { console.error(error); return null }
-    return `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${fullPath}?t=${Date.now()}`
+    const fd = new FormData()
+    fd.append('file', file)
+    fd.append('path', path)
+    const res = await fetch('/api/upload', { method: 'POST', body: fd })
+    if (!res.ok) { console.error('Upload failed:', await res.text()); return null }
+    const { url } = await res.json()
+    return url
   }
 
   /* ─── Cover upload ─── */

@@ -24,13 +24,13 @@ export default function CreateGroupModal({ isOpen, onClose, campaignId, primaryC
 
   async function uploadImage(file: File) {
     setUploading(true)
-    const supabase = createClient()
-    const ext = file.name.split('.').pop()
-    const path = `groups/public/${Date.now()}.${ext}`
-    const { error } = await supabase.storage.from('campaign-media').upload(path, file, { upsert: true })
-    if (!error) {
-      const { data: { publicUrl } } = supabase.storage.from('campaign-media').getPublicUrl(path)
-      set('imageUrl', publicUrl)
+    const fd = new FormData()
+    fd.append('file', file)
+    fd.append('path', `groups/public/${Date.now()}`)
+    const res = await fetch('/api/upload', { method: 'POST', body: fd })
+    if (res.ok) {
+      const { url } = await res.json()
+      set('imageUrl', url)
     }
     setUploading(false)
   }
