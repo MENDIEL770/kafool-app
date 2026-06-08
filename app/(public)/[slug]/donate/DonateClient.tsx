@@ -48,7 +48,22 @@ export default function DonateClient({
   }
 
   function buildPaymentUrl(): string {
-    return donationUrl
+    const params = new URLSearchParams()
+
+    if (finalAmount) params.set('total', String(finalAmount))
+
+    if (!form.anonymous) {
+      if (form.firstName) params.set('firstName', form.firstName)
+      if (form.lastName) params.set('lastName', form.lastName)
+      if (form.phone) params.set('tel', form.phone)
+      if (form.email) params.set('mail', form.email)
+    }
+
+    if (form.dedication) params.set('comment', form.dedication)
+    if (groupSlug) params.set('group', groupSlug)
+
+    const separator = donationUrl.includes('?') ? '&' : '?'
+    return `${donationUrl}${separator}${params.toString()}`
   }
 
   // Payment not configured
