@@ -75,15 +75,11 @@ export async function POST(req: NextRequest) {
       campaign_id: campaignId,
       org_id: campaign.org_id,
       amount: amountTotal,
-      amount_agorot: amountAgorot,
       donor_name: donorName,
       donor_phone: donorPhone,
       donor_email: donorEmail,
       kesher_transaction_id: numTransaction,
-      kesher_status_code: kesherStatus,
       payment_status: 'completed',
-      status: 'success',
-      receipt_link: receiptLink || null,
       kesher_raw: body,
     })
 

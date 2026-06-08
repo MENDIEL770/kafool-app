@@ -15,19 +15,29 @@ export default function ThanksClient({ slug, orgName, campaignTitle, primaryColo
   const router = useRouter()
   const [seconds, setSeconds] = useState(10)
 
+  function goToCampaign() {
+    const url = `/${slug}`
+    // אם אנחנו בתוך iframe — צא לדף האב
+    if (typeof window !== 'undefined' && window.self !== window.top) {
+      window.top!.location.href = url
+    } else {
+      router.push(url)
+    }
+  }
+
   useEffect(() => {
     const t = setInterval(() => {
       setSeconds(s => {
         if (s <= 1) {
           clearInterval(t)
-          router.push(`/${slug}`)
+          goToCampaign()
           return 0
         }
         return s - 1
       })
     }, 1000)
     return () => clearInterval(t)
-  }, [router, slug])
+  }, [slug])
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4" dir="rtl">
@@ -72,7 +82,7 @@ export default function ThanksClient({ slug, orgName, campaignTitle, primaryColo
         {/* Back button + countdown */}
         <div className="space-y-2">
           <button
-            onClick={() => router.push(`/${slug}`)}
+            onClick={goToCampaign}
             className="w-full py-3 rounded-xl font-bold text-white text-sm transition-opacity hover:opacity-90"
             style={{ backgroundColor: primaryColor }}
           >
