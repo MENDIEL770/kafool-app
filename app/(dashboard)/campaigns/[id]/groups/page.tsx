@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label'
 import { ExternalLink, Pencil, MessageSquare, Send, X, Check, Loader2, ChevronDown, ChevronUp } from 'lucide-react'
 import type { Group } from '@/types'
 
-interface CampaignInfo { slug: string; org_slug: string }
+interface CampaignInfo { slug: string; campaign_slug: string }
 
 // ─── Edit Modal ───────────────────────────────────────────────────────────────
 function EditModal({ group, onClose, onSaved }: { group: Group; onClose: () => void; onSaved: () => void }) {
@@ -95,7 +95,7 @@ function BulkSmsModal({ groups, campaignInfo, onClose }: {
   onClose: () => void
 }) {
   const withPhone = groups.filter(g => g.manager_phone)
-  const defaultMsg = `שלום {שם},\nהקישור לדף הקבוצה שלך:\nhttps://kafool.com/${campaignInfo?.org_slug}/{קישור}\n\nבהצלחה!`
+  const defaultMsg = `שלום {שם},\nהקישור לדף הקבוצה שלך:\nhttps://kafool.com/${campaignInfo?.campaign_slug}/{קישור}\n\nבהצלחה!`
   const [template, setTemplate] = useState(defaultMsg)
   const [sending, setSending] = useState(false)
   const [result, setResult] = useState<{ sent: number; total: number } | null>(null)
@@ -104,7 +104,7 @@ function BulkSmsModal({ groups, campaignInfo, onClose }: {
   function renderPreview(g: Group) {
     return template
       .replace('{שם}', g.manager_name || g.name)
-      .replace('{קישור}', `${campaignInfo?.org_slug}/g/${g.slug}`)
+      .replace('{קישור}', `${campaignInfo?.campaign_slug}/g/${g.slug}`)
   }
 
   async function handleSend() {
@@ -113,7 +113,7 @@ function BulkSmsModal({ groups, campaignInfo, onClose }: {
     const results = await Promise.all(withPhone.map(async g => {
       const msg = template
         .replace('{שם}', g.manager_name || g.name)
-        .replace('{קישור}', `kafool.com/${campaignInfo?.org_slug}/g/${g.slug}`)
+        .replace('{קישור}', `kafool.com/${campaignInfo?.campaign_slug}/g/${g.slug}`)
       const res = await fetch('/api/groups/sms', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -201,7 +201,7 @@ function BulkSmsModal({ groups, campaignInfo, onClose }: {
 function GroupSmsButton({ group, campaignInfo }: { group: Group; campaignInfo: CampaignInfo | null }) {
   const [open, setOpen] = useState(false)
   const [msg, setMsg] = useState(
-    `שלום ${group.manager_name || group.name},\nהקישור לדף הקבוצה שלך:\nhttps://kafool.com/${campaignInfo?.org_slug}/g/${group.slug}\n\nבהצלחה!`
+    `שלום ${group.manager_name || group.name},\nהקישור לדף הקבוצה שלך:\nhttps://kafool.com/${campaignInfo?.campaign_slug}/g/${group.slug}\n\nבהצלחה!`
   )
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(false)
@@ -278,7 +278,7 @@ export default function GroupsPage() {
     const { data: campaign } = await supabase.from('campaigns').select('slug, org_id').eq('id', campaignId).single()
     if (campaign) {
       const { data: org } = await supabase.from('organizations').select('slug').eq('id', campaign.org_id).single()
-      if (org) setCampaignInfo({ slug: campaign.slug, org_slug: org.slug })
+      setCampaignInfo({ slug: campaign.slug, campaign_slug: campaign.slug })
     }
   }
 
@@ -398,7 +398,7 @@ export default function GroupsPage() {
 
         {groups.map((g) => {
           const pct = g.goal_amount > 0 ? Math.min(100, Math.round((g.raised_amount / g.goal_amount) * 100)) : 0
-          const groupUrl = campaignInfo ? `https://kafool.com/${campaignInfo.org_slug}/g/${g.slug}` : null
+          const groupUrl = campaignInfo ? `https://kafool.com/${campaignInfo.campaign_slug}/g/${g.slug}` : null
 
           return (
             <div key={g.id} className="bg-white border border-gray-200 rounded-2xl p-4 hover:border-gray-300 transition-colors">
@@ -414,7 +414,7 @@ export default function GroupsPage() {
                   {groupUrl && (
                     <a href={groupUrl} target="_blank" rel="noopener noreferrer"
                       className="inline-flex items-center gap-1 text-xs text-blue-500 hover:underline mt-1">
-                      {campaignInfo?.org_slug}/g/{g.slug}
+                      {campaignInfo?.campaign_slug}/g/{g.slug}
                       <ExternalLink className="w-3 h-3" />
                     </a>
                   )}
