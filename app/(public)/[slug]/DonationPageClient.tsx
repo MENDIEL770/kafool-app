@@ -4,13 +4,14 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Campaign, Group } from '@/types'
 import { Search, Share2, Heart, Menu, X, ChevronDown, Globe } from 'lucide-react'
+import DonationModal from './DonationModal'
 
 /* ─── Types ─── */
 interface Org { id: string; name: string; slug: string; logo_url: string | null }
 interface Donation { id: string; donor_name: string | null; amount: number; dedication: string | null; created_at: string }
 interface GalleryItem { id: string; image_url: string; caption: string | null }
 interface ActiveGroup { id: string; name: string; slug: string; goal_amount: number; raised_amount: number; manager_name: string | null }
-interface Props { org: Org; campaign: Campaign; donations: Donation[]; groups: Group[]; gallery: GalleryItem[]; activeGroup?: ActiveGroup }
+interface Props { org: Org; campaign: Campaign; donations: Donation[]; groups: Group[]; gallery: GalleryItem[]; activeGroup?: ActiveGroup; donationUrl?: string }
 
 /* ─── Helpers ─── */
 function getVideoEmbed(url: string): string | null {
@@ -85,7 +86,7 @@ const NAV_LINKS = [
   { label: 'צור קשר', href: '#contact' },
 ]
 
-function StickyHeader({ org, campaign, primaryColor }: { org: Org; campaign: Campaign; primaryColor: string }) {
+function StickyHeader({ org, campaign, primaryColor, onDonate }: { org: Org; campaign: Campaign; primaryColor: string; onDonate: () => void }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const settings = campaign.settings as { tagline?: string | null; about_text?: string | null }
   const tagline = settings?.tagline || settings?.about_text?.split('\n')[0] || null
@@ -126,12 +127,13 @@ function StickyHeader({ org, campaign, primaryColor }: { org: Org; campaign: Cam
             <Share2 className="w-3.5 h-3.5" />
             שיתוף
           </button>
-          <a href={`/${campaign.slug}/donate`}
+          <button
+            onClick={onDonate}
             className="flex items-center gap-1.5 text-sm font-bold px-4 py-2 rounded-full text-white shadow-md hover:opacity-90 transition-all"
             style={{ backgroundColor: primaryColor }}>
             <Heart className="w-3.5 h-3.5" />
             לתרומה עכשיו
-          </a>
+          </button>
           <button
             className="md:hidden p-1.5"
             aria-label={menuOpen ? 'סגור תפריט' : 'פתח תפריט'}
@@ -302,27 +304,19 @@ function HeroSection({ campaign, countdown }: {
   )
 }
 
-function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius }: {
+function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius, onDonate }: {
   plans: { amount: number; label?: string; image_url?: string | null }[]
   primaryColor: string
   campaignSlug: string
   groups: Group[]
   buttonRadius: string
+  onDonate: (amount?: number, groupSlug?: string) => void
 }) {
   const [selected, setSelected] = useState<number | null>(null)
   const [custom, setCustom] = useState('')
   const [selectedGroup, setSelectedGroup] = useState<string>('')
 
   const finalAmount = selected ?? (custom ? Number(custom) : null)
-
-  const donateHref = `/${campaignSlug}/donate${
-    finalAmount || selectedGroup
-      ? '?' + new URLSearchParams({
-          ...(finalAmount ? { amount: String(finalAmount) } : {}),
-          ...(selectedGroup ? { group: selectedGroup } : {}),
-        }).toString()
-      : ''
-  }`
 
   return (
     <section className="bg-white border-b border-gray-100 py-8 px-4" aria-label="מסלולי תרומה">
@@ -425,13 +419,13 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
 
         {/* Payment actions */}
         <div className="flex flex-col sm:flex-row justify-center gap-3 mt-6 max-w-md mx-auto">
-          <a
-            href={donateHref}
+          <button
+            onClick={() => onDonate(finalAmount ?? undefined, selectedGroup || undefined)}
             className={`flex-1 py-3.5 text-white font-black text-base text-center shadow-lg hover:opacity-90 active:scale-95 transition-all ${buttonRadius}`}
             style={{ backgroundColor: primaryColor }}
           >
             {finalAmount ? `תרום ₪${finalAmount.toLocaleString()}` : 'לתרומה'}
-          </a>
+          </button>
           <button
             onClick={() => navigator.share?.({ title: 'שתף את הקמפיין', url: window.location.href }) ?? navigator.clipboard.writeText(window.location.href)}
             className={`flex-none px-6 py-3.5 border-2 font-bold text-sm transition-colors hover:bg-gray-50 ${buttonRadius}`}
@@ -742,7 +736,7 @@ function AboutSection({ campaign, gallery }: { campaign: Campaign; gallery: Gall
   )
 }
 
-function FloatingBar({ campaign, primaryColor, buttonRadius, donateHref }: { campaign: Campaign; primaryColor: string; buttonRadius: string; donateHref?: string }) {
+function FloatingBar({ primaryColor, buttonRadius, onDonate }: { campaign: Campaign; primaryColor: string; buttonRadius: string; donateHref?: string; onDonate: () => void }) {
   const [visible, setVisible] = useState(false)
   useEffect(() => {
     const fn = () => setVisible(window.scrollY > 400)
@@ -759,15 +753,15 @@ function FloatingBar({ campaign, primaryColor, buttonRadius, donateHref }: { cam
       aria-label="פס תרומה"
     >
       <div className="max-w-lg mx-auto flex gap-2 px-4 py-3">
-        <a
-          href={donateHref || `/${campaign.slug}/donate`}
+        <button
+          onClick={onDonate}
           className={`flex-[2] py-3 text-white font-black text-sm text-center shadow-md hover:opacity-90 active:scale-95 transition-all ${buttonRadius}`}
           style={{ backgroundColor: primaryColor }}
         >
           לתרומה
-        </a>
+        </button>
         <button
-          onClick={() => navigator.share?.({ title: campaign.title, url: window.location.href }) ?? navigator.clipboard.writeText(window.location.href)}
+          onClick={() => navigator.share?.({ title: 'שתף', url: window.location.href }) ?? navigator.clipboard.writeText(window.location.href)}
           className={`flex-1 py-3 border-2 font-bold text-sm transition-colors hover:bg-gray-50 ${buttonRadius}`}
           style={{ borderColor: primaryColor, color: primaryColor }}
           aria-label="שתף קמפיין"
@@ -780,9 +774,12 @@ function FloatingBar({ campaign, primaryColor, buttonRadius, donateHref }: { cam
 }
 
 /* ─── Main Page ─── */
-export default function DonationPageClient({ org, campaign, donations: initialDonations, groups, gallery, activeGroup }: Props) {
+export default function DonationPageClient({ org, campaign, donations: initialDonations, groups, gallery, activeGroup, donationUrl = '' }: Props) {
   const [donations, setDonations] = useState<Donation[]>(initialDonations)
   const [raisedAmount, setRaisedAmount] = useState(campaign.raised_amount)
+  const [modalOpen, setModalOpen] = useState(false)
+  const [modalAmount, setModalAmount] = useState<number | undefined>()
+  const [modalGroupSlug, setModalGroupSlug] = useState<string | undefined>()
   const countdownEnd = (campaign.settings as { countdown_end?: string })?.countdown_end || campaign.end_at
   const countdown = useCountdown(countdownEnd)
 
@@ -822,6 +819,12 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
     ? `/${campaign.slug}/donate?group=${activeGroup.id}`
     : `/${campaign.slug}/donate`
 
+  function openDonate(amount?: number, groupSlug?: string) {
+    setModalAmount(amount)
+    setModalGroupSlug(groupSlug || (activeGroup ? activeGroup.slug : undefined))
+    setModalOpen(true)
+  }
+
   // For group view: track group raised amount in realtime
   const [groupRaised, setGroupRaised] = useState(activeGroup?.raised_amount ?? 0)
   useEffect(() => {
@@ -844,7 +847,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
   return (
     <div className="min-h-screen bg-gray-50" dir="rtl">
       {/* 1. Sticky Header */}
-      <StickyHeader org={org} campaign={campaign} primaryColor={primaryColor} />
+      <StickyHeader org={org} campaign={campaign} primaryColor={primaryColor} onDonate={openDonate} />
 
       {/* Group stats strip */}
       {activeGroup && (
@@ -873,13 +876,13 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
                 <div className="text-2xl font-black text-gray-700 tabular-nums">{donations.filter(d => (d as { group_id?: string }).group_id === activeGroup.id).length || initialDonations.length}</div>
                 <div className="text-[11px] text-gray-400">תורמים</div>
               </div>
-              <a
-                href={donateBase}
+              <button
+                onClick={() => openDonate(undefined, activeGroup?.slug)}
                 className="shrink-0 px-6 py-2.5 rounded-full text-white font-black text-sm shadow hover:opacity-90 active:scale-95 transition-all"
                 style={{ backgroundColor: primaryColor }}
               >
                 תרום
-              </a>
+              </button>
             </div>
           </div>
         </div>
@@ -889,7 +892,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
       <HeroSection campaign={campaign} countdown={countdown} />
 
       {/* 3. Donation Plans */}
-      <DonationPlans plans={donationPlans} primaryColor={primaryColor} campaignSlug={campaign.slug} groups={groups} buttonRadius={buttonRadius} />
+      <DonationPlans plans={donationPlans} primaryColor={primaryColor} campaignSlug={campaign.slug} groups={groups} buttonRadius={buttonRadius} onDonate={openDonate} />
 
       {/* 4. Progress */}
       <ProgressSection raised={raisedAmount} goal={campaign.goal_amount} donorsCount={donations.length} primaryColor={primaryColor} />
@@ -927,7 +930,19 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
         </a>
       )}
 
-      <FloatingBar campaign={campaign} primaryColor={primaryColor} buttonRadius={buttonRadius} donateHref={donateBase} />
+      <FloatingBar campaign={campaign} primaryColor={primaryColor} buttonRadius={buttonRadius} onDonate={() => openDonate()} />
+
+      <DonationModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        presetAmount={modalAmount}
+        presetGroupSlug={modalGroupSlug}
+        donationUrl={donationUrl}
+        campaign={campaign}
+        primaryColor={primaryColor}
+        buttonRadius={buttonRadius}
+        groups={groups.map(g => ({ id: g.id, name: g.name, slug: g.slug }))}
+      />
 
       {/* Bottom padding for floating bar */}
       <div className="h-20" />

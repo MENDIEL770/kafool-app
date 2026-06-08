@@ -19,7 +19,7 @@ export default async function PublicDonationPage({ params }: { params: Promise<{
   // Get org for branding
   const { data: org } = await supabase
     .from('organizations')
-    .select('id, name, slug, logo_url, status')
+    .select('id, name, slug, logo_url, status, kesher_page_url, kesher_active')
     .eq('id', campaign.org_id)
     .single()
 
@@ -48,6 +48,9 @@ export default async function PublicDonationPage({ params }: { params: Promise<{
     .eq('campaign_id', campaign.id)
     .order('sort_order')
 
+  const settings = campaign.settings as { donation_page_url?: string }
+  const donationUrl = settings?.donation_page_url || (org as { kesher_page_url?: string })?.kesher_page_url || ''
+
   return (
     <DonationPageClient
       org={org}
@@ -55,6 +58,7 @@ export default async function PublicDonationPage({ params }: { params: Promise<{
       donations={donations || []}
       groups={(groups || []) as Parameters<typeof DonationPageClient>[0]['groups']}
       gallery={gallery || []}
+      donationUrl={donationUrl}
     />
   )
 }

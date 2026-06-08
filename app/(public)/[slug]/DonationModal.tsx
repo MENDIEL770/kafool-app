@@ -1,0 +1,250 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { X } from 'lucide-react'
+
+interface Group { id: string; name: string; slug: string }
+
+interface Props {
+  isOpen: boolean
+  onClose: () => void
+  presetAmount?: number
+  presetGroupSlug?: string
+  donationUrl: string
+  campaign: { id: string; title: string; slug: string }
+  primaryColor: string
+  buttonRadius: string
+  groups: Group[]
+}
+
+export default function DonationModal({
+  isOpen,
+  onClose,
+  presetAmount,
+  presetGroupSlug,
+  donationUrl,
+  campaign,
+  primaryColor,
+  buttonRadius,
+  groups,
+}: Props) {
+  const [step, setStep] = useState<'details' | 'payment'>(presetAmount ? 'details' : 'details')
+  const [amount, setAmount] = useState(presetAmount || 0)
+  const [customAmount, setCustomAmount] = useState('')
+  const [selectedGroupSlug, setSelectedGroupSlug] = useState(presetGroupSlug || '')
+  const [form, setForm] = useState({
+    firstName: '', lastName: '', phone: '', email: '', dedication: '', anonymous: false,
+  })
+
+  // Reset when opened with new preset
+  useEffect(() => {
+    if (isOpen) {
+      setAmount(presetAmount || 0)
+      setCustomAmount(presetAmount ? '' : '')
+      setSelectedGroupSlug(presetGroupSlug || '')
+      setStep('details')
+    }
+  }, [isOpen, presetAmount, presetGroupSlug])
+
+  // Prevent body scroll when open
+  useEffect(() => {
+    document.body.style.overflow = isOpen ? 'hidden' : ''
+    return () => { document.body.style.overflow = '' }
+  }, [isOpen])
+
+  const finalAmount = amount || Number(customAmount) || 0
+
+  function setField(key: string, value: string | boolean) {
+    setForm(p => ({ ...p, [key]: value }))
+  }
+
+  function buildPaymentUrl() {
+    const params = new URLSearchParams()
+    if (finalAmount) params.set('total', String(finalAmount))
+    if (!form.anonymous) {
+      if (form.firstName) params.set('firstName', form.firstName)
+      if (form.lastName) params.set('lastName', form.lastName)
+      if (form.phone) params.set('tel', form.phone)
+      if (form.email) params.set('mail', form.email)
+    }
+    if (form.dedication) params.set('comment', form.dedication)
+    if (selectedGroupSlug) params.set('group', selectedGroupSlug)
+    params.set('addactiondata', campaign.id)
+    const origin = typeof window !== 'undefined' ? window.location.origin : ''
+    params.set('successurl', `${origin}/${campaign.slug}/thanks`)
+    const sep = donationUrl.includes('?') ? '&' : '?'
+    return `${donationUrl}${sep}${params.toString()}`
+  }
+
+  if (!isOpen) return null
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center"
+      dir="rtl"
+    >
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        onClick={onClose}
+      />
+
+      {/* Panel */}
+      <div className="relative w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl z-10 max-h-[92vh] flex flex-col">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-gray-100 shrink-0">
+          <div>
+            <h2 className="font-black text-gray-900 text-lg">
+              {step === 'payment' ? 'תשלום מאובטח' : 'פרטי התורם'}
+            </h2>
+            <p className="text-xs text-gray-400 mt-0.5">{campaign.title}</p>
+          </div>
+          <div className="flex items-center gap-3">
+            {finalAmount > 0 && (
+              <span className="font-black text-base" style={{ color: primaryColor }}>
+                ₪{finalAmount.toLocaleString()}
+              </span>
+            )}
+            <button
+              onClick={onClose}
+              className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
+            >
+              <X className="w-4 h-4 text-gray-600" />
+            </button>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="overflow-y-auto flex-1">
+
+          {/* Step: Amount (if no preset) */}
+          {step === 'details' && !presetAmount && amount === 0 && (
+            <div className="px-5 py-4 border-b border-gray-100">
+              <label className="text-xs font-medium text-gray-500 block mb-2">סכום תרומה</label>
+              <input
+                type="number"
+                value={customAmount}
+                onChange={e => setCustomAmount(e.target.value)}
+                placeholder="הזן סכום..."
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-lg font-bold text-center outline-none focus:ring-2"
+                style={{ '--tw-ring-color': primaryColor } as React.CSSProperties}
+                dir="ltr"
+                min="1"
+              />
+            </div>
+          )}
+
+          {/* Step: Details */}
+          {step === 'details' && (
+            <div className="px-5 py-4 space-y-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.anonymous}
+                  onChange={e => setField('anonymous', e.target.checked)}
+                  className="w-4 h-4"
+                  style={{ accentColor: primaryColor }}
+                />
+                <span className="text-sm text-gray-600">תרומה אנונימית</span>
+              </label>
+
+              {!form.anonymous && (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-gray-500">שם</label>
+                      <input value={form.firstName} onChange={e => setField('firstName', e.target.value)}
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-400" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-gray-500">שם משפחה</label>
+                      <input value={form.lastName} onChange={e => setField('lastName', e.target.value)}
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-400" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-gray-500">טלפון</label>
+                      <input type="tel" value={form.phone} onChange={e => setField('phone', e.target.value)}
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-400"
+                        dir="ltr" placeholder="050-0000000" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-gray-500">אימייל</label>
+                      <input type="email" value={form.email} onChange={e => setField('email', e.target.value)}
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-400"
+                        dir="ltr" placeholder="you@example.com" />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-gray-500">
+                  הקדשה <span className="text-gray-300">(אופציונלי)</span>
+                </label>
+                <textarea value={form.dedication} onChange={e => setField('dedication', e.target.value)}
+                  placeholder='לע"נ / לרפואת / לכבוד...' rows={2}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-400 resize-none" />
+              </div>
+
+              {groups.length > 0 && (
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-gray-500">
+                    שיוך לקבוצה <span className="text-gray-300">(אופציונלי)</span>
+                  </label>
+                  <select value={selectedGroupSlug} onChange={e => setSelectedGroupSlug(e.target.value)}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-400 bg-white">
+                    <option value="">ללא קבוצה</option>
+                    {groups.map(g => <option key={g.id} value={g.slug}>{g.name}</option>)}
+                  </select>
+                </div>
+              )}
+
+              <button
+                onClick={() => {
+                  localStorage.setItem('kafool_donor', JSON.stringify({
+                    name: [form.firstName, form.lastName].filter(Boolean).join(' ') || null,
+                    phone: form.phone || null,
+                    email: form.email || null,
+                    dedication: form.dedication || null,
+                    anonymous: form.anonymous,
+                  }))
+                  setStep('payment')
+                }}
+                disabled={!finalAmount}
+                className={`w-full py-3.5 font-black text-white text-sm disabled:opacity-40 transition-all ${buttonRadius}`}
+                style={{ backgroundColor: primaryColor }}
+              >
+                המשך לתשלום ₪{finalAmount ? finalAmount.toLocaleString() : ''}
+              </button>
+
+              <p className="text-center text-xs text-gray-400 flex items-center justify-center gap-1">
+                <span>🔒</span> תשלום מאובטח — קשר
+              </p>
+            </div>
+          )}
+
+          {/* Step: Payment iframe */}
+          {step === 'payment' && (
+            <div className="flex flex-col">
+              <iframe
+                src={buildPaymentUrl()}
+                className="w-full"
+                style={{ height: '520px', border: 'none' }}
+                title="דף תשלום מאובטח"
+                allow="payment"
+              />
+              <div className="px-5 pb-4 pt-2 text-center">
+                <button onClick={() => setStep('details')} className="text-xs text-gray-400 hover:text-gray-600">
+                  ← חזרה לפרטים
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
