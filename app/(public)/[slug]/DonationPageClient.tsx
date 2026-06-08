@@ -330,47 +330,56 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups }: {
 
 function ProgressSection({ raised, goal, donorsCount, primaryColor }: { raised: number; goal: number; donorsCount: number; primaryColor: string }) {
   const pct = goal > 0 ? Math.min(100, Math.round((raised / goal) * 100)) : 0
-  const avg = donorsCount > 0 ? Math.round(raised / donorsCount) : 0
+  const [animPct, setAnimPct] = useState(0)
+
+  useEffect(() => {
+    const t = setTimeout(() => setAnimPct(pct), 300)
+    return () => clearTimeout(t)
+  }, [pct])
 
   return (
     <section className="bg-gray-50 py-10 px-4" aria-label="התקדמות הקמפיין">
-      <div className="max-w-2xl mx-auto space-y-5">
-        <div className="flex justify-between items-end">
-          <div>
-            <div className="text-3xl md:text-4xl font-black" style={{ color: primaryColor }}>
-              ₪{raised.toLocaleString('he-IL')}
-            </div>
-            <div className="text-sm text-gray-400 mt-0.5">גויסו מתוך יעד ₪{goal.toLocaleString('he-IL')}</div>
+      <div className="max-w-2xl mx-auto space-y-4">
+
+        {/* סכום גדול */}
+        <div className="text-center">
+          <div className="text-5xl md:text-6xl font-black tabular-nums" style={{ color: primaryColor }}>
+            ₪{raised.toLocaleString('he-IL')}
           </div>
-          <div className="text-left">
-            <div className="text-3xl font-black text-gray-700">{pct}%</div>
-            <div className="text-xs text-gray-400">הושלם</div>
+          <div className="text-sm text-gray-400 mt-1">
+            גויסו מתוך יעד ₪{goal.toLocaleString('he-IL')}
           </div>
         </div>
 
         {/* Progress bar */}
-        <div className="h-5 bg-gray-200 rounded-full overflow-hidden shadow-inner" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
-          <div
-            className="h-full rounded-full transition-all duration-1000 relative overflow-hidden"
-            style={{ width: `${pct}%`, backgroundColor: primaryColor }}
-          >
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent to-white/20 animate-pulse" />
+        <div className="relative">
+          <div className="h-5 bg-gray-200 rounded-full overflow-hidden shadow-inner" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={`${pct}% הושלם`}>
+            <div
+              className="h-full rounded-full relative overflow-hidden"
+              style={{
+                width: `${animPct}%`,
+                backgroundColor: primaryColor,
+                transition: 'width 1.6s cubic-bezier(0.4, 0, 0.2, 1)',
+              }}
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse" />
+            </div>
+          </div>
+          <div className="flex justify-between text-xs text-gray-400 mt-1.5">
+            <span>{pct}% הושלם</span>
+            {goal > raised && <span>נותר ₪{(goal - raised).toLocaleString('he-IL')}</span>}
+            {goal <= raised && goal > 0 && <span className="font-bold" style={{ color: primaryColor }}>היעד הושג! 🎉</span>}
           </div>
         </div>
 
-        {/* Stats row */}
-        <div className="grid grid-cols-3 gap-4">
-          {[
-            { val: donorsCount.toLocaleString(), label: 'תורמים' },
-            { val: `₪${avg.toLocaleString()}`, label: 'תרומה ממוצעת' },
-            { val: `${goal > 0 ? (goal - raised > 0 ? `₪${(goal - raised).toLocaleString()}` : 'הושג!') : '—'}`, label: 'נותר ליעד' },
-          ].map(s => (
-            <div key={s.label} className="bg-white rounded-2xl p-4 text-center shadow-sm border border-gray-100">
-              <div className="text-xl font-black text-gray-800">{s.val}</div>
-              <div className="text-xs text-gray-400 mt-0.5">{s.label}</div>
-            </div>
-          ))}
+        {/* Stats — תורמים בלבד, קטן */}
+        <div className="flex justify-center pt-1">
+          <div className="flex items-center gap-1.5 bg-white rounded-2xl px-5 py-2.5 shadow-sm border border-gray-100">
+            <span className="text-lg font-black text-gray-800">{donorsCount.toLocaleString()}</span>
+            <span className="text-sm text-gray-400">תורמים</span>
+          </div>
         </div>
+
       </div>
     </section>
   )
