@@ -6,10 +6,30 @@ import { createServiceClient } from '@/lib/supabase/server'
 const SUCCESS_CODES = [4, 11]
 
 export async function POST(req: NextRequest) {
-  let body: Record<string, unknown>
+  let body: Record<string, unknown> = {}
   try {
-    body = await req.json()
-  } catch {
+    const contentType = req.headers.get('content-type') || ''
+    const rawText = await req.text()
+
+    console.log('Kesher webhook content-type:', contentType)
+    console.log('Kesher webhook raw body:', rawText.substring(0, 500))
+
+    if (contentType.includes('application/json')) {
+      body = JSON.parse(rawText)
+    } else if (contentType.includes('application/x-www-form-urlencoded')) {
+      const params = new URLSearchParams(rawText)
+      params.forEach((value, key) => { body[key] = value })
+    } else {
+      // נסה JSON קודם, אחר כך form-urlencoded
+      try {
+        body = JSON.parse(rawText)
+      } catch {
+        const params = new URLSearchParams(rawText)
+        params.forEach((value, key) => { body[key] = value })
+      }
+    }
+  } catch (e) {
+    console.error('Kesher webhook parse error:', e)
     return NextResponse.json({ ok: true })
   }
 
@@ -37,8 +57,8 @@ export async function POST(req: NextRequest) {
     const amountAgorot = Math.round(amountTotal * 100)
     const numTransaction = String(body?.NumTransaction ?? '')
 
-    // campaign ID חוזר ב-Details (מה ששלחנו כ-addactiondata)
-    const campaignId = String(body?.Details ?? '').trim() || null
+    // campaign ID חוזר ב-Details או adddata (מה ששלחנו כ-addactiondata)
+    const campaignId = String(body?.Details ?? body?.adddata ?? body?.ref ?? '').trim() || null
 
     // שם תורם
     const receiptName = String(body?.ReceiptName ?? '').trim() || null
