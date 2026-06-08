@@ -9,7 +9,8 @@ import { Search, Share2, Heart, Menu, X, ChevronDown, Globe } from 'lucide-react
 interface Org { id: string; name: string; slug: string; logo_url: string | null }
 interface Donation { id: string; donor_name: string | null; amount: number; dedication: string | null; created_at: string }
 interface GalleryItem { id: string; image_url: string; caption: string | null }
-interface Props { org: Org; campaign: Campaign; donations: Donation[]; groups: Group[]; gallery: GalleryItem[] }
+interface ActiveGroup { id: string; name: string; slug: string; goal_amount: number; raised_amount: number; manager_name: string | null }
+interface Props { org: Org; campaign: Campaign; donations: Donation[]; groups: Group[]; gallery: GalleryItem[]; activeGroup?: ActiveGroup }
 
 /* ─── Helpers ─── */
 function getVideoEmbed(url: string): string | null {
@@ -741,7 +742,7 @@ function AboutSection({ campaign, gallery }: { campaign: Campaign; gallery: Gall
   )
 }
 
-function FloatingBar({ campaign, primaryColor, buttonRadius }: { campaign: Campaign; primaryColor: string; buttonRadius: string }) {
+function FloatingBar({ campaign, primaryColor, buttonRadius, donateHref }: { campaign: Campaign; primaryColor: string; buttonRadius: string; donateHref?: string }) {
   const [visible, setVisible] = useState(false)
   useEffect(() => {
     const fn = () => setVisible(window.scrollY > 400)
@@ -759,7 +760,7 @@ function FloatingBar({ campaign, primaryColor, buttonRadius }: { campaign: Campa
     >
       <div className="max-w-lg mx-auto flex gap-2 px-4 py-3">
         <a
-          href={`/${campaign.slug}/donate`}
+          href={donateHref || `/${campaign.slug}/donate`}
           className={`flex-[2] py-3 text-white font-black text-sm text-center shadow-md hover:opacity-90 active:scale-95 transition-all ${buttonRadius}`}
           style={{ backgroundColor: primaryColor }}
         >
@@ -779,7 +780,7 @@ function FloatingBar({ campaign, primaryColor, buttonRadius }: { campaign: Campa
 }
 
 /* ─── Main Page ─── */
-export default function DonationPageClient({ org, campaign, donations: initialDonations, groups, gallery }: Props) {
+export default function DonationPageClient({ org, campaign, donations: initialDonations, groups, gallery, activeGroup }: Props) {
   const [donations, setDonations] = useState<Donation[]>(initialDonations)
   const [raisedAmount, setRaisedAmount] = useState(campaign.raised_amount)
   const countdownEnd = (campaign.settings as { countdown_end?: string })?.countdown_end || campaign.end_at
@@ -817,10 +818,72 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
     return () => { supabase.removeChannel(ch) }
   }, [campaign.id])
 
+  const donateBase = activeGroup
+    ? `/${campaign.slug}/donate?group=${activeGroup.id}`
+    : `/${campaign.slug}/donate`
+
+  // For group view: track group raised amount in realtime
+  const [groupRaised, setGroupRaised] = useState(activeGroup?.raised_amount ?? 0)
+  useEffect(() => {
+    if (!activeGroup) return
+    const supabase = createClient()
+    const ch = supabase
+      .channel(`group-raised-${activeGroup.id}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'donations', filter: `group_id=eq.${activeGroup.id}` }, (payload) => {
+        const d = payload.new as { amount?: number }
+        if (d.amount) setGroupRaised(p => p + d.amount!)
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(ch) }
+  }, [activeGroup?.id])
+
+  const groupPct = activeGroup && activeGroup.goal_amount > 0
+    ? Math.min(100, Math.round((groupRaised / activeGroup.goal_amount) * 100))
+    : 0
+
   return (
     <div className="min-h-screen bg-gray-50" dir="rtl">
       {/* 1. Sticky Header */}
       <StickyHeader org={org} campaign={campaign} primaryColor={primaryColor} />
+
+      {/* Group stats strip */}
+      {activeGroup && (
+        <div className="bg-white border-b border-gray-200">
+          <div className="max-w-5xl mx-auto px-4 py-4 space-y-3">
+            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-1000"
+                style={{ width: `${groupPct}%`, backgroundColor: primaryColor }}
+              />
+            </div>
+            <div className="flex items-center gap-4 flex-wrap">
+              <div className="flex-1 min-w-0">
+                <h2 className="text-xl font-black text-gray-900 truncate">{activeGroup.name}</h2>
+                {activeGroup.manager_name && (
+                  <p className="text-xs text-gray-400 mt-0.5">מגייס: {activeGroup.manager_name}</p>
+                )}
+              </div>
+              <div className="text-center shrink-0">
+                <div className="text-2xl font-black tabular-nums" style={{ color: primaryColor }}>
+                  ₪{groupRaised.toLocaleString('he-IL')}
+                </div>
+                <div className="text-[11px] text-gray-400">מתוך ₪{activeGroup.goal_amount.toLocaleString('he-IL')} יעד</div>
+              </div>
+              <div className="text-center shrink-0">
+                <div className="text-2xl font-black text-gray-700 tabular-nums">{donations.filter(d => (d as { group_id?: string }).group_id === activeGroup.id).length || initialDonations.length}</div>
+                <div className="text-[11px] text-gray-400">תורמים</div>
+              </div>
+              <a
+                href={donateBase}
+                className="shrink-0 px-6 py-2.5 rounded-full text-white font-black text-sm shadow hover:opacity-90 active:scale-95 transition-all"
+                style={{ backgroundColor: primaryColor }}
+              >
+                תרום
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 2. Hero */}
       <HeroSection campaign={campaign} countdown={countdown} />
@@ -864,7 +927,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
         </a>
       )}
 
-      <FloatingBar campaign={campaign} primaryColor={primaryColor} buttonRadius={buttonRadius} />
+      <FloatingBar campaign={campaign} primaryColor={primaryColor} buttonRadius={buttonRadius} donateHref={donateBase} />
 
       {/* Bottom padding for floating bar */}
       <div className="h-20" />

@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
-import GroupPageClient from './GroupPageClient'
+import DonationPageClient from '../../DonationPageClient'
 
 export default async function GroupPage({ params }: { params: Promise<{ slug: string; groupSlug: string }> }) {
   const { slug, groupSlug } = await params
@@ -17,7 +17,7 @@ export default async function GroupPage({ params }: { params: Promise<{ slug: st
 
   const { data: org } = await supabase
     .from('organizations')
-    .select('id, name, slug, logo_url')
+    .select('id, name, slug, logo_url, status')
     .eq('id', campaign.org_id)
     .single()
 
@@ -32,20 +32,45 @@ export default async function GroupPage({ params }: { params: Promise<{ slug: st
 
   if (!group) notFound()
 
-  const { data: donations } = await supabase
-    .from('donations')
-    .select('id, donor_name, amount, dedication, created_at')
-    .eq('group_id', group.id)
-    .eq('payment_status', 'completed')
-    .order('created_at', { ascending: false })
-    .limit(100)
+  const [
+    { data: donations },
+    { data: groups },
+    { data: gallery },
+  ] = await Promise.all([
+    supabase
+      .from('donations')
+      .select('id, donor_name, amount, dedication, created_at')
+      .eq('campaign_id', campaign.id)
+      .eq('payment_status', 'completed')
+      .order('created_at', { ascending: false })
+      .limit(50),
+    supabase
+      .from('groups')
+      .select('id, name, slug, goal_amount, raised_amount, manager_name')
+      .eq('campaign_id', campaign.id)
+      .order('raised_amount', { ascending: false }),
+    supabase
+      .from('campaign_gallery')
+      .select('id, image_url, caption')
+      .eq('campaign_id', campaign.id)
+      .order('sort_order'),
+  ])
 
   return (
-    <GroupPageClient
+    <DonationPageClient
       org={org}
       campaign={campaign}
-      group={group}
       donations={donations || []}
+      groups={(groups || []) as Parameters<typeof DonationPageClient>[0]['groups']}
+      gallery={gallery || []}
+      activeGroup={{
+        id: group.id,
+        name: group.name,
+        slug: group.slug,
+        goal_amount: group.goal_amount,
+        raised_amount: group.raised_amount,
+        manager_name: group.manager_name,
+      }}
     />
   )
 }
