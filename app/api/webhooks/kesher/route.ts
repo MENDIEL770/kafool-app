@@ -1,65 +1,54 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
-import { parseKesherPayload, isSuccessfulPayment } from '@/lib/kesher/webhook'
+
+// KesherStatus codes = success
+const SUCCESS_CODES = [4, 11]
 
 export async function POST(req: NextRequest) {
-  let body: unknown
+  let body: Record<string, unknown>
   try {
     body = await req.json()
   } catch {
-    return NextResponse.json({ ok: true }) // תמיד 200
+    return NextResponse.json({ ok: true })
   }
 
+  console.log('Kesher webhook received:', JSON.stringify(body))
+
   try {
-    const supabase = await createServiceClient()
-    const payload = body as Parameters<typeof parseKesherPayload>[0]
-
-    // חלץ donationId מ-adddata
-    const donationId =
-      payload?.Transaction?.adddata ||
-      payload?.adddata ||
-      null
-
-    const kesherStatus =
-      Number(payload?.Transaction?.KesherStatus ?? payload?.KesherStatus ?? 0)
-
-    const numTransaction =
-      payload?.Transaction?.NumTransaction ||
-      payload?.NumTransaction ||
-      null
-
-    const receiptLink =
-      payload?.Transaction?.DocumentsDetails?.PdfLink || null
-
-    const isSuccess = isSuccessfulPayment(payload)
+    // Kesher שולח flat JSON — לא nested תחת Transaction
+    const kesherStatus = Number(body?.KesherStatus ?? 0)
+    const isSuccess = SUCCESS_CODES.includes(kesherStatus)
 
     if (!isSuccess) {
-      console.warn('Kesher webhook: payment not successful, status:', kesherStatus)
+      console.log(`Kesher webhook: not success, status=${kesherStatus}`)
       return NextResponse.json({ ok: true })
     }
 
-    const amountTotal =
-      Number(payload?.Transaction?.Total ?? payload?.Total ?? 0)
+    const amountTotal = Number(body?.Sum ?? 0)
     const amountAgorot = Math.round(amountTotal * 100)
+    const numTransaction = String(body?.NumTransaction ?? '')
 
-    const donorName = [
-      payload?.Transaction?.FirstName ?? payload?.FirstName ?? '',
-      payload?.Transaction?.LastName ?? payload?.LastName ?? '',
-    ].filter(Boolean).join(' ') || null
+    // campaign ID חוזר ב-Details (מה ששלחנו כ-addactiondata)
+    const campaignId = String(body?.Details ?? '').trim() || null
 
-    const donorPhone = payload?.Transaction?.Tel ?? payload?.Tel ?? null
-    const donorEmail = payload?.Transaction?.Mail ?? payload?.Mail ?? null
+    // שם תורם
+    const receiptName = String(body?.ReceiptName ?? '').trim() || null
+    const donorName = receiptName || null
 
-    // adddata = campaign UUID (שנשלח מהאתר כ-addactiondata)
-    const campaignId = donationId // כי adddata = campaign.id
+    // קישור קבלה
+    const pdfLink = (body?.DocumentsDetails as any)?.PdfLink || null
+
+    console.log(`Kesher webhook: success! amount=₪${amountTotal}, campaignId=${campaignId}, status=${kesherStatus}`)
 
     if (!campaignId) {
-      console.warn('Kesher webhook: no campaignId in adddata')
+      console.warn('Kesher webhook: no campaignId in Details field')
       return NextResponse.json({ ok: true })
     }
 
-    // הכנס תרומה חדשה
+    const supabase = await createServiceClient()
+
+    // וודא שהקמפיין קיים
     const { data: campaign } = await supabase
       .from('campaigns')
       .select('org_id')
@@ -67,18 +56,17 @@ export async function POST(req: NextRequest) {
       .single()
 
     if (!campaign) {
-      console.warn('Kesher webhook: campaign not found', campaignId)
+      console.warn('Kesher webhook: campaign not found:', campaignId)
       return NextResponse.json({ ok: true })
     }
 
+    // הכנס תרומה
     await supabase.from('donations').insert({
       campaign_id: campaignId,
       org_id: campaign.org_id,
       amount: amountTotal,
       donor_name: donorName,
-      donor_phone: donorPhone,
-      donor_email: donorEmail,
-      kesher_transaction_id: numTransaction,
+      kesher_transaction_id: numTransaction || null,
       payment_status: 'completed',
       kesher_raw: body,
     })
@@ -89,7 +77,7 @@ export async function POST(req: NextRequest) {
       amount_agorot: amountAgorot,
     })
 
-    console.log(`✅ Kesher webhook: ₪${amountTotal} for campaign ${campaignId} from ${donorName}`)
+    console.log(`✅ Donation saved: ₪${amountTotal} for campaign ${campaignId}`)
   } catch (err) {
     console.error('Kesher webhook error:', err)
   }
