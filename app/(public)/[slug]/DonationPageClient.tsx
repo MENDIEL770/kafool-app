@@ -234,16 +234,33 @@ function HeroSection({ campaign, countdown }: {
               />
             ))}
 
-            {/* כפתור פלאי צף — מוגדר בגודל בלבד, לא מכסה את כל הבאנר */}
+            {/* כפתור פלאי — inline style למניעת RTL flip */}
             {videoEmbed && (
               <button
                 onClick={e => { e.stopPropagation(); setVideoOpen(true) }}
-                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 group"
-                style={{ pointerEvents: 'auto' }}
                 aria-label="הפעל וידאו"
+                style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  zIndex: 20,
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  cursor: 'pointer',
+                }}
               >
-                <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-2xl transition-all duration-200 group-hover:scale-110 group-hover:bg-white group-active:scale-95">
-                  <svg className="w-7 h-7 md:w-9 md:h-9 text-gray-900 translate-x-0.5" fill="currentColor" viewBox="0 0 24 24">
+                <div style={{
+                  width: 72, height: 72,
+                  borderRadius: '50%',
+                  background: 'rgba(255,255,255,0.92)',
+                  backdropFilter: 'blur(4px)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
+                  transition: 'transform 0.2s, background 0.2s',
+                }}>
+                  <svg style={{ width: 32, height: 32, color: '#111', marginLeft: 4 }} fill="currentColor" viewBox="0 0 24 24">
                     <path d="M8 5v14l11-7z"/>
                   </svg>
                 </div>

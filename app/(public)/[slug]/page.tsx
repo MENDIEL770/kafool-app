@@ -83,8 +83,8 @@ export default async function PublicDonationPage({ params }: { params: Promise<{
 
   if (!org) notFound()
 
-  // Get recent donations — use service role to bypass RLS (public donor wall)
-  const { data: donations } = await adminClient()
+  // Get recent donations for public donor wall
+  const { data: donations } = await supabase
     .from('donations')
     .select('id, donor_name, amount, dedication, created_at, group_id')
     .eq('campaign_id', campaign.id)
