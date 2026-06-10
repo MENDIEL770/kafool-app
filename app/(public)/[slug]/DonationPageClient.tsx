@@ -20,7 +20,7 @@ interface Props { org: Org; campaign: Campaign; donations: Donation[]; groups: G
 /* ─── Helpers ─── */
 function getVideoEmbed(url: string): string | null {
   const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/)
-  if (yt) return `https://www.youtube.com/embed/${yt[1]}?rel=0&autoplay=1`
+  if (yt) return `https://www.youtube.com/embed/${yt[1]}?rel=0&autoplay=1&modestbranding=1&playsinline=1&disablekb=0`
   const vi = url.match(/vimeo\.com\/(\d+)/)
   if (vi) return `https://player.vimeo.com/video/${vi[1]}?autoplay=1`
   return null
@@ -189,7 +189,7 @@ function VideoModal({ embedUrl, onClose }: { embedUrl: string; onClose: () => vo
             src={embedUrl}
             className="w-full h-full"
             allowFullScreen
-            allow="autoplay; accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allow="autoplay; accelerometer; clipboard-write; encrypted-media; gyroscope"
             title="וידאו"
           />
         </div>
@@ -234,14 +234,15 @@ function HeroSection({ campaign, countdown }: {
               />
             ))}
 
-            {/* כפתור פלאי צף */}
+            {/* כפתור פלאי צף — מוגדר בגודל בלבד, לא מכסה את כל הבאנר */}
             {videoEmbed && (
               <button
-                onClick={() => setVideoOpen(true)}
-                className="absolute inset-0 flex items-center justify-center z-10 group"
+                onClick={e => { e.stopPropagation(); setVideoOpen(true) }}
+                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 group"
+                style={{ pointerEvents: 'auto' }}
                 aria-label="הפעל וידאו"
               >
-                <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow-2xl transition-all duration-200 group-hover:scale-110 group-hover:bg-white group-active:scale-95">
+                <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-2xl transition-all duration-200 group-hover:scale-110 group-hover:bg-white group-active:scale-95">
                   <svg className="w-7 h-7 md:w-9 md:h-9 text-gray-900 translate-x-0.5" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M8 5v14l11-7z"/>
                   </svg>
