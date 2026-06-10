@@ -21,6 +21,14 @@ function getVideoEmbed(url: string): string | null {
   if (yt) return `https://www.youtube.com/embed/${yt[1]}?rel=0&autoplay=1`
   const vi = url.match(/vimeo\.com\/(\d+)/)
   if (vi) return `https://player.vimeo.com/video/${vi[1]}?autoplay=1`
+  return null
+}
+
+function getYoutubeThumbnail(url: string): string | null {
+  const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/)
+  if (yt) return `https://img.youtube.com/vi/${yt[1]}/maxresdefault.jpg`
+  return null
+}
   // Google Drive: /file/d/FILE_ID/view → embed
   const gd = url.match(/drive\.google\.com\/(?:file\/d\/|open\?id=)([^/?&]+)/)
   if (gd) return `https://drive.google.com/file/d/${gd[1]}/preview`
@@ -734,6 +742,8 @@ function AboutSection({ campaign, gallery }: { campaign: Campaign; gallery: Gall
   const settings = campaign.settings as { about_text?: string | null }
   const aboutText = settings?.about_text
   const videoEmbed = campaign.video_url ? getVideoEmbed(campaign.video_url) : null
+  const videoThumb = campaign.video_url ? getYoutubeThumbnail(campaign.video_url) : null
+  const [videoOpen, setVideoOpen] = useState(false)
   const [idx, setIdx] = useState(0)
 
   useEffect(() => {
@@ -774,11 +784,27 @@ function AboutSection({ campaign, gallery }: { campaign: Campaign; gallery: Gall
         )}
 
         {videoEmbed && (
-          <div className="rounded-3xl overflow-hidden aspect-video shadow-md">
-            <iframe src={videoEmbed} className="w-full h-full" allowFullScreen
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              title={`וידאו — ${campaign.title}`} />
-          </div>
+          <button
+            onClick={() => setVideoOpen(true)}
+            className="w-full rounded-3xl overflow-hidden aspect-video shadow-md relative group block cursor-pointer"
+            aria-label="הפעל וידאו"
+          >
+            {videoThumb
+              ? <img src={videoThumb} alt="תמונה מקדימה לוידאו" className="w-full h-full object-cover" />
+              : <div className="w-full h-full bg-gray-900" />
+            }
+            <div className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors flex items-center justify-center">
+              <div className="w-16 h-16 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow-2xl group-hover:scale-110 transition-transform">
+                <svg className="w-7 h-7 text-gray-900 translate-x-0.5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M8 5v14l11-7z"/>
+                </svg>
+              </div>
+            </div>
+          </button>
+        )}
+
+        {videoOpen && videoEmbed && (
+          <VideoModal embedUrl={videoEmbed} onClose={() => setVideoOpen(false)} />
         )}
     </div>
   )
