@@ -276,22 +276,38 @@ export default function DonationModal({
           )}
 
           {/* Step: Payment iframe */}
-          {step === 'payment' && (
-            <div className="flex flex-col">
-              <iframe
-                src={buildPaymentUrl()}
-                className="w-full"
-                style={{ height: '520px', border: 'none' }}
-                title="דף תשלום מאובטח"
-                allow="payment"
-              />
-              <div className="px-5 pb-4 pt-2 text-center">
-                <button onClick={() => setStep('details')} className="text-xs text-gray-400 hover:text-gray-600">
-                  ← חזרה לפרטים
-                </button>
+          {step === 'payment' && (() => {
+            const payUrl = buildPaymentUrl()
+            const isValid = payUrl.startsWith('http://') || payUrl.startsWith('https://')
+            if (!isValid) {
+              return (
+                <div className="px-5 py-10 text-center space-y-3">
+                  <div className="text-4xl">⚙️</div>
+                  <p className="font-bold text-gray-700">דף התשלום טרם הוגדר</p>
+                  <p className="text-sm text-gray-400">יש להגדיר קישור תשלום בהגדרות הארגון</p>
+                  <button onClick={() => setStep('details')} className="text-sm text-blue-500 hover:underline">
+                    ← חזרה
+                  </button>
+                </div>
+              )
+            }
+            return (
+              <div className="flex flex-col">
+                <iframe
+                  src={payUrl}
+                  className="w-full"
+                  style={{ height: '520px', border: 'none' }}
+                  title="דף תשלום מאובטח"
+                  allow="payment"
+                />
+                <div className="px-5 pb-4 pt-2 text-center">
+                  <button onClick={() => setStep('details')} className="text-xs text-gray-400 hover:text-gray-600">
+                    ← חזרה לפרטים
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
+            )
+          })()}
         </div>
       </div>
     </div>
