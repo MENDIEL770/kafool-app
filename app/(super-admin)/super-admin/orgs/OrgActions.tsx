@@ -3,10 +3,19 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { LogIn, Send, ChevronDown } from 'lucide-react'
 
-export default function OrgActions({ orgId, status, slug }: { orgId: string; status: string; slug: string }) {
+export default function OrgActions({ orgId, status, slug, ownerEmail }: {
+  orgId: string
+  status: string
+  slug: string
+  ownerEmail?: string
+}) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const [impersonating, setImpersonating] = useState(false)
+  const [sending, setSending] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
 
   async function updateStatus(newStatus: 'active' | 'suspended') {
     setLoading(true)
@@ -22,41 +31,123 @@ export default function OrgActions({ orgId, status, slug }: { orgId: string; sta
     setLoading(false)
   }
 
+  async function enterDashboard() {
+    setImpersonating(true)
+    setMenuOpen(false)
+    const res = await fetch('/api/super-admin/orgs/impersonate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orgId }),
+    })
+    const data = await res.json()
+    setImpersonating(false)
+    if (data.url) {
+      window.open(data.url, '_blank')
+    } else {
+      alert(data.error || 'שגיאה ביצירת קישור כניסה')
+    }
+  }
+
+  async function sendLoginLink() {
+    setSending(true)
+    setMenuOpen(false)
+    const res = await fetch('/api/super-admin/orgs/impersonate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orgId }),
+    })
+    const data = await res.json()
+    setSending(false)
+    if (data.url) {
+      await navigator.clipboard.writeText(data.url)
+      alert('קישור הכניסה הועתק ללוח — שלח ללקוח')
+    } else {
+      alert(data.error || 'שגיאה')
+    }
+  }
+
+  const busy = loading || impersonating || sending
+
   return (
-    <div className="flex items-center gap-2">
-      <a
-        href={`/campaigns?org=${orgId}`}
-        className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors font-medium"
+    <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+      {/* Enter dashboard */}
+      <button
+        onClick={enterDashboard}
+        disabled={busy || !['active', 'pending'].includes(status)}
+        title="כניסה לדשבורד הארגון"
+        className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 border border-blue-100 hover:bg-blue-100 transition-colors font-semibold disabled:opacity-40"
       >
-        קמפיינים
-      </a>
-      {status === 'pending' && (
+        <LogIn className="w-3.5 h-3.5" />
+        {impersonating ? 'מייצר...' : 'כניסה'}
+      </button>
+
+      {/* More actions dropdown */}
+      <div className="relative">
         <button
-          onClick={() => updateStatus('active')}
-          disabled={loading}
-          className="text-xs px-3 py-1.5 rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors font-semibold disabled:opacity-50"
+          onClick={() => setMenuOpen(o => !o)}
+          disabled={busy}
+          className="flex items-center gap-0.5 text-xs px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-40"
         >
-          {loading ? '...' : 'אשר'}
+          <ChevronDown className="w-3.5 h-3.5" />
         </button>
-      )}
-      {status === 'active' && (
-        <button
-          onClick={() => updateStatus('suspended')}
-          disabled={loading}
-          className="text-xs px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors font-medium disabled:opacity-50"
-        >
-          {loading ? '...' : 'השהה'}
-        </button>
-      )}
-      {status === 'suspended' && (
-        <button
-          onClick={() => updateStatus('active')}
-          disabled={loading}
-          className="text-xs px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors font-semibold disabled:opacity-50"
-        >
-          {loading ? '...' : 'הפעל מחדש'}
-        </button>
-      )}
+
+        {menuOpen && (
+          <>
+            <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
+            <div className="absolute left-0 top-full mt-1 z-20 bg-white rounded-xl shadow-lg border border-gray-100 py-1 min-w-[160px]">
+              {/* Campaigns */}
+              <a
+                href={`/campaigns?org=${orgId}`}
+                className="flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
+                onClick={() => setMenuOpen(false)}
+              >
+                קמפיינים
+              </a>
+
+              {/* Copy login link */}
+              <button
+                onClick={sendLoginLink}
+                disabled={!['active', 'pending'].includes(status)}
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
+              >
+                <Send className="w-3 h-3" />
+                {sending ? 'יוצר...' : 'העתק קישור כניסה'}
+              </button>
+
+              <div className="border-t border-gray-100 my-1" />
+
+              {/* Status actions */}
+              {status === 'pending' && (
+                <button
+                  onClick={() => { updateStatus('active'); setMenuOpen(false) }}
+                  disabled={loading}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-green-700 hover:bg-green-50 transition-colors font-semibold"
+                >
+                  ✓ אשר ארגון
+                </button>
+              )}
+              {status === 'active' && (
+                <button
+                  onClick={() => { updateStatus('suspended'); setMenuOpen(false) }}
+                  disabled={loading}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-600 hover:bg-red-50 transition-colors"
+                >
+                  השהה
+                </button>
+              )}
+              {status === 'suspended' && (
+                <button
+                  onClick={() => { updateStatus('active'); setMenuOpen(false) }}
+                  disabled={loading}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-blue-600 hover:bg-blue-50 transition-colors font-semibold"
+                >
+                  הפעל מחדש
+                </button>
+              )}
+            </div>
+          </>
+        )}
+      </div>
     </div>
   )
 }

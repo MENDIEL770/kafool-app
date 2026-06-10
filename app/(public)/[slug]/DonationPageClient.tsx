@@ -648,48 +648,65 @@ function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCre
 
         {/* ── Groups Tab ── */}
         {tab === 'groups' && (
-          <div className="space-y-4">
+          <div className="space-y-5">
+            {/* CTA banner */}
             <button
               onClick={onCreateGroup}
-              className="w-full py-3 rounded-2xl font-bold text-sm border-2 border-dashed transition-all hover:opacity-80"
-              style={{ borderColor: primaryColor, color: primaryColor }}
+              className="w-full py-4 rounded-2xl font-bold text-sm transition-all hover:opacity-90 active:scale-[0.99] flex items-center justify-center gap-2"
+              style={{ background: `linear-gradient(135deg, ${primaryColor}18 0%, ${primaryColor}08 100%)`, border: `1.5px dashed ${primaryColor}60`, color: primaryColor }}
             >
-              + פתח קבוצת גיוס משלך
+              <span className="text-lg leading-none">+</span>
+              <span>פתח קבוצת גיוס משלך</span>
             </button>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {groups.map(g => {
-              const pct = g.goal_amount > 0 ? Math.min(100, Math.round((g.raised_amount / g.goal_amount) * 100)) : 0
-              return (
-                <a
-                  key={g.id}
-                  href={`/${campaignSlug}/g/${g.slug}`}
-                  className="block bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-md hover:-translate-y-0.5 transition-all"
-                >
-                  {g.image_url && (
-                    <img src={g.image_url} alt="" className="w-full h-28 object-cover" />
-                  )}
-                  <div className="p-5">
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <h3 className="font-bold text-gray-800">{g.name}</h3>
-                        {g.manager_name && <p className="text-xs text-gray-400 mt-0.5">{g.manager_name}</p>}
+              {groups.map(g => {
+                const pct = g.goal_amount > 0 ? Math.min(100, Math.round((g.raised_amount / g.goal_amount) * 100)) : 0
+                const initials = (g.manager_name || g.name || 'א')[0]
+                return (
+                  <a
+                    key={g.id}
+                    href={`/${campaignSlug}/g/${g.slug}`}
+                    className="group block bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-lg hover:-translate-y-1 transition-all duration-200"
+                  >
+                    {/* Image / avatar header */}
+                    <div className="relative h-32 overflow-hidden" style={{ background: `linear-gradient(135deg, ${primaryColor}22, ${primaryColor}0a)` }}>
+                      {g.image_url ? (
+                        <img src={g.image_url} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <div className="w-16 h-16 rounded-full flex items-center justify-center text-white text-2xl font-black shadow-md" style={{ backgroundColor: primaryColor }}>
+                            {initials}
+                          </div>
+                        </div>
+                      )}
+                      {/* % badge */}
+                      <div className="absolute top-3 left-3 text-xs font-black px-2.5 py-1 rounded-full text-white shadow-sm" style={{ backgroundColor: primaryColor }}>
+                        {pct}%
                       </div>
-                      <span className="text-xs font-bold px-2 py-1 rounded-full text-white" style={{ backgroundColor: primaryColor }}>{pct}%</span>
                     </div>
-                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-2">
-                      <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: primaryColor }} />
+
+                    <div className="p-4">
+                      <h3 className="font-black text-gray-800 text-sm leading-snug">{g.name}</h3>
+                      {g.manager_name && <p className="text-xs text-gray-400 mt-0.5">{g.manager_name}</p>}
+
+                      {/* Progress */}
+                      <div className="mt-3 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: primaryColor }} />
+                      </div>
+                      <div className="flex justify-between text-[11px] text-gray-400 mt-1.5">
+                        <span>₪{(g.raised_amount || 0).toLocaleString()} גויס</span>
+                        <span>יעד ₪{(g.goal_amount || 0).toLocaleString()}</span>
+                      </div>
+
+                      <div className="mt-3 flex items-center justify-center gap-1 text-xs font-bold py-2 rounded-xl transition-all group-hover:opacity-90" style={{ color: primaryColor, backgroundColor: `${primaryColor}12` }}>
+                        <span>כנס לקבוצה</span>
+                        <span className="text-base leading-none">←</span>
+                      </div>
                     </div>
-                    <div className="flex justify-between text-xs text-gray-400">
-                      <span>₪{(g.raised_amount || 0).toLocaleString()} גויס</span>
-                      <span>יעד ₪{(g.goal_amount || 0).toLocaleString()}</span>
-                    </div>
-                    <div className="mt-3 text-xs font-semibold text-center py-1.5 rounded-xl" style={{ color: primaryColor, backgroundColor: `${primaryColor}15` }}>
-                      פתח עמוד קבוצה ←
-                    </div>
-                  </div>
-                </a>
-              )
-            })}
+                  </a>
+                )
+              })}
             </div>
           </div>
         )}

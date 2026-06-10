@@ -18,6 +18,7 @@ export default function CampaignSettingsPage() {
   const [saved, setSaved] = useState(false)
   const [form, setForm] = useState({
     title: '',
+    tagline: '',
     description: '',
     goal_amount: '',
     bonus_goal_amount: '',
@@ -36,6 +37,7 @@ export default function CampaignSettingsPage() {
       if (data) {
         setForm({
           title: data.title || '',
+          tagline: data.settings?.tagline || '',
           description: data.description || '',
           goal_amount: String(data.goal_amount || ''),
           bonus_goal_amount: String(data.bonus_goal_amount || ''),
@@ -71,6 +73,7 @@ export default function CampaignSettingsPage() {
       settings: {
         ...existing?.settings,
         primary_color: form.primary_color,
+        tagline: form.tagline || null,
         about_text: form.about_text || null,
         button_radius: form.button_radius,
         countdown_end: form.countdown_end || null,
@@ -100,6 +103,26 @@ export default function CampaignSettingsPage() {
               <Label>שם הקמפיין</Label>
               <Input value={form.title} onChange={(e) => set('title', e.target.value)} required />
             </div>
+
+            <div className="space-y-1">
+              <Label className="flex items-center gap-2">
+                תיאור קצר — שורת כותרת בראש הדף
+                <span className="text-[11px] font-normal text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full">מופיע בהדר</span>
+              </Label>
+              <div className="relative">
+                <Input
+                  value={form.tagline}
+                  onChange={(e) => set('tagline', e.target.value.slice(0, 120))}
+                  placeholder='לדוג׳ — "גיוס מיוחד לרגל חג הפסח תשפ״ה"'
+                  maxLength={120}
+                />
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[11px] text-gray-300 tabular-nums">
+                  {form.tagline.length}/120
+                </span>
+              </div>
+              <p className="text-[11px] text-gray-400">משפט קצר שמופיע בצד שמאל של ה-Header הדביק בדף הציבורי</p>
+            </div>
+
             <div className="space-y-1">
               <Label>תיאור</Label>
               <Textarea value={form.description} onChange={(e) => set('description', e.target.value)} rows={3} />
