@@ -28,7 +28,7 @@ export default async function PublicDonationPage({ params }: { params: Promise<{
   // Get recent donations (for donor wall)
   const { data: donations } = await supabase
     .from('donations')
-    .select('id, donor_name, amount, dedication, created_at')
+    .select('id, donor_name, amount, dedication, created_at, group_id')
     .eq('campaign_id', campaign.id)
     .eq('payment_status', 'completed')
     .order('created_at', { ascending: false })

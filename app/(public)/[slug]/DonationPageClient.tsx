@@ -9,7 +9,7 @@ import CreateGroupModal from './CreateGroupModal'
 
 /* ─── Types ─── */
 interface Org { id: string; name: string; slug: string; logo_url: string | null }
-interface Donation { id: string; donor_name: string | null; amount: number; dedication: string | null; created_at: string }
+interface Donation { id: string; donor_name: string | null; amount: number; dedication: string | null; created_at: string; group_id?: string | null }
 interface GalleryItem { id: string; image_url: string; caption: string | null }
 interface ActiveGroup { id: string; name: string; slug: string; goal_amount: number; raised_amount: number; manager_name: string | null }
 interface PaymentUrls { one_time: string; hok: string; bit: string; bank: string }
@@ -130,7 +130,7 @@ function StickyHeader({ org, campaign, primaryColor, onDonate }: { org: Org; cam
             שיתוף
           </button>
           <button
-            onClick={onDonate}
+            onClick={() => onDonate()}
             className="flex items-center gap-1.5 text-sm font-bold px-4 py-2 rounded-full text-white shadow-md hover:opacity-90 transition-all"
             style={{ backgroundColor: primaryColor }}>
             <Heart className="w-3.5 h-3.5" />
@@ -588,7 +588,9 @@ function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCre
             ) : (
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {filtered.slice(0, visible).map(d => (
+                  {filtered.slice(0, visible).map(d => {
+                    const donorGroup = d.group_id ? groups.find(g => g.id === d.group_id) : null
+                    return (
                     <article
                       key={d.id}
                       className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm hover:shadow-md transition-shadow flex gap-3"
@@ -602,7 +604,19 @@ function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCre
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
-                          <span className="font-bold text-sm text-gray-800 truncate">{d.donor_name || 'אנונימי'}</span>
+                          <div className="min-w-0">
+                            <span className="font-bold text-sm text-gray-800 truncate block">{d.donor_name || 'אנונימי'}</span>
+                            {donorGroup && (
+                              <a
+                                href={`/${campaignSlug}/g/${donorGroup.slug}`}
+                                className="inline-flex items-center gap-1 text-[11px] font-semibold mt-0.5 px-2 py-0.5 rounded-full transition-colors hover:opacity-80"
+                                style={{ backgroundColor: `${primaryColor}15`, color: primaryColor }}
+                              >
+                                <span className="text-[10px]">👥</span>
+                                {donorGroup.name}
+                              </a>
+                            )}
+                          </div>
                           <span className="font-black text-sm shrink-0" style={{ color: primaryColor }}>
                             ₪{d.amount.toLocaleString()}
                           </span>
@@ -628,7 +642,8 @@ function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCre
                         </div>
                       </div>
                     </article>
-                  ))}
+                    )
+                  })}
                 </div>
                 {visible < filtered.length && (
                   <div className="text-center pt-2">
@@ -787,7 +802,7 @@ function FloatingBar({ primaryColor, buttonRadius, onDonate }: { campaign: Campa
     >
       <div className="max-w-lg mx-auto flex gap-2 px-4 py-3">
         <button
-          onClick={onDonate}
+          onClick={() => onDonate()}
           className={`flex-[2] py-3 text-white font-black text-sm text-center shadow-md hover:opacity-90 active:scale-95 transition-all ${buttonRadius}`}
           style={{ backgroundColor: primaryColor }}
         >

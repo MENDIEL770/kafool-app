@@ -1,16 +1,16 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X } from 'lucide-react'
+import { X, CreditCard, RefreshCw, Smartphone, Landmark } from 'lucide-react'
 
 interface Group { id: string; name: string; slug: string }
 interface PaymentUrls { one_time: string; hok: string; bit: string; bank: string }
 
 const PAYMENT_METHODS = [
-  { key: 'one_time', label: 'תרומה חד"פ', icon: '💳' },
-  { key: 'hok',      label: 'הוראת קבע',  icon: '🔄' },
-  { key: 'bit',      label: 'ביט',         icon: '📱' },
-  { key: 'bank',     label: 'העברה בנקאית', icon: '🏦' },
+  { key: 'one_time', label: 'תרומה חד"פ',   Icon: CreditCard  },
+  { key: 'hok',      label: 'הוראת קבע',    Icon: RefreshCw   },
+  { key: 'bit',      label: 'ביט',           Icon: Smartphone  },
+  { key: 'bank',     label: 'העברה בנקאית', Icon: Landmark    },
 ] as const
 
 type PaymentMethod = typeof PAYMENT_METHODS[number]['key']
@@ -41,7 +41,7 @@ export default function DonationModal({
   groups,
 }: Props) {
   const [step, setStep] = useState<'details' | 'payment'>('details')
-  const [amount, setAmount] = useState(presetAmount || 0)
+  const [amount, setAmount] = useState(typeof presetAmount === 'number' ? presetAmount : 0)
   const [customAmount, setCustomAmount] = useState('')
   const [selectedGroupSlug, setSelectedGroupSlug] = useState(presetGroupSlug || '')
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('one_time')
@@ -63,7 +63,7 @@ export default function DonationModal({
   // Reset when opened with new preset
   useEffect(() => {
     if (isOpen) {
-      setAmount(presetAmount || 0)
+      setAmount(typeof presetAmount === 'number' ? presetAmount : 0)
       setCustomAmount(presetAmount ? '' : '')
       setSelectedGroupSlug(presetGroupSlug || '')
       setStep('details')
@@ -243,7 +243,7 @@ export default function DonationModal({
                         }`}
                         style={paymentMethod === m.key ? { borderColor: primaryColor, color: primaryColor, backgroundColor: `${primaryColor}10` } : {}}
                       >
-                        <span>{m.icon}</span>
+                        <m.Icon className="w-4 h-4 shrink-0" />
                         {m.label}
                       </button>
                     ))}
