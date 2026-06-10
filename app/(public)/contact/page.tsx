@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import MarketingHeader from '../_components/MarketingHeader'
 import Footer from '../_components/Footer'
 import ContactForm from './ContactForm'
-import { Phone, Mail, Clock } from 'lucide-react'
+import { Phone, Mail, Clock, MessageCircle } from 'lucide-react'
 
 interface ContactSettings {
   phone: string
@@ -11,10 +11,13 @@ interface ContactSettings {
 }
 
 const CONTACT_DEFAULTS: ContactSettings = {
-  phone: '050-000-0000',
+  phone: '0535035770',
   email: 'info@kafool.co.il',
   hours: "ימים א'–ה', 09:00–18:00",
 }
+
+const WA_PHONE = '972535035770'
+const WA_MESSAGE = encodeURIComponent("שלום, אני מעוניין בפרטים על הקמת דף גיוס ב׳כפול׳")
 
 async function getContactSettings(): Promise<ContactSettings> {
   try {
@@ -98,6 +101,22 @@ export default async function ContactPage() {
                 </div>
               </div>
             </div>
+
+            {/* WhatsApp button */}
+            <a
+              href={`https://wa.me/${WA_PHONE}?text=${WA_MESSAGE}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 w-full bg-[#25D366] hover:bg-[#20bc59] text-white font-bold px-5 py-4 rounded-2xl transition-colors shadow-sm"
+            >
+              <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
+                <MessageCircle className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-sm font-black">צ׳אט בוואטסאפ</p>
+                <p className="text-xs text-green-100">תגובה מהירה</p>
+              </div>
+            </a>
           </div>
 
           {/* Form */}

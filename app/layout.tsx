@@ -1,9 +1,13 @@
 import type { Metadata } from "next";
-import { Geist } from "next/font/google";
+import { Rubik } from "next/font/google";
 import "./globals.css";
 import GlobalEffects from "@/components/ui/GlobalEffects";
 
-const geist = Geist({ subsets: ["latin"] });
+const rubik = Rubik({
+  subsets: ["latin", "hebrew"],
+  weight: ["300", "400", "500", "600", "700", "800", "900"],
+  variable: "--font-rubik",
+});
 
 export const metadata: Metadata = {
   title: "Kafool — Fundraising Operating System",
@@ -16,7 +20,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="he" dir="rtl" className={geist.className}>
+    <html lang="he" dir="rtl" className={rubik.className}>
       <body className="min-h-full flex flex-col antialiased">
         <GlobalEffects />
         {children}

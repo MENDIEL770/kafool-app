@@ -2,6 +2,17 @@
 
 import { useState } from 'react'
 
+const SOURCE_OPTIONS = [
+  'בחר...',
+  'חבר / היכרות אישית',
+  'רשתות חברתיות',
+  'גוגל / חיפוש',
+  'פרסום ממומן',
+  'פודקאסט / כנס',
+  'ראיתי קמפיין של כפול',
+  'אחר',
+]
+
 export default function ContactForm() {
   const [form, setForm] = useState({
     full_name: '',
@@ -9,13 +20,14 @@ export default function ContactForm() {
     email: '',
     subject: '',
     message: '',
+    source: '',
   })
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
-    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }))
+  function set(key: string, value: string) {
+    setForm(p => ({ ...p, [key]: value }))
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -30,13 +42,10 @@ export default function ContactForm() {
       const res = await fetch('/api/contact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, source: form.source || null }),
       })
-      if (!res.ok) {
-        const data = await res.json() as { error?: string }
-        setError(data.error ?? 'שגיאה בשליחת הפנייה')
-        return
-      }
+      const data = await res.json() as { error?: string }
+      if (!res.ok) { setError(data.error ?? 'שגיאה בשליחת הפנייה'); return }
       setSuccess(true)
     } catch {
       setError('שגיאה בשליחת הפנייה, נסו שוב')
@@ -50,78 +59,65 @@ export default function ContactForm() {
       <div className="bg-green-50 border border-green-200 rounded-3xl p-10 text-center">
         <div className="text-5xl mb-4">✅</div>
         <h3 className="text-2xl font-black text-green-800 mb-2">תודה!</h3>
-        <p className="text-green-700 text-lg">נחזור אליכם בקרוב</p>
+        <p className="text-green-700 text-lg">קיבלנו את פנייתכם — נחזור אליכם בקרוב</p>
       </div>
     )
   }
 
+  const inputCls = "w-full border border-gray-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white transition"
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-5" dir="rtl">
+    <form onSubmit={handleSubmit} className="space-y-4" dir="rtl">
+
+      {/* Name */}
       <div>
         <label className="block text-sm font-bold text-gray-700 mb-1.5">
           שם מלא <span className="text-red-500">*</span>
         </label>
-        <input
-          type="text"
-          name="full_name"
-          value={form.full_name}
-          onChange={handleChange}
-          placeholder="ישראל ישראלי"
-          className="w-full border border-gray-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          required
-        />
+        <input type="text" value={form.full_name} onChange={e => set('full_name', e.target.value)}
+          placeholder="ישראל ישראלי" className={inputCls} required />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+      {/* Phone + Email */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-bold text-gray-700 mb-1.5">טלפון</label>
-          <input
-            type="tel"
-            name="phone"
-            value={form.phone}
-            onChange={handleChange}
-            placeholder="050-0000000"
-            className="w-full border border-gray-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
+          <input type="tel" value={form.phone} onChange={e => set('phone', e.target.value)}
+            placeholder="050-0000000" className={inputCls} dir="ltr" />
         </div>
         <div>
           <label className="block text-sm font-bold text-gray-700 mb-1.5">אימייל</label>
-          <input
-            type="email"
-            name="email"
-            value={form.email}
-            onChange={handleChange}
-            placeholder="example@email.com"
-            className="w-full border border-gray-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
+          <input type="email" value={form.email} onChange={e => set('email', e.target.value)}
+            placeholder="example@email.com" className={inputCls} dir="ltr" />
         </div>
       </div>
 
+      {/* Subject */}
       <div>
         <label className="block text-sm font-bold text-gray-700 mb-1.5">נושא</label>
-        <input
-          type="text"
-          name="subject"
-          value={form.subject}
-          onChange={handleChange}
-          placeholder="במה נוכל לעזור?"
-          className="w-full border border-gray-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        />
+        <input type="text" value={form.subject} onChange={e => set('subject', e.target.value)}
+          placeholder="במה נוכל לעזור?" className={inputCls} />
       </div>
 
+      {/* Source */}
+      <div>
+        <label className="block text-sm font-bold text-gray-700 mb-1.5">איך הגעת אלינו?</label>
+        <select value={form.source} onChange={e => set('source', e.target.value)}
+          className={`${inputCls} cursor-pointer`}>
+          {SOURCE_OPTIONS.map(opt => (
+            <option key={opt} value={opt === 'בחר...' ? '' : opt}>{opt}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Message */}
       <div>
         <label className="block text-sm font-bold text-gray-700 mb-1.5">
           הודעה <span className="text-red-500">*</span>
         </label>
-        <textarea
-          name="message"
-          value={form.message}
-          onChange={handleChange}
-          placeholder="כתבו את הפנייה שלכם כאן..."
-          rows={5}
-          className="w-full border border-gray-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-          required
-        />
+        <textarea value={form.message} onChange={e => set('message', e.target.value)}
+          placeholder="כתבו את הפנייה שלכם כאן..." rows={4}
+          className={`${inputCls} resize-none`} required />
       </div>
 
       {error && (
@@ -130,11 +126,8 @@ export default function ContactForm() {
         </div>
       )}
 
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full bg-blue-600 text-white font-black py-3.5 rounded-2xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-      >
+      <button type="submit" disabled={loading}
+        className="w-full bg-blue-600 text-white font-black py-3.5 rounded-2xl hover:bg-blue-700 transition-colors disabled:opacity-50">
         {loading ? 'שולח...' : 'שלח פנייה'}
       </button>
     </form>

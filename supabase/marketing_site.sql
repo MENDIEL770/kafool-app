@@ -40,3 +40,6 @@ CREATE TABLE IF NOT EXISTS contact_submissions (
   is_read boolean DEFAULT false,
   created_at timestamptz DEFAULT now()
 );
+
+-- Add source column if missing
+ALTER TABLE contact_submissions ADD COLUMN IF NOT EXISTS source text;
