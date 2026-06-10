@@ -7,6 +7,7 @@ import { Search, Share2, Heart, Menu, X, ChevronDown, Globe } from 'lucide-react
 import DonationModal from './DonationModal'
 import CreateGroupModal from './CreateGroupModal'
 import AccessibilityWidget from '../_components/AccessibilityWidget'
+import Footer from '../_components/Footer'
 
 /* ─── Types ─── */
 interface Org { id: string; name: string; slug: string; logo_url: string | null }
@@ -1025,6 +1026,8 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
 
       {/* Bottom padding for floating bar */}
       <div className="h-20" />
+
+      <Footer />
     </div>
   )
 }

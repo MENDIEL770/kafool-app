@@ -1,5 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
+import Link from 'next/link'
 import MarketingHeader from '../_components/MarketingHeader'
+import Footer from '../_components/Footer'
 import FaqClient, { type FaqItem } from './FaqClient'
 
 const FAQ_DEFAULTS: FaqItem[] = [
@@ -50,6 +52,20 @@ export default async function FaqPage() {
           <FaqClient items={items} />
         </div>
       </section>
+
+      <section className="py-16 px-4 bg-blue-600">
+        <div className="max-w-2xl mx-auto text-center space-y-5">
+          <h2 className="text-3xl font-black text-white">עדיין יש שאלות?</h2>
+          <p className="text-blue-100 text-lg">הצוות שלנו כאן בשבילכם — נשמח לענות על כל שאלה</p>
+          <Link
+            href="/contact"
+            className="inline-block bg-white text-blue-600 font-black text-base px-8 py-4 rounded-2xl hover:bg-blue-50 transition-colors shadow-lg"
+          >
+            דברו איתנו
+          </Link>
+        </div>
+      </section>
+    <Footer />
     </div>
   )
 }

@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import MarketingHeader from '../_components/MarketingHeader'
+import Footer from '../_components/Footer'
 
 const ABOUT_DEFAULTS: Record<string, string> = {
   hero_title: 'כפול — הפלטפורמה שמכפילה את ההשפעה שלכם',
@@ -93,7 +94,7 @@ export default async function AboutPage() {
             {c.hero_subtitle}
           </p>
           <Link
-            href="/dashboard"
+            href="/contact"
             className="inline-block bg-blue-600 text-white font-black text-lg px-8 py-4 rounded-2xl hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200"
           >
             אני רוצה להקים דף גיוס ב-5 דקות
@@ -156,13 +157,14 @@ export default async function AboutPage() {
         <div className="max-w-3xl mx-auto text-center">
           <h2 className="text-3xl font-black text-white mb-8">מוכנים להתחיל?</h2>
           <Link
-            href="/dashboard"
+            href="/contact"
             className="inline-block bg-white text-blue-600 font-black text-lg px-8 py-4 rounded-2xl hover:bg-blue-50 transition-colors shadow-lg"
           >
             הקימו דף גיוס עכשיו
           </Link>
         </div>
       </section>
+    <Footer />
     </div>
   )
 }

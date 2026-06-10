@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import MarketingHeader from '../_components/MarketingHeader'
+import Footer from '../_components/Footer'
 import ContactForm from './ContactForm'
 import { Phone, Mail, Clock } from 'lucide-react'
 
@@ -106,6 +107,7 @@ export default async function ContactPage() {
           </div>
         </div>
       </section>
+    <Footer />
     </div>
   )
 }
