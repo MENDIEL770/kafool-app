@@ -6,6 +6,7 @@ import type { Campaign, Group } from '@/types'
 import { Search, Share2, Heart, Menu, X, ChevronDown, Globe } from 'lucide-react'
 import DonationModal from './DonationModal'
 import CreateGroupModal from './CreateGroupModal'
+import AccessibilityWidget from '../_components/AccessibilityWidget'
 
 /* ─── Types ─── */
 interface Org { id: string; name: string; slug: string; logo_url: string | null }
@@ -27,11 +28,6 @@ function getVideoEmbed(url: string): string | null {
 function getYoutubeThumbnail(url: string): string | null {
   const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/)
   if (yt) return `https://img.youtube.com/vi/${yt[1]}/maxresdefault.jpg`
-  return null
-}
-  // Google Drive: /file/d/FILE_ID/view → embed
-  const gd = url.match(/drive\.google\.com\/(?:file\/d\/|open\?id=)([^/?&]+)/)
-  if (gd) return `https://drive.google.com/file/d/${gd[1]}/preview`
   return null
 }
 
@@ -89,11 +85,9 @@ function KafoolAnimatedLogo() {
 }
 
 const NAV_LINKS = [
-  { label: 'אודות', href: '#about' },
-  { label: 'שאלות ותשובות', href: '#faq' },
-  { label: 'עדויות', href: '#testimonials' },
-  { label: 'תורמים', href: '#donors' },
-  { label: 'צור קשר', href: '#contact' },
+  { label: 'אודות', href: '/about' },
+  { label: 'שאלות ותשובות', href: '/faq' },
+  { label: 'צור קשר', href: '/contact' },
 ]
 
 function StickyHeader({ org, campaign, primaryColor, onDonate }: { org: Org; campaign: Campaign; primaryColor: string; onDonate: () => void }) {
@@ -995,8 +989,9 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
           href={whatsappUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="fixed left-4 bottom-20 z-50 w-14 h-14 rounded-full flex items-center justify-center shadow-xl transition-transform hover:scale-110 active:scale-95"
-          style={{ backgroundColor: '#25D366' }}
+          className="fixed z-50 w-14 h-14 rounded-full flex items-center justify-center shadow-xl transition-transform hover:scale-110 active:scale-95"
+          style={{ backgroundColor: '#25D366', left: '1rem', bottom: '5rem' }}
+          dir="ltr"
           aria-label="שלח הודעה בWhatsApp"
         >
           <svg viewBox="0 0 24 24" className="w-7 h-7 fill-white">
@@ -1006,6 +1001,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
       )}
 
       <FloatingBar campaign={campaign} primaryColor={primaryColor} buttonRadius={buttonRadius} onDonate={() => openDonate()} />
+      <AccessibilityWidget />
 
       <CreateGroupModal
         isOpen={createGroupOpen}

@@ -23,6 +23,7 @@ import {
   Zap,
   UserCog,
   Sparkles,
+  FileText,
 } from 'lucide-react'
 
 interface Profile {
@@ -59,6 +60,7 @@ const settingsItems = [
 const superAdminItems = [
   { href: '/super-admin/agent', label: 'סוכן AI', icon: Bot },
   { href: '/super-admin/orgs', label: 'ניהול ארגונים', icon: Building2 },
+  { href: '/super-admin/cms', label: 'ניהול תוכן', icon: FileText },
 ]
 
 function NavLink({
