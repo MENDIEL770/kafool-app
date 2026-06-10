@@ -1,6 +1,55 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
+import { type Metadata } from 'next'
 import DonationPageClient from './DonationPageClient'
+
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://kafool.com'
+
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params
+  const supabase = await createClient()
+
+  const { data: campaign } = await supabase
+    .from('campaigns')
+    .select('title, raised_amount, goal_amount, settings, org_id')
+    .eq('slug', slug)
+    .eq('status', 'active')
+    .single()
+
+  if (!campaign) return { title: 'Kafool' }
+
+  const { data: org } = await supabase
+    .from('organizations')
+    .select('name')
+    .eq('id', campaign.org_id)
+    .single()
+
+  const title = `${campaign.title} | ${org?.name ?? 'Kafool'}`
+  const tagline = (campaign.settings as { tagline?: string } | null)?.tagline
+  const description = tagline
+    || `תרמו לקמפיין "${campaign.title}" — ₪${(campaign.raised_amount || 0).toLocaleString()} גויסו עד כה`
+  const ogImageUrl = `${BASE_URL}/${slug}/opengraph-image`
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      url: `${BASE_URL}/${slug}`,
+      siteName: 'Kafool',
+      images: [{ url: ogImageUrl, width: 1200, height: 630, alt: campaign.title }],
+      locale: 'he_IL',
+      type: 'website',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: [ogImageUrl],
+    },
+  }
+}
 
 export default async function PublicDonationPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
