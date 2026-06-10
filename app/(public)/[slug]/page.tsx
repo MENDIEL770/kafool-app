@@ -48,13 +48,12 @@ export default async function PublicDonationPage({ params }: { params: Promise<{
     .eq('campaign_id', campaign.id)
     .order('sort_order')
 
-  const settings = campaign.settings as { donation_page_url?: string }
   const o = org as Record<string, string>
   const paymentUrls = {
-    one_time:       settings?.donation_page_url || o.kesher_page_url || '',
-    hok:            o.kesher_url_hok  || '',
-    bit:            o.kesher_url_bit  || '',
-    bank:           o.kesher_url_bank || '',
+    one_time: o.kesher_page_url || '',
+    hok:      o.kesher_url_hok  || '',
+    bit:      o.kesher_url_bit  || '',
+    bank:     o.kesher_url_bank || '',
   }
 
   return (
