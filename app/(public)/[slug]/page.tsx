@@ -1,7 +1,16 @@
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdmin } from '@supabase/supabase-js'
 import { notFound } from 'next/navigation'
 import { type Metadata } from 'next'
 import DonationPageClient from './DonationPageClient'
+
+// Service-role client for public reads that bypass RLS
+function adminClient() {
+  return createAdmin(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+}
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://kafool.com'
 
@@ -74,8 +83,8 @@ export default async function PublicDonationPage({ params }: { params: Promise<{
 
   if (!org) notFound()
 
-  // Get recent donations (for donor wall)
-  const { data: donations } = await supabase
+  // Get recent donations — use service role to bypass RLS (public donor wall)
+  const { data: donations } = await adminClient()
     .from('donations')
     .select('id, donor_name, amount, dedication, created_at, group_id')
     .eq('campaign_id', campaign.id)
