@@ -1,10 +1,20 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdmin } from '@supabase/supabase-js'
 import { notFound } from 'next/navigation'
 import DonationPageClient from '../../DonationPageClient'
 
+// Cookie-less service-role client so the page can be cached (ISR) under load
+function adminClient() {
+  return createAdmin(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+}
+
+export const revalidate = 60 // ISR — cache for 60 seconds
+
 export default async function GroupPage({ params }: { params: Promise<{ slug: string; groupSlug: string }> }) {
   const { slug, groupSlug } = await params
-  const supabase = await createClient()
+  const supabase = adminClient()
 
   const { data: campaign } = await supabase
     .from('campaigns')
