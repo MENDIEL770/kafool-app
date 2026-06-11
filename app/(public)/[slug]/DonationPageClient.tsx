@@ -32,6 +32,25 @@ function getYoutubeThumbnail(url: string): string | null {
   return null
 }
 
+function donorInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return 'א'
+  if (parts.length === 1) return parts[0].slice(0, 2)
+  return parts[0][0] + parts[parts.length - 1][0]
+}
+
+function relativeTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime()
+  const m = Math.floor(diff / 60000)
+  if (m < 1) return 'הרגע'
+  if (m < 60) return `לפני ${m} דקות`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `לפני ${h} שעות`
+  const days = Math.floor(h / 24)
+  if (days < 30) return `לפני ${days} ימים`
+  return new Date(iso).toLocaleDateString('he-IL', { day: 'numeric', month: 'short' })
+}
+
 function useCountdown(endAt: string | null) {
   const calc = useCallback(() => {
     if (!endAt) return null
@@ -93,8 +112,12 @@ const NAV_LINKS = [
 
 function StickyHeader({ org, campaign, primaryColor, onDonate }: { org: Org; campaign: Campaign; primaryColor: string; onDonate: () => void }) {
   const [menuOpen, setMenuOpen] = useState(false)
-  const settings = campaign.settings as { tagline?: string | null; about_text?: string | null }
-  const tagline = settings?.tagline || settings?.about_text?.split('\n')[0] || null
+  const settings = campaign.settings as { tagline?: string | null }
+  // the campaign's own logo (uploaded by the manager in the media tab),
+  // falling back to the org logo, then the Kafool logo
+  const logoUrl = campaign.logo_url || org.logo_url || null
+  // only an explicit short tagline — never the campaign "about" text
+  const tagline = settings?.tagline?.trim() || null
 
   return (
     <header className="sticky top-0 inset-x-0 z-50 bg-white border-b border-gray-100 shadow-sm" role="banner">
@@ -102,10 +125,14 @@ function StickyHeader({ org, campaign, primaryColor, onDonate }: { org: Org; cam
 
         {/* Logo + tagline */}
         <div className="flex items-center gap-2.5 shrink-0">
-          {org.logo_url
-            ? <img src={org.logo_url} alt={org.name} className="h-10 object-contain" />
-            : <KafoolAnimatedLogo />
-          }
+          {/* Kafool logo · divider · the campaign's own logo */}
+          <KafoolAnimatedLogo />
+          {logoUrl && (
+            <>
+              <div className="h-8 w-px bg-gray-200 shrink-0" />
+              <img src={logoUrl} alt={campaign.title} className="h-9 object-contain max-w-[120px]" />
+            </>
+          )}
           {tagline && (
             <div className="hidden lg:block border-r border-gray-200 pr-3 mr-1">
               <p className="text-[11px] text-gray-400 leading-tight max-w-[180px]">{tagline}</p>
@@ -616,54 +643,62 @@ function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCre
                     return (
                     <article
                       key={d.id}
-                      className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm hover:shadow-md transition-shadow flex gap-3"
+                      className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm hover:shadow-md transition-shadow"
                     >
-                      <div
-                        className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0 shadow-sm"
-                        style={{ backgroundColor: primaryColor }}
-                        aria-hidden
-                      >
-                        {(d.donor_name || 'א')[0]}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <span className="font-bold text-sm text-gray-800 truncate block">{d.donor_name || 'אנונימי'}</span>
+                      <div className="flex items-center gap-4">
+                        {/* avatar (rightmost in RTL) */}
+                        <div
+                          className="w-12 h-12 rounded-full flex items-center justify-center text-base font-black shrink-0"
+                          style={{ backgroundColor: `${primaryColor}1A`, color: primaryColor }}
+                          aria-hidden
+                        >
+                          {donorInitials(d.donor_name || 'אנונימי')}
+                        </div>
+
+                        {/* name + meta */}
+                        <div className="flex-1 min-w-0">
+                          <div className="font-bold text-base text-gray-900 truncate leading-tight">
+                            {d.donor_name || 'אנונימי'}
+                          </div>
+                          <div className="text-xs text-gray-400 mt-1 truncate">
+                            <span suppressHydrationWarning>{relativeTime(d.created_at)}</span>
                             {donorGroup && (
-                              <a
-                                href={`/${campaignSlug}/g/${donorGroup.slug}`}
-                                className="inline-flex items-center gap-1 text-[11px] font-semibold mt-0.5 px-2 py-0.5 rounded-full transition-colors hover:opacity-80"
-                                style={{ backgroundColor: `${primaryColor}15`, color: primaryColor }}
-                              >
-                                <span className="text-[10px]">👥</span>
-                                {donorGroup.name}
-                              </a>
+                              <>
+                                {' · '}
+                                <a
+                                  href={`/${campaignSlug}/g/${donorGroup.slug}`}
+                                  className="font-semibold hover:opacity-80 transition-opacity"
+                                  style={{ color: primaryColor }}
+                                >
+                                  {donorGroup.name}
+                                </a>
+                              </>
                             )}
                           </div>
-                          <span className="font-black text-sm shrink-0" style={{ color: primaryColor }}>
-                            ₪{d.amount.toLocaleString()}
-                          </span>
                         </div>
-                        {d.dedication && (
-                          <p className="text-xs text-gray-600 mt-1 leading-relaxed bg-gray-50 rounded-lg px-2 py-1 border-r-2" style={{ borderColor: primaryColor }}>
-                            {d.dedication}
-                          </p>
-                        )}
-                        <div className="flex items-center justify-between mt-1.5">
-                          <time className="text-[11px] text-gray-300" dateTime={d.created_at}>
-                            {new Date(d.created_at).toLocaleDateString('he-IL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                          </time>
+
+                        {/* amount + like (leftmost in RTL) */}
+                        <div className="shrink-0 flex flex-col items-center gap-1.5">
+                          <div className="text-xl font-black leading-none" style={{ color: primaryColor }}>
+                            ₪{d.amount.toLocaleString()}
+                          </div>
                           <button
                             onClick={() => setLiked(s => { const n = new Set(s); n.has(d.id) ? n.delete(d.id) : n.add(d.id); return n })}
                             aria-label={liked.has(d.id) ? 'הסר לייק' : 'תן לייק'}
                             aria-pressed={liked.has(d.id)}
-                            className="flex items-center gap-1 text-[11px] transition-colors"
-                            style={{ color: liked.has(d.id) ? '#ef4444' : '#9ca3af' }}
+                            className="transition-colors"
+                            style={{ color: liked.has(d.id) ? '#ef4444' : '#d1d5db' }}
                           >
                             <Heart className={`w-3.5 h-3.5 ${liked.has(d.id) ? 'fill-red-500' : ''}`} />
                           </button>
                         </div>
                       </div>
+
+                      {d.dedication && (
+                        <p className="text-sm text-gray-600 mt-3 leading-relaxed bg-gray-50 rounded-xl px-3 py-2 border-r-2" style={{ borderColor: primaryColor }}>
+                          {d.dedication}
+                        </p>
+                      )}
                     </article>
                     )
                   })}

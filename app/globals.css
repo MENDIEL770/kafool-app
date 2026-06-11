@@ -182,3 +182,23 @@
   background: #6366f1;
   position: relative;
 }
+
+/* ─── Animated Kafool logo (looping infinity trace) ─── */
+@keyframes kafool-logo-trace {
+  from { stroke-dashoffset: 100; }
+  to   { stroke-dashoffset: 0; }
+}
+.kafool-logo-trace {
+  animation: kafool-logo-trace 2.6s linear infinite;
+}
+@keyframes kafool-logo-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-5px); }
+}
+.kafool-logo-float {
+  animation: kafool-logo-float 3.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .kafool-logo-trace,
+  .kafool-logo-float { animation: none; }
+}

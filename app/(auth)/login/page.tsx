@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Zap, ArrowLeft } from 'lucide-react'
+import LoginShowcase from './LoginShowcase'
+import KafoolLogoIntro from '@/components/KafoolLogoIntro'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -36,33 +38,19 @@ export default function LoginPage() {
 
       {/* Left panel — branding */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 flex-col justify-between p-12">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center">
-            <Zap className="w-5 h-5 text-white" />
-          </div>
-          <span className="text-2xl font-bold text-white">Kafool</span>
+        <div className="flex justify-center pt-2">
+          <KafoolLogoIntro className="w-64 xl:w-72" />
         </div>
-        <div className="space-y-6">
-          <div className="space-y-3">
-            <h1 className="text-4xl font-black text-white leading-tight">
-              הפלטפורמה החכמה<br />לגיוס תרומות
+        <div className="space-y-8 py-6">
+          <div className="space-y-2 text-center">
+            <h1 className="text-3xl font-black text-white leading-tight">
+              כל הגיוס שלכם — חי, במקום אחד
             </h1>
-            <p className="text-blue-200 text-lg leading-relaxed">
-              נהל קמפיינים, טלפנים ותרומות — הכל במקום אחד.
+            <p className="text-blue-200 text-sm leading-relaxed">
+              תרומות, הוראות קבע, טלפנים, עיצוב ודוחות — בזמן אמת
             </p>
           </div>
-          <div className="grid grid-cols-3 gap-4">
-            {[
-              { num: '₪2M+', label: 'גויסו' },
-              { num: '500+', label: 'קמפיינים' },
-              { num: '10K+', label: 'תורמים' },
-            ].map((s) => (
-              <div key={s.label} className="bg-white/10 rounded-2xl p-4 text-center">
-                <div className="text-2xl font-black text-white">{s.num}</div>
-                <div className="text-blue-200 text-xs mt-1">{s.label}</div>
-              </div>
-            ))}
-          </div>
+          <LoginShowcase />
         </div>
         <p className="text-blue-300 text-xs">© 2025 Kafool. כל הזכויות שמורות.</p>
       </div>

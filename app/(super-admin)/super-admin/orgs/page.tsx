@@ -9,10 +9,10 @@ export default async function SuperAdminOrgsPage() {
 
   if (profile?.role !== 'super_admin') redirect('/dashboard')
 
-  const [{ data: orgs }, { data: leads }] = await Promise.all([
+  const [{ data: orgsRaw }, { data: leads }] = await Promise.all([
     supabase
       .from('organizations')
-      .select('*, profiles!organizations_owner_id_fkey(full_name, phone, id)')
+      .select('*')
       .order('created_at', { ascending: false }),
     supabase
       .from('sales_leads')
@@ -20,5 +20,18 @@ export default async function SuperAdminOrgsPage() {
       .order('created_at', { ascending: false }),
   ])
 
-  return <OrgsLeadsView orgs={orgs ?? []} leads={leads ?? []} />
+  // owner_id references auth.users (not profiles), so there is no PostgREST
+  // relationship to embed — fetch the owner profiles separately and attach them.
+  const ownerIds = [...new Set((orgsRaw ?? []).map(o => o.owner_id).filter(Boolean))]
+  const { data: owners } = ownerIds.length
+    ? await supabase.from('profiles').select('id, full_name, phone').in('id', ownerIds)
+    : { data: [] as { id: string; full_name: string; phone: string | null }[] }
+  const ownerMap = new Map((owners ?? []).map(p => [p.id, p]))
+
+  const orgs = (orgsRaw ?? []).map(o => ({
+    ...o,
+    profiles: o.owner_id ? ownerMap.get(o.owner_id) ?? null : null,
+  }))
+
+  return <OrgsLeadsView orgs={orgs} leads={leads ?? []} />
 }

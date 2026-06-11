@@ -388,8 +388,8 @@ export default function CampaignMediaClient({
               />
 
               <UploadZone
-                label="לוגו / תמונה עגולה"
-                sublabel="מוצגת מעל הבאנר — ריבועי, 1:1"
+                label="לוגו הקמפיין"
+                sublabel="מוצג בהדר העליון של עמוד הגיוס ומעל הבאנר"
                 hint="מומלץ: 400×400px, PNG עם רקע שקוף"
                 currentUrl={logoUrl}
                 onUpload={handleLogoUpload}

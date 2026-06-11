@@ -13,21 +13,28 @@ const SOURCE_OPTIONS = [
   'אחר',
 ]
 
+const SUBJECT_OPTIONS = ['הקמת דף גיוס', 'עיצוב', 'אחר']
+
 export default function ContactForm() {
   const [form, setForm] = useState({
     full_name: '',
     phone: '',
     email: '',
-    subject: '',
     message: '',
     source: '',
   })
+  const [subjects, setSubjects] = useState<string[]>([])
+  const [subjectOther, setSubjectOther] = useState('')
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   function set(key: string, value: string) {
     setForm(p => ({ ...p, [key]: value }))
+  }
+
+  function toggleSubject(opt: string) {
+    setSubjects(prev => (prev.includes(opt) ? prev.filter(s => s !== opt) : [...prev, opt]))
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -39,10 +46,14 @@ export default function ContactForm() {
     setLoading(true)
     setError(null)
     try {
+      const subject = [
+        ...subjects.filter(s => s !== 'אחר'),
+        ...(subjects.includes('אחר') && subjectOther.trim() ? [subjectOther.trim()] : []),
+      ].join(', ')
       const res = await fetch('/api/contact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, source: form.source || null }),
+        body: JSON.stringify({ ...form, subject, source: form.source || null }),
       })
       const data = await res.json() as { error?: string }
       if (!res.ok) { setError(data.error ?? 'שגיאה בשליחת הפנייה'); return }
@@ -92,11 +103,40 @@ export default function ContactForm() {
         </div>
       </div>
 
-      {/* Subject */}
+      {/* Subject (multi-select) */}
       <div>
-        <label className="block text-sm font-bold text-gray-700 mb-1.5">נושא</label>
-        <input type="text" value={form.subject} onChange={e => set('subject', e.target.value)}
-          placeholder="במה נוכל לעזור?" className={inputCls} />
+        <label className="block text-sm font-bold text-gray-700 mb-1.5">
+          נושא <span className="text-gray-400 font-normal text-xs">(אפשר לבחור כמה)</span>
+        </label>
+        <div className="flex flex-wrap gap-2">
+          {SUBJECT_OPTIONS.map(opt => {
+            const active = subjects.includes(opt)
+            return (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => toggleSubject(opt)}
+                aria-pressed={active}
+                className={`px-4 py-2 rounded-full text-sm font-bold border transition-colors ${
+                  active
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300'
+                }`}
+              >
+                {opt}
+              </button>
+            )
+          })}
+        </div>
+        {subjects.includes('אחר') && (
+          <input
+            type="text"
+            value={subjectOther}
+            onChange={e => setSubjectOther(e.target.value)}
+            placeholder="פרטו את הנושא..."
+            className={`${inputCls} mt-3`}
+          />
+        )}
       </div>
 
       {/* Source */}

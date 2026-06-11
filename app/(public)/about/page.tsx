@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import MarketingHeader from '../_components/MarketingHeader'
 import Footer from '../_components/Footer'
+import AnimatedKafoolLogo from '../_components/AnimatedKafoolLogo'
 
 const ABOUT_DEFAULTS: Record<string, string> = {
   hero_title: 'כפול — הפלטפורמה שמכפילה את ההשפעה שלכם',
@@ -87,8 +88,12 @@ export default async function AboutPage() {
       {/* Hero */}
       <section className="bg-gradient-to-br from-blue-50 to-indigo-100 py-20 px-4">
         <div className="max-w-3xl mx-auto text-center">
-          <h1 className="text-4xl md:text-5xl font-black text-gray-900 mb-6 leading-tight">
-            {c.hero_title}
+          {/* animated logo (looping) in place of the word "כפול" */}
+          <div className="flex justify-center mb-8">
+            <AnimatedKafoolLogo className="w-56 sm:w-72 md:w-80 h-auto kafool-logo-float" />
+          </div>
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-gray-900 mb-6 leading-tight">
+            הפלטפורמה שמכפילה את ההשפעה שלכם
           </h1>
           <p className="text-lg text-gray-600 mb-10 leading-relaxed">
             {c.hero_subtitle}

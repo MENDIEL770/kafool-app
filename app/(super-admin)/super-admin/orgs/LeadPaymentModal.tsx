@@ -121,9 +121,11 @@ export default function LeadPaymentModal({ lead, onClose }: { lead: Lead; onClos
 
                 {msg && <div className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-2">{msg}</div>}
 
-                {/* iframe preview */}
-                <div className="rounded-xl border border-gray-200 overflow-hidden bg-white">
-                  <iframe src={PAYMENT_LINK} title="תשלום" className="w-full" style={{ height: 420 }} />
+                {/* Grow blocks iframe embedding — open in a new tab instead */}
+                <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50/60 px-4 py-5 text-center space-y-1.5">
+                  <ExternalLink className="w-6 h-6 text-gray-300 mx-auto" />
+                  <p className="text-xs text-gray-500">דף התשלום של Grow נפתח בכרטיסייה נפרדת (לא ניתן להטמיעו כאן).</p>
+                  <p className="text-[11px] text-gray-400">לחץ <span className="font-semibold text-gray-500">פתח תשלום</span> או שלח את הקישור ללקוח.</p>
                 </div>
               </div>
 

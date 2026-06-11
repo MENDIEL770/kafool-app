@@ -81,8 +81,18 @@ export async function convertLeadToOrg(
         const { data: { users } } = await admin.auth.admin.listUsers()
         const target = users.find(u => u.email === lead.email)
         if (target) {
-          await admin.from('profiles').update({ org_id: org.id, role: 'admin' }).eq('id', target.id)
-          await admin.from('organizations').update({ owner_id: target.id }).eq('id', org.id)
+          // Only link an existing user as owner if it's safe:
+          // never demote a super_admin, and never hijack a user who already
+          // belongs to another org. Otherwise leave the org owner-less.
+          const { data: prof } = await admin
+            .from('profiles')
+            .select('role, org_id')
+            .eq('id', target.id)
+            .single()
+          if (prof && prof.role !== 'super_admin' && !prof.org_id) {
+            await admin.from('profiles').update({ org_id: org.id }).eq('id', target.id)
+            await admin.from('organizations').update({ owner_id: target.id }).eq('id', org.id)
+          }
         }
       }
     } catch (e) {

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
   Plus, Sparkles, Phone, Mail, CreditCard, CheckCircle2,
-  MessageSquare, UserPlus, Banknote, GripVertical, TrendingUp,
+  MessageSquare, UserPlus, Banknote, GripVertical, TrendingUp, Pencil,
 } from 'lucide-react'
 import NewLeadModal from './NewLeadModal'
 import LeadPaymentModal from './LeadPaymentModal'
@@ -41,6 +41,7 @@ const COLUMN_ORDER: StageKey[] = ['new', 'contacted', 'proposal', 'awaiting_paym
 export default function LeadsTabClient({ leads }: { leads: Lead[] }) {
   const router = useRouter()
   const [showNew, setShowNew] = useState(false)
+  const [editLead, setEditLead] = useState<Lead | null>(null)
   const [payLead, setPayLead] = useState<Lead | null>(null)
   const [dragId, setDragId] = useState<string | null>(null)
   const [overCol, setOverCol] = useState<StageKey | null>(null)
@@ -144,6 +145,7 @@ export default function LeadsTabClient({ leads }: { leads: Lead[] }) {
                       onDragStart={e => { e.dataTransfer.setData('text/plain', lead.id); setDragId(lead.id) }}
                       onDragEnd={() => { setDragId(null); setOverCol(null) }}
                       onPay={() => setPayLead(lead)}
+                      onEdit={() => setEditLead(lead)}
                     />
                   ))
                 )}
@@ -154,6 +156,7 @@ export default function LeadsTabClient({ leads }: { leads: Lead[] }) {
       </div>
 
       {showNew && <NewLeadModal onClose={() => setShowNew(false)} />}
+      {editLead && <NewLeadModal lead={editLead} onClose={() => setEditLead(null)} />}
       {payLead && <LeadPaymentModal lead={payLead} onClose={() => setPayLead(null)} />}
     </div>
   )
@@ -178,12 +181,13 @@ function SummaryChip({ icon: Icon, label, value, tint }: {
 }
 
 // ─── Lead card ────────────────────────────────────────────────────────────
-function LeadCard({ lead, dragging, onDragStart, onDragEnd, onPay }: {
+function LeadCard({ lead, dragging, onDragStart, onDragEnd, onPay, onEdit }: {
   lead: Lead
   dragging: boolean
   onDragStart: (e: React.DragEvent) => void
   onDragEnd: () => void
   onPay: () => void
+  onEdit: () => void
 }) {
   const converted = !!lead.converted_org_id
   return (
@@ -202,12 +206,22 @@ function LeadCard({ lead, dragging, onDragStart, onDragEnd, onPay }: {
           <div className="font-bold text-gray-800 text-sm leading-tight truncate">{lead.org_name}</div>
           {lead.contact_name && <div className="text-xs text-gray-400 mt-0.5 truncate">{lead.contact_name}</div>}
         </div>
-        <span
-          className="shrink-0 inline-flex items-center gap-1 text-[10px] font-semibold text-gray-400"
-          title={lead.source === 'contact_form' ? 'הגיע מטופס צור קשר' : 'הוזן ידנית'}
-        >
-          {lead.source === 'contact_form' ? <MessageSquare className="w-3 h-3" /> : <UserPlus className="w-3 h-3" />}
-        </span>
+        <div className="shrink-0 flex items-center gap-1.5">
+          <button
+            onClick={e => { e.stopPropagation(); onEdit() }}
+            aria-label="ערוך ליד"
+            title="ערוך פרטי ליד"
+            className="text-gray-300 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-all"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+          </button>
+          <span
+            className="inline-flex items-center gap-1 text-[10px] font-semibold text-gray-400"
+            title={lead.source === 'contact_form' ? 'הגיע מטופס צור קשר' : 'הוזן ידנית'}
+          >
+            {lead.source === 'contact_form' ? <MessageSquare className="w-3 h-3" /> : <UserPlus className="w-3 h-3" />}
+          </span>
+        </div>
       </div>
 
       {/* contact */}

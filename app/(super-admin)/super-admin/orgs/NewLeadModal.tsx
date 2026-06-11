@@ -2,19 +2,22 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { X, Building2, User, Mail, Phone, Banknote, FileText, Plus } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
+import { X, Building2, User, Mail, Phone, Banknote, FileText, Plus, Pencil } from 'lucide-react'
+import type { Lead } from './LeadsTabClient'
 
-export default function NewLeadModal({ onClose }: { onClose: () => void }) {
+export default function NewLeadModal({ onClose, lead }: { onClose: () => void; lead?: Lead }) {
   const router = useRouter()
+  const isEdit = !!lead
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [form, setForm] = useState({
-    orgName: '',
-    contactName: '',
-    email: '',
-    phone: '',
-    setupFee: '',
-    notes: '',
+    orgName: lead?.org_name ?? '',
+    contactName: lead?.contact_name ?? '',
+    email: lead?.email ?? '',
+    phone: lead?.phone ?? '',
+    setupFee: lead?.setup_fee ? String(lead.setup_fee) : '',
+    notes: lead?.notes ?? '',
   })
 
   function set(key: keyof typeof form, val: string) {
@@ -27,14 +30,31 @@ export default function NewLeadModal({ onClose }: { onClose: () => void }) {
     setLoading(true)
     setError('')
 
-    const res = await fetch('/api/super-admin/leads/create', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form),
-    })
-    const data = await res.json()
-    setLoading(false)
-    if (!res.ok) { setError(data.error || 'שגיאה'); return }
+    if (isEdit) {
+      const supabase = createClient()
+      const { error: upErr } = await supabase
+        .from('sales_leads')
+        .update({
+          org_name: form.orgName.trim(),
+          contact_name: form.contactName.trim() || null,
+          email: form.email.trim() || null,
+          phone: form.phone.trim() || null,
+          setup_fee: Number(form.setupFee) || 0,
+          notes: form.notes.trim() || null,
+        })
+        .eq('id', lead!.id)
+      setLoading(false)
+      if (upErr) { setError(upErr.message); return }
+    } else {
+      const res = await fetch('/api/super-admin/leads/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      })
+      const data = await res.json()
+      setLoading(false)
+      if (!res.ok) { setError(data.error || 'שגיאה'); return }
+    }
 
     router.refresh()
     onClose()
@@ -49,11 +69,11 @@ export default function NewLeadModal({ onClose }: { onClose: () => void }) {
         <div className="flex items-center justify-between p-6 border-b border-gray-100">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-blue-50 flex items-center justify-center">
-              <Plus className="w-5 h-5 text-blue-600" />
+              {isEdit ? <Pencil className="w-5 h-5 text-blue-600" /> : <Plus className="w-5 h-5 text-blue-600" />}
             </div>
             <div>
-              <h2 className="font-black text-gray-900 text-lg">ליד חדש</h2>
-              <p className="text-xs text-gray-400">לקוח פוטנציאלי בפייפליין</p>
+              <h2 className="font-black text-gray-900 text-lg">{isEdit ? 'עריכת ליד' : 'ליד חדש'}</h2>
+              <p className="text-xs text-gray-400">{isEdit ? 'עדכון פרטי הלקוח הפוטנציאלי' : 'לקוח פוטנציאלי בפייפליין'}</p>
             </div>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center transition-colors">
@@ -112,7 +132,7 @@ export default function NewLeadModal({ onClose }: { onClose: () => void }) {
               ביטול
             </button>
             <button type="submit" disabled={loading || !form.orgName.trim()} className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 transition disabled:opacity-50">
-              {loading ? 'יוצר...' : 'צור ליד'}
+              {loading ? 'שומר...' : isEdit ? 'שמור שינויים' : 'צור ליד'}
             </button>
           </div>
         </form>
