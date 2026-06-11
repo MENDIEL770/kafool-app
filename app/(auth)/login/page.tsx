@@ -39,7 +39,7 @@ export default function LoginPage() {
       {/* Left panel — branding */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 flex-col justify-between p-12">
         <div className="flex justify-center pt-2">
-          <KafoolLogoIntro className="w-64 xl:w-72" />
+          <KafoolLogoIntro variant="light" className="w-64 xl:w-72" />
         </div>
         <div className="space-y-8 py-6">
           <div className="space-y-2 text-center">

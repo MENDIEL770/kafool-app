@@ -17,6 +17,9 @@ const CSS = `
 #t-r-10{animation-delay:.80s}#t-r-9{animation-delay:.88s}#t-r-8{animation-delay:.96s}#t-r-7{animation-delay:1.04s}#t-r-6{animation-delay:1.12s}#t-r-5{animation-delay:1.20s}#t-r-4{animation-delay:1.28s}#t-r-3{animation-delay:1.36s}#t-r-2{animation-delay:1.44s}#t-r-1{animation-delay:1.52s}#t-r-0{animation-delay:1.60s}#t-r-sp{animation-delay:1.68s}
 #t-b-10{animation-delay:1.76s}#t-b-9{animation-delay:1.84s}#t-b-8{animation-delay:1.92s}#t-b-7{animation-delay:2.00s}#t-b-6{animation-delay:2.08s}#t-b-5{animation-delay:2.16s}#t-b-4{animation-delay:2.24s}#t-b-3{animation-delay:2.32s}#t-b-2{animation-delay:2.40s}#t-b-1{animation-delay:2.48s}#t-b-0{animation-delay:2.56s}#t-b-sp{animation-delay:2.64s}#t-b-d{animation-delay:2.72s}
 @keyframes kintro-stagger{0%{opacity:0;transform:translateY(10px)}100%{opacity:1;transform:translateY(0)}}
+/* light variant — for dark backgrounds (login): white letters so they're visible */
+.kintro.light g[id^="letter-"]{fill:#ffffff}
+.kintro.light g[id^="t-b-"]{fill:#ffffff}
 @media (prefers-reduced-motion:reduce){#symbol-stroke{animation:none}#letter-kaf,#letter-alef,#letter-pe,#letter-lamed,.tl{opacity:1;animation:none}}
 `
 
@@ -69,9 +72,9 @@ const SVG = `<svg id="logo" viewBox="55 242 490 145" xmlns="http://www.w3.org/20
 <g id="t-b-d" class="tl" fill="rgb(25.1%,42%,70.6%)"><use xlink:href="#h0" x="102.593022" y="368.542334"/></g>
 </svg>`
 
-export default function KafoolLogoIntro({ className = '' }: { className?: string }) {
+export default function KafoolLogoIntro({ className = '', variant = 'brand' }: { className?: string; variant?: 'brand' | 'light' }) {
   return (
-    <div className={`kintro ${className}`}>
+    <div className={`kintro ${variant === 'light' ? 'light' : ''} ${className}`}>
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
       <div dangerouslySetInnerHTML={{ __html: SVG }} />
     </div>
