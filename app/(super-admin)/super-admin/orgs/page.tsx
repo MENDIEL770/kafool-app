@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import OrgsPageClient from './OrgsPageClient'
+import OrgsLeadsView from './OrgsLeadsView'
 
 export default async function SuperAdminOrgsPage() {
   const supabase = await createClient()
@@ -9,10 +9,16 @@ export default async function SuperAdminOrgsPage() {
 
   if (profile?.role !== 'super_admin') redirect('/dashboard')
 
-  const { data: orgs } = await supabase
-    .from('organizations')
-    .select('*, profiles!organizations_owner_id_fkey(full_name, phone, id)')
-    .order('created_at', { ascending: false })
+  const [{ data: orgs }, { data: leads }] = await Promise.all([
+    supabase
+      .from('organizations')
+      .select('*, profiles!organizations_owner_id_fkey(full_name, phone, id)')
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('sales_leads')
+      .select('*')
+      .order('created_at', { ascending: false }),
+  ])
 
-  return <OrgsPageClient orgs={orgs ?? []} />
+  return <OrgsLeadsView orgs={orgs ?? []} leads={leads ?? []} />
 }

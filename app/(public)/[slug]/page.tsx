@@ -60,6 +60,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   }
 }
 
+export const revalidate = 60 // ISR — cache for 60 seconds
+
 export default async function PublicDonationPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
   const supabase = await createClient()
@@ -74,37 +76,37 @@ export default async function PublicDonationPage({ params }: { params: Promise<{
 
   if (!campaign) notFound()
 
-  // Get org for branding
-  const { data: org } = await supabase
-    .from('organizations')
-    .select('id, name, slug, logo_url, status, kesher_page_url, kesher_active, kesher_url_hok, kesher_url_bit, kesher_url_bank')
-    .eq('id', campaign.org_id)
-    .single()
+  // Parallel fetch — all queries run simultaneously
+  const [orgRes, donationsRes, groupsRes, galleryRes] = await Promise.all([
+    supabase
+      .from('organizations')
+      .select('id, name, slug, logo_url, status, kesher_page_url, kesher_active, kesher_url_hok, kesher_url_bit, kesher_url_bank')
+      .eq('id', campaign.org_id)
+      .single(),
+    supabase
+      .from('donations')
+      .select('id, donor_name, amount, dedication, created_at, group_id')
+      .eq('campaign_id', campaign.id)
+      .eq('payment_status', 'completed')
+      .order('created_at', { ascending: false })
+      .limit(50),
+    supabase
+      .from('groups')
+      .select('id, name, slug, goal_amount, raised_amount, manager_name')
+      .eq('campaign_id', campaign.id)
+      .order('raised_amount', { ascending: false }),
+    supabase
+      .from('campaign_gallery')
+      .select('id, image_url, caption')
+      .eq('campaign_id', campaign.id)
+      .order('sort_order'),
+  ])
 
+  const org      = orgRes.data
   if (!org) notFound()
-
-  // Get recent donations for public donor wall
-  const { data: donations } = await supabase
-    .from('donations')
-    .select('id, donor_name, amount, dedication, created_at, group_id')
-    .eq('campaign_id', campaign.id)
-    .eq('payment_status', 'completed')
-    .order('created_at', { ascending: false })
-    .limit(50)
-
-  // Get groups
-  const { data: groups } = await supabase
-    .from('groups')
-    .select('id, name, slug, goal_amount, raised_amount, manager_name')
-    .eq('campaign_id', campaign.id)
-    .order('raised_amount', { ascending: false })
-
-  // Get gallery
-  const { data: gallery } = await supabase
-    .from('campaign_gallery')
-    .select('id, image_url, caption')
-    .eq('campaign_id', campaign.id)
-    .order('sort_order')
+  const donations = donationsRes.data
+  const groups   = groupsRes.data
+  const gallery  = galleryRes.data
 
   const o = org as Record<string, string>
   const paymentUrls = {

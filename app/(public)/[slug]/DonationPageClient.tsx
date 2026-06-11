@@ -228,6 +228,8 @@ function HeroSection({ campaign, countdown }: {
                 src={url}
                 alt=""
                 aria-hidden
+                fetchPriority={i === 0 ? 'high' : 'low'}
+                decoding={i === 0 ? 'sync' : 'async'}
                 className="w-full object-cover max-h-[500px] absolute top-0 left-0 transition-opacity duration-700"
                 style={{ opacity: i === idx ? 1 : 0, position: i === 0 ? 'relative' : 'absolute' }}
                 loading={i === 0 ? 'eager' : 'lazy'}
@@ -1008,8 +1010,14 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
           href={whatsappUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="fixed z-50 w-14 h-14 rounded-full flex items-center justify-center shadow-xl transition-transform hover:scale-110 active:scale-95"
-          style={{ backgroundColor: '#25D366', left: '1rem', bottom: '5rem' }}
+          className="fixed z-50 w-14 h-14 rounded-full flex items-center justify-center shadow-xl transition-opacity hover:opacity-90"
+          style={{
+            backgroundColor: '#25D366',
+            left: '1rem',
+            bottom: '5rem',
+            transform: 'translateZ(0)',
+            willChange: 'opacity',
+          }}
           dir="ltr"
           aria-label="שלח הודעה בWhatsApp"
         >

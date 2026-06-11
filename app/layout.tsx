@@ -5,7 +5,9 @@ import GlobalEffects from "@/components/ui/GlobalEffects";
 
 const rubik = Rubik({
   subsets: ["latin", "hebrew"],
-  weight: ["300", "400", "500", "600", "700", "800", "900"],
+  weight: ["400", "500", "700", "900"], // רק משקלים שבשימוש בפועל
+  display: "swap",
+  preload: true,
   variable: "--font-rubik",
 });
 
