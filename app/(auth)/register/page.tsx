@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { User, Phone, Mail, Lock, ArrowLeft, CheckCircle2, Sparkles } from 'lucide-react'
 import KafoolLogoIntro from '@/components/KafoolLogoIntro'
+import AuthAmbience from '@/components/AuthAmbience'
 
 const BENEFITS = [
   'דף גיוס מעוצב באוויר תוך 5 דקות',
@@ -67,8 +68,9 @@ export default function RegisterPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6" dir="rtl">
-        <div className="w-full max-w-md text-center space-y-6">
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6 relative overflow-hidden" dir="rtl">
+        <AuthAmbience />
+        <div className="w-full max-w-md text-center space-y-6 relative z-10">
           <div className="w-20 h-20 mx-auto rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
             <CheckCircle2 className="w-10 h-10 text-emerald-400" />
           </div>
@@ -91,10 +93,11 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 flex" dir="rtl">
+    <div className="min-h-screen bg-slate-950 flex relative overflow-hidden" dir="rtl">
+      <AuthAmbience />
 
       {/* Right panel — branding (first in RTL) */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 flex-col justify-between p-12">
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 flex-col justify-between p-12 relative z-10">
         <div className="flex justify-center pt-2">
           <KafoolLogoIntro variant="light" className="w-64 xl:w-72" />
         </div>
@@ -128,7 +131,7 @@ export default function RegisterPage() {
       </div>
 
       {/* Left panel — form */}
-      <div className="flex-1 flex items-center justify-center p-6">
+      <div className="flex-1 flex items-center justify-center p-6 relative z-10">
         <div className="w-full max-w-sm space-y-7">
 
           {/* Mobile logo */}

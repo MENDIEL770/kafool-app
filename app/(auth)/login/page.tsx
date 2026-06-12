@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Zap, ArrowLeft } from 'lucide-react'
 import LoginShowcase from './LoginShowcase'
 import KafoolLogoIntro from '@/components/KafoolLogoIntro'
+import AuthAmbience from '@/components/AuthAmbience'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -34,10 +35,11 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 flex" dir="rtl">
+    <div className="min-h-screen bg-slate-950 flex relative overflow-hidden" dir="rtl">
+      <AuthAmbience />
 
       {/* Left panel — branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 flex-col justify-between p-12">
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 flex-col justify-between p-12 relative z-10">
         <div className="flex justify-center pt-2">
           <KafoolLogoIntro variant="light" className="w-64 xl:w-72" />
         </div>
@@ -56,7 +58,7 @@ export default function LoginPage() {
       </div>
 
       {/* Right panel — form */}
-      <div className="flex-1 flex items-center justify-center p-6">
+      <div className="flex-1 flex items-center justify-center p-6 relative z-10">
         <div className="w-full max-w-sm space-y-8">
           <div className="flex lg:hidden items-center gap-2 justify-center mb-2">
             <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center">
