@@ -20,6 +20,7 @@ interface Props {
   onClose: () => void
   presetAmount?: number
   presetGroupSlug?: string
+  presetMethod?: PaymentMethod
   donationUrl: string
   paymentUrls?: PaymentUrls
   campaign: { id: string; title: string; slug: string }
@@ -33,6 +34,7 @@ export default function DonationModal({
   onClose,
   presetAmount,
   presetGroupSlug,
+  presetMethod,
   donationUrl,
   paymentUrls,
   campaign,
@@ -44,7 +46,7 @@ export default function DonationModal({
   const [amount, setAmount] = useState(typeof presetAmount === 'number' ? presetAmount : 0)
   const [customAmount, setCustomAmount] = useState('')
   const [selectedGroupSlug, setSelectedGroupSlug] = useState(presetGroupSlug || '')
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('one_time')
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(presetMethod ?? 'one_time')
 
   // Available methods = only those with a URL configured
   const availableMethods = PAYMENT_METHODS.filter(m =>
@@ -66,9 +68,10 @@ export default function DonationModal({
       setAmount(typeof presetAmount === 'number' ? presetAmount : 0)
       setCustomAmount(presetAmount ? '' : '')
       setSelectedGroupSlug(presetGroupSlug || '')
+      setPaymentMethod(presetMethod ?? 'one_time')
       setStep('details')
     }
-  }, [isOpen, presetAmount, presetGroupSlug])
+  }, [isOpen, presetAmount, presetGroupSlug, presetMethod])
 
   // Prevent body scroll when open
   useEffect(() => {
@@ -227,7 +230,7 @@ export default function DonationModal({
                 </div>
               )}
 
-              {hasMultipleMethods && (
+              {hasMultipleMethods && !presetMethod && (
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-gray-500">אמצעי תשלום</label>
                   <div className="grid grid-cols-2 gap-2">

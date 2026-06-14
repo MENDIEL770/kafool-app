@@ -7,11 +7,12 @@ import Link from 'next/link'
 import { buttonVariants } from '@/components/ui/button'
 import {
   Upload, ImageIcon, Trash2, X, Monitor, Smartphone,
-  LayoutGrid, Plus, Check, ArrowRight, Eye, Palette, Image
+  LayoutGrid, Plus, Check, ArrowRight, Eye, Palette, Image, Ruler
 } from 'lucide-react'
 
 /* ─── Types ─── */
 interface GalleryItem { id: string; image_url: string; caption: string | null; sort_order: number }
+interface DonationPlan { amount: number; label?: string | null; image_url?: string | null; payment_type?: 'one_time' | 'hok' }
 
 interface Props {
   campaignId: string
@@ -117,11 +118,12 @@ let campaignSlugRef = ''
 
 /* ─── Upload Zone ─── */
 function UploadZone({
-  label, sublabel, hint, currentUrl, onUpload, uploading, aspectClass,
+  label, sublabel, hint, currentUrl, onUpload, uploading, aspectClass, specs,
 }: {
   label: string; sublabel: string; hint?: string;
   currentUrl: string | null; onUpload: (file: File) => void;
   uploading: boolean; aspectClass: string;
+  specs?: { label: string; value: string }[];
 }) {
   const ref = useRef<HTMLInputElement>(null)
 
@@ -158,7 +160,20 @@ function UploadZone({
           </div>
         )}
       </div>
-      {hint && <p className="text-[11px] text-gray-400">{hint}</p>}
+      {specs && (
+        <div className="rounded-xl bg-blue-50/60 border border-blue-100 px-3 py-2.5 space-y-1.5">
+          <div className="flex items-center gap-1.5 text-[11px] font-bold text-blue-700">
+            <Ruler className="w-3.5 h-3.5" /> מפרט הקובץ
+          </div>
+          {specs.map(s => (
+            <div key={s.label} className="flex items-center justify-between text-[11px]">
+              <span className="text-gray-500">{s.label}</span>
+              <span className="font-semibold text-gray-700">{s.value}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {hint && <p className="text-[11px] text-gray-400 leading-snug">{hint}</p>}
       {currentUrl && (
         <button onClick={e => { e.stopPropagation(); onUpload(new File([], '')) }}
           className="text-xs text-red-400 hover:text-red-600 flex items-center gap-1">
@@ -171,34 +186,77 @@ function UploadZone({
   )
 }
 
-/* ─── Amount Button ─── */
-function AmountPill({ amount, color, onRemove, onEdit }: {
-  amount: number; color: string; onRemove: () => void; onEdit: (v: number) => void
+/* ─── Donation button (plan) editor row ─── */
+function PlanEditor({ plan, uploading, onChange, onUpload, onRemove }: {
+  plan: DonationPlan
+  uploading: boolean
+  onChange: (patch: Partial<DonationPlan>) => void
+  onUpload: (file: File) => void
+  onRemove: () => void
 }) {
-  const [editing, setEditing] = useState(false)
-  const [val, setVal] = useState(String(amount))
-
-  if (editing) return (
-    <div className="flex items-center gap-1">
-      <input type="number" value={val} onChange={e => setVal(e.target.value)} autoFocus
-        onKeyDown={e => { if (e.key === 'Enter' && Number(val) > 0) { onEdit(Number(val)); setEditing(false) } if (e.key === 'Escape') setEditing(false) }}
-        className="w-20 border border-gray-300 rounded-xl px-2 py-2 text-sm text-center font-bold outline-none focus:ring-2 focus:ring-blue-400" dir="ltr" />
-      <button onClick={() => { if (Number(val) > 0) { onEdit(Number(val)); setEditing(false) } }} className="text-green-600 p-1"><Check className="w-3.5 h-3.5" /></button>
-      <button onClick={() => setEditing(false)} className="text-gray-400 p-1"><X className="w-3.5 h-3.5" /></button>
-    </div>
-  )
-
+  const ref = useRef<HTMLInputElement>(null)
   return (
-    <div className="relative group">
-      <button onDoubleClick={() => setEditing(true)} title="לחץ פעמיים לעריכה"
-        className="px-4 py-2.5 rounded-xl text-white font-bold text-sm hover:opacity-90 transition-all"
-        style={{ backgroundColor: color }}>
-        ₪{amount.toLocaleString()}
-      </button>
-      <button onClick={onRemove}
-        className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 text-white rounded-full items-center justify-center hidden group-hover:flex">
-        <X className="w-2.5 h-2.5" />
-      </button>
+    <div className="flex items-center gap-3 border border-gray-100 rounded-2xl p-3 bg-gray-50/50">
+      {/* design upload (circle) */}
+      <div
+        onClick={() => ref.current?.click()}
+        className="w-16 h-16 rounded-full overflow-hidden shrink-0 cursor-pointer relative border-2 border-dashed border-gray-200 hover:border-blue-300 bg-white flex items-center justify-center group"
+        title="העלה עיצוב לכפתור"
+      >
+        {plan.image_url ? (
+          <>
+            <img src={plan.image_url} alt="" className="w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+              <Upload className="w-4 h-4 text-white" />
+            </div>
+          </>
+        ) : uploading ? (
+          <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+        ) : (
+          <Image className="w-5 h-5 text-gray-300" />
+        )}
+        <input ref={ref} type="file" accept="image/*" className="hidden"
+          onChange={e => { const f = e.target.files?.[0]; if (f) onUpload(f); e.target.value = '' }} />
+      </div>
+
+      {/* amount + label + payment type */}
+      <div className="flex-1 min-w-0 space-y-2">
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="text-[11px] text-gray-400">סכום (₪)</label>
+            <input type="number" value={plan.amount || ''} onChange={e => onChange({ amount: Number(e.target.value) || 0 })}
+              placeholder="180" dir="ltr"
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400" />
+          </div>
+          <div>
+            <label className="text-[11px] text-gray-400">טקסט מתחת (אופציונלי)</label>
+            <input value={plan.label ?? ''} onChange={e => onChange({ label: e.target.value })}
+              placeholder='למשל: "סועד חודש"'
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400" />
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[11px] text-gray-400 shrink-0">סוג תשלום:</span>
+          {([['one_time', 'תרומה חד-פעמית'], ['hok', 'הוראת קבע']] as const).map(([val, lbl]) => {
+            const active = (plan.payment_type ?? 'one_time') === val
+            return (
+              <button key={val} type="button" onClick={() => onChange({ payment_type: val })}
+                className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-colors ${active ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-500 border-gray-200 hover:border-blue-300'}`}>
+                {lbl}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      <div className="flex flex-col items-center gap-1 shrink-0">
+        {plan.image_url && (
+          <button onClick={() => onChange({ image_url: null })} className="text-[10px] text-gray-400 hover:text-red-500" title="הסר עיצוב">הסר עיצוב</button>
+        )}
+        <button onClick={onRemove} className="w-8 h-8 rounded-lg text-red-400 hover:bg-red-50 flex items-center justify-center" title="מחק כפתור">
+          <Trash2 className="w-4 h-4" />
+        </button>
+      </div>
     </div>
   )
 }
@@ -235,11 +293,12 @@ export default function CampaignMediaClient({
   const [uploadingGallery, setUploadingGallery] = useState(false)
   const galleryRef = useRef<HTMLInputElement>(null)
 
-  // Amounts state
-  const [amounts, setAmounts] = useState<number[]>(
-    (initialSettings.donation_amounts as number[]) || [180, 360, 720, 1800, 3600]
-  )
-  const [newAmount, setNewAmount] = useState('')
+  // Donation buttons (plans) state — each button: amount + optional design + label
+  const initialPlans: DonationPlan[] =
+    (initialSettings.donation_plans as DonationPlan[] | undefined) ||
+    (((initialSettings.donation_amounts as number[]) || [180, 360, 720, 1800, 3600]).map(amount => ({ amount })))
+  const [plans, setPlans] = useState<DonationPlan[]>(initialPlans)
+  const [uploadingPlan, setUploadingPlan] = useState<number | null>(null)
   const [savingAmounts, setSavingAmounts] = useState(false)
   const [savedAmounts, setSavedAmounts] = useState(false)
 
@@ -313,10 +372,32 @@ export default function CampaignMediaClient({
     setGallery(p => p.map(g => g.id === id ? { ...g, caption } : g))
   }
 
-  /* ─── Save amounts ─── */
-  async function saveAmounts() {
+  /* ─── Donation buttons (plans) ─── */
+  function updatePlan(i: number, patch: Partial<DonationPlan>) {
+    setPlans(p => p.map((x, idx) => idx === i ? { ...x, ...patch } : x))
+  }
+  function removePlan(i: number) { setPlans(p => p.filter((_, idx) => idx !== i)) }
+  function addPlan() { setPlans(p => [...p, { amount: 0, label: '', image_url: null }]) }
+
+  async function uploadPlanImage(i: number, file: File) {
+    setUploadingPlan(i)
+    const url = await uploadFile(file, `${orgId}/${campaignId}/plan-${i}-${Date.now()}`)
+    if (url) updatePlan(i, { image_url: url })
+    setUploadingPlan(null)
+  }
+
+  async function savePlans() {
     setSavingAmounts(true)
-    const settings = { ...(initialSettings as object), donation_amounts: amounts, primary_color: primaryColor }
+    const clean = plans.filter(p => p.amount > 0).map(p => ({
+      amount: p.amount, label: p.label?.trim() || null, image_url: p.image_url || null,
+      payment_type: p.payment_type || 'one_time',
+    }))
+    const settings = {
+      ...(initialSettings as object),
+      donation_plans: clean,
+      donation_amounts: clean.map(p => p.amount), // keep in sync for backward-compat
+      primary_color: primaryColor,
+    }
     await supabase.from('campaigns').update({ settings }).eq('id', campaignId)
     setSavingAmounts(false); setSavedAmounts(true)
     setTimeout(() => setSavedAmounts(false), 2000)
@@ -378,9 +459,15 @@ export default function CampaignMediaClient({
               </h2>
 
               <UploadZone
-                label="תמונת רקע"
-                sublabel="מוצגת כהיירו בראש עמוד הגיוס"
-                hint="מומלץ: 1920×600px, יחס 16:6, JPG/WebP"
+                label="תמונת רקע (באנר)"
+                sublabel="מוצגת כהיירו בראש עמוד הגיוס, ברוחב מלא"
+                specs={[
+                  { label: 'מידות מומלצות', value: '1920 × 640 px' },
+                  { label: 'יחס', value: '3:1 (פנורמי, רחב)' },
+                  { label: 'פורמט', value: 'JPG / WebP' },
+                  { label: 'משקל מקסימלי', value: 'עד 2MB' },
+                ]}
+                hint="💡 שמרו את הפרטים החשובים (פנים, טקסט) במרכז — הקצוות עשויים להיחתך במסכים שונים."
                 currentUrl={coverUrl}
                 onUpload={handleCoverUpload}
                 uploading={uploadingCover}
@@ -390,7 +477,13 @@ export default function CampaignMediaClient({
               <UploadZone
                 label="לוגו הקמפיין"
                 sublabel="מוצג בהדר העליון של עמוד הגיוס ומעל הבאנר"
-                hint="מומלץ: 400×400px, PNG עם רקע שקוף"
+                specs={[
+                  { label: 'מידות מומלצות', value: '500 × 500 px' },
+                  { label: 'יחס', value: '1:1 (ריבוע)' },
+                  { label: 'פורמט', value: 'PNG (רקע שקוף)' },
+                  { label: 'משקל מקסימלי', value: 'עד 500KB' },
+                ]}
+                hint="💡 רקע שקוף (PNG) מומלץ — כך הלוגו משתלב יפה בכל רקע."
                 currentUrl={logoUrl}
                 onUpload={handleLogoUpload}
                 uploading={uploadingLogo}
@@ -499,6 +592,20 @@ export default function CampaignMediaClient({
             <input ref={galleryRef} type="file" accept="image/*" multiple className="hidden"
               onChange={e => e.target.files && handleGalleryUpload(e.target.files)} />
           </div>
+
+          {/* Gallery specs */}
+          <div className="mx-6 mt-4 rounded-xl bg-blue-50/60 border border-blue-100 px-4 py-3">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-blue-700 mb-1.5">
+              <Ruler className="w-3.5 h-3.5" /> מפרט תמונות הגלריה
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1 text-[11px]">
+              <span className="text-gray-500">מידות מומלצות: <strong className="text-gray-700">1200 × 800 px</strong></span>
+              <span className="text-gray-500">יחס: <strong className="text-gray-700">3:2</strong></span>
+              <span className="text-gray-500">פורמט: <strong className="text-gray-700">JPG / WebP</strong></span>
+              <span className="text-gray-500">משקל: <strong className="text-gray-700">עד 2MB לתמונה</strong></span>
+            </div>
+          </div>
+
           <div className="p-6">
             {gallery.length === 0 ? (
               <button onClick={() => galleryRef.current?.click()}
@@ -539,45 +646,59 @@ export default function CampaignMediaClient({
       {/* ─── TAB: Buttons ─── */}
       {tab === 'buttons' && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-6">
-          <h2 className="font-bold text-gray-800 flex items-center gap-2">
-            <Palette className="w-4 h-4 text-gray-400" />
-            כפתורי תרומה
-          </h2>
+          <div className="flex items-center justify-between">
+            <h2 className="font-bold text-gray-800 flex items-center gap-2">
+              <Palette className="w-4 h-4 text-gray-400" /> כפתורי תרומה
+            </h2>
+            <button onClick={addPlan} className="flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-700">
+              <Plus className="w-4 h-4" /> הוסף כפתור
+            </button>
+          </div>
+          <p className="text-xs text-gray-400">
+            לכל כפתור אפשר להעלות <strong>עיצוב (תמונה)</strong> שיופיע במקום הסכום הגדול, ולכתוב <strong>טקסט שיופיע מתחת לכפתור</strong>.
+          </p>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">סכומי תרומה מוצעים</label>
-            <p className="text-xs text-gray-400">לחץ פעמיים על כפתור לעריכה. גרור לשינוי סדר.</p>
-            <div className="flex flex-wrap gap-2 items-center pt-1">
-              {amounts.map((a, i) => (
-                <AmountPill key={`${a}-${i}`} amount={a} color={primaryColor}
-                  onRemove={() => setAmounts(p => p.filter((_, idx) => idx !== i))}
-                  onEdit={val => setAmounts(p => p.map((x, idx) => idx === i ? val : x))} />
-              ))}
-              <div className="flex items-center gap-1">
-                <input type="number" value={newAmount} onChange={e => setNewAmount(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter' && Number(newAmount) > 0) { setAmounts(p => [...p, Number(newAmount)].sort((a, b) => a - b)); setNewAmount('') } }}
-                  placeholder="+ הוסף"
-                  className="w-24 border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-center outline-none focus:ring-2 focus:ring-blue-400" dir="ltr" />
-              </div>
-            </div>
+          {/* Plan editors */}
+          <div className="space-y-3">
+            {plans.map((plan, i) => (
+              <PlanEditor key={i} plan={plan}
+                uploading={uploadingPlan === i}
+                onChange={patch => updatePlan(i, patch)}
+                onUpload={file => uploadPlanImage(i, file)}
+                onRemove={() => removePlan(i)} />
+            ))}
+            {plans.length === 0 && (
+              <button onClick={addPlan} className="w-full border-2 border-dashed border-gray-200 rounded-2xl py-8 text-sm text-gray-400 hover:border-blue-300 hover:text-blue-500 transition-all">
+                + הוסף כפתור תרומה ראשון
+              </button>
+            )}
           </div>
 
-          {/* Preview */}
-          <div className="p-5 bg-gray-50 rounded-2xl space-y-3">
-            <p className="text-xs text-gray-400 font-medium">תצוגה מקדימה</p>
-            <div className="flex gap-2 flex-wrap">
-              {amounts.map(a => (
-                <div key={a} className="px-5 py-3 rounded-xl text-white font-bold text-sm shadow-sm" style={{ backgroundColor: primaryColor }}>
-                  ₪{a.toLocaleString()}
-                </div>
-              ))}
-              <div className="px-5 py-3 rounded-xl border-2 font-bold text-sm" style={{ borderColor: primaryColor, color: primaryColor }}>
-                סכום אחר
+          {/* Live preview — like the donation page */}
+          {plans.some(p => p.amount > 0) && (
+            <div className="p-5 bg-gray-50 rounded-2xl space-y-3">
+              <p className="text-xs text-gray-400 font-medium">תצוגה מקדימה (כמו בעמוד הגיוס)</p>
+              <div className="flex gap-4 flex-wrap">
+                {plans.filter(p => p.amount > 0).map((plan, i) => (
+                  <div key={i} className="flex flex-col items-center gap-2">
+                    <div className="w-[88px] h-[88px] rounded-full overflow-hidden shadow-md">
+                      {plan.image_url
+                        ? <img src={plan.image_url} alt="" className="w-full h-full object-cover" />
+                        : <div className="w-full h-full flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${primaryColor}dd, ${primaryColor}88)` }}>
+                            <span className="text-white font-black text-lg">₪{plan.amount.toLocaleString()}</span>
+                          </div>}
+                    </div>
+                    <div className="text-center">
+                      <div className="text-sm font-bold text-gray-800">₪{plan.amount.toLocaleString()}</div>
+                      {plan.label && <div className="text-[11px] text-gray-400 mt-0.5">{plan.label}</div>}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
-          </div>
+          )}
 
-          <button onClick={saveAmounts} disabled={savingAmounts}
+          <button onClick={savePlans} disabled={savingAmounts}
             className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors">
             {savedAmounts ? <><Check className="w-4 h-4" /> נשמר!</> : savingAmounts ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> שומר...</> : 'שמור'}
           </button>
