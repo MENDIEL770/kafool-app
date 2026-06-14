@@ -357,15 +357,16 @@ function HeroSection({ campaign, countdown }: {
 }
 
 function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius, onDonate }: {
-  plans: { amount: number; label?: string; image_url?: string | null; payment_type?: 'one_time' | 'hok' }[]
+  plans: { amount: number; label?: string; image_url?: string | null; payment_type?: 'one_time' | 'hok'; months?: number | null }[]
   primaryColor: string
   campaignSlug: string
   groups: Group[]
   buttonRadius: string
-  onDonate: (amount?: number, groupSlug?: string, method?: 'one_time' | 'hok') => void
+  onDonate: (amount?: number, groupSlug?: string, method?: 'one_time' | 'hok', months?: number) => void
 }) {
   const [selected, setSelected] = useState<number | null>(null)
   const [selectedMethod, setSelectedMethod] = useState<'one_time' | 'hok'>('one_time')
+  const [selectedMonths, setSelectedMonths] = useState<number | undefined>()
   const [custom, setCustom] = useState('')
   const [selectedGroup, setSelectedGroup] = useState<string>('')
 
@@ -378,12 +379,12 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
 
         {/* Grid: 3 columns on mobile, scrollable row on md+ */}
         <div className="grid grid-cols-3 gap-4 pb-2 px-1 md:flex md:gap-5 md:overflow-x-auto md:pb-6 md:pt-4 md:px-4 md:scrollbar-hide md:snap-x md:justify-center md:flex-nowrap" style={{ overflowY: 'visible' }}>
-          {plans.map(({ amount, label, image_url, payment_type }) => {
+          {plans.map(({ amount, label, image_url, payment_type, months }) => {
             const isActive = selected === amount
             return (
               <button
                 key={amount}
-                onClick={() => { setSelected(isActive ? null : amount); setSelectedMethod(payment_type ?? 'one_time'); setCustom('') }}
+                onClick={() => { setSelected(isActive ? null : amount); setSelectedMethod(payment_type ?? 'one_time'); setSelectedMonths(months ?? undefined); setCustom('') }}
                 aria-pressed={isActive}
                 className="flex-none snap-start flex flex-col items-center gap-2 cursor-pointer focus:outline-none"
               >
@@ -433,7 +434,7 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
                 <input
                   type="number"
                   value={custom}
-                  onChange={(e) => { setCustom(e.target.value); setSelected(null); setSelectedMethod('one_time') }}
+                  onChange={(e) => { setCustom(e.target.value); setSelected(null); setSelectedMethod('one_time'); setSelectedMonths(undefined) }}
                   placeholder="0"
                   min="1"
                   className="w-12 md:w-14 text-center text-sm font-bold outline-none bg-transparent"
@@ -473,7 +474,7 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
         {/* Payment actions */}
         <div className="flex flex-col sm:flex-row justify-center gap-3 mt-6 max-w-md mx-auto">
           <button
-            onClick={() => onDonate(finalAmount ?? undefined, selectedGroup || undefined, selectedMethod)}
+            onClick={() => onDonate(finalAmount ?? undefined, selectedGroup || undefined, selectedMethod, selectedMonths)}
             className={`flex-1 py-3.5 text-white font-black text-base text-center shadow-lg hover:opacity-90 active:scale-95 transition-all ${buttonRadius}`}
             style={{ backgroundColor: primaryColor }}
           >
@@ -906,13 +907,14 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
   const [modalAmount, setModalAmount] = useState<number | undefined>()
   const [modalGroupSlug, setModalGroupSlug] = useState<string | undefined>()
   const [modalMethod, setModalMethod] = useState<'one_time' | 'hok' | undefined>()
+  const [modalMonths, setModalMonths] = useState<number | undefined>()
   const [createGroupOpen, setCreateGroupOpen] = useState(false)
   const countdownEnd = (campaign.settings as { countdown_end?: string })?.countdown_end || campaign.end_at
   const countdown = useCountdown(countdownEnd)
 
   const settings = campaign.settings as {
     donation_amounts?: number[]
-    donation_plans?: { amount: number; label?: string; image_url?: string | null; payment_type?: 'one_time' | 'hok' }[]
+    donation_plans?: { amount: number; label?: string; image_url?: string | null; payment_type?: 'one_time' | 'hok'; months?: number | null }[]
     primary_color?: string
     button_radius?: string
     whatsapp_phone?: string
@@ -946,10 +948,11 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
     ? `/${campaign.slug}/donate?group=${activeGroup.id}`
     : `/${campaign.slug}/donate`
 
-  function openDonate(amount?: number, groupSlug?: string, method?: 'one_time' | 'hok') {
+  function openDonate(amount?: number, groupSlug?: string, method?: 'one_time' | 'hok', months?: number) {
     setModalAmount(amount)
     setModalGroupSlug(groupSlug || (activeGroup ? activeGroup.slug : undefined))
     setModalMethod(method)
+    setModalMonths(months)
     setModalOpen(true)
   }
 
@@ -1081,6 +1084,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
         presetAmount={modalAmount}
         presetGroupSlug={modalGroupSlug}
         presetMethod={modalMethod}
+        presetMonths={modalMonths}
         donationUrl={donationUrl}
         paymentUrls={paymentUrls}
         campaign={campaign}

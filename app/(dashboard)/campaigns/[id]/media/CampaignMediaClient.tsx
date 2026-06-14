@@ -7,12 +7,12 @@ import Link from 'next/link'
 import { buttonVariants } from '@/components/ui/button'
 import {
   Upload, ImageIcon, Trash2, X, Monitor, Smartphone,
-  LayoutGrid, Plus, Check, ArrowRight, Eye, Palette, Image, Ruler
+  LayoutGrid, Plus, Check, ArrowRight, Eye, Palette, Image, Ruler, ChevronUp, ChevronDown
 } from 'lucide-react'
 
 /* ─── Types ─── */
 interface GalleryItem { id: string; image_url: string; caption: string | null; sort_order: number }
-interface DonationPlan { amount: number; label?: string | null; image_url?: string | null; payment_type?: 'one_time' | 'hok' }
+interface DonationPlan { amount: number; label?: string | null; image_url?: string | null; payment_type?: 'one_time' | 'hok'; months?: number | null }
 
 interface Props {
   campaignId: string
@@ -187,16 +187,28 @@ function UploadZone({
 }
 
 /* ─── Donation button (plan) editor row ─── */
-function PlanEditor({ plan, uploading, onChange, onUpload, onRemove }: {
+function PlanEditor({ plan, uploading, isFirst, isLast, onChange, onUpload, onRemove, onMoveUp, onMoveDown }: {
   plan: DonationPlan
   uploading: boolean
+  isFirst: boolean
+  isLast: boolean
   onChange: (patch: Partial<DonationPlan>) => void
   onUpload: (file: File) => void
   onRemove: () => void
+  onMoveUp: () => void
+  onMoveDown: () => void
 }) {
   const ref = useRef<HTMLInputElement>(null)
   return (
     <div className="flex items-center gap-3 border border-gray-100 rounded-2xl p-3 bg-gray-50/50">
+      {/* reorder */}
+      <div className="flex flex-col gap-0.5 shrink-0">
+        <button onClick={onMoveUp} disabled={isFirst} title="העבר למעלה"
+          className="text-gray-300 hover:text-blue-600 disabled:opacity-20 transition-colors"><ChevronUp className="w-4 h-4" /></button>
+        <button onClick={onMoveDown} disabled={isLast} title="העבר למטה"
+          className="text-gray-300 hover:text-blue-600 disabled:opacity-20 transition-colors"><ChevronDown className="w-4 h-4" /></button>
+      </div>
+
       {/* design upload (circle) */}
       <div
         onClick={() => ref.current?.click()}
@@ -235,7 +247,7 @@ function PlanEditor({ plan, uploading, onChange, onUpload, onRemove }: {
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400" />
           </div>
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 flex-wrap">
           <span className="text-[11px] text-gray-400 shrink-0">סוג תשלום:</span>
           {([['one_time', 'תרומה חד-פעמית'], ['hok', 'הוראת קבע']] as const).map(([val, lbl]) => {
             const active = (plan.payment_type ?? 'one_time') === val
@@ -246,6 +258,15 @@ function PlanEditor({ plan, uploading, onChange, onUpload, onRemove }: {
               </button>
             )
           })}
+          {plan.payment_type === 'hok' && (
+            <div className="flex items-center gap-1 mr-1">
+              <span className="text-[11px] text-gray-400">למשך</span>
+              <input type="number" min="1" value={plan.months ?? ''} onChange={e => onChange({ months: Number(e.target.value) || null })}
+                placeholder="12" dir="ltr"
+                className="w-14 border border-gray-200 rounded-lg px-2 py-1 text-xs text-center outline-none focus:ring-2 focus:ring-blue-400" />
+              <span className="text-[11px] text-gray-400">חודשים</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -378,6 +399,15 @@ export default function CampaignMediaClient({
   }
   function removePlan(i: number) { setPlans(p => p.filter((_, idx) => idx !== i)) }
   function addPlan() { setPlans(p => [...p, { amount: 0, label: '', image_url: null }]) }
+  function movePlan(i: number, dir: -1 | 1) {
+    setPlans(p => {
+      const j = i + dir
+      if (j < 0 || j >= p.length) return p
+      const next = [...p]
+      ;[next[i], next[j]] = [next[j], next[i]]
+      return next
+    })
+  }
 
   async function uploadPlanImage(i: number, file: File) {
     setUploadingPlan(i)
@@ -391,6 +421,7 @@ export default function CampaignMediaClient({
     const clean = plans.filter(p => p.amount > 0).map(p => ({
       amount: p.amount, label: p.label?.trim() || null, image_url: p.image_url || null,
       payment_type: p.payment_type || 'one_time',
+      months: p.payment_type === 'hok' ? (Number(p.months) || null) : null,
     }))
     const settings = {
       ...(initialSettings as object),
@@ -663,9 +694,12 @@ export default function CampaignMediaClient({
             {plans.map((plan, i) => (
               <PlanEditor key={i} plan={plan}
                 uploading={uploadingPlan === i}
+                isFirst={i === 0} isLast={i === plans.length - 1}
                 onChange={patch => updatePlan(i, patch)}
                 onUpload={file => uploadPlanImage(i, file)}
-                onRemove={() => removePlan(i)} />
+                onRemove={() => removePlan(i)}
+                onMoveUp={() => movePlan(i, -1)}
+                onMoveDown={() => movePlan(i, 1)} />
             ))}
             {plans.length === 0 && (
               <button onClick={addPlan} className="w-full border-2 border-dashed border-gray-200 rounded-2xl py-8 text-sm text-gray-400 hover:border-blue-300 hover:text-blue-500 transition-all">

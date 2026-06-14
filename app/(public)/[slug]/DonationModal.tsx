@@ -21,6 +21,7 @@ interface Props {
   presetAmount?: number
   presetGroupSlug?: string
   presetMethod?: PaymentMethod
+  presetMonths?: number
   donationUrl: string
   paymentUrls?: PaymentUrls
   campaign: { id: string; title: string; slug: string }
@@ -35,6 +36,7 @@ export default function DonationModal({
   presetAmount,
   presetGroupSlug,
   presetMethod,
+  presetMonths,
   donationUrl,
   paymentUrls,
   campaign,
@@ -97,6 +99,10 @@ export default function DonationModal({
     }
     if (form.dedication) params.set('comment', form.dedication)
     if (selectedGroupSlug) params.set('group', selectedGroupSlug)
+    // standing order: pass the number of monthly payments to Kesher
+    if (paymentMethod === 'hok' && presetMonths && presetMonths > 0) {
+      params.set('tashlumim', String(presetMonths))
+    }
     params.set('addactiondata', campaign.id)
     const origin = typeof window !== 'undefined' ? window.location.origin : ''
     params.set('successurl', `${origin}/${campaign.slug}/thanks`)
