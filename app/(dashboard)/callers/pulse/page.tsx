@@ -241,8 +241,8 @@ export default function PulsePage() {
   ]
 
   return (
-    <div className="flex gap-6 min-h-[80vh]" dir="rtl">
-      <div className="flex-1 flex flex-col gap-6">
+    <div className="flex flex-col lg:flex-row gap-6 min-h-[80vh]" dir="rtl">
+      <div className="flex-1 flex flex-col gap-6 min-w-0 order-2 lg:order-1">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-gray-900">KafoolPulse — {caller?.profiles?.full_name || '...'}</h1>
           {shift !== 'idle' && <Button variant="outline" onClick={endShift}>סיים משמרת</Button>}
@@ -350,7 +350,7 @@ export default function PulsePage() {
       </div>
 
       {/* Sidebar */}
-      <div className="w-64 shrink-0 space-y-4">
+      <div className="w-full lg:w-64 shrink-0 space-y-4 order-1 lg:order-2 grid grid-cols-3 lg:block gap-3 lg:gap-0 lg:space-y-4">
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm text-gray-500">📊 היום</CardTitle></CardHeader>
           <CardContent className="space-y-3">

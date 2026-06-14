@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import {
@@ -24,6 +24,8 @@ import {
   UserCog,
   Sparkles,
   FileText,
+  Menu,
+  X,
 } from 'lucide-react'
 
 interface Profile {
@@ -124,6 +126,10 @@ export default function Sidebar({ profile }: Props) {
   const router = useRouter()
   const isPlusActive = kafoolPlusItems.some(item => pathname.startsWith(item.href))
   const [plusOpen, setPlusOpen] = useState(isPlusActive)
+  const [mobileOpen, setMobileOpen] = useState(false)
+
+  // close the mobile drawer whenever the route changes
+  useEffect(() => { setMobileOpen(false) }, [pathname])
 
   async function handleSignOut() {
     const supabase = createClient()
@@ -137,14 +143,48 @@ export default function Sidebar({ profile }: Props) {
     : '?'
 
   return (
-    <aside className="w-64 bg-slate-900 flex flex-col min-h-screen shrink-0 border-l border-slate-800">
-      {/* Brand */}
-      <div className="px-5 py-5 border-b border-slate-800">
-        <div className="flex items-center gap-2.5 mb-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/25">
+    <>
+      {/* ─── Mobile top bar (hamburger) ─── */}
+      <div className="lg:hidden fixed top-0 inset-x-0 z-40 h-14 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-4">
+        <button onClick={() => setMobileOpen(true)} aria-label="פתח תפריט" className="p-1.5 text-slate-200 hover:text-white">
+          <Menu className="w-6 h-6" />
+        </button>
+        <div className="flex items-center gap-2">
+          <span className="text-base font-bold text-white">Kafool</span>
+          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
             <Zap className="w-4 h-4 text-white" />
           </div>
-          <span className="text-lg font-bold text-white tracking-tight">Kafool</span>
+        </div>
+      </div>
+
+      {/* ─── Backdrop (mobile, when open) ─── */}
+      {mobileOpen && (
+        <div className="lg:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
+      )}
+
+      {/* ─── Sidebar / drawer ─── */}
+      <aside
+        className={cn(
+          'w-64 bg-slate-900 flex flex-col border-l border-slate-800 z-50',
+          // mobile: off-canvas drawer anchored to the right
+          'fixed top-0 right-0 h-full transition-transform duration-300 ease-out',
+          mobileOpen ? 'translate-x-0' : 'translate-x-full',
+          // desktop: static, always visible
+          'lg:static lg:translate-x-0 lg:h-auto lg:min-h-screen lg:shrink-0'
+        )}
+      >
+      {/* Brand */}
+      <div className="px-5 py-5 border-b border-slate-800">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/25">
+              <Zap className="w-4 h-4 text-white" />
+            </div>
+            <span className="text-lg font-bold text-white tracking-tight">Kafool</span>
+          </div>
+          <button onClick={() => setMobileOpen(false)} aria-label="סגור תפריט" className="lg:hidden p-1 text-slate-400 hover:text-white">
+            <X className="w-5 h-5" />
+          </button>
         </div>
         {org && (
           <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-slate-800/60">
@@ -266,5 +306,6 @@ export default function Sidebar({ profile }: Props) {
         </div>
       </div>
     </aside>
+    </>
   )
 }
