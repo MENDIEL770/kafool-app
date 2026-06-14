@@ -82,6 +82,9 @@ export default function DonationModal({
   }, [isOpen])
 
   const finalAmount = amount || Number(customAmount) || 0
+  // required donor details (unless anonymous): name, phone, email
+  const detailsValid = form.anonymous || (!!form.firstName.trim() && !!form.phone.trim() && !!form.email.trim())
+  const canProceed = finalAmount > 0 && detailsValid
 
   function setField(key: string, value: string | boolean) {
     setForm(p => ({ ...p, [key]: value }))
@@ -99,9 +102,10 @@ export default function DonationModal({
     }
     if (form.dedication) params.set('comment', form.dedication)
     if (selectedGroupSlug) params.set('group', selectedGroupSlug)
-    // standing order: pass the number of monthly payments to Kesher
+    // standing order: tell Kesher the number of payments (field name per lib/kesher/client.ts)
     if (paymentMethod === 'hok' && presetMonths && presetMonths > 0) {
-      params.set('tashlumim', String(presetMonths))
+      params.set('NumPayments', String(presetMonths))
+      params.set('PaymentType', 'Payments')
     }
     params.set('addactiondata', campaign.id)
     const origin = typeof window !== 'undefined' ? window.location.origin : ''
@@ -187,7 +191,7 @@ export default function DonationModal({
                 <>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <label className="text-xs font-medium text-gray-500">שם</label>
+                      <label className="text-xs font-medium text-gray-500">שם <span className="text-red-400">*</span></label>
                       <input value={form.firstName} onChange={e => setField('firstName', e.target.value)}
                         className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-400" />
                     </div>
@@ -199,13 +203,13 @@ export default function DonationModal({
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <label className="text-xs font-medium text-gray-500">טלפון</label>
+                      <label className="text-xs font-medium text-gray-500">טלפון <span className="text-red-400">*</span></label>
                       <input type="tel" value={form.phone} onChange={e => setField('phone', e.target.value)}
                         className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-400"
                         dir="ltr" placeholder="050-0000000" />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-xs font-medium text-gray-500">אימייל</label>
+                      <label className="text-xs font-medium text-gray-500">אימייל <span className="text-red-400">*</span></label>
                       <input type="email" value={form.email} onChange={e => setField('email', e.target.value)}
                         className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-400"
                         dir="ltr" placeholder="you@example.com" />
@@ -271,12 +275,18 @@ export default function DonationModal({
                   }))
                   setStep('payment')
                 }}
-                disabled={!finalAmount}
-                className={`w-full py-3.5 font-black text-white text-sm disabled:opacity-40 transition-all ${buttonRadius}`}
+                disabled={!canProceed}
+                className={`w-full py-3.5 font-black text-white text-sm disabled:opacity-40 disabled:cursor-not-allowed transition-all ${buttonRadius}`}
                 style={{ backgroundColor: primaryColor }}
               >
                 המשך לתשלום ₪{finalAmount ? finalAmount.toLocaleString() : ''}
               </button>
+
+              {!form.anonymous && finalAmount > 0 && !detailsValid && (
+                <p className="text-center text-xs text-amber-600 -mt-1">
+                  יש למלא שם, טלפון ואימייל כדי להמשיך (או לסמן "תרומה אנונימית")
+                </p>
+              )}
 
               <p className="text-center text-xs text-gray-400 flex items-center justify-center gap-1">
                 <span>🔒</span> תשלום מאובטח — קשר
