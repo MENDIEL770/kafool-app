@@ -356,17 +356,18 @@ function HeroSection({ campaign, countdown }: {
   )
 }
 
-function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius, onDonate }: {
+function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius, hokAvailable, onDonate }: {
   plans: { amount: number; label?: string; image_url?: string | null; payment_type?: 'one_time' | 'hok'; months?: number | null }[]
   primaryColor: string
   campaignSlug: string
   groups: Group[]
   buttonRadius: string
+  hokAvailable: boolean
   onDonate: (amount?: number, groupSlug?: string, method?: 'one_time' | 'hok', months?: number) => void
 }) {
   const [selected, setSelected] = useState<number | null>(null)
   const [selectedMethod, setSelectedMethod] = useState<'one_time' | 'hok'>('one_time')
-  const [selectedMonths, setSelectedMonths] = useState<number | undefined>()
+  const [selectedMonths, setSelectedMonths] = useState<number>(12)
   const [custom, setCustom] = useState('')
   const [selectedGroup, setSelectedGroup] = useState<string>('')
 
@@ -375,7 +376,39 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
   return (
     <section className="bg-white border-b border-gray-100 py-8 px-4" aria-label="מסלולי תרומה">
       <div className="max-w-6xl mx-auto">
-        <h2 className="text-lg font-bold text-gray-700 mb-6 text-center">בחר סכום תרומה</h2>
+        <h2 className="text-lg font-bold text-gray-700 mb-5 text-center">בחר סכום תרומה</h2>
+
+        {/* One-time vs standing-order toggle (shown when hok is configured) */}
+        {hokAvailable && (
+          <div className="flex flex-col items-center gap-3 mb-6">
+            <div className="inline-flex bg-gray-100 rounded-full p-1">
+              {([['one_time', 'תרומה חד-פעמית'], ['hok', 'הוראת קבע']] as const).map(([val, lbl]) => (
+                <button
+                  key={val}
+                  onClick={() => setSelectedMethod(val)}
+                  aria-pressed={selectedMethod === val}
+                  className={`px-5 py-2 rounded-full text-sm font-bold transition-all ${selectedMethod === val ? 'text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                  style={selectedMethod === val ? { backgroundColor: primaryColor } : undefined}
+                >
+                  {lbl}
+                </button>
+              ))}
+            </div>
+            {selectedMethod === 'hok' && (
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <span>למשך</span>
+                <select
+                  value={selectedMonths}
+                  onChange={e => setSelectedMonths(Number(e.target.value))}
+                  className="border border-gray-200 rounded-lg px-3 py-1.5 font-bold text-gray-700 outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+                >
+                  {[6, 12, 18, 24, 36, 48, 60].map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+                <span>חודשים</span>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Grid: 3 columns on mobile, scrollable row on md+ */}
         <div className="grid grid-cols-3 gap-4 pb-2 px-1 md:flex md:gap-5 md:overflow-x-auto md:pb-6 md:pt-4 md:px-4 md:scrollbar-hide md:snap-x md:justify-center md:flex-nowrap" style={{ overflowY: 'visible' }}>
@@ -384,7 +417,12 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
             return (
               <button
                 key={amount}
-                onClick={() => { setSelected(isActive ? null : amount); setSelectedMethod(payment_type ?? 'one_time'); setSelectedMonths(months ?? undefined); setCustom('') }}
+                onClick={() => {
+                  setSelected(isActive ? null : amount)
+                  // a button explicitly marked as standing-order forces hok; otherwise the toggle decides
+                  if (payment_type === 'hok') { setSelectedMethod('hok'); if (months) setSelectedMonths(months) }
+                  setCustom('')
+                }}
                 aria-pressed={isActive}
                 className="flex-none snap-start flex flex-col items-center gap-2 cursor-pointer focus:outline-none"
               >
@@ -434,7 +472,7 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
                 <input
                   type="number"
                   value={custom}
-                  onChange={(e) => { setCustom(e.target.value); setSelected(null); setSelectedMethod('one_time'); setSelectedMonths(undefined) }}
+                  onChange={(e) => { setCustom(e.target.value); setSelected(null) }}
                   placeholder="0"
                   min="1"
                   className="w-12 md:w-14 text-center text-sm font-bold outline-none bg-transparent"
@@ -474,7 +512,7 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
         {/* Payment actions */}
         <div className="flex flex-col sm:flex-row justify-center gap-3 mt-6 max-w-md mx-auto">
           <button
-            onClick={() => onDonate(finalAmount ?? undefined, selectedGroup || undefined, selectedMethod, selectedMonths)}
+            onClick={() => onDonate(finalAmount ?? undefined, selectedGroup || undefined, selectedMethod, selectedMethod === 'hok' ? selectedMonths : undefined)}
             className={`flex-1 py-3.5 text-white font-black text-base text-center shadow-lg hover:opacity-90 active:scale-95 transition-all ${buttonRadius}`}
             style={{ backgroundColor: primaryColor }}
           >
@@ -1023,7 +1061,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
       <HeroSection campaign={campaign} countdown={countdown} />
 
       {/* 3. Donation Plans */}
-      <DonationPlans plans={donationPlans} primaryColor={primaryColor} campaignSlug={campaign.slug} groups={groups} buttonRadius={buttonRadius} onDonate={openDonate} />
+      <DonationPlans plans={donationPlans} primaryColor={primaryColor} campaignSlug={campaign.slug} groups={groups} buttonRadius={buttonRadius} hokAvailable={!!paymentUrls?.hok} onDonate={openDonate} />
 
       {/* 4. Progress */}
       <ProgressSection raised={raisedAmount} goal={campaign.goal_amount} donorsCount={donations.length} primaryColor={primaryColor} />

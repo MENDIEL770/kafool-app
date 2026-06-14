@@ -236,7 +236,7 @@ export default function DonationModal({
                 </div>
               )}
 
-              {hasMultipleMethods && !presetMethod && (
+              {hasMultipleMethods && (
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-gray-500">אמצעי תשלום</label>
                   <div className="grid grid-cols-2 gap-2">
