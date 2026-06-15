@@ -20,21 +20,39 @@ function EditModal({ group, onClose, onSaved }: { group: Group; onClose: () => v
     manager_phone: group.manager_phone || '',
   })
   const [saving, setSaving] = useState(false)
+  const [slugError, setSlugError] = useState('')
 
   function set(k: string, v: string) { setForm(p => ({ ...p, [k]: v })) }
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
+    setSlugError('')
+    // clean the slug → url-safe (latin / numbers / Hebrew / dash)
+    const slug = form.slug.trim().toLowerCase()
+      .replace(/\s+/g, '-')
+      .replace(/[^a-z0-9֐-׿-]/g, '')
+      .replace(/^-+|-+$/g, '')
+    if (!slug) { setSlugError('יש להזין כתובת (slug) תקינה'); return }
+
     setSaving(true)
     const supabase = createClient()
-    await supabase.from('groups').update({
+
+    // make sure the slug is free within this campaign (excluding this group)
+    const { data: taken } = await supabase
+      .from('groups').select('id')
+      .eq('campaign_id', group.campaign_id).eq('slug', slug).neq('id', group.id)
+      .maybeSingle()
+    if (taken) { setSlugError('הכתובת (slug) כבר תפוסה בקמפיין — בחר אחרת'); setSaving(false); return }
+
+    const { error } = await supabase.from('groups').update({
       name: form.name,
-      slug: form.slug,
+      slug,
       goal_amount: Number(form.goal_amount) || 0,
       manager_name: form.manager_name || null,
       manager_phone: form.manager_phone || null,
     }).eq('id', group.id)
     setSaving(false)
+    if (error) { setSlugError(error.message); return }
     onSaved()
     onClose()
   }
@@ -53,10 +71,13 @@ function EditModal({ group, onClose, onSaved }: { group: Group; onClose: () => v
               <Input value={form.name} onChange={e => set('name', e.target.value)} required />
             </div>
             <div className="space-y-1">
-              <Label>Slug</Label>
-              <Input value={form.slug} onChange={e => set('slug', e.target.value)} dir="ltr" required />
+              <Label>כתובת (slug)</Label>
+              <Input value={form.slug} onChange={e => { set('slug', e.target.value); setSlugError('') }} dir="ltr" required />
             </div>
           </div>
+          {slugError && (
+            <div className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{slugError}</div>
+          )}
           <div className="space-y-1">
             <Label>יעד גיוס (₪)</Label>
             <Input type="number" value={form.goal_amount} onChange={e => set('goal_amount', e.target.value)} dir="ltr" />
