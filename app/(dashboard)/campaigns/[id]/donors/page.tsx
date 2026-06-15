@@ -8,7 +8,7 @@ export default async function CampaignDonorsPage({ params }: { params: Promise<{
 
   const { data: campaign } = await supabase
     .from('campaigns')
-    .select('id, title, slug, raised_amount, goal_amount')
+    .select('id, title, slug, raised_amount, goal_amount, org_id')
     .eq('id', id)
     .single()
 

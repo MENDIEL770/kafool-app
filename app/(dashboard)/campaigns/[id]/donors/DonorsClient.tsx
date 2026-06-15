@@ -26,6 +26,7 @@ interface Campaign {
   slug: string
   raised_amount: number
   goal_amount: number
+  org_id: string
 }
 
 export default function DonorsClient({ campaign, donations: initial }: { campaign: Campaign; donations: Donation[] }) {
@@ -37,6 +38,7 @@ export default function DonorsClient({ campaign, donations: initial }: { campaig
   const [showAdd, setShowAdd] = useState(false)
   const [addForm, setAddForm] = useState({ amount: '', donor_name: '', donor_phone: '', donor_email: '', dedication: '' })
   const [saving, setSaving] = useState(false)
+  const [addError, setAddError] = useState('')
 
   const supabase = createClient()
 
@@ -90,11 +92,12 @@ export default function DonorsClient({ campaign, donations: initial }: { campaig
   // ── הוספה ידנית ──
   async function addDonation() {
     const amount = Number(addForm.amount)
-    if (!amount) return
+    if (!amount) { setAddError('יש להזין סכום'); return }
     setSaving(true)
+    setAddError('')
     const { data, error } = await supabase.from('donations').insert({
       campaign_id: campaign.id,
-      org_id: undefined, // יתמלא מ-RLS
+      org_id: campaign.org_id, // ← היה undefined (הבאג): org_id הוא NOT NULL
       amount,
       donor_name: addForm.donor_name || null,
       donor_phone: addForm.donor_phone || null,
@@ -102,15 +105,18 @@ export default function DonorsClient({ campaign, donations: initial }: { campaig
       dedication: addForm.dedication || null,
       payment_status: 'completed',
     }).select().single()
-    if (!error && data) {
-      setDonations(ds => [data, ...ds])
-      await supabase.rpc('increment_campaign_amount', {
-        campaign_id: campaign.id,
-        amount_agorot: Math.round(amount * 100),
-      })
-      setAddForm({ amount: '', donor_name: '', donor_phone: '', donor_email: '', dedication: '' })
-      setShowAdd(false)
+    if (error || !data) {
+      setAddError(error?.message || 'הוספת התרומה נכשלה')
+      setSaving(false)
+      return
     }
+    setDonations(ds => [data, ...ds])
+    await supabase.rpc('increment_campaign_amount', {
+      campaign_id: campaign.id,
+      amount_agorot: Math.round(amount * 100),
+    })
+    setAddForm({ amount: '', donor_name: '', donor_phone: '', donor_email: '', dedication: '' })
+    setShowAdd(false)
     setSaving(false)
     router.refresh()
   }
@@ -183,6 +189,9 @@ export default function DonorsClient({ campaign, donations: initial }: { campaig
             <Label className="text-xs">הקדשה</Label>
             <Input value={addForm.dedication} onChange={e => setAddForm(f => ({ ...f, dedication: e.target.value }))} />
           </div>
+          {addError && (
+            <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2 text-center">{addError}</div>
+          )}
           <Button onClick={addDonation} disabled={saving || !addForm.amount} className="w-full">
             {saving ? 'שומר...' : 'הוסף תרומה'}
           </Button>
