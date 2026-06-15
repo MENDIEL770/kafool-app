@@ -8,7 +8,6 @@ function toSlug(str: string): string {
     .replace(/[֐-׿]/g, '') // strip Hebrew
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '')
-    || `group-${Date.now()}`
 }
 
 export async function POST(req: NextRequest) {
@@ -40,20 +39,26 @@ export async function POST(req: NextRequest) {
     .eq('id', campaign.org_id)
     .single()
 
-  // Build unique slug
-  let baseSlug = toSlug(name) || `group-${Date.now()}`
-  let slug = baseSlug
-  let attempt = 0
-  while (true) {
-    const { data: exists } = await adminClient
-      .from('groups')
-      .select('id')
-      .eq('campaign_id', campaignId)
-      .eq('slug', slug)
-      .single()
-    if (!exists) break
-    attempt++
-    slug = `${baseSlug}-${attempt}`
+  async function slugTaken(s: string) {
+    const { data } = await adminClient
+      .from('groups').select('id').eq('campaign_id', campaignId).eq('slug', s).maybeSingle()
+    return !!data
+  }
+
+  // Build a clean unique slug:
+  //  - if the name has latin chars → use it (with -2, -3 on collision)
+  //  - otherwise (Hebrew name) → a short running number (1, 2, 3 ...)
+  let slug = toSlug(name)
+  if (slug) {
+    const base = slug
+    let attempt = 1
+    while (await slugTaken(slug)) { attempt++; slug = `${base}-${attempt}` }
+  } else {
+    const { count } = await adminClient
+      .from('groups').select('id', { count: 'exact', head: true }).eq('campaign_id', campaignId)
+    let n = (count || 0) + 1
+    while (await slugTaken(String(n))) n++
+    slug = String(n)
   }
 
   const { data: group, error } = await adminClient.from('groups').insert({
