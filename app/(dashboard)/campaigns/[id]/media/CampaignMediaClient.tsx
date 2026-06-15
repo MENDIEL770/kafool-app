@@ -295,10 +295,15 @@ export default function CampaignMediaClient({
   const [tab, setTab] = useState<Tab>('banner')
   const [viewMode, setViewMode] = useState<'desktop' | 'mobile'>('desktop')
 
-  // Banner state
-  const [coverUrl, setCoverUrl] = useState<string | null>(initialCoverUrl)
+  // Banner state — multiple rotating banners
+  const initialBanners: string[] =
+    (initialSettings.banners as { url: string; sort_order: number }[] | undefined)?.length
+      ? [...(initialSettings.banners as { url: string; sort_order: number }[])].sort((a, b) => a.sort_order - b.sort_order).map(b => b.url)
+      : (initialCoverUrl ? [initialCoverUrl] : [])
+  const [banners, setBanners] = useState<string[]>(initialBanners)
+  const [uploadingBanner, setUploadingBanner] = useState(false)
+  const bannerRef = useRef<HTMLInputElement>(null)
   const [logoUrl, setLogoUrl] = useState<string | null>(initialLogoUrl)
-  const [uploadingCover, setUploadingCover] = useState(false)
   const [uploadingLogo, setUploadingLogo] = useState(false)
   const [primaryColor, setPrimaryColor] = useState<string>(
     (initialSettings.primary_color as string) || '#2563eb'
@@ -334,16 +339,24 @@ export default function CampaignMediaClient({
     return url
   }
 
-  /* ─── Cover upload ─── */
-  async function handleCoverUpload(file: File) {
-    if (!file.size) { // remove
-      await supabase.from('campaigns').update({ cover_image_url: null }).eq('id', campaignId)
-      setCoverUrl(null); return
+  /* ─── Banners (multiple, auto-rotating) ─── */
+  async function handleBannerUpload(files: FileList) {
+    setUploadingBanner(true)
+    for (let i = 0; i < files.length; i++) {
+      const url = await uploadFile(files[i], `${orgId}/${campaignId}/banner-${Date.now()}-${i}`)
+      if (url) setBanners(p => [...p, url])
     }
-    setUploadingCover(true)
-    const url = await uploadFile(file, `${orgId}/${campaignId}/cover`)
-    if (url) { await supabase.from('campaigns').update({ cover_image_url: url }).eq('id', campaignId); setCoverUrl(url) }
-    setUploadingCover(false)
+    setUploadingBanner(false)
+  }
+  function removeBanner(i: number) { setBanners(p => p.filter((_, idx) => idx !== i)) }
+  function moveBanner(i: number, dir: -1 | 1) {
+    setBanners(p => {
+      const j = i + dir
+      if (j < 0 || j >= p.length) return p
+      const next = [...p]
+      ;[next[i], next[j]] = [next[j], next[i]]
+      return next
+    })
   }
 
   /* ─── Logo upload ─── */
@@ -361,8 +374,14 @@ export default function CampaignMediaClient({
   /* ─── Save banner settings ─── */
   async function saveBannerSettings() {
     setSavingBanner(true)
-    const settings = { ...(initialSettings as object), primary_color: primaryColor, about_text: aboutText || null }
-    await supabase.from('campaigns').update({ settings }).eq('id', campaignId)
+    const settings = {
+      ...(initialSettings as object),
+      banners: banners.map((url, i) => ({ url, sort_order: i })),
+      primary_color: primaryColor,
+      about_text: aboutText || null,
+    }
+    // keep cover_image_url in sync (first banner) for fallback + previews
+    await supabase.from('campaigns').update({ settings, cover_image_url: banners[0] || null }).eq('id', campaignId)
     setSavingBanner(false); setSavedBanner(true)
     setTimeout(() => setSavedBanner(false), 2000)
     router.refresh()
@@ -489,21 +508,60 @@ export default function CampaignMediaClient({
                 תמונת הבאנר
               </h2>
 
-              <UploadZone
-                label="תמונת רקע (באנר)"
-                sublabel="מוצגת כהיירו בראש עמוד הגיוס, ברוחב מלא"
-                specs={[
-                  { label: 'מידות מומלצות', value: '1920 × 640 px' },
-                  { label: 'יחס', value: '3:1 (פנורמי, רחב)' },
-                  { label: 'פורמט', value: 'JPG / WebP' },
-                  { label: 'משקל מקסימלי', value: 'עד 2MB' },
-                ]}
-                hint="💡 שמרו את הפרטים החשובים (פנים, טקסט) במרכז — הקצוות עשויים להיחתך במסכים שונים."
-                currentUrl={coverUrl}
-                onUpload={handleCoverUpload}
-                uploading={uploadingCover}
-                aspectClass="aspect-video"
-              />
+              <div className="space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="font-semibold text-gray-800 text-sm">באנרים (מתחלפים אוטומטית)</p>
+                    <p className="text-xs text-gray-500">העלה כמה באנרים — הם יתחלפו לבד כל 4 שניות בראש עמוד הגיוס</p>
+                  </div>
+                  <button onClick={() => bannerRef.current?.click()} disabled={uploadingBanner}
+                    className="flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-700 disabled:opacity-50 shrink-0">
+                    {uploadingBanner
+                      ? <span className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                      : <Plus className="w-4 h-4" />}
+                    הוסף באנר
+                  </button>
+                  <input ref={bannerRef} type="file" accept="image/*" multiple className="hidden"
+                    onChange={e => e.target.files && handleBannerUpload(e.target.files)} />
+                </div>
+
+                {banners.length === 0 ? (
+                  <button onClick={() => bannerRef.current?.click()}
+                    className="w-full aspect-video border-2 border-dashed border-gray-200 rounded-2xl flex flex-col items-center justify-center text-gray-400 hover:border-blue-300 hover:bg-blue-50/30 transition-all">
+                    <Upload className="w-7 h-7 mb-2 opacity-40" />
+                    <p className="text-xs font-medium">גרור תמונות או לחץ להוספת באנרים</p>
+                  </button>
+                ) : (
+                  <div className="space-y-2">
+                    {banners.map((url, i) => (
+                      <div key={i} className="flex items-center gap-2 border border-gray-100 rounded-xl p-2 bg-gray-50/50">
+                        <div className="flex flex-col gap-0.5 shrink-0">
+                          <button onClick={() => moveBanner(i, -1)} disabled={i === 0} title="העבר למעלה"
+                            className="text-gray-300 hover:text-blue-600 disabled:opacity-20 transition-colors"><ChevronUp className="w-4 h-4" /></button>
+                          <button onClick={() => moveBanner(i, 1)} disabled={i === banners.length - 1} title="העבר למטה"
+                            className="text-gray-300 hover:text-blue-600 disabled:opacity-20 transition-colors"><ChevronDown className="w-4 h-4" /></button>
+                        </div>
+                        <img src={url} alt="" className="h-14 flex-1 min-w-0 object-cover rounded-lg" />
+                        <span className="text-[11px] font-bold text-gray-400 shrink-0">#{i + 1}</span>
+                        <button onClick={() => removeBanner(i)} title="מחק באנר"
+                          className="w-8 h-8 rounded-lg text-red-400 hover:bg-red-50 flex items-center justify-center shrink-0"><Trash2 className="w-4 h-4" /></button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="rounded-xl bg-blue-50/60 border border-blue-100 px-3 py-2.5 space-y-1.5">
+                  <div className="flex items-center gap-1.5 text-[11px] font-bold text-blue-700">
+                    <Ruler className="w-3.5 h-3.5" /> מפרט כל באנר
+                  </div>
+                  {[['מידות מומלצות', '1920 × 640 px'], ['יחס', '3:1 (פנורמי, רחב)'], ['פורמט', 'JPG / WebP'], ['משקל מקסימלי', 'עד 2MB']].map(([l, v]) => (
+                    <div key={l} className="flex items-center justify-between text-[11px]">
+                      <span className="text-gray-500">{l}</span><span className="font-semibold text-gray-700">{v}</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-[11px] text-gray-400 leading-snug">💡 שמרו פרטים חשובים במרכז — הקצוות עשויים להיחתך. הסדר למעלה קובע את סדר ההתחלפות.</p>
+              </div>
 
               <UploadZone
                 label="לוגו הקמפיין"
@@ -585,7 +643,7 @@ export default function CampaignMediaClient({
               </div>
 
               <BannerPreview
-                coverUrl={coverUrl}
+                coverUrl={banners[0] || null}
                 logoUrl={logoUrl}
                 orgLogoUrl={orgLogoUrl}
                 title={campaignTitle}
@@ -594,9 +652,13 @@ export default function CampaignMediaClient({
                 viewMode={viewMode}
               />
 
-              {!coverUrl && (
+              {banners.length === 0 ? (
                 <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700 text-center">
-                  💡 העלה תמונת רקע כדי לראות את הבאנר המלא
+                  💡 העלה באנר כדי לראות את התצוגה המלאה
+                </div>
+              ) : banners.length > 1 && (
+                <div className="mt-4 p-3 bg-blue-50 border border-blue-100 rounded-xl text-xs text-blue-700 text-center">
+                  🔄 {banners.length} באנרים — יתחלפו אוטומטית כל 4 שניות בעמוד הגיוס
                 </div>
               )}
             </div>
