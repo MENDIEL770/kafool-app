@@ -142,8 +142,11 @@ export default function DonationModal({
           </div>
           <div className="flex items-center gap-3">
             {finalAmount > 0 && (
-              <span className="font-black text-base" style={{ color: primaryColor }}>
+              <span className="font-black text-base text-left leading-tight" style={{ color: primaryColor }}>
                 ₪{finalAmount.toLocaleString()}
+                {paymentMethod === 'hok' && months > 0 && (
+                  <span className="block text-[10px] font-bold opacity-80">לחודש × {months} ח׳</span>
+                )}
               </span>
             )}
             <button
@@ -277,6 +280,11 @@ export default function DonationModal({
                   >
                     {[6, 12, 18, 24, 36, 48, 60].map(m => <option key={m} value={m}>{m} חודשים</option>)}
                   </select>
+                  {finalAmount > 0 && months > 0 && (
+                    <p className="text-xs text-gray-600 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2 text-center">
+                      ₪{finalAmount.toLocaleString()} לחודש × {months} חודשים = <strong className="text-gray-900">₪{(finalAmount * months).toLocaleString()}</strong> בסך הכל
+                    </p>
+                  )}
                 </div>
               )}
 
