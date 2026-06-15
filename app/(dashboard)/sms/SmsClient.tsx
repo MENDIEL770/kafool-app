@@ -62,6 +62,29 @@ export default function SmsClient({ initialRules, initialLogs, campaigns, orgId 
   const [form, setForm] = useState({ ...EMPTY_FORM })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  // manual SMS blast
+  const [manual, setManual] = useState({ phones: '', message: '' })
+  const [manualSending, setManualSending] = useState(false)
+  const [manualResult, setManualResult] = useState('')
+
+  async function handleManualSend() {
+    const phones = manual.phones.split(/[\s,;]+/).map(p => p.trim()).filter(Boolean)
+    if (phones.length === 0 || !manual.message.trim()) { setManualResult('יש להזין מספרים והודעה'); return }
+    setManualSending(true); setManualResult('')
+    try {
+      const res = await fetch('/api/sms/send', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phones, message: manual.message }),
+      })
+      const data = await res.json()
+      setManualResult(res.ok ? `✅ נשלח ל-${data.count} מספרים` : `❌ ${data.error || 'שליחה נכשלה'}`)
+      if (res.ok) setManual(m => ({ ...m, message: '' }))
+    } catch {
+      setManualResult('❌ שגיאת רשת')
+    }
+    setManualSending(false)
+  }
   const [, startTransition] = useTransition()
 
   function openCreate() {
@@ -259,6 +282,44 @@ export default function SmsClient({ initialRules, initialLogs, campaigns, orgId 
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Manual send */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">שליחה ידנית 📨</CardTitle>
+          <p className="text-xs text-gray-400 mt-0.5">שלח SMS למספר אחד או לכמה מספרים בבת אחת</p>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-gray-700">נמענים (מספרי טלפון)</label>
+            <textarea
+              value={manual.phones}
+              onChange={e => setManual(m => ({ ...m, phones: e.target.value }))}
+              rows={2} dir="ltr"
+              placeholder="0501234567, 0521234567 ..."
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+            />
+            <p className="text-xs text-gray-400">הפרד בפסיק / רווח / שורה חדשה — אפשר להדביק כמה מספרים יחד.</p>
+          </div>
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-gray-700">הודעה</label>
+            <textarea
+              value={manual.message}
+              onChange={e => setManual(m => ({ ...m, message: e.target.value }))}
+              rows={3}
+              placeholder="תוכן ההודעה..."
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+            />
+            <p className="text-xs text-gray-400">{manual.message.length} תווים</p>
+          </div>
+          {manualResult && (
+            <div className="text-sm text-center bg-gray-50 border border-gray-100 rounded-lg py-2">{manualResult}</div>
+          )}
+          <Button onClick={handleManualSend} disabled={manualSending} className="w-full">
+            {manualSending ? 'שולח...' : 'שלח SMS'}
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* Rules list */}
       <Card>
