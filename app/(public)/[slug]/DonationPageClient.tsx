@@ -998,6 +998,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
             </div>
             <div className="flex items-center gap-4 flex-wrap">
               <div className="flex-1 min-w-0">
+                <p className="text-[11px] font-semibold text-gray-400 mb-0.5">דף התרומה של</p>
                 <h2 className="text-xl font-black text-gray-900 truncate">{activeGroup.name}</h2>
                 {activeGroup.manager_name && (
                   <p className="text-xs text-gray-400 mt-0.5">מגייס: {activeGroup.manager_name}</p>
