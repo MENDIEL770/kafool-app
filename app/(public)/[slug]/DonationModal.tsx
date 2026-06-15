@@ -97,17 +97,18 @@ export default function DonationModal({
     const params = new URLSearchParams()
     if (finalAmount) params.set('total', String(finalAmount))
     if (!form.anonymous) {
-      if (form.firstName) params.set('firstName', form.firstName)
-      if (form.lastName) params.set('lastName', form.lastName)
+      // Kesher param names are lowercase (per Kesher docs)
+      if (form.firstName) params.set('firstname', form.firstName)
+      if (form.lastName) params.set('lastname', form.lastName)
       if (form.phone) params.set('tel', form.phone)
       if (form.email) params.set('mail', form.email)
     }
     if (form.dedication) params.set('comment', form.dedication)
     if (selectedGroupSlug) params.set('group', selectedGroupSlug)
-    // standing order: tell Kesher the number of payments (field name per lib/kesher/client.ts)
+    // standing order: number of payments (Kesher: numpayment) + credittype 4 = תשלומים בהו"ק
     if (paymentMethod === 'hok' && months && months > 0) {
-      params.set('NumPayments', String(months))
-      params.set('PaymentType', 'Payments')
+      params.set('numpayment', String(months))
+      params.set('credittype', '4')
     }
     params.set('addactiondata', campaign.id)
     const origin = typeof window !== 'undefined' ? window.location.origin : ''
