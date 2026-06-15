@@ -95,16 +95,20 @@ function BulkSmsModal({ groups, campaignInfo, onClose }: {
   onClose: () => void
 }) {
   const withPhone = groups.filter(g => g.manager_phone)
-  const defaultMsg = `שלום {שם},\nהקישור לדף הקבוצה שלך:\nhttps://kafool.com/${campaignInfo?.campaign_slug}/{קישור}\n\nבהצלחה!`
+  const defaultMsg = `שלום {שם},\nהקישור לדף הקבוצה שלך:\n{קישור}\n\nבהצלחה!`
   const [template, setTemplate] = useState(defaultMsg)
   const [sending, setSending] = useState(false)
   const [result, setResult] = useState<{ sent: number; total: number } | null>(null)
   const [previewGroup, setPreviewGroup] = useState<Group | null>(withPhone[0] || null)
 
+  function groupLink(g: Group) {
+    return `https://kafool.com/${campaignInfo?.campaign_slug}/g/${g.slug}`
+  }
+
   function renderPreview(g: Group) {
     return template
-      .replace('{שם}', g.manager_name || g.name)
-      .replace('{קישור}', `${campaignInfo?.campaign_slug}/g/${g.slug}`)
+      .replaceAll('{שם}', g.manager_name || g.name)
+      .replaceAll('{קישור}', groupLink(g))
   }
 
   async function handleSend() {
@@ -112,8 +116,8 @@ function BulkSmsModal({ groups, campaignInfo, onClose }: {
     // Build personalized messages per group
     const results = await Promise.all(withPhone.map(async g => {
       const msg = template
-        .replace('{שם}', g.manager_name || g.name)
-        .replace('{קישור}', `kafool.com/${campaignInfo?.campaign_slug}/g/${g.slug}`)
+        .replaceAll('{שם}', g.manager_name || g.name)
+        .replaceAll('{קישור}', groupLink(g))
       const res = await fetch('/api/groups/sms', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
