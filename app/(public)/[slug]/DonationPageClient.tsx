@@ -1042,7 +1042,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
                 <div className="text-[11px] text-gray-400">מתוך ₪{activeGroup.goal_amount.toLocaleString('he-IL')} יעד</div>
               </div>
               <div className="text-center shrink-0">
-                <div className="text-2xl font-black text-gray-700 tabular-nums">{donations.filter(d => (d as { group_id?: string }).group_id === activeGroup.id).length || initialDonations.length}</div>
+                <div className="text-2xl font-black text-gray-700 tabular-nums">{donations.filter(d => d.group_id === activeGroup.id).length}</div>
                 <div className="text-[11px] text-gray-400">תורמים</div>
               </div>
               <button

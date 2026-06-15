@@ -27,7 +27,7 @@ export default async function GroupPage({ params }: { params: Promise<{ slug: st
 
   const { data: org } = await supabase
     .from('organizations')
-    .select('id, name, slug, logo_url, status')
+    .select('id, name, slug, logo_url, status, kesher_page_url, kesher_active, kesher_url_hok, kesher_url_bit, kesher_url_bank')
     .eq('id', campaign.org_id)
     .single()
 
@@ -49,7 +49,7 @@ export default async function GroupPage({ params }: { params: Promise<{ slug: st
   ] = await Promise.all([
     supabase
       .from('donations')
-      .select('id, donor_name, amount, dedication, created_at')
+      .select('id, donor_name, amount, dedication, created_at, group_id')
       .eq('campaign_id', campaign.id)
       .eq('payment_status', 'completed')
       .order('created_at', { ascending: false })
@@ -66,6 +66,14 @@ export default async function GroupPage({ params }: { params: Promise<{ slug: st
       .order('sort_order'),
   ])
 
+  const o = org as Record<string, string>
+  const paymentUrls = {
+    one_time: o.kesher_page_url || '',
+    hok:      o.kesher_url_hok  || '',
+    bit:      o.kesher_url_bit  || '',
+    bank:     o.kesher_url_bank || '',
+  }
+
   return (
     <DonationPageClient
       org={org}
@@ -73,6 +81,8 @@ export default async function GroupPage({ params }: { params: Promise<{ slug: st
       donations={donations || []}
       groups={(groups || []) as Parameters<typeof DonationPageClient>[0]['groups']}
       gallery={gallery || []}
+      donationUrl={paymentUrls.one_time}
+      paymentUrls={paymentUrls}
       activeGroup={{
         id: group.id,
         name: group.name,
