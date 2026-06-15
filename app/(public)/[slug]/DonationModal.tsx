@@ -49,6 +49,7 @@ export default function DonationModal({
   const [customAmount, setCustomAmount] = useState('')
   const [selectedGroupSlug, setSelectedGroupSlug] = useState(presetGroupSlug || '')
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(presetMethod ?? 'one_time')
+  const [months, setMonths] = useState<number>(presetMonths ?? 12)
 
   // Available methods = only those with a URL configured
   const availableMethods = PAYMENT_METHODS.filter(m =>
@@ -71,9 +72,10 @@ export default function DonationModal({
       setCustomAmount(presetAmount ? '' : '')
       setSelectedGroupSlug(presetGroupSlug || '')
       setPaymentMethod(presetMethod ?? 'one_time')
+      setMonths(presetMonths ?? 12)
       setStep('details')
     }
-  }, [isOpen, presetAmount, presetGroupSlug, presetMethod])
+  }, [isOpen, presetAmount, presetGroupSlug, presetMethod, presetMonths])
 
   // Prevent body scroll when open
   useEffect(() => {
@@ -103,8 +105,8 @@ export default function DonationModal({
     if (form.dedication) params.set('comment', form.dedication)
     if (selectedGroupSlug) params.set('group', selectedGroupSlug)
     // standing order: tell Kesher the number of payments (field name per lib/kesher/client.ts)
-    if (paymentMethod === 'hok' && presetMonths && presetMonths > 0) {
-      params.set('NumPayments', String(presetMonths))
+    if (paymentMethod === 'hok' && months && months > 0) {
+      params.set('NumPayments', String(months))
       params.set('PaymentType', 'Payments')
     }
     params.set('addactiondata', campaign.id)
@@ -261,6 +263,20 @@ export default function DonationModal({
                       </button>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* standing-order duration — chosen in the form, sent to Kesher */}
+              {paymentMethod === 'hok' && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-gray-500">מספר חודשי הוראת הקבע</label>
+                  <select
+                    value={months}
+                    onChange={e => setMonths(Number(e.target.value))}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+                  >
+                    {[6, 12, 18, 24, 36, 48, 60].map(m => <option key={m} value={m}>{m} חודשים</option>)}
+                  </select>
                 </div>
               )}
 
