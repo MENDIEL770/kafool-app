@@ -67,6 +67,11 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
   const [saving, setSaving] = useState(false)
   const [addError, setAddError] = useState('')
 
+  // Bulk selection
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [bulkGroupId, setBulkGroupId] = useState('')
+  const [bulkBusy, setBulkBusy] = useState(false)
+
   // Excel import
   const [showImport, setShowImport] = useState(false)
   const [importRows, setImportRows] = useState<ImportRow[]>([])
@@ -159,6 +164,69 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
       amount_agorot: -Math.round(amount * 100),
     })
     if (groupId) await adjustGroupRaised(groupId, -amount)
+    setSelected(s => { const n = new Set(s); n.delete(id); return n })
+  }
+
+  // ── בחירה מרובה ──
+  function toggleSelect(id: string) {
+    setSelected(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
+  }
+  function clearSelection() { setSelected(new Set()) }
+
+  // Apply aggregated per-group deltas (one read-modify-write per group)
+  async function applyGroupDeltas(deltas: Map<string, number>) {
+    for (const [gid, delta] of deltas) {
+      if (delta !== 0) await adjustGroupRaised(gid, delta)
+    }
+  }
+
+  async function bulkDelete() {
+    const ids = [...selected]
+    if (ids.length === 0) return
+    if (!confirm(`למחוק ${ids.length} תרומות?`)) return
+    setBulkBusy(true)
+    const rows = donations.filter(d => selected.has(d.id))
+    const { data, error } = await supabase.from('donations').delete().in('id', ids).select('id')
+    if (error) { alert('מחיקה נכשלה: ' + error.message); setBulkBusy(false); return }
+    if (!data || data.length === 0) {
+      alert('המחיקה לא בוצעה (הרשאה חסרה). יש להריץ את add_donations_delete_policy.sql ב-Supabase.')
+      setBulkBusy(false); return
+    }
+    const deletedIds = new Set(data.map(r => r.id))
+    const removed = rows.filter(r => deletedIds.has(r.id))
+    const sum = removed.reduce((s, r) => s + (r.amount || 0), 0)
+    await supabase.rpc('increment_campaign_amount', { campaign_id: campaign.id, amount_agorot: -Math.round(sum * 100) })
+    // group totals
+    const deltas = new Map<string, number>()
+    for (const r of removed) if (r.group_id) deltas.set(r.group_id, (deltas.get(r.group_id) || 0) - (r.amount || 0))
+    await applyGroupDeltas(deltas)
+    setDonations(ds => ds.filter(d => !deletedIds.has(d.id)))
+    clearSelection()
+    setBulkBusy(false)
+    router.refresh()
+  }
+
+  async function bulkAssignGroup() {
+    const ids = [...selected]
+    if (ids.length === 0) return
+    const newGroupId = bulkGroupId || null
+    setBulkBusy(true)
+    const rows = donations.filter(d => selected.has(d.id))
+    const { error } = await supabase.from('donations').update({ group_id: newGroupId }).in('id', ids)
+    if (error) { alert('השיוך נכשל: ' + error.message); setBulkBusy(false); return }
+    // group totals: move each donation's amount from its old group to the new one
+    const deltas = new Map<string, number>()
+    for (const r of rows) {
+      if (r.group_id === newGroupId) continue
+      if (r.group_id) deltas.set(r.group_id, (deltas.get(r.group_id) || 0) - (r.amount || 0))
+      if (newGroupId) deltas.set(newGroupId, (deltas.get(newGroupId) || 0) + (r.amount || 0))
+    }
+    await applyGroupDeltas(deltas)
+    setDonations(ds => ds.map(d => selected.has(d.id) ? { ...d, group_id: newGroupId } : d))
+    clearSelection()
+    setBulkGroupId('')
+    setBulkBusy(false)
+    router.refresh()
   }
 
   // ── הוספה ידנית ──
@@ -492,6 +560,39 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
         </div>
       )}
 
+      {/* Bulk action bar */}
+      {selected.size > 0 && (
+        <div className="sticky top-2 z-20 flex flex-wrap items-center gap-2 bg-blue-600 text-white rounded-xl px-4 py-2.5 shadow-lg">
+          <span className="font-bold text-sm">{selected.size} נבחרו</span>
+          <div className="flex-1" />
+          {groups.length > 0 && (
+            <div className="flex items-center gap-1.5">
+              <select
+                value={bulkGroupId}
+                onChange={e => setBulkGroupId(e.target.value)}
+                aria-label="בחר קבוצה לשיוך"
+                className="h-8 rounded-lg px-2 text-sm text-gray-800 bg-white outline-none"
+              >
+                <option value="">ללא קבוצה</option>
+                {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+              </select>
+              <button onClick={bulkAssignGroup} disabled={bulkBusy}
+                className="h-8 px-3 rounded-lg bg-white/20 hover:bg-white/30 text-sm font-semibold disabled:opacity-50">
+                שייך לקבוצה
+              </button>
+            </div>
+          )}
+          <button onClick={bulkDelete} disabled={bulkBusy}
+            className="h-8 px-3 rounded-lg bg-red-500 hover:bg-red-600 text-sm font-semibold inline-flex items-center gap-1.5 disabled:opacity-50">
+            <Trash2 className="w-4 h-4" /> מחק
+          </button>
+          <button onClick={clearSelection} disabled={bulkBusy}
+            className="h-8 px-3 rounded-lg hover:bg-white/20 text-sm font-medium">
+            נקה
+          </button>
+        </div>
+      )}
+
       {/* Table */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         {sorted.length === 0 ? (
@@ -501,6 +602,15 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
           <table className="w-full text-sm min-w-[640px]">
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
+                <th className="px-4 py-3 w-10">
+                  <input
+                    type="checkbox"
+                    aria-label="בחר הכל"
+                    className="w-4 h-4 cursor-pointer accent-blue-600"
+                    checked={sorted.length > 0 && sorted.every(d => selected.has(d.id))}
+                    onChange={e => setSelected(e.target.checked ? new Set(sorted.map(d => d.id)) : new Set())}
+                  />
+                </th>
                 {['תאריך', 'שם', 'טלפון', 'סכום', 'הקדשה', 'מקור', 'סטטוס', ''].map(h => (
                   <th key={h} className="text-right px-4 py-3 text-xs font-semibold text-gray-500">{h}</th>
                 ))}
@@ -508,10 +618,13 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
             </thead>
             <tbody className="divide-y divide-gray-50">
               {sorted.map(d => (
-                <tr key={d.id} className="hover:bg-gray-50 transition-colors">
+                <tr key={d.id} className={`transition-colors ${selected.has(d.id) ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
                   {editId === d.id ? (
                     // ── שורת עריכה ──
                     <>
+                      <td className="px-4 py-2 w-10">
+                        <input type="checkbox" className="w-4 h-4 cursor-pointer accent-blue-600" checked={selected.has(d.id)} onChange={() => toggleSelect(d.id)} />
+                      </td>
                       <td className="px-4 py-2 text-xs text-gray-400">
                         {new Date(d.created_at).toLocaleDateString('he-IL')}
                       </td>
@@ -550,6 +663,9 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
                   ) : (
                     // ── שורה רגילה ──
                     <>
+                      <td className="px-4 py-3 w-10">
+                        <input type="checkbox" className="w-4 h-4 cursor-pointer accent-blue-600" checked={selected.has(d.id)} onChange={() => toggleSelect(d.id)} />
+                      </td>
                       <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
                         {new Date(d.created_at).toLocaleDateString('he-IL')}
                       </td>
