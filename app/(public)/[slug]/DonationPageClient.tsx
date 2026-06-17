@@ -1124,11 +1124,24 @@ function ScrollTopButton() {
     return () => { window.removeEventListener('scroll', fn); window.removeEventListener('resize', fn) }
   }, [])
   function scrollTop() {
-    // Reliable everywhere (incl. in-app webviews): set scrollTop on every scroller, then animate.
-    window.scrollTo(0, 0)
-    document.documentElement.scrollTop = 0
-    document.body.scrollTop = 0
-    try { window.scrollTo({ top: 0, behavior: 'smooth' }) } catch { /* older webviews */ }
+    // Smooth everywhere, incl. in-app webviews (WhatsApp/Instagram) that ignore
+    // behavior:'smooth'. We animate manually with requestAnimationFrame and set
+    // scrollTop on every possible scroller each frame so it works regardless of
+    // which element actually scrolls.
+    const startY = window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0
+    if (startY <= 0) return
+    const duration = 400
+    const start = (typeof performance !== 'undefined' ? performance.now() : Date.now())
+    const step = (now: number) => {
+      const t = Math.min(1, (now - start) / duration)
+      const eased = 1 - Math.pow(1 - t, 3) // easeOutCubic
+      const y = Math.round(startY * (1 - eased))
+      window.scrollTo(0, y)
+      document.documentElement.scrollTop = y
+      document.body.scrollTop = y
+      if (t < 1) requestAnimationFrame(step)
+    }
+    requestAnimationFrame(step)
   }
   if (!visible) return null
   return (
