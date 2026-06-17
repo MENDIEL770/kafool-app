@@ -317,6 +317,10 @@ export default function CampaignMediaClient({
   const [uploadingLogo, setUploadingLogo] = useState(false)
   const [shareImage, setShareImage] = useState<string | null>((initialSettings.share_image as string) || null)
   const [uploadingShare, setUploadingShare] = useState(false)
+  const initialPopup = (initialSettings.popup_ad as { image_url?: string; link?: string } | undefined) || {}
+  const [popupImage, setPopupImage] = useState<string | null>(initialPopup.image_url || null)
+  const [popupLink, setPopupLink] = useState<string>(initialPopup.link || '')
+  const [uploadingPopup, setUploadingPopup] = useState(false)
   const [primaryColor, setPrimaryColor] = useState<string>(
     (initialSettings.primary_color as string) || '#2563eb'
   )
@@ -412,6 +416,15 @@ export default function CampaignMediaClient({
     setUploadingShare(false)
   }
 
+  /* ─── Popup ad image upload ─── */
+  async function handlePopupUpload(file: File) {
+    if (!file.size) { setPopupImage(null); return }
+    setUploadingPopup(true)
+    const url = await uploadFile(file, `${orgId}/${campaignId}/popup-${Date.now()}`)
+    if (url) setPopupImage(url)
+    setUploadingPopup(false)
+  }
+
   /* ─── Save banner settings ─── */
   async function saveBannerSettings() {
     setSavingBanner(true)
@@ -420,6 +433,7 @@ export default function CampaignMediaClient({
       banners: banners.map((url, i) => ({ url, sort_order: i })),
       mobile_banners: mobileBanners.map((url, i) => ({ url, sort_order: i })),
       share_image: shareImage,
+      popup_ad: popupImage ? { image_url: popupImage, link: popupLink.trim() || null } : null,
       primary_color: primaryColor,
       about_text: aboutText || null,
     }
@@ -694,6 +708,34 @@ export default function CampaignMediaClient({
                 uploading={uploadingShare}
                 aspectClass="aspect-[1200/630]"
               />
+
+              <UploadZone
+                label="פרסומת פופ-אפ"
+                sublabel="תקפוץ למבקר ל-5 שניות אחרי שגולל מעבר למקטע 'אודות'"
+                specs={[
+                  { label: 'מידות מומלצות', value: '1080 × 1080 px' },
+                  { label: 'יחס', value: '1:1 (ריבוע) — מתאים לנייד ולמחשב' },
+                  { label: 'פורמט', value: 'JPG / PNG' },
+                  { label: 'משקל מקסימלי', value: 'עד 2MB' },
+                ]}
+                hint="💡 ריבוע נראה הכי טוב בחלון הקופץ בשני המכשירים. אפשר גם 4:5 לאורך. השאר ריק כדי לבטל את הפופ-אפ."
+                currentUrl={popupImage}
+                onUpload={handlePopupUpload}
+                uploading={uploadingPopup}
+                aspectClass="aspect-square max-w-[220px]"
+              />
+              {popupImage && (
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-gray-600">קישור בלחיצה (אופציונלי)</label>
+                  <input
+                    value={popupLink}
+                    onChange={e => setPopupLink(e.target.value)}
+                    placeholder="https://...  (לאן להוביל בלחיצה על הפרסומת)"
+                    dir="ltr"
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400"
+                  />
+                </div>
+              )}
             </div>
 
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">

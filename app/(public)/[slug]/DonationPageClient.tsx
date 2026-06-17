@@ -1093,6 +1093,46 @@ function ScrollTopButton() {
   )
 }
 
+// Popup ad: appears for 5s once the visitor scrolls past the About section. Once per session.
+function PopupAd({ ad, campaignId }: { ad?: { image_url?: string; link?: string | null }; campaignId: string }) {
+  const [open, setOpen] = useState(false)
+  const shownRef = useRef(false)
+  useEffect(() => {
+    if (!ad?.image_url) return
+    if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(`kafool_popup_${campaignId}`)) return
+    const onScroll = () => {
+      if (shownRef.current) return
+      const about = document.getElementById('about')
+      if (!about) return
+      // fire once the top of the About section has scrolled above the viewport top
+      if (about.getBoundingClientRect().top < 0) {
+        shownRef.current = true
+        try { sessionStorage.setItem(`kafool_popup_${campaignId}`, '1') } catch {}
+        setOpen(true)
+        setTimeout(() => setOpen(false), 5000)
+        window.removeEventListener('scroll', onScroll)
+      }
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [ad?.image_url, campaignId])
+
+  if (!ad?.image_url || !open) return null
+  const img = <img src={ad.image_url} alt="פרסומת" className="w-full h-auto rounded-2xl shadow-2xl" />
+  return (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setOpen(false)}>
+      <div className="relative w-full max-w-sm" onClick={e => e.stopPropagation()}>
+        <button onClick={() => setOpen(false)} aria-label="סגור" className="absolute -top-11 left-0 inline-flex items-center gap-1.5 px-3 h-9 rounded-full bg-white/15 hover:bg-white/25 text-white text-sm font-medium">
+          <X className="w-4 h-4" /> סגור
+        </button>
+        {ad.link
+          ? <a href={ad.link} target="_blank" rel="noopener noreferrer">{img}</a>
+          : img}
+      </div>
+    </div>
+  )
+}
+
 /* ─── Main Page ─── */
 export default function DonationPageClient({ org, campaign, donations: initialDonations, groups, gallery, activeGroup, donationUrl = '', paymentUrls }: Props) {
   const [donations, setDonations] = useState<Donation[]>(initialDonations)
@@ -1309,6 +1349,8 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
       <ScrollTopButton />
 
       <DonationToasts donations={donations} groups={groups} primaryColor={primaryColor} />
+
+      <PopupAd ad={(campaign.settings as { popup_ad?: { image_url?: string; link?: string | null } })?.popup_ad} campaignId={campaign.id} />
       {/* מורם מעל פס התרומה הצף בתחתית */}
       <AccessibilityWidget offsetBottom="6rem" />
 
