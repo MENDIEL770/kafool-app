@@ -986,8 +986,16 @@ function DonationToasts({ donations, groups, primaryColor }: { donations: Donati
       {shown.map(({ key, d }) => {
         const via = groupName(d.group_id)
         return (
-          <div key={key} className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-white/60 px-4 py-3 flex items-center gap-3"
+          <div key={key} className="relative bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-white/60 pr-4 pl-8 py-3 flex items-center gap-3"
             style={{ animation: 'kfToastIn .35s ease-out' }}>
+            {/* כפתור סגירה — לחיץ (שאר הכרטיס שקוף ללחיצות) */}
+            <button
+              onClick={() => setShown(s => s.filter(x => x.key !== key))}
+              aria-label="סגור"
+              className="pointer-events-auto absolute top-1.5 left-1.5 w-6 h-6 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
             <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-black shrink-0"
               style={{ backgroundColor: `${primaryColor}1A`, color: primaryColor }}>
               {donorInitials(d.donor_name || 'אנונימי')}
@@ -1212,7 +1220,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
       <ProgressSection raised={raisedAmount} goal={campaign.goal_amount} donorsCount={donations.length} primaryColor={primaryColor} />
 
       {/* 5+7. About (right) + Community (left) — two columns */}
-      <section className="py-10 px-4 bg-white border-t border-gray-100" id="about">
+      <section className="py-10 px-4 bg-white border-t border-gray-100 scroll-mt-20" id="about">
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-col lg:flex-row gap-10">
             {/* ימין — אודות */}
@@ -1221,7 +1229,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
             </div>
             {/* שמאל — תורמים */}
             <div className="flex-1 min-w-0">
-              <CommunitySection donations={donations} groups={groups} primaryColor={primaryColor} campaignSlug={campaign.slug} onCreateGroup={() => setCreateGroupOpen(true)} />
+              <CommunitySection donations={activeGroup ? donations.filter(d => d.group_id === activeGroup.id) : donations} groups={groups} primaryColor={primaryColor} campaignSlug={campaign.slug} onCreateGroup={() => setCreateGroupOpen(true)} />
             </div>
           </div>
         </div>
