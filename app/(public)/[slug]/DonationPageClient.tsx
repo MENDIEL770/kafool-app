@@ -620,7 +620,7 @@ function ProgressSection({ raised, goal, donorsCount, primaryColor, bricks }: { 
 type SortBy = 'recent' | 'amount_desc' | 'amount_asc'
 type CommunityTab = 'donors' | 'groups' | 'communities'
 
-function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCreateGroup }: { donations: Donation[]; groups: Group[]; primaryColor: string; campaignSlug: string; onCreateGroup: () => void }) {
+function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCreateGroup, activeGroupName }: { donations: Donation[]; groups: Group[]; primaryColor: string; campaignSlug: string; onCreateGroup: () => void; activeGroupName?: string | null }) {
   const [tab, setTab] = useState<CommunityTab>('donors')
   const [search, setSearch] = useState('')
   const [sortBy, setSortBy] = useState<SortBy>('recent')
@@ -645,7 +645,25 @@ function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCre
   return (
     <div id="donors">
       <div>
-        <h2 className="text-2xl font-black text-gray-900 mb-6">קהילת התורמים</h2>
+        <h2 className="text-2xl font-black text-gray-900 mb-4">קהילת התורמים</h2>
+
+        {/* מחובר לקבוצה — מציג רק את התורמים שלה, עם אפשרות לראות את כולם */}
+        {activeGroupName && (
+          <div className="flex justify-center mb-6">
+            <div className="inline-flex items-center gap-2 rounded-full pr-3 pl-1.5 py-1.5 text-sm font-semibold"
+              style={{ backgroundColor: `${primaryColor}1A`, color: primaryColor }}>
+              <span>👥 מחובר לקבוצת {activeGroupName}</span>
+              <a
+                href={`/${campaignSlug}`}
+                title="הצג את כל התורמים בקמפיין"
+                aria-label="הצג את כל התורמים בקמפיין"
+                className="w-6 h-6 rounded-full bg-white/70 hover:bg-white flex items-center justify-center text-gray-500 hover:text-gray-800 transition-colors"
+              >
+                <X className="w-3.5 h-3.5" />
+              </a>
+            </div>
+          </div>
+        )}
 
         {/* Tabs */}
         <div className="flex justify-center gap-1 mb-8">
@@ -1314,7 +1332,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
             </div>
             {/* שמאל — תורמים */}
             <div className="flex-1 min-w-0">
-              <CommunitySection donations={activeGroup ? donations.filter(d => d.group_id === activeGroup.id) : donations} groups={groups} primaryColor={primaryColor} campaignSlug={campaign.slug} onCreateGroup={() => setCreateGroupOpen(true)} />
+              <CommunitySection donations={activeGroup ? donations.filter(d => d.group_id === activeGroup.id) : donations} groups={groups} primaryColor={primaryColor} campaignSlug={campaign.slug} onCreateGroup={() => setCreateGroupOpen(true)} activeGroupName={activeGroup?.name} />
             </div>
           </div>
         </div>
