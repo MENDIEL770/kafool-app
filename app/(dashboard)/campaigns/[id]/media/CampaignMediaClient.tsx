@@ -315,6 +315,8 @@ export default function CampaignMediaClient({
   const mobileBannerRef = useRef<HTMLInputElement>(null)
   const [logoUrl, setLogoUrl] = useState<string | null>(initialLogoUrl)
   const [uploadingLogo, setUploadingLogo] = useState(false)
+  const [shareImage, setShareImage] = useState<string | null>((initialSettings.share_image as string) || null)
+  const [uploadingShare, setUploadingShare] = useState(false)
   const [primaryColor, setPrimaryColor] = useState<string>(
     (initialSettings.primary_color as string) || '#2563eb'
   )
@@ -401,6 +403,15 @@ export default function CampaignMediaClient({
     setUploadingLogo(false)
   }
 
+  /* ─── Social share image upload ─── */
+  async function handleShareUpload(file: File) {
+    if (!file.size) { setShareImage(null); return }
+    setUploadingShare(true)
+    const url = await uploadFile(file, `${orgId}/${campaignId}/share-${Date.now()}`)
+    if (url) setShareImage(url)
+    setUploadingShare(false)
+  }
+
   /* ─── Save banner settings ─── */
   async function saveBannerSettings() {
     setSavingBanner(true)
@@ -408,6 +419,7 @@ export default function CampaignMediaClient({
       ...(initialSettings as object),
       banners: banners.map((url, i) => ({ url, sort_order: i })),
       mobile_banners: mobileBanners.map((url, i) => ({ url, sort_order: i })),
+      share_image: shareImage,
       primary_color: primaryColor,
       about_text: aboutText || null,
     }
@@ -665,6 +677,22 @@ export default function CampaignMediaClient({
                 onUpload={handleLogoUpload}
                 uploading={uploadingLogo}
                 aspectClass="aspect-square max-w-[160px]"
+              />
+
+              <UploadZone
+                label="תמונת שיתוף לרשתות"
+                sublabel="התמונה שתוצג כשמשתפים את הקמפיין בוואטסאפ, פייסבוק וכו׳"
+                specs={[
+                  { label: 'מידות מומלצות', value: '1200 × 630 px' },
+                  { label: 'יחס', value: '1.91:1 (לרוחב)' },
+                  { label: 'פורמט', value: 'JPG / PNG' },
+                  { label: 'משקל מקסימלי', value: 'עד 2MB' },
+                ]}
+                hint="💡 שמרו טקסט ופרטים חשובים במרכז. אם לא תעלו תמונה — תיווצר אוטומטית תמונת שיתוף ממותגת."
+                currentUrl={shareImage}
+                onUpload={handleShareUpload}
+                uploading={uploadingShare}
+                aspectClass="aspect-[1200/630]"
               />
             </div>
 

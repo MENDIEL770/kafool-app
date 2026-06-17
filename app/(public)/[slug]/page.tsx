@@ -36,7 +36,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const tagline = (campaign.settings as { tagline?: string } | null)?.tagline
   const description = tagline
     || `תרמו לקמפיין "${campaign.title}" — ₪${(campaign.raised_amount || 0).toLocaleString()} גויסו עד כה`
-  const ogImageUrl = `${BASE_URL}/${slug}/opengraph-image`
+  // Use the manager's uploaded social-share image if set; otherwise the auto-generated one.
+  const customShare = (campaign.settings as { share_image?: string } | null)?.share_image
+  const ogImageUrl = customShare || `${BASE_URL}/${slug}/opengraph-image`
 
   return {
     title,

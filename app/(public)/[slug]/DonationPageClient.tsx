@@ -683,50 +683,52 @@ function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCre
                       key={d.id}
                       className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm hover:shadow-md transition-shadow h-full flex flex-col justify-center"
                     >
-                      <div className="flex items-center gap-4">
+                      <div className="flex items-start gap-3">
                         {/* avatar (rightmost in RTL) */}
                         <div
-                          className="w-12 h-12 rounded-full flex items-center justify-center text-base font-black shrink-0"
+                          className="w-11 h-11 rounded-full flex items-center justify-center text-base font-black shrink-0"
                           style={{ backgroundColor: `${primaryColor}1A`, color: primaryColor }}
                           aria-hidden
                         >
                           {donorInitials(d.donor_name || 'אנונימי')}
                         </div>
 
-                        {/* name + meta */}
                         <div className="flex-1 min-w-0">
+                          {/* שם התורם — שורה משלו */}
                           <div className="font-bold text-base text-gray-900 leading-tight break-words">
                             {d.donor_name || 'אנונימי'}
                           </div>
-                          <div className="text-xs text-gray-400 mt-1">
-                            <span suppressHydrationWarning>{relativeTime(d.created_at)}</span>
+
+                          {/* מימין: לפני כמה זמן · משמאל: הסכום */}
+                          <div className="flex items-center justify-between gap-2 mt-1.5">
+                            <span className="text-xs text-gray-400" suppressHydrationWarning>{relativeTime(d.created_at)}</span>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <span className="text-lg font-black leading-none" style={{ color: primaryColor }}>
+                                ₪{d.amount.toLocaleString()}
+                              </span>
+                              <button
+                                onClick={() => setLiked(s => { const n = new Set(s); n.has(d.id) ? n.delete(d.id) : n.add(d.id); return n })}
+                                aria-label={liked.has(d.id) ? 'הסר לייק' : 'תן לייק'}
+                                aria-pressed={liked.has(d.id)}
+                                className="transition-colors"
+                                style={{ color: liked.has(d.id) ? '#ef4444' : '#d1d5db' }}
+                              >
+                                <Heart className={`w-3.5 h-3.5 ${liked.has(d.id) ? 'fill-red-500' : ''}`} />
+                              </button>
+                            </div>
                           </div>
+
+                          {/* מתחת: דרך איזו קבוצה */}
                           {donorGroup && (
                             <a
                               href={`/${campaignSlug}/g/${donorGroup.slug}`}
-                              className="flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold hover:opacity-80 transition-opacity max-w-full w-fit"
+                              className="flex items-center gap-1 mt-2 px-2 py-0.5 rounded-full text-[11px] font-semibold hover:opacity-80 transition-opacity max-w-full w-fit"
                               style={{ backgroundColor: `${primaryColor}1A`, color: primaryColor }}
                             >
                               <span aria-hidden className="shrink-0">👥</span>
-                              <span className="truncate">{donorGroup.name}</span>
+                              <span className="truncate">דרך {donorGroup.name}</span>
                             </a>
                           )}
-                        </div>
-
-                        {/* amount + like (leftmost in RTL) */}
-                        <div className="shrink-0 flex flex-col items-center gap-1.5">
-                          <div className="text-xl font-black leading-none" style={{ color: primaryColor }}>
-                            ₪{d.amount.toLocaleString()}
-                          </div>
-                          <button
-                            onClick={() => setLiked(s => { const n = new Set(s); n.has(d.id) ? n.delete(d.id) : n.add(d.id); return n })}
-                            aria-label={liked.has(d.id) ? 'הסר לייק' : 'תן לייק'}
-                            aria-pressed={liked.has(d.id)}
-                            className="transition-colors"
-                            style={{ color: liked.has(d.id) ? '#ef4444' : '#d1d5db' }}
-                          >
-                            <Heart className={`w-3.5 h-3.5 ${liked.has(d.id) ? 'fill-red-500' : ''}`} />
-                          </button>
                         </div>
                       </div>
 
@@ -1008,10 +1010,21 @@ function ScrollTopButton() {
     window.addEventListener('scroll', fn, { passive: true })
     return () => window.removeEventListener('scroll', fn)
   }, [])
+  function scrollTop() {
+    // Some in-app webviews (e.g. WhatsApp) ignore the options form of scrollTo,
+    // so feature-detect smooth support and fall back to the reliable two-arg form.
+    if (typeof document !== 'undefined' && 'scrollBehavior' in document.documentElement.style) {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    } else {
+      window.scrollTo(0, 0)
+      document.documentElement.scrollTop = 0
+      document.body.scrollTop = 0
+    }
+  }
   if (!visible) return null
   return (
     <button
-      onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+      onClick={scrollTop}
       aria-label="חזרה לראש הדף"
       className="md:hidden fixed right-4 z-40 w-11 h-11 rounded-full bg-white border border-gray-200 shadow-lg flex items-center justify-center text-gray-600 active:scale-95 transition-transform"
       style={{ bottom: '6rem' }}
