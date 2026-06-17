@@ -177,11 +177,11 @@ export default function GroupPageClient({ org, campaign, group, donations: initi
         {donations.length > 0 && (
           <div className="space-y-3">
             <h2 className="text-lg font-black text-gray-900">תורמי הקבוצה</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 auto-rows-fr">
               {donations.map(d => (
                 <article
                   key={d.id}
-                  className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex gap-3"
+                  className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex gap-3 h-full"
                 >
                   <div
                     className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0"
@@ -191,7 +191,7 @@ export default function GroupPageClient({ org, campaign, group, donations: initi
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
-                      <span className="font-bold text-sm text-gray-800 truncate">{d.donor_name || 'אנונימי'}</span>
+                      <span className="font-bold text-sm text-gray-800 break-words">{d.donor_name || 'אנונימי'}</span>
                       <span className="font-black text-sm shrink-0" style={{ color: primaryColor }}>
                         ₪{d.amount.toLocaleString()}
                       </span>

@@ -674,13 +674,13 @@ function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCre
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 auto-rows-fr">
                   {filtered.slice(0, visible).map(d => {
                     const donorGroup = d.group_id ? groups.find(g => g.id === d.group_id) : null
                     return (
                     <article
                       key={d.id}
-                      className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm hover:shadow-md transition-shadow"
+                      className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm hover:shadow-md transition-shadow h-full flex flex-col justify-center"
                     >
                       <div className="flex items-center gap-4">
                         {/* avatar (rightmost in RTL) */}
@@ -694,7 +694,7 @@ function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCre
 
                         {/* name + meta */}
                         <div className="flex-1 min-w-0">
-                          <div className="font-bold text-base text-gray-900 truncate leading-tight">
+                          <div className="font-bold text-base text-gray-900 leading-tight break-words">
                             {d.donor_name || 'אנונימי'}
                           </div>
                           <div className="text-xs text-gray-400 mt-1 truncate">
