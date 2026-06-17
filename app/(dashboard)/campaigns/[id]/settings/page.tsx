@@ -22,6 +22,7 @@ export default function CampaignSettingsPage() {
     description: '',
     goal_amount: '',
     bonus_goal_amount: '',
+    video_url: '',
     primary_color: '#2563eb',
     about_text: '',
     button_radius: 'pill' as 'pill' | 'rounded' | 'square',
@@ -41,6 +42,7 @@ export default function CampaignSettingsPage() {
           description: data.description || '',
           goal_amount: String(data.goal_amount || ''),
           bonus_goal_amount: String(data.bonus_goal_amount || ''),
+          video_url: data.video_url || '',
           primary_color: data.settings?.primary_color || '#2563eb',
           about_text: data.settings?.about_text || '',
           button_radius: data.settings?.button_radius || 'pill',
@@ -70,6 +72,7 @@ export default function CampaignSettingsPage() {
       description: form.description || null,
       goal_amount: Number(form.goal_amount) || 0,
       bonus_goal_amount: form.bonus_goal_amount ? Number(form.bonus_goal_amount) : null,
+      video_url: form.video_url.trim() || null,
       settings: {
         ...existing?.settings,
         primary_color: form.primary_color,
@@ -130,6 +133,20 @@ export default function CampaignSettingsPage() {
             <div className="space-y-1">
               <Label>טקסט אודות</Label>
               <Textarea value={form.about_text} onChange={(e) => set('about_text', e.target.value)} rows={4} />
+            </div>
+
+            <div className="space-y-1">
+              <Label className="flex items-center gap-2">
+                קישור לסרטון
+                <span className="text-[11px] font-normal text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full">כפתור נגן על הבאנר</span>
+              </Label>
+              <Input
+                value={form.video_url}
+                onChange={(e) => set('video_url', e.target.value)}
+                placeholder="https://youtube.com/watch?v=...  או  https://vimeo.com/..."
+                dir="ltr"
+              />
+              <p className="text-[11px] text-gray-400">הדבק קישור YouTube או Vimeo. יופיע כפתור נגן על באנר הקמפיין, והסרטון ייפתח בחלון. השאר ריק כדי להסתיר.</p>
             </div>
           </CardContent>
         </Card>

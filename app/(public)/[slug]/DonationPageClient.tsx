@@ -638,14 +638,6 @@ function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCre
           ))}
         </div>
 
-        {/* Live indicator */}
-        <div className="flex justify-center mb-6">
-          <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-100 rounded-2xl px-4 py-2">
-            <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-            <span className="text-xs text-emerald-700 font-medium">עדכון בזמן אמת</span>
-          </div>
-        </div>
-
         {/* ── Donors Tab ── */}
         {tab === 'donors' && (
           <div className="space-y-4">
@@ -704,21 +696,18 @@ function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCre
                           <div className="font-bold text-base text-gray-900 leading-tight break-words">
                             {d.donor_name || 'אנונימי'}
                           </div>
-                          <div className="text-xs text-gray-400 mt-1 truncate">
+                          <div className="text-xs text-gray-400 mt-1">
                             <span suppressHydrationWarning>{relativeTime(d.created_at)}</span>
-                            {donorGroup && (
-                              <>
-                                {' · '}
-                                <a
-                                  href={`/${campaignSlug}/g/${donorGroup.slug}`}
-                                  className="font-semibold hover:opacity-80 transition-opacity"
-                                  style={{ color: primaryColor }}
-                                >
-                                  {donorGroup.name}
-                                </a>
-                              </>
-                            )}
                           </div>
+                          {donorGroup && (
+                            <a
+                              href={`/${campaignSlug}/g/${donorGroup.slug}`}
+                              className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold hover:opacity-80 transition-opacity"
+                              style={{ backgroundColor: `${primaryColor}1A`, color: primaryColor }}
+                            >
+                              👥 {donorGroup.name}
+                            </a>
+                          )}
                         </div>
 
                         {/* amount + like (leftmost in RTL) */}
@@ -941,6 +930,27 @@ function FloatingBar({ primaryColor, buttonRadius, onDonate }: { campaign: Campa
   )
 }
 
+// Mobile-only "back to top" arrow, shown after scrolling down. Sits above the floating donate bar.
+function ScrollTopButton() {
+  const [visible, setVisible] = useState(false)
+  useEffect(() => {
+    const fn = () => setVisible(window.scrollY > 600)
+    window.addEventListener('scroll', fn, { passive: true })
+    return () => window.removeEventListener('scroll', fn)
+  }, [])
+  if (!visible) return null
+  return (
+    <button
+      onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+      aria-label="חזרה לראש הדף"
+      className="md:hidden fixed right-4 z-40 w-11 h-11 rounded-full bg-white border border-gray-200 shadow-lg flex items-center justify-center text-gray-600 active:scale-95 transition-transform"
+      style={{ bottom: '6rem' }}
+    >
+      <ChevronDown className="w-5 h-5 rotate-180" />
+    </button>
+  )
+}
+
 /* ─── Main Page ─── */
 export default function DonationPageClient({ org, campaign, donations: initialDonations, groups, gallery, activeGroup, donationUrl = '', paymentUrls }: Props) {
   const [donations, setDonations] = useState<Donation[]>(initialDonations)
@@ -1127,7 +1137,10 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
       )}
 
       <FloatingBar campaign={campaign} primaryColor={primaryColor} buttonRadius={buttonRadius} onDonate={() => openDonate()} />
-      <AccessibilityWidget />
+
+      <ScrollTopButton />
+      {/* מורם מעל פס התרומה הצף בתחתית */}
+      <AccessibilityWidget offsetBottom="6rem" />
 
       <CreateGroupModal
         isOpen={createGroupOpen}

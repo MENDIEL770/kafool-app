@@ -24,7 +24,7 @@ function applyToHtml(state: A11yState) {
   html.classList.toggle('a11y-font', state.readableFont)
 }
 
-export default function AccessibilityWidget() {
+export default function AccessibilityWidget({ offsetBottom = '1rem' }: { offsetBottom?: string }) {
   const [open, setOpen] = useState(false)
   const [state, setState] = useState<A11yState>(DEFAULTS)
   const panelRef = useRef<HTMLDivElement>(null)
@@ -77,7 +77,7 @@ export default function AccessibilityWidget() {
         .a11y-font, .a11y-font * { font-family: Arial, sans-serif !important; }
       `}</style>
 
-      <div ref={panelRef} style={{ position: 'fixed', left: '1rem', bottom: '1rem', zIndex: 9999 }} dir="rtl">
+      <div ref={panelRef} style={{ position: 'fixed', left: '1rem', bottom: offsetBottom, zIndex: 9999 }} dir="rtl">
         {/* Panel */}
         {open && (
           <div
