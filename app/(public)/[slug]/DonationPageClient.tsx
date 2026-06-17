@@ -704,10 +704,11 @@ function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCre
                           {donorGroup && (
                             <a
                               href={`/${campaignSlug}/g/${donorGroup.slug}`}
-                              className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold hover:opacity-80 transition-opacity"
+                              className="flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold hover:opacity-80 transition-opacity max-w-full w-fit"
                               style={{ backgroundColor: `${primaryColor}1A`, color: primaryColor }}
                             >
-                              👥 {donorGroup.name}
+                              <span aria-hidden className="shrink-0">👥</span>
+                              <span className="truncate">{donorGroup.name}</span>
                             </a>
                           )}
                         </div>
@@ -932,6 +933,53 @@ function FloatingBar({ primaryColor, buttonRadius, onDonate }: { campaign: Campa
   )
 }
 
+// Social-proof popups: cycles through the latest donations, 1–3 visible at a time,
+// to make a visitor feel others just donated. Shows the relative time of each.
+function DonationToasts({ donations, primaryColor }: { donations: Donation[]; primaryColor: string }) {
+  const recent = donations.slice(0, 5)
+  const [shown, setShown] = useState<{ key: number; d: Donation }[]>([])
+
+  useEffect(() => {
+    if (recent.length === 0) return
+    let i = 0, key = 0, active = true
+    const removers: ReturnType<typeof setTimeout>[] = []
+    function pushNext() {
+      if (!active) return
+      const d = recent[i % recent.length]; i++
+      const myKey = key++
+      setShown(s => [...s, { key: myKey, d }].slice(-3))
+      removers.push(setTimeout(() => setShown(s => s.filter(x => x.key !== myKey)), 6000))
+    }
+    const start = setTimeout(pushNext, 1500)
+    const iv = setInterval(pushNext, 3800)
+    return () => { active = false; clearTimeout(start); clearInterval(iv); removers.forEach(clearTimeout) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recent.length])
+
+  if (recent.length === 0) return null
+  return (
+    <div className="fixed right-3 bottom-24 sm:bottom-4 z-[45] flex flex-col-reverse gap-2 w-[260px] max-w-[78vw] pointer-events-none" dir="rtl">
+      <style>{`@keyframes kfToastIn{from{opacity:0;transform:translateY(12px) scale(.96)}to{opacity:1;transform:none}}`}</style>
+      {shown.map(({ key, d }) => (
+        <div key={key} className="pointer-events-auto bg-white rounded-2xl shadow-lg border border-gray-100 p-3 flex items-center gap-3"
+          style={{ animation: 'kfToastIn .35s ease-out' }}>
+          <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-black shrink-0"
+            style={{ backgroundColor: `${primaryColor}1A`, color: primaryColor }}>
+            {donorInitials(d.donor_name || 'אנונימי')}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-gray-900 truncate">{d.donor_name || 'אנונימי'}</p>
+            <p className="text-[11px] text-gray-400">
+              תרם/ה ₪{d.amount.toLocaleString()} · <span suppressHydrationWarning>{relativeTime(d.created_at)}</span>
+            </p>
+          </div>
+          <span className="text-base" aria-hidden>🎉</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 // Mobile-only "back to top" arrow, shown after scrolling down. Sits above the floating donate bar.
 function ScrollTopButton() {
   const [visible, setVisible] = useState(false)
@@ -1152,6 +1200,8 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
       <FloatingBar campaign={campaign} primaryColor={primaryColor} buttonRadius={buttonRadius} onDonate={() => openDonate()} />
 
       <ScrollTopButton />
+
+      <DonationToasts donations={donations} primaryColor={primaryColor} />
       {/* מורם מעל פס התרומה הצף בתחתית */}
       <AccessibilityWidget offsetBottom="6rem" />
 
