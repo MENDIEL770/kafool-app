@@ -13,7 +13,7 @@ import Footer from '../_components/Footer'
 interface Org { id: string; name: string; slug: string; logo_url: string | null }
 interface Donation { id: string; donor_name: string | null; amount: number; dedication: string | null; created_at: string; group_id?: string | null }
 interface GalleryItem { id: string; image_url: string; caption: string | null }
-interface ActiveGroup { id: string; name: string; slug: string; goal_amount: number; raised_amount: number; manager_name: string | null }
+interface ActiveGroup { id: string; name: string; slug: string; goal_amount: number; raised_amount: number; manager_name: string | null; donorCount?: number }
 interface PaymentUrls { one_time: string; hok: string; bit: string; bank: string }
 interface Props { org: Org; campaign: Campaign; donations: Donation[]; groups: Group[]; gallery: GalleryItem[]; activeGroup?: ActiveGroup; donationUrl?: string; paymentUrls?: PaymentUrls }
 
@@ -130,7 +130,14 @@ function StickyHeader({ org, campaign, primaryColor, onDonate }: { org: Org; cam
           {logoUrl && (
             <>
               <div className="h-8 w-px bg-gray-200 shrink-0" />
-              <img src={logoUrl} alt={campaign.title} className="h-9 object-contain max-w-[120px]" />
+              <img
+                src={logoUrl}
+                alt={campaign.title}
+                className="h-9 w-auto object-contain max-w-[120px] shrink-0"
+                loading="eager"
+                fetchPriority="high"
+                decoding="sync"
+              />
             </>
           )}
           {tagline && (
@@ -991,8 +998,9 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
     setModalOpen(true)
   }
 
-  // For group view: track group raised amount in realtime
+  // For group view: track group raised amount + donor count in realtime
   const [groupRaised, setGroupRaised] = useState(activeGroup?.raised_amount ?? 0)
+  const [groupDonors, setGroupDonors] = useState(activeGroup?.donorCount ?? 0)
   useEffect(() => {
     if (!activeGroup) return
     const supabase = createClient()
@@ -1001,6 +1009,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'donations', filter: `group_id=eq.${activeGroup.id}` }, (payload) => {
         const d = payload.new as { amount?: number }
         if (d.amount) setGroupRaised(p => p + d.amount!)
+        setGroupDonors(p => p + 1)
       })
       .subscribe()
     return () => { supabase.removeChannel(ch) }
@@ -1027,11 +1036,24 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
             </div>
             <div className="flex items-center gap-4 flex-wrap">
               <div className="flex-1 min-w-0">
-                <p className="text-[11px] font-semibold text-gray-400 mb-0.5">דף התרומה של</p>
-                <h2 className="text-xl font-black text-gray-900 truncate">{activeGroup.name}</h2>
-                {activeGroup.manager_name && (
-                  <p className="text-xs text-gray-400 mt-0.5">מגייס: {activeGroup.manager_name}</p>
-                )}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-semibold text-gray-400 mb-0.5">דף התרומה של</p>
+                    <h2 className="text-xl font-black text-gray-900 break-words leading-tight">{activeGroup.name}</h2>
+                    {activeGroup.manager_name && (
+                      <p className="text-xs text-gray-400 mt-0.5">מגייס: {activeGroup.manager_name}</p>
+                    )}
+                  </div>
+                  {/* חזרה לדף הקמפיין הראשי */}
+                  <a
+                    href={`/${campaign.slug}`}
+                    aria-label="חזרה לדף הקמפיין"
+                    title="חזרה לדף הקמפיין הראשי"
+                    className="shrink-0 -mt-1 w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </a>
+                </div>
               </div>
               <div className="text-center shrink-0">
                 <div className="text-2xl font-black tabular-nums" style={{ color: primaryColor }}>
@@ -1040,7 +1062,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
                 <div className="text-[11px] text-gray-400">מתוך ₪{activeGroup.goal_amount.toLocaleString('he-IL')} יעד</div>
               </div>
               <div className="text-center shrink-0">
-                <div className="text-2xl font-black text-gray-700 tabular-nums">{donations.filter(d => d.group_id === activeGroup.id).length}</div>
+                <div className="text-2xl font-black text-gray-700 tabular-nums">{groupDonors}</div>
                 <div className="text-[11px] text-gray-400">תורמים</div>
               </div>
               <button

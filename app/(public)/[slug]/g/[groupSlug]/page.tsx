@@ -46,6 +46,7 @@ export default async function GroupPage({ params }: { params: Promise<{ slug: st
     { data: donations },
     { data: groups },
     { data: gallery },
+    { count: groupDonorCount },
   ] = await Promise.all([
     supabase
       .from('donations')
@@ -64,6 +65,11 @@ export default async function GroupPage({ params }: { params: Promise<{ slug: st
       .select('id, image_url, caption')
       .eq('campaign_id', campaign.id)
       .order('sort_order'),
+    supabase
+      .from('donations')
+      .select('id', { count: 'exact', head: true })
+      .eq('group_id', group.id)
+      .eq('payment_status', 'completed'),
   ])
 
   const o = org as Record<string, string>
@@ -90,6 +96,7 @@ export default async function GroupPage({ params }: { params: Promise<{ slug: st
         goal_amount: group.goal_amount,
         raised_amount: group.raised_amount,
         manager_name: group.manager_name,
+        donorCount: groupDonorCount ?? 0,
       }}
     />
   )
