@@ -257,7 +257,7 @@ function HeroSection({ campaign, countdown }: {
                 aria-hidden
                 fetchPriority={i === 0 ? 'high' : 'low'}
                 decoding={i === 0 ? 'sync' : 'async'}
-                className="w-full object-cover max-h-[500px] absolute top-0 left-0 transition-opacity duration-700"
+                className="w-full h-auto object-contain absolute top-0 left-0 transition-opacity duration-700"
                 style={{ opacity: i === idx ? 1 : 0, position: i === 0 ? 'relative' : 'absolute' }}
                 loading={i === 0 ? 'eager' : 'lazy'}
               />
