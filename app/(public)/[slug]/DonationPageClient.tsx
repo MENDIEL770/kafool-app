@@ -592,7 +592,7 @@ function ProgressSection({ raised, goal, donorsCount, primaryColor, bricks }: { 
         {bricksTotal > 0 && (
           <div className="pt-4 mt-2 border-t border-gray-200 space-y-3">
             <p className="text-center text-lg md:text-2xl font-black text-gray-800">
-              כבר הונחו <span className="tabular-nums" style={{ color: primaryColor }}>{bricksAchieved.toLocaleString('he-IL')}</span> מתוך {bricksTotal.toLocaleString('he-IL')} {bricksLabel} 🧱
+              כבר גויסו <span className="tabular-nums" style={{ color: primaryColor }}>{bricksAchieved.toLocaleString('he-IL')}</span> {bricksLabel} מתוך {bricksTotal.toLocaleString('he-IL')} {bricksLabel} 🧱
             </p>
             <div className="flex flex-wrap justify-center gap-1 max-w-xl mx-auto">
               {Array.from({ length: bricksTotal }).map((_, i) => {
