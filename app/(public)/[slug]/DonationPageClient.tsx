@@ -368,17 +368,16 @@ function HeroSection({ campaign, countdown }: {
         </div>
 
         {countdown && (
-          <div className="bg-white border-b border-gray-100 py-3 px-4">
-            <div className="max-w-md mx-auto flex items-center justify-center gap-4" dir="rtl">
-              <span className="text-sm text-gray-500 font-medium">נותר:</span>
-              <div className="flex items-center gap-3" dir="ltr">
+          <div className="bg-white border-b border-gray-100 py-4 md:py-5 px-4">
+            <div className="max-w-md mx-auto flex items-center justify-center" dir="ltr">
+              <div className="flex items-center gap-3 md:gap-5">
                 {[{ val: countdown.d, label: 'ימים' }, { val: countdown.h, label: 'שעות' }, { val: countdown.m, label: 'דקות' }, { val: countdown.s, label: 'שניות' }].map((item, i) => (
-                  <div key={item.label} className="flex items-center gap-3">
+                  <div key={item.label} className="flex items-center gap-3 md:gap-5">
                     <div className="text-center">
-                      <div className="text-xl font-black tabular-nums text-gray-800">{String(item.val).padStart(2, '0')}</div>
-                      <div className="text-[9px] text-gray-400 uppercase tracking-wider">{item.label}</div>
+                      <div className="text-3xl md:text-5xl font-black tabular-nums text-gray-800 leading-none">{String(item.val).padStart(2, '0')}</div>
+                      <div className="text-[10px] md:text-xs text-gray-400 tracking-wider mt-1">{item.label}</div>
                     </div>
-                    {i < 3 && <span className="text-gray-300 font-bold">:</span>}
+                    {i < 3 && <span className="text-gray-300 font-bold text-2xl md:text-4xl leading-none">:</span>}
                   </div>
                 ))}
               </div>
@@ -463,7 +462,9 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
                 </div>
                 {/* טקסט מתחת */}
                 <div className="text-center">
-                  <div className="text-xs md:text-sm font-bold text-gray-800">₪{amount.toLocaleString()}</div>
+                  <div className="text-xs md:text-sm font-bold text-gray-800">
+                    ₪{amount.toLocaleString()}{payment_type === 'hok' ? ' לחודש' : ''}
+                  </div>
                   {label && <div className="text-[10px] md:text-[11px] text-gray-400 mt-0.5">{label}</div>}
                 </div>
               </button>

@@ -301,10 +301,18 @@ export default function DonationModal({
                   setStep('payment')
                 }}
                 disabled={!canProceed}
-                className={`w-full py-3.5 font-black text-white text-sm disabled:opacity-40 disabled:cursor-not-allowed transition-all ${buttonRadius}`}
+                className={`w-full py-4 font-black text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all ${buttonRadius}`}
                 style={{ backgroundColor: primaryColor }}
               >
-                המשך לתשלום ₪{finalAmount ? finalAmount.toLocaleString() : ''}
+                {(() => {
+                  const total = paymentMethod === 'hok' ? finalAmount * months : finalAmount
+                  return (
+                    <span className="flex items-center justify-center gap-2">
+                      <span className="text-sm font-bold opacity-90">המשך לתשלום</span>
+                      {total > 0 && <span className="text-xl font-black">₪{total.toLocaleString()}</span>}
+                    </span>
+                  )
+                })()}
               </button>
 
               {!form.anonymous && finalAmount > 0 && !detailsValid && (
