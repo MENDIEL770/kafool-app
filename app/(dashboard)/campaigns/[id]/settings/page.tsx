@@ -16,13 +16,14 @@ export default function CampaignSettingsPage() {
 
   const [loading, setLoading] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [videos, setVideos] = useState<string[]>([])
+  const [mainVideo, setMainVideo] = useState(0)
   const [form, setForm] = useState({
     title: '',
     tagline: '',
     description: '',
     goal_amount: '',
     bonus_goal_amount: '',
-    video_url: '',
     primary_color: '#2563eb',
     about_text: '',
     button_radius: 'pill' as 'pill' | 'rounded' | 'square',
@@ -42,7 +43,6 @@ export default function CampaignSettingsPage() {
           description: data.description || '',
           goal_amount: String(data.goal_amount || ''),
           bonus_goal_amount: String(data.bonus_goal_amount || ''),
-          video_url: data.video_url || '',
           primary_color: data.settings?.primary_color || '#2563eb',
           about_text: data.settings?.about_text || '',
           button_radius: data.settings?.button_radius || 'pill',
@@ -50,10 +50,24 @@ export default function CampaignSettingsPage() {
           whatsapp_phone: data.settings?.whatsapp_phone || '',
           whatsapp_message: data.settings?.whatsapp_message || '',
         })
+        const vids: string[] = data.settings?.videos?.length
+          ? data.settings.videos
+          : (data.video_url ? [data.video_url] : [])
+        setVideos(vids)
+        setMainVideo(Math.max(0, vids.indexOf(data.video_url)))
       }
     }
     load()
   }, [id])
+
+  function setVideoAt(i: number, val: string) {
+    setVideos(v => v.map((x, idx) => (idx === i ? val : x)))
+  }
+  function addVideo() { setVideos(v => [...v, '']) }
+  function removeVideo(i: number) {
+    setVideos(v => v.filter((_, idx) => idx !== i))
+    setMainVideo(m => (i === m ? 0 : i < m ? m - 1 : m))
+  }
 
   function set(key: string, value: string) {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -67,14 +81,22 @@ export default function CampaignSettingsPage() {
     // Preserve existing settings fields we don't edit here
     const { data: existing } = await supabase.from('campaigns').select('settings, video_url').eq('id', id).single()
 
+    // Videos: keep the chosen main first; video_url stays the main (banner + social preview)
+    const mainUrl = (videos[mainVideo] || '').trim()
+    const cleanVideos = videos.map(v => v.trim()).filter(Boolean)
+    const orderedVideos = mainUrl
+      ? [mainUrl, ...cleanVideos.filter(v => v !== mainUrl)]
+      : cleanVideos
+
     await supabase.from('campaigns').update({
       title: form.title,
       description: form.description || null,
       goal_amount: Number(form.goal_amount) || 0,
       bonus_goal_amount: form.bonus_goal_amount ? Number(form.bonus_goal_amount) : null,
-      video_url: form.video_url.trim() || null,
+      video_url: orderedVideos[0] || null,
       settings: {
         ...existing?.settings,
+        videos: orderedVideos,
         primary_color: form.primary_color,
         tagline: form.tagline || null,
         about_text: form.about_text || null,
@@ -135,18 +157,38 @@ export default function CampaignSettingsPage() {
               <Textarea value={form.about_text} onChange={(e) => set('about_text', e.target.value)} rows={4} />
             </div>
 
-            <div className="space-y-1">
+            <div className="space-y-2">
               <Label className="flex items-center gap-2">
-                קישור לסרטון
-                <span className="text-[11px] font-normal text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full">כפתור נגן על הבאנר</span>
+                סרטוני הקמפיין
+                <span className="text-[11px] font-normal text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full">YouTube / Vimeo</span>
               </Label>
-              <Input
-                value={form.video_url}
-                onChange={(e) => set('video_url', e.target.value)}
-                placeholder="https://youtube.com/watch?v=...  או  https://vimeo.com/..."
-                dir="ltr"
-              />
-              <p className="text-[11px] text-gray-400">הדבק קישור YouTube או Vimeo. יופיע כפתור נגן על באנר הקמפיין, והסרטון ייפתח בחלון. השאר ריק כדי להסתיר.</p>
+              <p className="text-[11px] text-gray-400">
+                הוסף קישורי סרטונים. הסרטון המסומן כ<strong>ראשי</strong> מופיע על באנר הקמפיין ובתצוגה לרשתות;
+                כל הסרטונים מוצגים מעל כפתור התרומה ומעל מקטע &quot;אודות&quot;.
+              </p>
+
+              <div className="space-y-2">
+                {videos.map((url, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <label className="flex items-center gap-1 text-[11px] text-gray-500 shrink-0 cursor-pointer" title="קבע כסרטון ראשי">
+                      <input type="radio" name="mainVideo" checked={mainVideo === i} onChange={() => setMainVideo(i)} className="accent-blue-600" />
+                      ראשי
+                    </label>
+                    <Input
+                      value={url}
+                      onChange={(e) => setVideoAt(i, e.target.value)}
+                      placeholder="https://youtube.com/watch?v=...  או  https://vimeo.com/..."
+                      dir="ltr"
+                      className="flex-1"
+                    />
+                    <button type="button" onClick={() => removeVideo(i)} title="הסר"
+                      className="w-9 h-9 rounded-lg text-red-400 hover:bg-red-50 flex items-center justify-center shrink-0">✕</button>
+                  </div>
+                ))}
+              </div>
+
+              <button type="button" onClick={addVideo}
+                className="text-sm font-semibold text-blue-600 hover:text-blue-700">+ הוסף סרטון</button>
             </div>
           </CardContent>
         </Card>

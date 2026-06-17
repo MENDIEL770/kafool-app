@@ -824,12 +824,46 @@ function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCre
   )
 }
 
+// All campaign videos (main first), shown as a thumbnail gallery above the donate button.
+function CampaignVideos({ campaign }: { campaign: Campaign }) {
+  const settings = campaign.settings as { videos?: string[] }
+  const urls = (settings?.videos?.length ? settings.videos : (campaign.video_url ? [campaign.video_url] : []))
+    .map(u => ({ url: u, embed: getVideoEmbed(u), thumb: getYoutubeThumbnail(u) }))
+    .filter(v => v.embed)
+  const [openEmbed, setOpenEmbed] = useState<string | null>(null)
+
+  if (urls.length === 0) return null
+  const single = urls.length === 1
+  return (
+    <section className="py-6 px-4 bg-white border-t border-gray-100">
+      <div className={`max-w-5xl mx-auto grid gap-4 ${single ? 'grid-cols-1 max-w-2xl' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'}`}>
+        {urls.map((v, i) => (
+          <button
+            key={i}
+            onClick={() => setOpenEmbed(v.embed)}
+            className="w-full rounded-2xl overflow-hidden aspect-video shadow-md relative group block cursor-pointer bg-gray-900"
+            aria-label="הפעל וידאו"
+          >
+            {v.thumb && <img src={v.thumb} alt="" className="w-full h-full object-cover" loading="lazy" />}
+            <div className="absolute inset-0 bg-black/25 group-hover:bg-black/35 transition-colors flex items-center justify-center">
+              <div className="w-14 h-14 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow-2xl group-hover:scale-110 transition-transform">
+                <svg className="w-6 h-6 text-gray-900 translate-x-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+              </div>
+            </div>
+            {i === 0 && !single && (
+              <span className="absolute top-2 right-2 bg-white/90 text-gray-800 text-[11px] font-bold px-2 py-0.5 rounded-full">ראשי</span>
+            )}
+          </button>
+        ))}
+      </div>
+      {openEmbed && <VideoModal embedUrl={openEmbed} onClose={() => setOpenEmbed(null)} />}
+    </section>
+  )
+}
+
 function AboutSection({ campaign, gallery }: { campaign: Campaign; gallery: GalleryItem[] }) {
   const settings = campaign.settings as { about_text?: string | null }
   const aboutText = settings?.about_text
-  const videoEmbed = campaign.video_url ? getVideoEmbed(campaign.video_url) : null
-  const videoThumb = campaign.video_url ? getYoutubeThumbnail(campaign.video_url) : null
-  const [videoOpen, setVideoOpen] = useState(false)
   const [idx, setIdx] = useState(0)
 
   useEffect(() => {
@@ -838,30 +872,10 @@ function AboutSection({ campaign, gallery }: { campaign: Campaign; gallery: Gall
     return () => clearInterval(t)
   }, [gallery.length])
 
-  if (!aboutText && !videoEmbed && gallery.length === 0) return null
+  if (!aboutText && gallery.length === 0) return null
 
   return (
     <div className="space-y-6">
-        {videoEmbed && (
-          <button
-            onClick={() => setVideoOpen(true)}
-            className="w-full rounded-3xl overflow-hidden aspect-video shadow-md relative group block cursor-pointer"
-            aria-label="הפעל וידאו"
-          >
-            {videoThumb
-              ? <img src={videoThumb} alt="תמונה מקדימה לוידאו" className="w-full h-full object-cover" />
-              : <div className="w-full h-full bg-gray-900" />
-            }
-            <div className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors flex items-center justify-center">
-              <div className="w-16 h-16 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow-2xl group-hover:scale-110 transition-transform">
-                <svg className="w-7 h-7 text-gray-900 translate-x-0.5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M8 5v14l11-7z"/>
-                </svg>
-              </div>
-            </div>
-          </button>
-        )}
-
       <h2 className="text-2xl font-black text-gray-900">אודות הקמפיין</h2>
 
         {gallery.length > 0 && (
@@ -887,10 +901,6 @@ function AboutSection({ campaign, gallery }: { campaign: Campaign; gallery: Gall
           <div className="prose prose-gray max-w-none">
             <p className="text-gray-600 leading-relaxed whitespace-pre-wrap text-base">{aboutText}</p>
           </div>
-        )}
-
-        {videoOpen && videoEmbed && (
-          <VideoModal embedUrl={videoEmbed} onClose={() => setVideoOpen(false)} />
         )}
     </div>
   )
@@ -1160,6 +1170,9 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
 
       {/* 2. Hero */}
       <HeroSection campaign={campaign} countdown={countdown} />
+
+      {/* סרטוני הקמפיין — מעל כפתור התרומה ומעל "אודות" */}
+      <CampaignVideos campaign={campaign} />
 
       {/* 3. Donation Plans */}
       <DonationPlans plans={donationPlans} primaryColor={primaryColor} campaignSlug={campaign.slug} groups={groups} buttonRadius={buttonRadius} onDonate={openDonate} />
