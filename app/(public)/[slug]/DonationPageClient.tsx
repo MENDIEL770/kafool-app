@@ -588,29 +588,62 @@ function ProgressSection({ raised, goal, donorsCount, primaryColor, bricks }: { 
           </div>
         </div>
 
-        {/* קיר הלבנים — כמה לבנים הושגו מתוך הסך */}
-        {bricksTotal > 0 && (
-          <div className="pt-4 mt-2 border-t border-gray-200 space-y-3">
-            <p className="text-center text-lg md:text-2xl font-black text-gray-800">
-              כבר גויסו <span className="tabular-nums" style={{ color: primaryColor }}>{bricksAchieved.toLocaleString('he-IL')}</span> {bricksLabel} מתוך {bricksTotal.toLocaleString('he-IL')} {bricksLabel} 🧱
-            </p>
-            <div className="flex flex-wrap justify-center gap-1 max-w-xl mx-auto">
-              {Array.from({ length: bricksTotal }).map((_, i) => {
-                const filled = i < bricksAchieved
-                return (
-                  <div
-                    key={i}
-                    title={`לבנה ${i + 1}`}
-                    className="w-6 h-3.5 rounded-[3px] transition-colors"
-                    style={filled
-                      ? { background: 'linear-gradient(135deg,#d8b48a,#b5835a)', border: '1px solid #9c6b41', boxShadow: '0 1px 1px rgba(0,0,0,0.12)' }
-                      : { background: '#e5e7eb', border: '1px solid #e5e7eb' }}
-                  />
-                )
-              })}
+        {/* קיר הלבנים — נבנה מהיסוד כלפי מעלה, שורות בהיסט כמו קיר אמיתי */}
+        {bricksTotal > 0 && (() => {
+          const COLS = 15
+          const rows: boolean[][] = []
+          for (let i = 0; i < bricksTotal; i += COLS) {
+            rows.push(Array.from({ length: Math.min(COLS, bricksTotal - i) }, (_, c) => (i + c) < bricksAchieved))
+          }
+          const pct = Math.round((bricksAchieved / bricksTotal) * 100)
+          return (
+            <div className="pt-5 mt-3 border-t border-gray-200 space-y-3">
+              <style>{`@keyframes brickGlow{0%,100%{box-shadow:inset 0 1px 0 rgba(255,255,255,.4),0 0 0 0 rgba(180,90,40,.5)}50%{box-shadow:inset 0 1px 0 rgba(255,255,255,.4),0 0 0 5px rgba(180,90,40,0)}}`}</style>
+
+              <div className="text-center">
+                <p className="text-xl md:text-2xl font-black text-gray-800">
+                  כבר גויסו <span className="tabular-nums" style={{ color: primaryColor }}>{bricksAchieved.toLocaleString('he-IL')}</span> {bricksLabel} מתוך {bricksTotal.toLocaleString('he-IL')} {bricksLabel}
+                </p>
+                {bricks?.price ? (
+                  <p className="text-xs text-gray-400 mt-0.5">כל לבנה = ₪{bricks.price.toLocaleString('he-IL')} · {pct}% מהבית נבנה 🏠</p>
+                ) : null}
+              </div>
+
+              {/* הקיר */}
+              <div className="relative mx-auto max-w-md overflow-hidden rounded-2xl border border-amber-100 px-3 pt-5 pb-3"
+                style={{ background: 'linear-gradient(180deg,#eef6ff 0%,#fdfaf5 60%,#f3ead9 100%)' }}
+                role="img" aria-label={`${bricksAchieved} מתוך ${bricksTotal} לבנים`}>
+                <div className="flex flex-col-reverse gap-[3px]">
+                  {rows.map((row, r) => (
+                    <div key={r} className="flex justify-center gap-[3px]" style={{ transform: r % 2 ? 'translateX(11px)' : 'none' }}>
+                      {row.map((filled, c) => {
+                        const idx = r * COLS + c
+                        const isLatest = filled && idx === bricksAchieved - 1
+                        return (
+                          <span
+                            key={c}
+                            className="w-[18px] h-[11px] sm:w-[26px] sm:h-[14px] rounded-[2px] shrink-0"
+                            style={filled
+                              ? {
+                                  background: 'linear-gradient(180deg,#d07f46 0%,#bd6c34 55%,#a2592b 100%)',
+                                  boxShadow: isLatest
+                                    ? 'inset 0 1px 0 rgba(255,255,255,.4)'
+                                    : 'inset 0 1px 0 rgba(255,255,255,.35), inset 0 -2px 2px rgba(0,0,0,.18), 0 1px 1px rgba(0,0,0,.12)',
+                                  animation: isLatest ? 'brickGlow 1.8s ease-in-out infinite' : undefined,
+                                }
+                              : { background: 'rgba(120,90,60,.08)', boxShadow: 'inset 0 0 0 1px rgba(120,90,60,.07)' }}
+                          />
+                        )
+                      })}
+                    </div>
+                  ))}
+                </div>
+                {/* קו קרקע */}
+                <div className="mt-1 h-1 rounded-full bg-gradient-to-b from-stone-300 to-stone-400/70" />
+              </div>
             </div>
-          </div>
-        )}
+          )
+        })()}
 
       </div>
     </section>
