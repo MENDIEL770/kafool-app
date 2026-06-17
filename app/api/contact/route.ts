@@ -45,11 +45,11 @@ export async function POST(request: Request) {
 
     if (error) {
       console.error('contact insert error:', error)
-      // TODO: temporary — surface the real DB error to diagnose the save failure
-      return NextResponse.json({ error: `שגיאה בשמירת הפנייה [${error.code || ''}]: ${error.message}` }, { status: 500 })
+      return NextResponse.json({ error: 'שגיאה בשמירת הפנייה' }, { status: 500 })
     }
 
-    // Notify the admin by SMS with the lead details + WhatsApp link (fire & forget)
+    // Notify the admin by SMS with the lead details + WhatsApp link.
+    // IMPORTANT: await it — un-awaited work gets dropped when the serverless fn returns.
     const apiKey = process.env.YEMOT_API_KEY
     if (apiKey) {
       const wa = waLink(phone)
@@ -62,7 +62,12 @@ export async function POST(request: Request) {
         `הודעה: ${message}`,
         wa ? `ווטסאפ: ${wa}` : null,
       ].filter(Boolean).join('\n')
-      sendYemotSms(apiKey, LEADS_NOTIFY_PHONE, sms).catch(e => console.error('lead SMS failed:', e))
+      try {
+        const r = await sendYemotSms(apiKey, LEADS_NOTIFY_PHONE, sms)
+        if (!r.success) console.error('lead SMS failed:', r.error)
+      } catch (e) {
+        console.error('lead SMS threw:', e)
+      }
     }
 
     return NextResponse.json({ ok: true })
