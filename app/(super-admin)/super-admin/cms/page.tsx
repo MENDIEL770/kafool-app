@@ -49,6 +49,20 @@ export default async function CmsPage() {
     contactSettings = null
   }
 
+  // Fetch nav visibility
+  let hiddenPages: string[] = []
+  try {
+    const { data } = await supabase
+      .from('page_content')
+      .select('value')
+      .eq('page', 'settings')
+      .eq('key', 'hidden_nav_pages')
+      .single()
+    if (data?.value) hiddenPages = JSON.parse(data.value)
+  } catch {
+    hiddenPages = []
+  }
+
   // Fetch contact_submissions
   let submissions: Submission[] = []
   try {
@@ -67,6 +81,7 @@ export default async function CmsPage() {
       faqItems={faqItems}
       contactSettings={contactSettings}
       submissions={submissions}
+      hiddenPages={hiddenPages}
     />
   )
 }

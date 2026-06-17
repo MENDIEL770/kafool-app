@@ -25,13 +25,14 @@ export interface ContactSettingsData {
 }
 
 interface Props {
+  hiddenPages: string[]
   aboutContent: PageContentRow[]
   faqItems: FaqItem[]
   contactSettings: ContactSettingsData | null
   submissions: Submission[]
 }
 
-type Tab = 'about' | 'faq' | 'contact' | 'submissions'
+type Tab = 'about' | 'faq' | 'contact' | 'submissions' | 'nav'
 
 const ABOUT_KEYS: { key: string; label: string; multiline?: boolean }[] = [
   { key: 'hero_title', label: 'כותרת ראשית' },
@@ -49,7 +50,7 @@ const ABOUT_KEYS: { key: string; label: string; multiline?: boolean }[] = [
   { key: 'cta_text', label: 'טקסט CTA' },
 ]
 
-export default function CmsClient({ aboutContent, faqItems: initialFaq, contactSettings: initialContact, submissions: initialSubmissions }: Props) {
+export default function CmsClient({ aboutContent, faqItems: initialFaq, contactSettings: initialContact, submissions: initialSubmissions, hiddenPages: initialHiddenPages }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('about')
 
   // About state
@@ -78,6 +79,34 @@ export default function CmsClient({ aboutContent, faqItems: initialFaq, contactS
   // Submissions state
   const [submissions, setSubmissions] = useState<Submission[]>(initialSubmissions)
   const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null)
+
+  // Nav visibility state
+  const [hiddenPages, setHiddenPages] = useState<string[]>(initialHiddenPages)
+  const [navSaving, setNavSaving] = useState(false)
+  const [navMsg, setNavMsg] = useState<string | null>(null)
+
+  async function saveNavVisibility() {
+    setNavSaving(true)
+    setNavMsg(null)
+    try {
+      const res = await fetch('/api/super-admin/cms/content', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify([{ page: 'settings', key: 'hidden_nav_pages', value: JSON.stringify(hiddenPages) }]),
+      })
+      if (!res.ok) throw new Error('error')
+      setNavMsg('נשמר בהצלחה!')
+    } catch {
+      setNavMsg('שגיאה בשמירה')
+    } finally {
+      setNavSaving(false)
+      setTimeout(() => setNavMsg(null), 3000)
+    }
+  }
+
+  function togglePageVisibility(key: string) {
+    setHiddenPages(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key])
+  }
 
   // ---- About handlers ----
   async function saveAbout() {
@@ -223,6 +252,7 @@ export default function CmsClient({ aboutContent, faqItems: initialFaq, contactS
     { key: 'faq', label: 'שאלות ותשובות' },
     { key: 'contact', label: 'צור קשר' },
     { key: 'submissions', label: 'פניות' },
+    { key: 'nav', label: 'ניווט' },
   ]
 
   return (
@@ -516,6 +546,55 @@ export default function CmsClient({ aboutContent, faqItems: initialFaq, contactS
           </div>
         )}
       </div>
+
+
+        {/* Nav visibility tab */}
+        {activeTab === 'nav' && (
+          <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+            <h2 className="text-lg font-black text-gray-900 mb-2">נראות עמודים בתפריט</h2>
+            <p className="text-sm text-gray-500 mb-6">בחרו אילו עמודים יופיעו בתפריט הניווט הציבורי</p>
+            <div className="space-y-4">
+              {[
+                { key: 'about', label: 'אודות' },
+                { key: 'design', label: 'העיצובים שלנו' },
+                { key: 'faq', label: 'שאלות ותשובות' },
+                { key: 'contact', label: 'צור קשר' },
+              ].map(({ key, label }) => {
+                const isHidden = hiddenPages.includes(key)
+                return (
+                  <div key={key} className="flex items-center justify-between p-4 rounded-2xl border border-gray-200 hover:border-gray-300 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <span className="font-bold text-gray-900 text-sm">{label}</span>
+                      <span className="text-xs text-gray-400">/{key === 'design' ? 'design' : key}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => togglePageVisibility(key)}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                        !isHidden ? 'bg-blue-600' : 'bg-gray-300'
+                      }`}
+                    >
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                        !isHidden ? 'translate-x-6' : 'translate-x-1'
+                      }`} />
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+            <div className="mt-6 flex items-center gap-4">
+              <button
+                onClick={saveNavVisibility}
+                disabled={navSaving}
+                className="flex items-center gap-2 bg-blue-600 text-white font-bold px-6 py-3 rounded-2xl hover:bg-blue-700 transition-colors disabled:opacity-50"
+              >
+                <Save className="w-4 h-4" />
+                {navSaving ? 'שומר...' : 'שמור'}
+              </button>
+              {navMsg && <span className="text-sm text-green-600 font-medium">{navMsg}</span>}
+            </div>
+          </div>
+        )}
 
       {selectedSubmission && (
         <SubmissionModal

@@ -19,61 +19,40 @@ function KafoolLogo() {
       aria-label="Kafool"
     >
       <defs>
-        <path
-          id="mh0"
-          d="M 68.578125 -71.953125 L 49.890625 -71.953125 L 24.34375 -40.453125 L 29.421875 -71.953125 L 13.8125 -71.953125 L 2.28125 0 L 17.890625 0 L 22.65625 -29.921875 L 40.453125 0 L 58.84375 0 L 37.875 -35.390625 Z"
-        />
-        <path
-          id="mh1"
-          d="M 49.890625 0 L 66.59375 0 L 51.78125 -71.953125 L 34.1875 -71.953125 L -3.671875 0 L 12.828125 0 L 20.171875 -14.515625 L 47.203125 -14.515625 Z M 26.828125 -27.828125 L 39.859375 -53.578125 L 44.625 -27.828125 Z"
-        />
-        <path
-          id="mh2"
-          d="M 2.28125 0 L 17.796875 0 L 22.265625 -28.03125 L 43.03125 -28.03125 L 45.21875 -42.046875 L 24.453125 -42.046875 L 26.9375 -57.546875 L 49.59375 -57.546875 L 51.875 -71.953125 L 13.609375 -71.953125 Z"
-        />
-        <path
-          id="mh3"
-          d="M 2.28125 0 L 40.15625 0 L 42.4375 -14.40625 L 20.171875 -14.40625 L 29.421875 -71.953125 L 13.8125 -71.953125 Z"
-        />
+        <path id="mh0" d="M 68.578125 -71.953125 L 49.890625 -71.953125 L 24.34375 -40.453125 L 29.421875 -71.953125 L 13.8125 -71.953125 L 2.28125 0 L 17.890625 0 L 22.65625 -29.921875 L 40.453125 0 L 58.84375 0 L 37.875 -35.390625 Z" />
+        <path id="mh1" d="M 49.890625 0 L 66.59375 0 L 51.78125 -71.953125 L 34.1875 -71.953125 L -3.671875 0 L 12.828125 0 L 20.171875 -14.515625 L 47.203125 -14.515625 Z M 26.828125 -27.828125 L 39.859375 -53.578125 L 44.625 -27.828125 Z" />
+        <path id="mh2" d="M 2.28125 0 L 17.796875 0 L 22.265625 -28.03125 L 43.03125 -28.03125 L 45.21875 -42.046875 L 24.453125 -42.046875 L 26.9375 -57.546875 L 49.59375 -57.546875 L 51.875 -71.953125 L 13.609375 -71.953125 Z" />
+        <path id="mh3" d="M 2.28125 0 L 40.15625 0 L 42.4375 -14.40625 L 20.171875 -14.40625 L 29.421875 -71.953125 L 13.8125 -71.953125 Z" />
       </defs>
       <path fill="rgb(94.5%,36.9%,30.2%)" d={sp} />
-      <g fill="rgb(25.1%,42%,70.6%)">
-        <use xlinkHref="#mh3" x="421.282518" y="326.941531" />
-      </g>
-      <g fill="rgb(25.1%,42%,70.6%)">
-        <use xlinkHref="#mh2" x="226.182145" y="326.941531" />
-      </g>
-      <g fill="rgb(25.1%,42%,70.6%)">
-        <use xlinkHref="#mh1" x="154.914132" y="326.941531" />
-      </g>
-      <g fill="rgb(25.1%,42%,70.6%)">
-        <use xlinkHref="#mh0" x="93.088881" y="326.941531" />
-      </g>
+      <g fill="rgb(25.1%,42%,70.6%)"><use xlinkHref="#mh3" x="421.282518" y="326.941531" /></g>
+      <g fill="rgb(25.1%,42%,70.6%)"><use xlinkHref="#mh2" x="226.182145" y="326.941531" /></g>
+      <g fill="rgb(25.1%,42%,70.6%)"><use xlinkHref="#mh1" x="154.914132" y="326.941531" /></g>
+      <g fill="rgb(25.1%,42%,70.6%)"><use xlinkHref="#mh0" x="93.088881" y="326.941531" /></g>
     </svg>
   )
 }
 
-const navLinks = [
-  { label: 'אודות', href: '/about' },
-  { label: 'העיצובים שלנו', href: '/design' },
-  { label: 'שאלות ותשובות', href: '/faq' },
-  { label: 'אני רוצה דף גיוס', href: '/contact' },
+const ALL_NAV_LINKS = [
+  { label: 'אודות', href: '/about', key: 'about' },
+  { label: 'העיצובים שלנו', href: '/design', key: 'design' },
+  { label: 'שאלות ותשובות', href: '/faq', key: 'faq' },
+  { label: 'צור קשר', href: '/contact', key: 'contact' },
 ]
 
-export default function MarketingHeader() {
+export default function MarketingHeader({ hiddenPages = [] }: { hiddenPages?: string[] }) {
   const pathname = usePathname()
   const [menuOpen, setMenuOpen] = useState(false)
+  const navLinks = ALL_NAV_LINKS.filter(l => !hiddenPages.includes(l.key))
 
   return (
     <>
     <header className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm" dir="rtl">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-        {/* Logo */}
         <Link href="/" className="flex items-center shrink-0">
           <KafoolLogo />
         </Link>
 
-        {/* Desktop nav */}
         <nav className="hidden md:flex items-center gap-6">
           {navLinks.map((link) => {
             const isActive = pathname === link.href
@@ -93,7 +72,6 @@ export default function MarketingHeader() {
           })}
         </nav>
 
-        {/* CTA */}
         <div className="hidden md:flex items-center">
           <Link
             href="/dashboard"
@@ -103,7 +81,6 @@ export default function MarketingHeader() {
           </Link>
         </div>
 
-        {/* Mobile hamburger */}
         <button
           className="md:hidden p-2 text-gray-600 hover:text-gray-900"
           onClick={() => setMenuOpen((v) => !v)}
@@ -113,7 +90,6 @@ export default function MarketingHeader() {
         </button>
       </div>
 
-      {/* Mobile menu */}
       {menuOpen && (
         <div className="md:hidden bg-white border-t border-gray-100 px-4 py-4 space-y-3" dir="rtl">
           {navLinks.map((link) => {
