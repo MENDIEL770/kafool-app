@@ -165,7 +165,7 @@ export default function DonationModal({
           {/* Step: Amount (if no preset) */}
           {step === 'details' && !presetAmount && amount === 0 && (
             <div className="px-5 py-4 border-b border-gray-100">
-              <label className="text-xs font-medium text-gray-500 block mb-2">סכום תרומה</label>
+              <label className="text-xs font-medium text-gray-500 block mb-2">סכום התרומה</label>
               <input
                 type="number"
                 value={customAmount}
@@ -182,6 +182,51 @@ export default function DonationModal({
           {/* Step: Details */}
           {step === 'details' && (
             <div className="px-5 py-4 space-y-4">
+
+              {/* אמצעי תשלום — מתחת לשדה סכום התרומה */}
+              {hasMultipleMethods && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-gray-500">אמצעי תשלום</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {availableMethods.map(m => (
+                      <button
+                        key={m.key}
+                        type="button"
+                        onClick={() => setPaymentMethod(m.key)}
+                        className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 text-sm font-medium transition-all ${
+                          paymentMethod === m.key
+                            ? 'border-current text-current'
+                            : 'border-gray-200 text-gray-500 hover:border-gray-300'
+                        }`}
+                        style={paymentMethod === m.key ? { borderColor: primaryColor, color: primaryColor, backgroundColor: `${primaryColor}10` } : {}}
+                      >
+                        <m.Icon className="w-4 h-4 shrink-0" />
+                        {m.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* standing-order duration — chosen in the form, sent to Kesher */}
+              {paymentMethod === 'hok' && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-gray-500">מספר חודשי הוראת הקבע</label>
+                  <select
+                    value={months}
+                    onChange={e => setMonths(Number(e.target.value))}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+                  >
+                    {[6, 12, 18, 24, 36, 48, 60].map(m => <option key={m} value={m}>{m} חודשים</option>)}
+                  </select>
+                  {finalAmount > 0 && months > 0 && (
+                    <p className="text-xs text-gray-600 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2 text-center">
+                      ₪{finalAmount.toLocaleString()} לחודש × {months} חודשים = <strong className="text-gray-900">₪{(finalAmount * months).toLocaleString()}</strong> בסך הכל
+                    </p>
+                  )}
+                </div>
+              )}
+
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
@@ -246,47 +291,9 @@ export default function DonationModal({
                 </div>
               )}
 
-              {hasMultipleMethods && (
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-gray-500">אמצעי תשלום</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {availableMethods.map(m => (
-                      <button
-                        key={m.key}
-                        type="button"
-                        onClick={() => setPaymentMethod(m.key)}
-                        className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 text-sm font-medium transition-all ${
-                          paymentMethod === m.key
-                            ? 'border-current text-current'
-                            : 'border-gray-200 text-gray-500 hover:border-gray-300'
-                        }`}
-                        style={paymentMethod === m.key ? { borderColor: primaryColor, color: primaryColor, backgroundColor: `${primaryColor}10` } : {}}
-                      >
-                        <m.Icon className="w-4 h-4 shrink-0" />
-                        {m.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* standing-order duration — chosen in the form, sent to Kesher */}
+              {/* בולט מודגש לפני התשלום */}
               {paymentMethod === 'hok' && (
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-gray-500">מספר חודשי הוראת הקבע</label>
-                  <select
-                    value={months}
-                    onChange={e => setMonths(Number(e.target.value))}
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-400 bg-white"
-                  >
-                    {[6, 12, 18, 24, 36, 48, 60].map(m => <option key={m} value={m}>{m} חודשים</option>)}
-                  </select>
-                  {finalAmount > 0 && months > 0 && (
-                    <p className="text-xs text-gray-600 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2 text-center">
-                      ₪{finalAmount.toLocaleString()} לחודש × {months} חודשים = <strong className="text-gray-900">₪{(finalAmount * months).toLocaleString()}</strong> בסך הכל
-                    </p>
-                  )}
-                </div>
+                <p className="text-sm font-bold text-center text-gray-800">* לא תופס את מסגרת האשראי</p>
               )}
 
               <button

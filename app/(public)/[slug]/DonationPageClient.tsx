@@ -1035,32 +1035,29 @@ function DonationToasts({ donations, groups, primaryColor }: { donations: Donati
   )
 }
 
-// Mobile-only "back to top" arrow, shown after scrolling down. Sits above the floating donate bar.
+// "Back to top" arrow, shown after a little scroll. Sits above the floating donate bar.
 function ScrollTopButton() {
   const [visible, setVisible] = useState(false)
   useEffect(() => {
-    const fn = () => setVisible((window.scrollY || document.documentElement.scrollTop) > 250)
+    const fn = () => setVisible((window.scrollY || document.documentElement.scrollTop || document.body.scrollTop) > 200)
     window.addEventListener('scroll', fn, { passive: true })
+    window.addEventListener('resize', fn)
     fn()
-    return () => window.removeEventListener('scroll', fn)
+    return () => { window.removeEventListener('scroll', fn); window.removeEventListener('resize', fn) }
   }, [])
   function scrollTop() {
-    // Some in-app webviews (e.g. WhatsApp) ignore the options form of scrollTo,
-    // so feature-detect smooth support and fall back to the reliable two-arg form.
-    if (typeof document !== 'undefined' && 'scrollBehavior' in document.documentElement.style) {
-      window.scrollTo({ top: 0, behavior: 'smooth' })
-    } else {
-      window.scrollTo(0, 0)
-      document.documentElement.scrollTop = 0
-      document.body.scrollTop = 0
-    }
+    // Reliable everywhere (incl. in-app webviews): set scrollTop on every scroller, then animate.
+    window.scrollTo(0, 0)
+    document.documentElement.scrollTop = 0
+    document.body.scrollTop = 0
+    try { window.scrollTo({ top: 0, behavior: 'smooth' }) } catch { /* older webviews */ }
   }
   if (!visible) return null
   return (
     <button
       onClick={scrollTop}
       aria-label="חזרה לראש הדף"
-      className="md:hidden fixed right-4 z-[55] w-11 h-11 rounded-full bg-white border border-gray-200 shadow-lg flex items-center justify-center text-gray-600 active:scale-95 transition-transform"
+      className="fixed right-4 z-[55] w-11 h-11 rounded-full bg-white border border-gray-200 shadow-lg flex items-center justify-center text-gray-600 active:scale-95 transition-transform"
       style={{ bottom: '6rem' }}
     >
       <ChevronDown className="w-5 h-5 rotate-180" />
