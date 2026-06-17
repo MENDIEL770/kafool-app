@@ -19,6 +19,8 @@ export default function KesherSettingsPage() {
   const [copied, setCopied] = useState(false)
   const [orgId, setOrgId] = useState<string | null>(null)
   const [webhookUrl, setWebhookUrl] = useState('')
+  const [provider, setProvider] = useState<'kesher' | 'nedarim'>('kesher')
+  const [nedarim, setNedarim] = useState({ mosad: '', apiValid: '' })
   const [urls, setUrls] = useState<Record<PaymentKey, string>>({
     kesher_page_url: '',
     kesher_url_hok: '',
@@ -40,16 +42,19 @@ export default function KesherSettingsPage() {
 
       const { data: org } = await supabase
         .from('organizations')
-        .select('kesher_page_url, kesher_url_hok, kesher_url_bit, kesher_url_bank')
+        .select('kesher_page_url, kesher_url_hok, kesher_url_bit, kesher_url_bank, payment_provider, nedarim_mosad, nedarim_api_valid')
         .eq('id', profile.org_id)
         .single()
 
       if (org) {
+        const o = org as Record<string, string>
+        setProvider((o.payment_provider as 'kesher' | 'nedarim') || 'kesher')
+        setNedarim({ mosad: o.nedarim_mosad || '', apiValid: o.nedarim_api_valid || '' })
         setUrls({
-          kesher_page_url: (org as Record<string, string>).kesher_page_url || '',
-          kesher_url_hok:  (org as Record<string, string>).kesher_url_hok  || '',
-          kesher_url_bit:  (org as Record<string, string>).kesher_url_bit  || '',
-          kesher_url_bank: (org as Record<string, string>).kesher_url_bank || '',
+          kesher_page_url: o.kesher_page_url || '',
+          kesher_url_hok:  o.kesher_url_hok  || '',
+          kesher_url_bit:  o.kesher_url_bit  || '',
+          kesher_url_bank: o.kesher_url_bank || '',
         })
       }
     }
@@ -62,10 +67,14 @@ export default function KesherSettingsPage() {
     setLoading(true)
     const supabase = createClient()
     await supabase.from('organizations').update({
+      payment_provider: provider,
       kesher_page_url: urls.kesher_page_url || null,
       kesher_url_hok:  urls.kesher_url_hok  || null,
       kesher_url_bit:  urls.kesher_url_bit  || null,
       kesher_url_bank: urls.kesher_url_bank || null,
+      nedarim_mosad:     nedarim.mosad.trim() || null,
+      nedarim_api_valid: nedarim.apiValid.trim() || null,
+      nedarim_active:    provider === 'nedarim',
     }).eq('id', orgId)
     setLoading(false)
     setSaved(true)
@@ -78,14 +87,33 @@ export default function KesherSettingsPage() {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  const isConnected = !!urls.kesher_page_url
+  const isConnected = provider === 'kesher' ? !!urls.kesher_page_url : (!!nedarim.mosad && !!nedarim.apiValid)
 
   return (
     <div className="max-w-2xl mx-auto space-y-6" dir="rtl">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">חיבור קשר</h1>
-        <p className="text-sm text-gray-400 mt-1">הגדר את קישורי התשלום פעם אחת — קשר יעבד את התרומות ישירות לחשבון שלך</p>
+        <h1 className="text-2xl font-bold text-gray-900">חיבור לתשלום</h1>
+        <p className="text-sm text-gray-400 mt-1">בחר את ספק הסליקה שלך והגדר אותו פעם אחת — התרומות יעובדו אוטומטית לחשבון שלך</p>
+      </div>
+
+      {/* בחירת ספק סליקה */}
+      <div className="space-y-2">
+        <label className="text-sm font-semibold text-gray-700">ספק הסליקה</label>
+        <div className="grid grid-cols-2 gap-3 max-w-sm">
+          {([['kesher', 'קשר'], ['nedarim', 'נדרים פלוס']] as const).map(([val, label]) => (
+            <button
+              key={val}
+              type="button"
+              onClick={() => setProvider(val)}
+              className={`py-3 rounded-2xl border-2 font-bold text-sm transition-all ${
+                provider === val ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Status pill */}
@@ -95,10 +123,11 @@ export default function KesherSettingsPage() {
           : 'bg-amber-50 border-amber-100 text-amber-700'
       }`}>
         <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-amber-400'}`} />
-        {isConnected ? 'מחובר לקשר' : 'לא מוגדר עדיין'}
+        {isConnected ? `מחובר ל${provider === 'kesher' ? 'קשר' : 'נדרים פלוס'}` : 'לא מוגדר עדיין'}
       </div>
 
-      {/* Webhook card */}
+      {/* Webhook card — קשר בלבד */}
+      {provider === 'kesher' && (
       <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 space-y-3">
         <div className="flex items-center gap-2">
           <Info className="w-4 h-4 text-blue-500 shrink-0" />
@@ -120,9 +149,12 @@ export default function KesherSettingsPage() {
           </button>
         </div>
       </div>
+      )}
 
-      {/* Payment URLs form */}
+      {/* Payment form */}
       <form onSubmit={handleSave} className="space-y-5">
+        {/* ─── קשר: קישורי תשלום ─── */}
+        {provider === 'kesher' && (
         <div className="bg-white border border-gray-100 rounded-2xl p-6 space-y-5 shadow-sm">
           <div>
             <h2 className="font-bold text-gray-800">קישורי תשלום</h2>
@@ -159,10 +191,43 @@ export default function KesherSettingsPage() {
             ))}
           </div>
         </div>
+        )}
+
+        {/* ─── נדרים פלוס: פרטי מוסד ─── */}
+        {provider === 'nedarim' && (
+        <div className="bg-white border border-gray-100 rounded-2xl p-6 space-y-5 shadow-sm">
+          <div>
+            <h2 className="font-bold text-gray-800">פרטי נדרים פלוס</h2>
+            <p className="text-xs text-gray-400 mt-1">הזן את מזהה המוסד וקוד האימות שקיבלת מנדרים פלוס. דף הסליקה ייטען מאובטח בתוך האתר.</p>
+          </div>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-gray-700">מזהה מוסד (Mosad) <span className="text-red-400 text-xs">חובה</span></label>
+              <p className="text-[11px] text-gray-400">7 ספרות — מזהה המוסד שלך בנדרים פלוס</p>
+              <input
+                value={nedarim.mosad}
+                onChange={e => setNedarim(p => ({ ...p, mosad: e.target.value.replace(/\D/g, '').slice(0, 7) }))}
+                dir="ltr" placeholder="1234567"
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-mono outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition placeholder:text-gray-300"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-gray-700">קוד אימות (ApiValid) <span className="text-red-400 text-xs">חובה</span></label>
+              <p className="text-[11px] text-gray-400">קוד האימות שמקבלים מנדרים פלוס (בפנייה לשירות הלקוחות ממייל מורשה)</p>
+              <input
+                value={nedarim.apiValid}
+                onChange={e => setNedarim(p => ({ ...p, apiValid: e.target.value.trim() }))}
+                dir="ltr" placeholder="••••••••••"
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-mono outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition placeholder:text-gray-300"
+              />
+            </div>
+          </div>
+        </div>
+        )}
 
         <button
           type="submit"
-          disabled={loading || !urls.kesher_page_url}
+          disabled={loading || !isConnected}
           className="w-full py-3 rounded-2xl font-bold text-white text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50"
           style={{ background: 'linear-gradient(135deg, #2563eb, #1d4ed8)' }}
         >
