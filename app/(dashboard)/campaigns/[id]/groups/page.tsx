@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { ExternalLink, Pencil, MessageSquare, Send, X, Check, Loader2, ChevronDown, ChevronUp } from 'lucide-react'
+import { ExternalLink, Pencil, MessageSquare, Send, X, Check, Loader2, ChevronDown, ChevronUp, Trash2, AlertTriangle } from 'lucide-react'
 import type { Group } from '@/types'
 
 interface CampaignInfo { slug: string; campaign_slug: string }
@@ -104,6 +104,77 @@ function EditModal({ group, onClose, onSaved }: { group: Group; onClose: () => v
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  )
+}
+
+// ─── Delete Modal ───────────────────────────────────────────────────────────────
+function DeleteModal({ group, onClose, onDeleted }: { group: Group; onClose: () => void; onDeleted: () => void }) {
+  const [donationCount, setDonationCount] = useState<number | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.from('donations').select('id', { count: 'exact', head: true }).eq('group_id', group.id)
+      .then(({ count }) => setDonationCount(count ?? 0))
+  }, [group.id])
+
+  async function handleDelete() {
+    setError('')
+    setDeleting(true)
+    const supabase = createClient()
+    const { error } = await supabase.from('groups').delete().eq('id', group.id)
+    setDeleting(false)
+    if (error) { setError(error.message); return }
+    onDeleted()
+    onClose()
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6" onClick={e => e.stopPropagation()} dir="rtl">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center shrink-0">
+            <AlertTriangle className="w-5 h-5 text-red-600" />
+          </div>
+          <h2 className="font-bold text-gray-900 text-lg">מחיקת קבוצה</h2>
+        </div>
+
+        <p className="text-sm text-gray-600 leading-relaxed">
+          האם למחוק את הקבוצה <span className="font-semibold text-gray-900">"{group.name}"</span>? פעולה זו אינה הפיכה.
+        </p>
+
+        {donationCount === null ? (
+          <div className="mt-3 flex items-center gap-2 text-xs text-gray-400">
+            <Loader2 className="w-3.5 h-3.5 animate-spin" /> בודק תרומות מקושרות...
+          </div>
+        ) : donationCount > 0 ? (
+          <div className="mt-3 text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2.5">
+            לקבוצה זו מקושרות <span className="font-semibold">{donationCount}</span> תרומות. התרומות יישמרו בקמפיין אך לא ישויכו יותר לקבוצה.
+          </div>
+        ) : (
+          <div className="mt-3 text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2.5">
+            אין תרומות מקושרות לקבוצה זו.
+          </div>
+        )}
+
+        {error && (
+          <div className="mt-3 text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</div>
+        )}
+
+        <div className="flex gap-2 pt-5">
+          <button onClick={handleDelete} disabled={deleting}
+            className="flex-1 inline-flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-semibold py-2.5 rounded-xl transition-colors text-sm">
+            {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+            {deleting ? 'מוחק...' : 'מחק קבוצה'}
+          </button>
+          <button onClick={onClose}
+            className="px-4 py-2.5 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 text-sm font-medium transition-colors">
+            ביטול
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -291,6 +362,7 @@ export default function GroupsPage() {
   const [loading, setLoading] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [editGroup, setEditGroup] = useState<Group | null>(null)
+  const [deleteGroup, setDeleteGroup] = useState<Group | null>(null)
   const [bulkSms, setBulkSms] = useState(false)
   const [form, setForm] = useState({ name: '', slug: '', goal_amount: '', manager_name: '', manager_phone: '' })
 
@@ -454,6 +526,13 @@ export default function GroupsPage() {
                   >
                     <Pencil className="w-4 h-4" />
                   </button>
+                  <button
+                    onClick={() => setDeleteGroup(g)}
+                    title="מחק קבוצה"
+                    className="p-1.5 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                   {groupUrl && (
                     <a href={groupUrl} target="_blank" rel="noopener noreferrer"
                       title="פתח דף קבוצה"
@@ -483,6 +562,11 @@ export default function GroupsPage() {
       {/* Edit modal */}
       {editGroup && (
         <EditModal group={editGroup} onClose={() => setEditGroup(null)} onSaved={load} />
+      )}
+
+      {/* Delete modal */}
+      {deleteGroup && (
+        <DeleteModal group={deleteGroup} onClose={() => setDeleteGroup(null)} onDeleted={load} />
       )}
 
       {/* Bulk SMS modal */}
