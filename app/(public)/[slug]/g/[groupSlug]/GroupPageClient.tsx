@@ -197,7 +197,7 @@ export default function GroupPageClient({ org, campaign, group, donations: initi
                       </span>
                     </div>
                     {d.dedication && (
-                      <p className="text-xs text-gray-600 mt-1 bg-gray-50 rounded-lg px-2 py-1 border-r-2 leading-relaxed" style={{ borderColor: primaryColor }}>
+                      <p className="text-xs text-gray-600 mt-1 bg-gray-50 rounded-lg px-2 py-1 border-r-2 leading-relaxed whitespace-pre-line" style={{ borderColor: primaryColor }}>
                         {d.dedication}
                       </p>
                     )}

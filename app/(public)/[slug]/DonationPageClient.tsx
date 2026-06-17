@@ -733,7 +733,7 @@ function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCre
                       </div>
 
                       {d.dedication && (
-                        <p className="text-sm text-gray-600 mt-3 leading-relaxed bg-gray-50 rounded-xl px-3 py-2 border-r-2" style={{ borderColor: primaryColor }}>
+                        <p className="text-sm text-gray-600 mt-3 leading-relaxed bg-gray-50 rounded-xl px-3 py-2 border-r-2 whitespace-pre-line" style={{ borderColor: primaryColor }}>
                           {d.dedication}
                         </p>
                       )}
@@ -826,37 +826,43 @@ function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCre
   )
 }
 
-// All campaign videos (main first), shown as a thumbnail gallery above the donate button.
+// Additional campaign videos (the main one plays from the banner). Shown only if any
+// extra video exists — as smaller thumbnails with an optional title.
 function CampaignVideos({ campaign }: { campaign: Campaign }) {
-  const settings = campaign.settings as { videos?: string[] }
-  const urls = (settings?.videos?.length ? settings.videos : (campaign.video_url ? [campaign.video_url] : []))
-    .map(u => ({ url: u, embed: getVideoEmbed(u), thumb: getYoutubeThumbnail(u) }))
+  const settings = campaign.settings as { videos?: (string | { url: string; title?: string })[] }
+  const raw = settings?.videos?.length ? settings.videos : (campaign.video_url ? [campaign.video_url] : [])
+  const all = raw
+    .map(v => (typeof v === 'string' ? { url: v, title: '' } : { url: v.url, title: v.title || '' }))
+    .map(v => ({ ...v, embed: getVideoEmbed(v.url), thumb: getYoutubeThumbnail(v.url) }))
     .filter(v => v.embed)
+  // The main video already plays from the banner — show only the extras here.
+  const extra = all.filter(v => v.url !== campaign.video_url)
   const [openEmbed, setOpenEmbed] = useState<string | null>(null)
 
-  if (urls.length === 0) return null
-  const single = urls.length === 1
+  if (extra.length === 0) return null
   return (
     <section className="py-6 px-4 bg-white border-t border-gray-100">
-      <div className={`max-w-5xl mx-auto grid gap-4 ${single ? 'grid-cols-1 max-w-2xl' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'}`}>
-        {urls.map((v, i) => (
-          <button
-            key={i}
-            onClick={() => setOpenEmbed(v.embed)}
-            className="w-full rounded-2xl overflow-hidden aspect-video shadow-md relative group block cursor-pointer bg-gray-900"
-            aria-label="הפעל וידאו"
-          >
-            {v.thumb && <img src={v.thumb} alt="" className="w-full h-full object-cover" loading="lazy" />}
-            <div className="absolute inset-0 bg-black/25 group-hover:bg-black/35 transition-colors flex items-center justify-center">
-              <div className="w-14 h-14 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow-2xl group-hover:scale-110 transition-transform">
-                <svg className="w-6 h-6 text-gray-900 translate-x-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
-              </div>
+      <div className="max-w-3xl mx-auto">
+        <h3 className="text-base font-black text-gray-800 mb-3 text-center">סרטונים נוספים</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          {extra.map((v, i) => (
+            <div key={i} className="space-y-1.5">
+              <button
+                onClick={() => setOpenEmbed(v.embed)}
+                className="w-full rounded-xl overflow-hidden aspect-video shadow relative group block cursor-pointer bg-gray-900"
+                aria-label={v.title || 'הפעל וידאו'}
+              >
+                {v.thumb && <img src={v.thumb} alt="" className="w-full h-full object-cover" loading="lazy" />}
+                <div className="absolute inset-0 bg-black/25 group-hover:bg-black/35 transition-colors flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                    <svg className="w-4 h-4 text-gray-900 translate-x-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+                  </div>
+                </div>
+              </button>
+              {v.title && <p className="text-xs font-semibold text-gray-700 text-center truncate">{v.title}</p>}
             </div>
-            {i === 0 && !single && (
-              <span className="absolute top-2 right-2 bg-white/90 text-gray-800 text-[11px] font-bold px-2 py-0.5 rounded-full">ראשי</span>
-            )}
-          </button>
-        ))}
+          ))}
+        </div>
       </div>
       {openEmbed && <VideoModal embedUrl={openEmbed} onClose={() => setOpenEmbed(null)} />}
     </section>
