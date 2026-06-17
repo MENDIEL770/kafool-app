@@ -59,6 +59,7 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
   const router = useRouter()
   const [donations, setDonations] = useState(initial)
   const [search, setSearch] = useState('')
+  const [sortBy, setSortBy] = useState<'recent' | 'name_asc' | 'name_desc' | 'amount_desc' | 'amount_asc'>('recent')
   const [editId, setEditId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<Partial<Donation>>({})
   const [showAdd, setShowAdd] = useState(false)
@@ -86,6 +87,16 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
     String(d.amount).includes(search)
   )
 
+  const sorted = [...filtered].sort((a, b) => {
+    switch (sortBy) {
+      case 'name_asc': return (a.donor_name || '').localeCompare(b.donor_name || '', 'he')
+      case 'name_desc': return (b.donor_name || '').localeCompare(a.donor_name || '', 'he')
+      case 'amount_desc': return (b.amount || 0) - (a.amount || 0)
+      case 'amount_asc': return (a.amount || 0) - (b.amount || 0)
+      default: return new Date(b.created_at).getTime() - new Date(a.created_at).getTime() // recent
+    }
+  })
+
   const total = donations.reduce((s, d) => s + (d.amount || 0), 0)
   // Online = paid through the site (has a Kesher transaction); manual = entered by hand
   const onlineTotal = donations.reduce((s, d) => s + (d.kesher_transaction_id ? (d.amount || 0) : 0), 0)
@@ -94,21 +105,28 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
   // ── עריכה ──
   function startEdit(d: Donation) {
     setEditId(d.id)
-    setEditForm({ donor_name: d.donor_name || '', donor_phone: d.donor_phone || '', donor_email: d.donor_email || '', dedication: d.dedication || '', amount: d.amount })
+    setEditForm({ donor_name: d.donor_name || '', donor_phone: d.donor_phone || '', donor_email: d.donor_email || '', dedication: d.dedication || '', amount: d.amount, group_id: d.group_id })
   }
 
   async function saveEdit() {
     if (!editId) return
     setSaving(true)
+    const original = donations.find(d => d.id === editId)
+    const newGroupId = editForm.group_id || null
+    const newAmount = Number(editForm.amount) || 0
     const { error } = await supabase.from('donations').update({
       donor_name: editForm.donor_name || null,
       donor_phone: editForm.donor_phone || null,
       donor_email: editForm.donor_email || null,
       dedication: editForm.dedication || null,
-      amount: Number(editForm.amount) || 0,
+      amount: newAmount,
+      group_id: newGroupId,
     }).eq('id', editId)
     if (!error) {
-      setDonations(ds => ds.map(d => d.id === editId ? { ...d, ...editForm, amount: Number(editForm.amount) || 0 } : d))
+      // עדכן סכומי קבוצות: הסר מהקבוצה הישנה, הוסף לחדשה
+      if (original?.group_id) await adjustGroupRaised(original.group_id, -(original.amount || 0))
+      if (newGroupId) await adjustGroupRaised(newGroupId, newAmount)
+      setDonations(ds => ds.map(d => d.id === editId ? { ...d, ...editForm, amount: newAmount, group_id: newGroupId } : d))
       setEditId(null)
     }
     setSaving(false)
@@ -283,15 +301,29 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
         ))}
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-        <Input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="חיפוש לפי שם, טלפון, אימייל..."
-          className="pr-9"
-        />
+      {/* Search + sort */}
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="חיפוש לפי שם, טלפון, אימייל..."
+            className="pr-9"
+          />
+        </div>
+        <select
+          value={sortBy}
+          onChange={e => setSortBy(e.target.value as typeof sortBy)}
+          aria-label="מיון תורמים"
+          className="shrink-0 h-10 border border-gray-200 rounded-md px-3 text-sm bg-white outline-none cursor-pointer focus:ring-2 focus:ring-blue-400"
+        >
+          <option value="recent">לפי זמן (אחרונים)</option>
+          <option value="name_asc">שם: א → ת</option>
+          <option value="name_desc">שם: ת → א</option>
+          <option value="amount_desc">סכום: גבוה → נמוך</option>
+          <option value="amount_asc">סכום: נמוך → גבוה</option>
+        </select>
       </div>
 
       {/* Add form */}
@@ -462,7 +494,7 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
 
       {/* Table */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        {filtered.length === 0 ? (
+        {sorted.length === 0 ? (
           <div className="text-center py-12 text-gray-400">אין תרומות להצגה</div>
         ) : (
           <div className="overflow-x-auto -mx-1">
@@ -475,7 +507,7 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {filtered.map(d => (
+              {sorted.map(d => (
                 <tr key={d.id} className="hover:bg-gray-50 transition-colors">
                   {editId === d.id ? (
                     // ── שורת עריכה ──
@@ -485,6 +517,17 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
                       </td>
                       <td className="px-4 py-2">
                         <Input value={editForm.donor_name || ''} onChange={e => setEditForm(f => ({ ...f, donor_name: e.target.value }))} className="h-7 text-xs" />
+                        {groups.length > 0 && (
+                          <select
+                            value={editForm.group_id || ''}
+                            onChange={e => setEditForm(f => ({ ...f, group_id: e.target.value || null }))}
+                            aria-label="שיוך לקבוצה"
+                            className="mt-1 w-full h-7 border border-gray-200 rounded-md px-2 text-xs bg-white outline-none focus:ring-2 focus:ring-blue-400"
+                          >
+                            <option value="">ללא קבוצה</option>
+                            {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                          </select>
+                        )}
                       </td>
                       <td className="px-4 py-2">
                         <Input value={editForm.donor_phone || ''} onChange={e => setEditForm(f => ({ ...f, donor_phone: e.target.value }))} className="h-7 text-xs" dir="ltr" />
