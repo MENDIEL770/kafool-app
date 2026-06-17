@@ -10,6 +10,10 @@ import type { Group } from '@/types'
 
 interface CampaignInfo { slug: string; campaign_slug: string }
 
+// Default welcome SMS sent to whoever opens a group via the public site.
+// Placeholders: {שם} = manager name, {קישור} = group link. Keep in sync with app/api/groups/create/route.ts
+const DEFAULT_WELCOME_SMS = `שלום {שם}!\nנפתחה קבוצת גיוס עבורך.\nהקישור שלך:\n{קישור}`
+
 // ─── Edit Modal ───────────────────────────────────────────────────────────────
 function EditModal({ group, onClose, onSaved }: { group: Group; onClose: () => void; onSaved: () => void }) {
   const [form, setForm] = useState({
@@ -352,6 +356,86 @@ function GroupSmsButton({ group, campaignInfo }: { group: Group; campaignInfo: C
   )
 }
 
+// ─── Welcome SMS Modal ──────────────────────────────────────────────────────────
+function WelcomeSmsModal({ campaignId, campaignInfo, initialValue, onClose, onSaved }: {
+  campaignId: string
+  campaignInfo: CampaignInfo | null
+  initialValue: string
+  onClose: () => void
+  onSaved: (value: string) => void
+}) {
+  const [text, setText] = useState(initialValue || DEFAULT_WELCOME_SMS)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  const sampleLink = `https://kafool.com/${campaignInfo?.campaign_slug || 'campaign'}/g/123`
+  const preview = text.replaceAll('{שם}', 'ראש הקבוצה').replaceAll('{קישור}', sampleLink)
+
+  async function handleSave() {
+    setError('')
+    setSaving(true)
+    const supabase = createClient()
+    // Empty → null, so the API falls back to the built-in default.
+    const value = text.trim()
+    const { error } = await supabase.from('campaigns')
+      .update({ group_welcome_sms: value || null }).eq('id', campaignId)
+    setSaving(false)
+    if (error) { setError(error.message); return }
+    onSaved(value)
+    onClose()
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4" onClick={e => e.stopPropagation()} dir="rtl">
+        <div className="flex items-center justify-between p-5 border-b border-gray-100">
+          <div>
+            <h2 className="font-bold text-gray-900">הודעת פתיחה לקבוצה</h2>
+            <p className="text-xs text-gray-400 mt-0.5">SMS שנשלח אוטומטית למי שמקים קבוצה דרך האתר הציבורי</p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors"><X className="w-5 h-5" /></button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          <div className="space-y-1.5">
+            <Label>טקסט ההודעה</Label>
+            <p className="text-[11px] text-gray-400">השתמש ב: <code className="bg-gray-100 px-1 rounded">{'{שם}'}</code> לשם ראש הקבוצה, <code className="bg-gray-100 px-1 rounded">{'{קישור}'}</code> לקישור הקבוצה</p>
+            <textarea
+              value={text}
+              onChange={e => setText(e.target.value)}
+              rows={5}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 resize-none font-mono"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>תצוגה מקדימה</Label>
+            <div className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm whitespace-pre-wrap text-gray-700 font-mono text-xs">
+              {preview}
+            </div>
+          </div>
+
+          {error && (
+            <div className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</div>
+          )}
+
+          <div className="flex items-center gap-2 pt-1">
+            <button onClick={handleSave} disabled={saving}
+              className="flex-1 inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-2.5 rounded-xl transition-colors text-sm">
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+              שמור הודעה
+            </button>
+            <button type="button" onClick={() => setText(DEFAULT_WELCOME_SMS)}
+              className="px-4 py-2.5 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 text-sm font-medium transition-colors">
+              אפס לברירת מחדל
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 export default function GroupsPage() {
   const params = useParams()
@@ -364,6 +448,8 @@ export default function GroupsPage() {
   const [editGroup, setEditGroup] = useState<Group | null>(null)
   const [deleteGroup, setDeleteGroup] = useState<Group | null>(null)
   const [bulkSms, setBulkSms] = useState(false)
+  const [showWelcome, setShowWelcome] = useState(false)
+  const [welcomeSms, setWelcomeSms] = useState('')
   const [form, setForm] = useState({ name: '', slug: '', goal_amount: '', manager_name: '', manager_phone: '' })
 
   async function load() {
@@ -372,10 +458,10 @@ export default function GroupsPage() {
     setGroups(data || [])
 
     // Get campaign + org slug for group page links
-    const { data: campaign } = await supabase.from('campaigns').select('slug, org_id').eq('id', campaignId).single()
+    const { data: campaign } = await supabase.from('campaigns').select('slug, org_id, group_welcome_sms').eq('id', campaignId).single()
     if (campaign) {
-      const { data: org } = await supabase.from('organizations').select('slug').eq('id', campaign.org_id).single()
       setCampaignInfo({ slug: campaign.slug, campaign_slug: campaign.slug })
+      setWelcomeSms(campaign.group_welcome_sms || '')
     }
   }
 
@@ -422,6 +508,14 @@ export default function GroupsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-gray-900">קבוצות גיוס</h1>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowWelcome(true)}
+            title="ערוך את ההודעה שנשלחת למקים קבוצה דרך האתר"
+            className="inline-flex items-center gap-1.5 text-sm font-medium border border-gray-200 hover:border-blue-300 hover:text-blue-600 text-gray-600 px-3 py-2 rounded-xl transition-colors"
+          >
+            <MessageSquare className="w-4 h-4" />
+            הודעת פתיחה
+          </button>
           {withPhone.length > 0 && (
             <button
               onClick={() => setBulkSms(true)}
@@ -572,6 +666,17 @@ export default function GroupsPage() {
       {/* Bulk SMS modal */}
       {bulkSms && (
         <BulkSmsModal groups={groups} campaignInfo={campaignInfo} onClose={() => setBulkSms(false)} />
+      )}
+
+      {/* Welcome SMS modal */}
+      {showWelcome && (
+        <WelcomeSmsModal
+          campaignId={campaignId}
+          campaignInfo={campaignInfo}
+          initialValue={welcomeSms}
+          onClose={() => setShowWelcome(false)}
+          onSaved={setWelcomeSms}
+        />
       )}
     </div>
   )

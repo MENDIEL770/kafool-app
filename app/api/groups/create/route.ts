@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
   // Get campaign + org
   const { data: campaign } = await adminClient
     .from('campaigns')
-    .select('id, org_id, slug')
+    .select('id, org_id, slug, group_welcome_sms')
     .eq('id', campaignId)
     .eq('status', 'active')
     .single()
@@ -74,11 +74,16 @@ export async function POST(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Send SMS to manager
+  // Send SMS to manager — use the campaign's custom template if set,
+  // otherwise a built-in default. Placeholders: {שם} (manager name), {קישור} (group link).
   const groupUrl = `https://kafool.com/${campaign.slug}/g/${slug}`
   const apiKey = process.env.YEMOT_API_KEY
   if (apiKey && managerPhone) {
-    const msg = `שלום ${managerName || name}!\nנפתחה קבוצת גיוס עבורך.\nהקישור שלך:\n${groupUrl}`
+    const template = campaign.group_welcome_sms?.trim()
+      || `שלום {שם}!\nנפתחה קבוצת גיוס עבורך.\nהקישור שלך:\n{קישור}`
+    const msg = template
+      .replaceAll('{שם}', managerName || name)
+      .replaceAll('{קישור}', groupUrl)
     await sendYemotSms(apiKey, managerPhone, msg)
   }
 

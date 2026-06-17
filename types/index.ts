@@ -47,6 +47,7 @@ export interface Campaign {
   start_at: string | null
   end_at: string | null
   settings: CampaignSettings
+  group_welcome_sms: string | null
   created_at: string
 }
 

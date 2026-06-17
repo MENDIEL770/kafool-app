@@ -43,6 +43,7 @@ CREATE TABLE campaigns (
   start_at timestamptz,
   end_at timestamptz,
   settings jsonb NOT NULL DEFAULT '{"donation_amounts":[180,360,720,1800,3600],"primary_color":"#2563eb","secondary_color":"#1e40af","about_text":null}',
+  group_welcome_sms text,
   created_at timestamptz DEFAULT now(),
   UNIQUE(org_id, slug)
 );
