@@ -945,18 +945,26 @@ function DonationToasts({ donations, groups, primaryColor }: { donations: Donati
   useEffect(() => {
     if (recent.length === 0) return
     let active = true
-    const removers: ReturnType<typeof setTimeout>[] = []
-    const show = () => {
+    const timers: ReturnType<typeof setInterval>[] = []
+    const pushOne = () => {
       if (!active) return
       const d = recent[idxRef.current % recent.length]
       idxRef.current += 1
       const k = keyRef.current++
       setShown(s => [...s, { key: k, d }].slice(-2))
-      removers.push(setTimeout(() => setShown(s => s.filter(x => x.key !== k)), 5000))
+      timers.push(setTimeout(() => setShown(s => s.filter(x => x.key !== k)), 5000))
     }
-    const start = setTimeout(show, 1000)
-    const iv = setInterval(show, 3500)
-    return () => { active = false; clearTimeout(start); clearInterval(iv); removers.forEach(clearTimeout) }
+    // A 15-second burst: pop a donor every 3.5s, then stop.
+    const runBurst = () => {
+      if (!active) return
+      pushOne()
+      const iv = setInterval(pushOne, 3500)
+      timers.push(iv)
+      timers.push(setTimeout(() => clearInterval(iv), 15000))
+    }
+    timers.push(setTimeout(runBurst, 1000))   // first burst on load / refresh
+    timers.push(setInterval(runBurst, 180000)) // and again every 3 minutes on the page
+    return () => { active = false; timers.forEach(t => { clearTimeout(t); clearInterval(t) }) }
   }, [recent])
 
   if (recent.length === 0) return null
