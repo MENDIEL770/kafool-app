@@ -406,7 +406,8 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
   const [selectedMethod, setSelectedMethod] = useState<'one_time' | 'hok'>('one_time')
   const [selectedMonths, setSelectedMonths] = useState<number | undefined>()
   const [custom, setCustom] = useState('')
-  const [selectedGroup, setSelectedGroup] = useState<string>('')
+  const [selectedGroup] = useState<string>('')
+  const customInputRef = useRef<HTMLInputElement>(null)
 
   const finalAmount = selected ?? (custom ? Number(custom) : null)
 
@@ -469,64 +470,61 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
             )
           })}
 
-          {/* סכום אחר */}
-          <div className="flex-none snap-start flex flex-col items-center gap-2">
-            <div className="w-[90px] h-[90px] md:w-[110px] md:h-[110px] rounded-full border-2 border-dashed border-gray-300 flex flex-col items-center justify-center bg-gray-50">
-              <span className="text-[10px] md:text-xs text-gray-400 mb-1">סכום אחר</span>
-              <div className="flex items-center gap-0.5">
-                <span className="text-sm font-bold text-gray-500">₪</span>
-                <input
-                  type="number"
-                  value={custom}
-                  onChange={(e) => { setCustom(e.target.value); setSelected(null); setSelectedMethod('one_time'); setSelectedMonths(undefined) }}
-                  placeholder="0"
-                  min="1"
-                  className="w-12 md:w-14 text-center text-sm font-bold outline-none bg-transparent"
-                  dir="ltr"
-                />
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="text-xs md:text-sm font-bold text-gray-400">אחר</div>
-            </div>
-          </div>
+          {/* סכום אחר — כל העיגול לחיץ, עם טבעת בחירה כמו השאר */}
+          {(() => {
+            const customActive = !selected && !!custom && Number(custom) > 0
+            return (
+              <button
+                type="button"
+                onClick={() => { customInputRef.current?.focus(); setSelected(null); setSelectedMethod('one_time'); setSelectedMonths(undefined) }}
+                className="flex-none snap-start flex flex-col items-center gap-2 cursor-pointer focus:outline-none"
+                aria-pressed={customActive}
+              >
+                <div
+                  className="w-[90px] h-[90px] md:w-[110px] md:h-[110px] rounded-full border-2 border-dashed border-gray-300 flex flex-col items-center justify-center bg-gray-50 transition-all duration-200"
+                  style={{
+                    boxShadow: customActive
+                      ? `0 0 0 4px white, 0 0 0 7px ${primaryColor}, 0 6px 20px ${primaryColor}44`
+                      : undefined,
+                    transform: customActive ? 'scale(1.08)' : 'scale(1)',
+                  }}
+                >
+                  <span className="text-[10px] md:text-xs text-gray-400 mb-1">סכום אחר</span>
+                  <div className="flex items-center gap-0.5">
+                    <span className="text-sm font-bold text-gray-500">₪</span>
+                    <input
+                      ref={customInputRef}
+                      type="number"
+                      value={custom}
+                      onChange={(e) => { setCustom(e.target.value); setSelected(null); setSelectedMethod('one_time'); setSelectedMonths(undefined) }}
+                      onClick={(e) => e.stopPropagation()}
+                      placeholder="0"
+                      min="1"
+                      className="w-12 md:w-14 text-center text-sm font-bold outline-none bg-transparent"
+                      dir="ltr"
+                    />
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xs md:text-sm font-bold text-gray-400">אחר</div>
+                </div>
+              </button>
+            )
+          })()}
         </div>
 
-        {/* בחירת קבוצה */}
-        {groups.length > 0 && (
-          <div className="mt-5 max-w-md mx-auto">
-            <label className="block text-xs font-semibold text-gray-500 mb-2 text-center">תרום בשם קבוצה (אופציונלי)</label>
-            <div className="flex flex-wrap gap-2 justify-center">
-              {groups.map(g => (
-                <button
-                  key={g.id}
-                  onClick={() => setSelectedGroup(selectedGroup === g.id ? '' : g.id)}
-                  aria-pressed={selectedGroup === g.id}
-                  className="px-4 py-2 rounded-full text-sm font-semibold border-2 transition-all duration-150"
-                  style={selectedGroup === g.id
-                    ? { backgroundColor: primaryColor, borderColor: primaryColor, color: 'white' }
-                    : { backgroundColor: 'white', borderColor: '#e5e7eb', color: '#374151' }
-                  }
-                >
-                  {g.name}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* Payment actions */}
-        <div className="flex flex-col sm:flex-row justify-center gap-3 mt-6 max-w-md mx-auto">
+        <div className="flex flex-row justify-center gap-2 sm:gap-3 mt-6 max-w-md mx-auto">
           <button
             onClick={() => onDonate(finalAmount ?? undefined, selectedGroup || undefined, selectedMethod, selectedMethod === 'hok' ? selectedMonths : undefined)}
-            className={`flex-1 py-3.5 text-white font-black text-base text-center shadow-lg hover:opacity-90 active:scale-95 transition-all ${buttonRadius}`}
+            className={`flex-1 py-2.5 sm:py-3.5 text-white font-black text-sm sm:text-base text-center shadow-lg hover:opacity-90 active:scale-95 transition-all ${buttonRadius}`}
             style={{ backgroundColor: primaryColor }}
           >
             {finalAmount ? `תרום ₪${finalAmount.toLocaleString()}` : 'לתרומה'}
           </button>
           <button
             onClick={() => navigator.share?.({ title: 'שתף את הקמפיין', url: window.location.href }) ?? navigator.clipboard.writeText(window.location.href)}
-            className={`flex-none px-6 py-3.5 border-2 font-bold text-sm transition-colors hover:bg-gray-50 ${buttonRadius}`}
+            className={`flex-none px-4 sm:px-6 py-2.5 sm:py-3.5 border-2 font-bold text-xs sm:text-sm transition-colors hover:bg-gray-50 ${buttonRadius}`}
             style={{ borderColor: primaryColor, color: primaryColor }}
           >
             שתף
@@ -547,15 +545,15 @@ function ProgressSection({ raised, goal, donorsCount, primaryColor }: { raised: 
   }, [pct])
 
   return (
-    <section className="bg-gray-50 py-10 px-4" aria-label="התקדמות הקמפיין">
-      <div className="max-w-2xl mx-auto space-y-4">
+    <section className="bg-gray-50 py-12 md:py-16 px-4" aria-label="התקדמות הקמפיין">
+      <div className="max-w-3xl mx-auto space-y-6">
 
         {/* סכום גדול */}
-        <div className="text-center">
-          <div className="text-5xl md:text-6xl font-black tabular-nums" style={{ color: primaryColor }}>
+        <div className="text-center space-y-2">
+          <div className="text-5xl md:text-7xl font-black tabular-nums leading-none" style={{ color: primaryColor }}>
             ₪{raised.toLocaleString('he-IL')}
           </div>
-          <div className="text-sm text-gray-400 mt-1">
+          <div className="text-base md:text-lg text-gray-500">
             גויסו מתוך יעד ₪{goal.toLocaleString('he-IL')}
           </div>
         </div>
@@ -844,9 +842,9 @@ function CampaignVideos({ campaign }: { campaign: Campaign }) {
     <section className="py-6 px-4 bg-white border-t border-gray-100">
       <div className="max-w-3xl mx-auto">
         <h3 className="text-base font-black text-gray-800 mb-3 text-center">סרטונים נוספים</h3>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div className="flex flex-wrap justify-center gap-4">
           {extra.map((v, i) => (
-            <div key={i} className="space-y-1.5">
+            <div key={i} className="space-y-1.5 w-[200px] max-w-full">
               <button
                 onClick={() => setOpenEmbed(v.embed)}
                 className="w-full rounded-xl overflow-hidden aspect-video shadow relative group block cursor-pointer bg-gray-900"
@@ -987,7 +985,7 @@ function DonationToasts({ donations, groups, primaryColor }: { donations: Donati
       {shown.map(({ key, d }) => {
         const via = groupName(d.group_id)
         return (
-          <div key={key} className="pointer-events-auto bg-white rounded-2xl shadow-lg border border-gray-100 px-4 py-3 flex items-center gap-3"
+          <div key={key} className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-white/60 px-4 py-3 flex items-center gap-3"
             style={{ animation: 'kfToastIn .35s ease-out' }}>
             <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-black shrink-0"
               style={{ backgroundColor: `${primaryColor}1A`, color: primaryColor }}>
@@ -1012,8 +1010,9 @@ function DonationToasts({ donations, groups, primaryColor }: { donations: Donati
 function ScrollTopButton() {
   const [visible, setVisible] = useState(false)
   useEffect(() => {
-    const fn = () => setVisible(window.scrollY > 600)
+    const fn = () => setVisible((window.scrollY || document.documentElement.scrollTop) > 250)
     window.addEventListener('scroll', fn, { passive: true })
+    fn()
     return () => window.removeEventListener('scroll', fn)
   }, [])
   function scrollTop() {
@@ -1032,7 +1031,7 @@ function ScrollTopButton() {
     <button
       onClick={scrollTop}
       aria-label="חזרה לראש הדף"
-      className="md:hidden fixed right-4 z-40 w-11 h-11 rounded-full bg-white border border-gray-200 shadow-lg flex items-center justify-center text-gray-600 active:scale-95 transition-transform"
+      className="md:hidden fixed right-4 z-[55] w-11 h-11 rounded-full bg-white border border-gray-200 shadow-lg flex items-center justify-center text-gray-600 active:scale-95 transition-transform"
       style={{ bottom: '6rem' }}
     >
       <ChevronDown className="w-5 h-5 rotate-180" />
@@ -1192,6 +1191,18 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
 
       {/* סרטוני הקמפיין — מעל כפתור התרומה ומעל "אודות" */}
       <CampaignVideos campaign={campaign} />
+
+      {/* בנייד — כפתור קיצור ל"אודות" לפני כפתורי התרומה */}
+      <div className="md:hidden bg-white px-4 pt-4 -mb-2 text-center">
+        <button
+          onClick={() => document.getElementById('about')?.scrollIntoView({ behavior: 'smooth' })}
+          className="inline-flex items-center gap-1.5 px-5 py-2 rounded-full border-2 text-sm font-bold transition-colors"
+          style={{ borderColor: primaryColor, color: primaryColor }}
+        >
+          אודות הקמפיין
+          <ChevronDown className="w-4 h-4" />
+        </button>
+      </div>
 
       {/* 3. Donation Plans */}
       <DonationPlans plans={donationPlans} primaryColor={primaryColor} campaignSlug={campaign.slug} groups={groups} buttonRadius={buttonRadius} onDonate={openDonate} />
