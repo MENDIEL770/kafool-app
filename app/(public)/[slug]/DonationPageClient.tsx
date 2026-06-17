@@ -13,7 +13,7 @@ import Footer from '../_components/Footer'
 interface Org { id: string; name: string; slug: string; logo_url: string | null }
 interface Donation { id: string; donor_name: string | null; amount: number; dedication: string | null; created_at: string; group_id?: string | null }
 interface GalleryItem { id: string; image_url: string; caption: string | null }
-interface ActiveGroup { id: string; name: string; slug: string; goal_amount: number; raised_amount: number; manager_name: string | null; donorCount?: number }
+interface ActiveGroup { id: string; name: string; slug: string; goal_amount: number; raised_amount: number; manager_name: string | null; image_url?: string | null; donorCount?: number }
 interface PaymentUrls { one_time: string; hok: string; bit: string; bank: string }
 interface Props { org: Org; campaign: Campaign; donations: Donation[]; groups: Group[]; gallery: GalleryItem[]; activeGroup?: ActiveGroup; donationUrl?: string; paymentUrls?: PaymentUrls }
 
@@ -1049,12 +1049,23 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
             <div className="flex items-center gap-4 flex-wrap">
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="text-[11px] font-semibold text-gray-400 mb-0.5">דף התרומה של</p>
-                    <h2 className="text-xl font-black text-gray-900 break-words leading-tight">{activeGroup.name}</h2>
-                    {activeGroup.manager_name && (
-                      <p className="text-xs text-gray-400 mt-0.5">מגייס: {activeGroup.manager_name}</p>
-                    )}
+                  <div className="flex items-center gap-3 min-w-0">
+                    {/* עיגול תמונת הקבוצה */}
+                    <div
+                      className="w-12 h-12 rounded-full overflow-hidden shrink-0 flex items-center justify-center text-lg font-black"
+                      style={{ backgroundColor: `${primaryColor}1A`, color: primaryColor }}
+                    >
+                      {activeGroup.image_url
+                        ? <img src={activeGroup.image_url} alt="" className="w-full h-full object-cover" />
+                        : (activeGroup.name || 'ק')[0]}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-semibold text-gray-400 mb-0.5">דף התרומה של</p>
+                      <h2 className="text-xl font-black text-gray-900 break-words leading-tight">{activeGroup.name}</h2>
+                      {activeGroup.manager_name && (
+                        <p className="text-xs text-gray-400 mt-0.5">מגייס: {activeGroup.manager_name}</p>
+                      )}
+                    </div>
                   </div>
                   {/* חזרה לדף הקמפיין הראשי */}
                   <a

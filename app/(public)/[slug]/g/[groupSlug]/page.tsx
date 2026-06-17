@@ -57,7 +57,7 @@ export default async function GroupPage({ params }: { params: Promise<{ slug: st
       .limit(50),
     supabase
       .from('groups')
-      .select('id, name, slug, goal_amount, raised_amount, manager_name')
+      .select('id, name, slug, goal_amount, raised_amount, manager_name, image_url')
       .eq('campaign_id', campaign.id)
       .order('raised_amount', { ascending: false }),
     supabase
@@ -96,6 +96,7 @@ export default async function GroupPage({ params }: { params: Promise<{ slug: st
         goal_amount: group.goal_amount,
         raised_amount: group.raised_amount,
         manager_name: group.manager_name,
+        image_url: group.image_url,
         donorCount: groupDonorCount ?? 0,
       }}
     />
