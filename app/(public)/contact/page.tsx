@@ -1,5 +1,4 @@
 import { createClient } from '@/lib/supabase/server'
-import MarketingHeader from '../_components/MarketingHeader'
 import Footer from '../_components/Footer'
 import ContactForm from './ContactForm'
 import { Phone, Mail, Clock, MessageCircle } from 'lucide-react'
@@ -43,8 +42,6 @@ export default async function ContactPage() {
 
   return (
     <div dir="rtl" className="min-h-screen bg-gray-50">
-      <MarketingHeader />
-
       <section className="bg-gradient-to-br from-blue-50 to-indigo-100 py-16 px-4">
         <div className="max-w-3xl mx-auto text-center">
           <h1 className="text-4xl font-black text-gray-900 mb-4">צור קשר</h1>

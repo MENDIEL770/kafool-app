@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
-import MarketingHeader from '../_components/MarketingHeader'
 import Footer from '../_components/Footer'
 import AnimatedKafoolLogo from '../_components/AnimatedKafoolLogo'
 import PortfolioGallery, { type PortfolioItem } from './PortfolioGallery'
@@ -24,8 +23,6 @@ export default async function DesignPage() {
 
   return (
     <div dir="rtl" className="min-h-screen bg-white">
-      <MarketingHeader />
-
       {/* Hero — animated logo */}
       <section className="bg-gradient-to-br from-blue-50 to-indigo-100 py-16 px-4">
         <div className="max-w-3xl mx-auto text-center">

@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import MarketingHeader from './_components/MarketingHeader'
+import PublicHeaderGate from './_components/PublicHeaderGate'
 
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -18,7 +18,7 @@ export default async function PublicLayout({ children }: { children: React.React
 
   return (
     <>
-      <MarketingHeader hiddenPages={hiddenPages} />
+      <PublicHeaderGate hiddenPages={hiddenPages} />
       {children}
     </>
   )

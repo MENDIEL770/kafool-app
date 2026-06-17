@@ -1,6 +1,5 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import MarketingHeader from '../_components/MarketingHeader'
 import Footer from '../_components/Footer'
 import AnimatedKafoolLogo from '../_components/AnimatedKafoolLogo'
 
@@ -83,8 +82,6 @@ export default async function AboutPage() {
 
   return (
     <div dir="rtl" className="min-h-screen bg-white">
-      <MarketingHeader />
-
       {/* Hero */}
       <section className="bg-gradient-to-br from-blue-50 to-indigo-100 py-20 px-4">
         <div className="max-w-3xl mx-auto text-center">

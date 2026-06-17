@@ -1,6 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
-import MarketingHeader from '../_components/MarketingHeader'
 import Footer from '../_components/Footer'
 import FaqClient, { type FaqItem } from './FaqClient'
 
@@ -38,8 +37,6 @@ export default async function FaqPage() {
 
   return (
     <div dir="rtl" className="min-h-screen bg-gray-50">
-      <MarketingHeader />
-
       <section className="bg-gradient-to-br from-blue-50 to-indigo-100 py-16 px-4">
         <div className="max-w-3xl mx-auto text-center">
           <h1 className="text-4xl font-black text-gray-900 mb-4">שאלות ותשובות</h1>
