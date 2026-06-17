@@ -28,7 +28,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4 text-center">
         <div className="space-y-3">
-          <div className="text-4xl">⏳</div>
+          <div className="text-4xl"></div>
           <h2 className="text-xl font-bold">הארגון שלך ממתין לאישור</h2>
           <p className="text-gray-500">נחזור אליך בקרוב.</p>
         </div>

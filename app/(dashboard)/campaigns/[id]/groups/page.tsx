@@ -421,7 +421,7 @@ function BulkSmsModal({ groups, campaignInfo, onClose }: {
         <div className="p-5 space-y-4">
           {result ? (
             <div className="text-center py-6 space-y-3">
-              <div className="text-5xl">✅</div>
+              <div className="text-5xl"></div>
               <p className="font-bold text-gray-900">נשלח!</p>
               <p className="text-sm text-gray-500">{result.sent} מתוך {result.total} הודעות נשלחו בהצלחה</p>
               <button onClick={onClose} className="mt-2 px-6 py-2 bg-blue-600 text-white rounded-xl font-medium text-sm hover:bg-blue-700 transition-colors">סגור</button>
@@ -770,7 +770,7 @@ export default function GroupsPage() {
       <div className="space-y-3">
         {groups.length === 0 && (
           <div className="text-center py-14 text-gray-400">
-            <p className="text-4xl mb-3">👥</p>
+            <p className="text-4xl mb-3"></p>
             <p>אין קבוצות עדיין</p>
           </div>
         )}

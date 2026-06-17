@@ -315,7 +315,7 @@ export default function DonationFlow({ campaignId, campaignSlug, primaryColor = 
               ← חזרה לבחירת סכום
             </button>
             <div className="flex items-center gap-1 text-xs text-gray-400">
-              🔒 תשלום מאובטח על ידי קשר
+              תשלום מאובטח על ידי קשר
             </div>
           </div>
         </div>

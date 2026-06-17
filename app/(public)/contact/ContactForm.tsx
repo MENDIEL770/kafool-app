@@ -68,7 +68,7 @@ export default function ContactForm() {
   if (success) {
     return (
       <div className="bg-green-50 border border-green-200 rounded-3xl p-10 text-center">
-        <div className="text-5xl mb-4">✅</div>
+        <div className="text-5xl mb-4"></div>
         <h3 className="text-2xl font-black text-green-800 mb-2">תודה!</h3>
         <p className="text-green-700 text-lg">קיבלנו את פנייתכם — נחזור אליכם בקרוב</p>
       </div>

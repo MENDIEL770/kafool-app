@@ -352,7 +352,7 @@ export default function PulsePage() {
       {/* Sidebar */}
       <div className="w-full lg:w-64 shrink-0 space-y-4 order-1 lg:order-2 grid grid-cols-3 lg:block gap-3 lg:gap-0 lg:space-y-4">
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-gray-500">📊 היום</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm text-gray-500">היום</CardTitle></CardHeader>
           <CardContent className="space-y-3">
             <Row label="שיחות" value={String(statsToday.calls)} />
             <Row label="תרומות" value={String(statsToday.donations)} green />
@@ -360,7 +360,7 @@ export default function PulsePage() {
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-gray-500">🎯 יעד אישי</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm text-gray-500">יעד אישי</CardTitle></CardHeader>
           <CardContent className="space-y-2">
             <div className="flex justify-between text-sm">
               <span className="text-gray-500">₪{(caller?.total_donated || 0).toLocaleString()}</span>
@@ -372,7 +372,7 @@ export default function PulsePage() {
         </Card>
         {rank > 0 && (
           <Card><CardContent className="pt-4 text-center">
-            <div className="text-3xl mb-1">{rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '🏅'}</div>
+            <div className="text-3xl mb-1">{rank === 1 ? '' : rank === 2 ? '' : rank === 3 ? '' : ''}</div>
             <div className="text-sm text-gray-500">דירוג</div>
             <div className="text-2xl font-bold text-gray-800">#{rank}</div>
           </CardContent></Card>

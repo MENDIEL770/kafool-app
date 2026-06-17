@@ -118,7 +118,7 @@ export default function CampaignsPage() {
 
       {!loading && campaigns.length === 0 && (
         <div className="text-center py-20 text-gray-400">
-          <div className="text-5xl mb-4">🎯</div>
+          <div className="text-5xl mb-4"></div>
           <p className="font-medium">אין קמפיינים עדיין</p>
           <Link href="/campaigns/new" className="mt-4 inline-flex items-center gap-2 bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors">
             <Plus className="w-4 h-4" /> צור קמפיין ראשון
@@ -145,7 +145,7 @@ export default function CampaignsPage() {
                 {banner ? (
                   <img src={banner} alt="" className="w-full h-full object-cover" />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-300 text-4xl">🎯</div>
+                  <div className="w-full h-full flex items-center justify-center text-gray-300 text-4xl"></div>
                 )}
               </div>
 

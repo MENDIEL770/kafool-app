@@ -316,7 +316,7 @@ async function executeTool(name: string, input: Record<string, unknown>): Promis
           await supabase.from('profiles').update({ org_id: orgId }).eq('id', org.owner_id)
         }
 
-        return `✅ הארגון "${org?.name}" אושר בהצלחה.`
+        return `הארגון "${org?.name}" אושר בהצלחה.`
       }
 
       default:

@@ -78,10 +78,10 @@ export default function SmsClient({ initialRules, initialLogs, campaigns, orgId 
         body: JSON.stringify({ phones, message: manual.message }),
       })
       const data = await res.json()
-      setManualResult(res.ok ? `✅ נשלח ל-${data.count} מספרים` : `❌ ${data.error || 'שליחה נכשלה'}`)
+      setManualResult(res.ok ? `נשלח ל-${data.count} מספרים` : `${data.error || 'שליחה נכשלה'}`)
       if (res.ok) setManual(m => ({ ...m, message: '' }))
     } catch {
-      setManualResult('❌ שגיאת רשת')
+      setManualResult('שגיאת רשת')
     }
     setManualSending(false)
   }
@@ -286,7 +286,7 @@ export default function SmsClient({ initialRules, initialLogs, campaigns, orgId 
       {/* Manual send */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">שליחה ידנית 📨</CardTitle>
+          <CardTitle className="text-base">שליחה ידנית</CardTitle>
           <p className="text-xs text-gray-400 mt-0.5">שלח SMS למספר אחד או לכמה מספרים בבת אחת</p>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -329,7 +329,7 @@ export default function SmsClient({ initialRules, initialLogs, campaigns, orgId 
         <CardContent>
           {rules.length === 0 && (
             <div className="text-center py-8 text-gray-400">
-              <div className="text-3xl mb-2">⚙️</div>
+              <div className="text-3xl mb-2"></div>
               <p className="text-sm">אין חוקים עדיין — צור את הראשון</p>
             </div>
           )}
@@ -349,7 +349,7 @@ export default function SmsClient({ initialRules, initialLogs, campaigns, orgId 
                     </Badge>
                   </div>
                   <div className="text-xs text-gray-500 mb-1">
-                    📣 {(r as { campaigns?: { title: string } | null }).campaigns?.title || 'קמפיין לא ידוע'}
+                    {(r as { campaigns?: { title: string } | null }).campaigns?.title || 'קמפיין לא ידוע'}
                   </div>
                   <div className="text-xs text-gray-400 bg-gray-50 rounded-lg px-2 py-1 font-mono truncate">
                     {r.template}

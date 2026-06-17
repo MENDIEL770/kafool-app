@@ -51,22 +51,22 @@ export default async function AboutPage() {
 
   const featureCards = [
     {
-      icon: '💳',
+      icon: '',
       title: c.pricing_title,
       text: c.pricing_text,
     },
     {
-      icon: '🔒',
+      icon: '',
       title: c.iframe_title,
       text: c.iframe_text,
     },
     {
-      icon: '🎨',
+      icon: '',
       title: c.services_title,
       text: c.services_text,
     },
     {
-      icon: '📊',
+      icon: '',
       title: c.tools_title,
       text: c.tools_text,
     },
@@ -119,7 +119,7 @@ export default async function AboutPage() {
                 key={i}
                 className="bg-gray-50 rounded-3xl p-8 border border-gray-100 hover:border-blue-200 hover:shadow-md transition-all"
               >
-                <div className="text-4xl mb-4">{card.icon}</div>
+                {card.icon && <div className="text-4xl mb-4">{card.icon}</div>}
                 <h3 className="text-xl font-black text-gray-900 mb-3">{card.title}</h3>
                 <p className="text-gray-600 leading-relaxed">{card.text}</p>
               </div>

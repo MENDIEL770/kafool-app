@@ -48,7 +48,7 @@ export default async function DashboardPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm text-muted-foreground">{greeting}{firstName ? `, ${firstName}` : ''} 👋</p>
+          <p className="text-sm text-muted-foreground">{greeting}{firstName ? `, ${firstName}` : ''}</p>
           <h1 className="text-2xl font-bold mt-0.5">לוח בקרה</h1>
         </div>
         <Link href="/campaigns/new" className={buttonVariants({ size: 'sm' })}>

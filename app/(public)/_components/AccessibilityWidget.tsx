@@ -125,7 +125,7 @@ export default function AccessibilityWidget({ offsetBottom = '1rem' }: { offsetB
               {/* Toggles */}
               {[
                 { key: 'contrast' as const,      label: 'ניגודיות גבוהה',   icon: '◑' },
-                { key: 'underlineLinks' as const, label: 'הדגשת קישורים',    icon: '🔗' },
+                { key: 'underlineLinks' as const, label: 'הדגשת קישורים',    icon: '' },
                 { key: 'readableFont' as const,   label: 'פונט קריא (Arial)', icon: 'A' },
               ].map(item => (
                 <button
@@ -147,7 +147,7 @@ export default function AccessibilityWidget({ offsetBottom = '1rem' }: { offsetB
                 href="/accessibility"
                 className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-blue-600 transition-colors pt-1 px-1"
               >
-                <span>📋</span>
+                <span></span>
                 הצהרת נגישות
               </a>
             </div>

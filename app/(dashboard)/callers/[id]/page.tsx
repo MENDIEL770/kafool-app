@@ -188,7 +188,7 @@ export default async function CallerDetailPage({ params }: { params: Promise<{ i
             </div>
           </div>
           {conversionRate >= campAvgConversion ? (
-            <p className="text-sm text-green-600 font-medium">🌟 מעל ממוצע הקמפיין!</p>
+            <p className="text-sm text-green-600 font-medium">מעל ממוצע הקמפיין!</p>
           ) : (
             <p className="text-sm text-gray-400">המשך כך, אתה יכול לעבור את הממוצע!</p>
           )}

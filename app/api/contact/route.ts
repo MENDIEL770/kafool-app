@@ -53,7 +53,7 @@ export async function POST(request: Request) {
     if (apiKey) {
       const wa = waLink(phone)
       const sms = [
-        'ליד חדש בכפול 📩',
+        'ליד חדש בכפול',
         `שם: ${full_name}`,
         phone ? `טלפון: ${phone}` : null,
         email ? `מייל: ${email}` : null,

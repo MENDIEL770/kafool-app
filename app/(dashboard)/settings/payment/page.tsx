@@ -210,7 +210,7 @@ export default function PaymentSettingsPage() {
 
         {!form.kesher_page_id && (
           <div className="flex items-center gap-2 bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3">
-            <span className="text-sm text-yellow-700">⚠️ הזן Page ID כדי להפעיל את הסליקה</span>
+            <span className="text-sm text-yellow-700">הזן Page ID כדי להפעיל את הסליקה</span>
           </div>
         )}
 

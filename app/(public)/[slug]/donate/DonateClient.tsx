@@ -80,7 +80,7 @@ export default function DonateClient({
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4" dir="rtl">
         <div className="text-center space-y-4 max-w-sm">
-          <div className="text-5xl">🔧</div>
+          <div className="text-5xl"></div>
           <h2 className="text-xl font-bold text-gray-800">הסליקה טרם הוגדרה</h2>
           <p className="text-gray-500 text-sm">
             המנהל טרם הגדיר את פרטי הסליקה. אנא פנה אליו.
@@ -311,7 +311,7 @@ export default function DonateClient({
 
         {/* Security notice */}
         <div className="text-center text-xs text-gray-400 flex items-center justify-center gap-1">
-          <span>🔒</span>
+          <span></span>
           <span>תשלום מאובטח — פרטי הכרטיס מעובדים על ידי קשר בלבד</span>
         </div>
       </div>

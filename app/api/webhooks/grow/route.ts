@@ -67,7 +67,7 @@ async function handle(raw: Record<string, unknown>): Promise<void> {
   if (!result.ok) {
     console.error('Grow webhook: conversion failed', result.error)
   } else {
-    console.log(`✅ Grow: lead ${lead.id} paid → org ${result.orgId} (${result.slug})`)
+    console.log(`Grow: lead ${lead.id} paid → org ${result.orgId} (${result.slug})`)
   }
 }
 

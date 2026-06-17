@@ -71,10 +71,12 @@ export default function ThanksClient({ slug, orgName, campaignTitle, primaryColo
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4" dir="rtl">
       <div className="text-center space-y-6 max-w-md w-full">
         <div
-          className="w-24 h-24 rounded-full flex items-center justify-center text-5xl mx-auto shadow-lg"
+          className="w-24 h-24 rounded-full flex items-center justify-center mx-auto shadow-lg"
           style={{ backgroundColor: primaryColor + '20' }}
         >
-          🙏
+          <svg className="w-12 h-12" viewBox="0 0 24 24" fill="none" stroke={primaryColor} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M5 13l4 4L19 7" />
+          </svg>
         </div>
 
         <div>
@@ -98,7 +100,6 @@ export default function ThanksClient({ slug, orgName, campaignTitle, primaryColo
               className="flex items-center justify-center gap-2 w-full py-3 rounded-xl border-2 font-bold text-sm transition-colors hover:bg-gray-50"
               style={{ borderColor: primaryColor, color: primaryColor }}
             >
-              <span>📄</span>
               הורד קבלה
             </a>
           )}

@@ -205,7 +205,7 @@ export default function LoginShowcase() {
               {scene === 2 && (
                 <>
                   <div className="lshow-head">
-                    <div className="lshow-ava">☎</div>
+                    <div className="lshow-ava"></div>
                     <div>
                       <div className="lshow-org">חמ״ל טלפנים</div>
                       <div className="lshow-live"><span className="dot" />4 טלפנים פעילים</div>
@@ -219,7 +219,7 @@ export default function LoginShowcase() {
                       <span className="lshow-craised">{c.raised}</span>
                     </div>
                   ))}
-                  <div className="lshow-newlead">📞 ליד חדש נכנס לתור</div>
+                  <div className="lshow-newlead">ליד חדש נכנס לתור</div>
                 </>
               )}
 

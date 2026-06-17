@@ -20,7 +20,6 @@ export default function TermsPage() {
     <div className="max-w-3xl mx-auto px-4 py-12" dir="rtl" lang="he" id="main-content">
       <div className="space-y-8">
         <div>
-          <div className="text-4xl mb-3">📜</div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">תנאי שימוש</h1>
           <p className="text-gray-500">עודכן לאחרונה: {today}</p>
         </div>

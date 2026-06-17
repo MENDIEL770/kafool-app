@@ -341,7 +341,7 @@ export default function DonationModal({
               )}
 
               <p className="text-center text-xs text-gray-400 flex items-center justify-center gap-1">
-                <span>🔒</span> תשלום מאובטח — קשר
+                <span></span> תשלום מאובטח — קשר
               </p>
             </div>
           )}
@@ -353,7 +353,7 @@ export default function DonationModal({
             if (!isValid) {
               return (
                 <div className="px-5 py-10 text-center space-y-3">
-                  <div className="text-4xl">⚙️</div>
+                  <div className="text-4xl"></div>
                   <p className="font-bold text-gray-700">דף התשלום טרם הוגדר</p>
                   <p className="text-sm text-gray-400">יש להגדיר קישור תשלום בהגדרות הארגון</p>
                   <button onClick={() => setStep('details')} className="text-sm text-blue-500 hover:underline">

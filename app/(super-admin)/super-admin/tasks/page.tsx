@@ -86,7 +86,7 @@ export default function TasksPage() {
   return (
     <div className="space-y-6 max-w-2xl" dir="rtl">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">📝 יומן משימות</h1>
+        <h1 className="text-2xl font-bold text-gray-900">יומן משימות</h1>
         <button
           onClick={() => setShowForm(!showForm)}
           className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700"
@@ -131,10 +131,10 @@ export default function TasksPage() {
                     onChange={e => setForm(p => ({ ...p, priority: e.target.value }))}
                     className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none"
                   >
-                    <option value="urgent">🔴 דחוף</option>
-                    <option value="high">🟠 גבוה</option>
-                    <option value="normal">🔵 רגיל</option>
-                    <option value="low">⚪ נמוך</option>
+                    <option value="urgent">דחוף</option>
+                    <option value="high">גבוה</option>
+                    <option value="normal">רגיל</option>
+                    <option value="low">נמוך</option>
                   </select>
                 </div>
               </div>
@@ -161,7 +161,7 @@ export default function TasksPage() {
               filter === f ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
             }`}
           >
-            {f === 'all' ? 'הכל' : f === 'pending' ? 'ממתינות' : f === 'urgent' ? '🔴 דחוף' : 'הושלמו'}
+            {f === 'all' ? 'הכל' : f === 'pending' ? 'ממתינות' : f === 'urgent' ? 'דחוף' : 'הושלמו'}
           </button>
         ))}
         <span className="mr-auto text-sm text-gray-400 self-center">{filtered.length} משימות</span>
@@ -204,7 +204,7 @@ export default function TasksPage() {
                 </div>
                 {task.due_date && (
                   <div className={`text-xs mt-0.5 ${isOverdue(task) ? 'text-red-500 font-medium' : 'text-gray-400'}`}>
-                    ⏰ {new Date(task.due_date).toLocaleString('he-IL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    {new Date(task.due_date).toLocaleString('he-IL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                     {isOverdue(task) && ' — באיחור!'}
                   </div>
                 )}
@@ -230,7 +230,7 @@ export default function TasksPage() {
                 aria-label="מחק משימה"
                 className="text-gray-300 hover:text-red-400 text-sm shrink-0 transition-colors"
               >
-                🗑
+               
               </button>
             </div>
           </div>

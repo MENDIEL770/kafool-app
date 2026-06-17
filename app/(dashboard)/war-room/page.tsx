@@ -98,13 +98,13 @@ export default function WarRoomPage() {
     return Math.round(raised / hours)
   })()
 
-  const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣']
+  const medals = ['', '', '', '4⃣', '5⃣']
 
   if (!campaign) {
     return (
       <div className="min-h-screen bg-[#0f172a] flex items-center justify-center" dir="rtl">
         <div className="text-center text-white space-y-4">
-          <div className="text-6xl">📺</div>
+          <div className="text-6xl"></div>
           <h1 className="text-2xl font-bold">חמ&quot;ל גיוס</h1>
           <p className="text-gray-400">אין קמפיינים פעילים כרגע.</p>
         </div>
@@ -154,11 +154,11 @@ export default function WarRoomPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Caller leaderboard */}
         <div className="bg-gray-800 rounded-2xl p-5 space-y-3">
-          <h2 className="text-lg font-bold text-gray-200">🏆 טלפנים מובילים</h2>
+          <h2 className="text-lg font-bold text-gray-200">טלפנים מובילים</h2>
           {callers.length === 0 && <p className="text-gray-500 text-sm">אין נתונים עדיין</p>}
           {callers.map((c, i) => (
             <div key={c.id} className="flex items-center gap-3 p-3 bg-gray-700 rounded-xl">
-              <span className="text-2xl">{medals[i] || '🏅'}</span>
+              <span className="text-2xl">{medals[i] || ''}</span>
               <div className="flex-1">
                 <div className="font-medium text-gray-100">{Array.isArray(c.profiles) ? c.profiles[0]?.full_name : c.profiles?.full_name || '—'}</div>
               </div>
@@ -169,7 +169,7 @@ export default function WarRoomPage() {
 
         {/* Live donations feed */}
         <div className="bg-gray-800 rounded-2xl p-5 space-y-3">
-          <h2 className="text-lg font-bold text-gray-200">⚡ תרומות חיות</h2>
+          <h2 className="text-lg font-bold text-gray-200">תרומות חיות</h2>
           {donations.length === 0 && <p className="text-gray-500 text-sm">ממתין לתרומות...</p>}
           <div className="space-y-2 max-h-80 overflow-y-auto">
             {donations.map((d) => (
@@ -193,7 +193,7 @@ export default function WarRoomPage() {
       {/* Groups competition */}
       {groups.length > 0 && (
         <div className="bg-gray-800 rounded-2xl p-5 space-y-3">
-          <h2 className="text-lg font-bold text-gray-200">🏁 תחרות קבוצות</h2>
+          <h2 className="text-lg font-bold text-gray-200">תחרות קבוצות</h2>
           <div className="space-y-3">
             {groups.map((g) => {
               const gPct = g.goal_amount > 0 ? Math.min(100, Math.round((g.raised_amount / g.goal_amount) * 100)) : 0

@@ -237,7 +237,7 @@ export default function CampaignSettingsPage() {
             </div>
             {form.countdown_end && (
               <p className="text-xs text-blue-600">
-                ⏱ ספירה לאחור תוצג עד: {new Date(form.countdown_end).toLocaleString('he-IL')}
+                ספירה לאחור תוצג עד: {new Date(form.countdown_end).toLocaleString('he-IL')}
               </p>
             )}
             {form.countdown_end && (
@@ -256,7 +256,7 @@ export default function CampaignSettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <span className="text-lg">💬</span> כפתור WhatsApp
+              <span className="text-lg"></span> כפתור WhatsApp
             </CardTitle>
             <p className="text-xs text-gray-400 mt-1">כפתור צף בדף הגיוס שפותח שיחת WhatsApp עם מנהל הקמפיין</p>
           </CardHeader>
@@ -288,7 +288,7 @@ export default function CampaignSettingsPage() {
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 text-xs text-green-600 hover:underline"
               >
-                <span className="text-base">✅</span> בדוק את הקישור
+                <span className="text-base"></span> בדוק את הקישור
               </a>
             )}
           </CardContent>

@@ -5,10 +5,10 @@ import { createClient } from '@/lib/supabase/client'
 import { Check, Copy, Info, ExternalLink } from 'lucide-react'
 
 const PAYMENT_METHODS = [
-  { key: 'kesher_page_url', label: 'תרומה חד"פ',   icon: '💳', required: true,  hint: 'קישור לדף תשלום רגיל' },
-  { key: 'kesher_url_hok',  label: 'הוראת קבע',    icon: '🔄', required: false, hint: 'קישור לדף הוראת קבע' },
-  { key: 'kesher_url_bit',  label: 'ביט',           icon: '📱', required: false, hint: 'קישור לדף תשלום ביט' },
-  { key: 'kesher_url_bank', label: 'העברה בנקאית', icon: '🏦', required: false, hint: 'קישור לדף העברה בנקאית' },
+  { key: 'kesher_page_url', label: 'תרומה חד"פ',   icon: '', required: true,  hint: 'קישור לדף תשלום רגיל' },
+  { key: 'kesher_url_hok',  label: 'הוראת קבע',    icon: '', required: false, hint: 'קישור לדף הוראת קבע' },
+  { key: 'kesher_url_bit',  label: 'ביט',           icon: '', required: false, hint: 'קישור לדף תשלום ביט' },
+  { key: 'kesher_url_bank', label: 'העברה בנקאית', icon: '', required: false, hint: 'קישור לדף העברה בנקאית' },
 ] as const
 
 type PaymentKey = typeof PAYMENT_METHODS[number]['key']

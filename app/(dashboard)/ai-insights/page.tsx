@@ -100,14 +100,14 @@ export default function AIInsightsPage() {
         >
           {loading ? (
             <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />מנתח...</>
-          ) : '🔄 רענן ניתוח'}
+          ) : 'רענן ניתוח'}
         </button>
       </div>
 
       {!insights && !loading && (
         <Card>
           <CardContent className="py-16 text-center space-y-4">
-            <div className="text-5xl">🤖</div>
+            <div className="text-5xl"></div>
             <h3 className="font-bold text-gray-800">ניתוח AI יומי</h3>
             <p className="text-gray-500 text-sm">לחץ על "רענן ניתוח" לקבלת סיכום יומי והמלצות</p>
           </CardContent>
@@ -134,7 +134,7 @@ export default function AIInsightsPage() {
 
           {/* Summary */}
           <Card>
-            <CardHeader><CardTitle className="text-base">📊 סיכום היום</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base">סיכום היום</CardTitle></CardHeader>
             <CardContent>
               <p className="text-gray-700 leading-relaxed">{insights.summary}</p>
             </CardContent>
@@ -142,7 +142,7 @@ export default function AIInsightsPage() {
 
           {/* Recommendations */}
           <Card>
-            <CardHeader><CardTitle className="text-base">💡 המלצות AI</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base">המלצות AI</CardTitle></CardHeader>
             <CardContent className="space-y-3">
               {insights.recommendations.map((rec, i) => (
                 <div key={i} className="flex items-start gap-3 p-3 bg-blue-50 rounded-xl">
@@ -157,7 +157,7 @@ export default function AIInsightsPage() {
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className="text-base">🎯 הגדר יעד יומי עם AI</CardTitle>
+                <CardTitle className="text-base">הגדר יעד יומי עם AI</CardTitle>
                 <button
                   onClick={() => setShowGoalForm(!showGoalForm)}
                   className="text-sm text-blue-600 hover:underline"

@@ -584,7 +584,7 @@ function ProgressSection({ raised, goal, donorsCount, primaryColor, bricks }: { 
           <div className="flex justify-between text-xs text-gray-400 mt-1.5">
             <span>{pct}% הושלם</span>
             {goal > raised && <span>נותר ₪{(goal - raised).toLocaleString('he-IL')}</span>}
-            {goal <= raised && goal > 0 && <span className="font-bold" style={{ color: primaryColor }}>היעד הושג! 🎉</span>}
+            {goal <= raised && goal > 0 && <span className="font-bold" style={{ color: primaryColor }}>היעד הושג!</span>}
           </div>
         </div>
 
@@ -605,7 +605,7 @@ function ProgressSection({ raised, goal, donorsCount, primaryColor, bricks }: { 
                   כבר גויסו <span className="tabular-nums" style={{ color: primaryColor }}>{bricksAchieved.toLocaleString('he-IL')}</span> {bricksLabel} מתוך {bricksTotal.toLocaleString('he-IL')} {bricksLabel}
                 </p>
                 {bricks?.price ? (
-                  <p className="text-xs text-gray-400 mt-0.5">כל לבנה = ₪{bricks.price.toLocaleString('he-IL')} · {pct}% מהבית נבנה 🏠</p>
+                  <p className="text-xs text-gray-400 mt-0.5">כל לבנה = ₪{bricks.price.toLocaleString('he-IL')} · {pct}% מהבית נבנה</p>
                 ) : null}
               </div>
 
@@ -685,7 +685,7 @@ function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCre
           <div className="flex justify-center mb-6">
             <div className="inline-flex items-center gap-2 rounded-full pr-3 pl-1.5 py-1.5 text-sm font-semibold"
               style={{ backgroundColor: `${primaryColor}1A`, color: primaryColor }}>
-              <span>👥 מחובר לקבוצת {activeGroupName}</span>
+              <span>מחובר לקבוצת {activeGroupName}</span>
               <a
                 href={`/${campaignSlug}`}
                 title="הצג את כל התורמים בקמפיין"
@@ -807,7 +807,6 @@ function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCre
                               className="flex items-center gap-1 mt-2 px-2 py-0.5 rounded-full text-[11px] font-semibold hover:opacity-80 transition-opacity max-w-full w-fit"
                               style={{ backgroundColor: `${primaryColor}1A`, color: primaryColor }}
                             >
-                              <span aria-hidden className="shrink-0">👥</span>
                               <span className="truncate">דרך {donorGroup.name}</span>
                             </a>
                           )}

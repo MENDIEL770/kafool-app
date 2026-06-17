@@ -124,7 +124,7 @@ export default function AccessibilityWidget() {
         className="fixed bottom-6 left-6 z-[9999] w-14 h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg flex items-center justify-center text-2xl transition-transform hover:scale-110 focus:outline-none focus:ring-4 focus:ring-blue-300"
         style={{ direction: 'ltr' }}
       >
-        ♿
+       
       </button>
 
       {/* Panel */}
@@ -138,7 +138,7 @@ export default function AccessibilityWidget() {
         >
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 bg-blue-600 text-white">
-            <h2 className="font-bold text-sm">♿ הגדרות נגישות</h2>
+            <h2 className="font-bold text-sm">הגדרות נגישות</h2>
             <div className="flex gap-2">
               <button onClick={reset} className="text-xs bg-white/20 hover:bg-white/30 px-2 py-1 rounded-lg">איפוס</button>
               <button onClick={() => setOpen(false)} aria-label="סגור" className="text-xl leading-none hover:opacity-80">×</button>
@@ -155,7 +155,7 @@ export default function AccessibilityWidget() {
                   s.donationMode ? 'bg-amber-400 text-amber-900' : 'bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100'
                 }`}
               >
-                ♿ מצב תרומה נגיש {s.donationMode ? '(פעיל)' : ''}
+                מצב תרומה נגיש {s.donationMode ? '(פעיל)' : ''}
               </button>
               <p className="text-xs text-gray-400 mt-1 text-center">טפסים פשוטים, כפתורים גדולים, ללא אנימציות</p>
             </div>
@@ -176,7 +176,7 @@ export default function AccessibilityWidget() {
                 >A-</button>
                 <div className="flex-1 py-2 bg-gray-100 rounded-lg text-xs text-center text-gray-500">{Math.round(s.fontScale * 100)}%</div>
               </div>
-              <Toggle label="פונט קריא" icon="🔤" active={s.readableFont} onClick={() => update({ readableFont: !s.readableFont })} />
+              <Toggle label="פונט קריא" icon="" active={s.readableFont} onClick={() => update({ readableFont: !s.readableFont })} />
               <Toggle label="רווח אותיות" icon="↔" active={s.letterSpacing} onClick={() => update({ letterSpacing: !s.letterSpacing })} />
               <Toggle label="גובה שורה" icon="↕" active={s.lineHeight} onClick={() => update({ lineHeight: !s.lineHeight })} />
             </div>
@@ -185,24 +185,24 @@ export default function AccessibilityWidget() {
             <div className="space-y-1">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-1">צבעים</p>
               <Toggle label="ניגודיות גבוהה" icon="◑" active={s.highContrast} onClick={() => update({ highContrast: !s.highContrast })} />
-              <Toggle label="מצב כהה" icon="🌙" active={s.darkContrast} onClick={() => update({ darkContrast: !s.darkContrast })} />
-              <Toggle label="היפוך צבעים" icon="🔄" active={s.invertColors} onClick={() => update({ invertColors: !s.invertColors })} />
-              <Toggle label="מונוכרום" icon="⬛" active={s.monochrome} onClick={() => update({ monochrome: !s.monochrome })} />
+              <Toggle label="מצב כהה" icon="" active={s.darkContrast} onClick={() => update({ darkContrast: !s.darkContrast })} />
+              <Toggle label="היפוך צבעים" icon="" active={s.invertColors} onClick={() => update({ invertColors: !s.invertColors })} />
+              <Toggle label="מונוכרום" icon="" active={s.monochrome} onClick={() => update({ monochrome: !s.monochrome })} />
             </div>
 
             {/* Reading */}
             <div className="space-y-1">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-1">קריאה</p>
-              <Toggle label="סמן גדול" icon="🖱" active={s.bigCursor} onClick={() => update({ bigCursor: !s.bigCursor })} />
-              <Toggle label="הדגש כותרות" icon="📌" active={s.highlightHeadings} onClick={() => update({ highlightHeadings: !s.highlightHeadings })} />
-              <Toggle label="הדגש קישורים" icon="🔗" active={s.highlightLinks} onClick={() => update({ highlightLinks: !s.highlightLinks })} />
+              <Toggle label="סמן גדול" icon="" active={s.bigCursor} onClick={() => update({ bigCursor: !s.bigCursor })} />
+              <Toggle label="הדגש כותרות" icon="" active={s.highlightHeadings} onClick={() => update({ highlightHeadings: !s.highlightHeadings })} />
+              <Toggle label="הדגש קישורים" icon="" active={s.highlightLinks} onClick={() => update({ highlightLinks: !s.highlightLinks })} />
             </div>
 
             {/* Motion */}
             <div className="space-y-1">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-1">תנועה</p>
-              <Toggle label="עצור אנימציות" icon="⏸" active={s.noAnimations} onClick={() => update({ noAnimations: !s.noAnimations })} />
-              <Toggle label="הפחת תנועה" icon="🐢" active={s.reduceMotion} onClick={() => update({ reduceMotion: !s.reduceMotion })} />
+              <Toggle label="עצור אנימציות" icon="" active={s.noAnimations} onClick={() => update({ noAnimations: !s.noAnimations })} />
+              <Toggle label="הפחת תנועה" icon="" active={s.reduceMotion} onClick={() => update({ reduceMotion: !s.reduceMotion })} />
             </div>
 
             {/* Statement link */}

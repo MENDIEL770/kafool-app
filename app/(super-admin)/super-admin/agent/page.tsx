@@ -8,12 +8,12 @@ interface Message {
 }
 
 const QUICK_ACTIONS = [
-  { label: '🔍 סקירת מערכת', prompt: 'תן לי סקירה כללית של מצב המערכת — ארגונים, קמפיינים, תרומות, ובעיות.' },
-  { label: '⏳ ארגונים ממתינים', prompt: 'הצג לי את כל הארגונים הממתינים לאישור.' },
-  { label: '⚠️ בעיות סליקה', prompt: 'בדוק אם יש webhooks שלא עובדו או תרומות תקועות.' },
-  { label: '📊 ביצועי קמפיינים', prompt: 'אילו קמפיינים פעילים כרגע ומה הביצועים שלהם?' },
-  { label: '📱 כשלי SMS', prompt: 'בדוק אם יש הודעות SMS שנכשלו לאחרונה.' },
-  { label: '💰 תרומות היום', prompt: 'כמה תרומות התקבלו ב-24 שעות האחרונות וסה"כ כמה גויס?' },
+  { label: 'סקירת מערכת', prompt: 'תן לי סקירה כללית של מצב המערכת — ארגונים, קמפיינים, תרומות, ובעיות.' },
+  { label: 'ארגונים ממתינים', prompt: 'הצג לי את כל הארגונים הממתינים לאישור.' },
+  { label: 'בעיות סליקה', prompt: 'בדוק אם יש webhooks שלא עובדו או תרומות תקועות.' },
+  { label: 'ביצועי קמפיינים', prompt: 'אילו קמפיינים פעילים כרגע ומה הביצועים שלהם?' },
+  { label: 'כשלי SMS', prompt: 'בדוק אם יש הודעות SMS שנכשלו לאחרונה.' },
+  { label: 'תרומות היום', prompt: 'כמה תרומות התקבלו ב-24 שעות האחרונות וסה"כ כמה גויס?' },
 ]
 
 export default function AgentPage() {
@@ -78,7 +78,7 @@ export default function AgentPage() {
       {/* Header */}
       <div className="flex items-center gap-3 mb-4">
         <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center text-xl">
-          🤖
+         
         </div>
         <div>
           <h1 className="text-xl font-bold text-gray-900">סוכן Kafool AI</h1>

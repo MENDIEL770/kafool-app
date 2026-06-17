@@ -105,7 +105,7 @@ export async function POST(req: NextRequest) {
       amount_agorot: amountAgorot,
     })
 
-    console.log(`✅ Donation saved: ₪${amountTotal} for campaign ${campaignId}`)
+    console.log(`Donation saved: ₪${amountTotal} for campaign ${campaignId}`)
   } catch (err) {
     console.error('Kesher webhook error:', err)
   }
@@ -161,7 +161,7 @@ export async function GET(req: NextRequest) {
     })
 
     await supabase.rpc('increment_campaign_amount', { campaign_id: campaignId, amount_agorot: amountAgorot })
-    console.log(`✅ GET webhook: ₪${amountTotal} for campaign ${campaignId}`)
+    console.log(`GET webhook: ₪${amountTotal} for campaign ${campaignId}`)
   } catch (err) {
     console.error('Kesher GET webhook error:', err)
   }

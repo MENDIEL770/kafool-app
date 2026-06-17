@@ -111,7 +111,7 @@ export default function NotFound() {
 
     const onMute = () => {
       muted = !muted
-      muteBtn.textContent = muted ? '🔇' : '🔊'
+      muteBtn.textContent = muted ? 'הפעל צליל' : 'השתק'
       muteBtn.setAttribute('aria-label', muted ? 'ביטול השתקה' : 'השתקת צליל')
     }
     muteBtn.addEventListener('click', onMute)
@@ -239,7 +239,7 @@ export default function NotFound() {
     <div className="kf404" dir="rtl">
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
 
-      <button className="mute" id="kf-mute" aria-label="השתקת צליל">🔊</button>
+      <button className="mute" id="kf-mute" aria-label="השתקת צליל">השתק</button>
 
       <div className="ambient" id="kf-ambient" />
 
@@ -260,7 +260,7 @@ export default function NotFound() {
             <div className="pushke">
               <div className="ring" />
               <div className="slot" />
-              <div className="heart">♥</div>
+              <div className="heart"><svg viewBox="0 0 24 24" width="100%" height="100%" fill="currentColor"><path d="M12 21s-7.5-4.9-10-9.2C.4 8.7 1.9 5.5 5 5.1c2-.3 3.4.9 4 2 .6-1.1 2-2.3 4-2 3.1.4 4.6 3.6 3 6.7C19.5 16.1 12 21 12 21z"/></svg></div>
             </div>
             <div className="box-label">קופת צדקה</div>
           </div>

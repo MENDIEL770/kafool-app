@@ -617,7 +617,7 @@ export default function CampaignMediaClient({
                     </div>
                   ))}
                 </div>
-                <p className="text-[11px] text-gray-400 leading-snug">💡 שמרו פרטים חשובים במרכז — הקצוות עשויים להיחתך. הסדר למעלה קובע את סדר ההתחלפות.</p>
+                <p className="text-[11px] text-gray-400 leading-snug">שמרו פרטים חשובים במרכז — הקצוות עשויים להיחתך. הסדר למעלה קובע את סדר ההתחלפות.</p>
               </div>
 
               {/* ─── Mobile banners (optional) ─── */}
@@ -686,7 +686,7 @@ export default function CampaignMediaClient({
                   { label: 'פורמט', value: 'PNG (רקע שקוף)' },
                   { label: 'משקל מקסימלי', value: 'עד 500KB' },
                 ]}
-                hint="💡 רקע שקוף (PNG) מומלץ — כך הלוגו משתלב יפה בכל רקע."
+                hint="רקע שקוף (PNG) מומלץ — כך הלוגו משתלב יפה בכל רקע."
                 currentUrl={logoUrl}
                 onUpload={handleLogoUpload}
                 uploading={uploadingLogo}
@@ -702,7 +702,7 @@ export default function CampaignMediaClient({
                   { label: 'פורמט', value: 'JPG / PNG' },
                   { label: 'משקל מקסימלי', value: 'עד 2MB' },
                 ]}
-                hint="💡 שמרו טקסט ופרטים חשובים במרכז. אם לא תעלו תמונה — תיווצר אוטומטית תמונת שיתוף ממותגת."
+                hint="שמרו טקסט ופרטים חשובים במרכז. אם לא תעלו תמונה — תיווצר אוטומטית תמונת שיתוף ממותגת."
                 currentUrl={shareImage}
                 onUpload={handleShareUpload}
                 uploading={uploadingShare}
@@ -718,7 +718,7 @@ export default function CampaignMediaClient({
                   { label: 'פורמט', value: 'JPG / PNG' },
                   { label: 'משקל מקסימלי', value: 'עד 2MB' },
                 ]}
-                hint="💡 ריבוע נראה הכי טוב בחלון הקופץ בשני המכשירים. אפשר גם 4:5 לאורך. השאר ריק כדי לבטל את הפופ-אפ."
+                hint="ריבוע נראה הכי טוב בחלון הקופץ בשני המכשירים. אפשר גם 4:5 לאורך. השאר ריק כדי לבטל את הפופ-אפ."
                 currentUrl={popupImage}
                 onUpload={handlePopupUpload}
                 uploading={uploadingPopup}
@@ -813,11 +813,11 @@ export default function CampaignMediaClient({
 
               {banners.length === 0 ? (
                 <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700 text-center">
-                  💡 העלה באנר כדי לראות את התצוגה המלאה
+                  העלה באנר כדי לראות את התצוגה המלאה
                 </div>
               ) : banners.length > 1 && (
                 <div className="mt-4 p-3 bg-blue-50 border border-blue-100 rounded-xl text-xs text-blue-700 text-center">
-                  🔄 {banners.length} באנרים — יתחלפו אוטומטית כל 4 שניות בעמוד הגיוס
+                  {banners.length} באנרים — יתחלפו אוטומטית כל 4 שניות בעמוד הגיוס
                 </div>
               )}
             </div>

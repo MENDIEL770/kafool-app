@@ -370,8 +370,8 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
           { label: 'סה"כ גויס', val: `₪${total.toLocaleString()}`, accent: 'text-gray-900' },
-          { label: '💻 נכנס באתר', val: `₪${onlineTotal.toLocaleString()}`, accent: 'text-green-600' },
-          { label: '✍️ נכנס ידני', val: `₪${manualTotal.toLocaleString()}`, accent: 'text-blue-600' },
+          { label: 'נכנס באתר', val: `₪${onlineTotal.toLocaleString()}`, accent: 'text-green-600' },
+          { label: 'נכנס ידני', val: `₪${manualTotal.toLocaleString()}`, accent: 'text-blue-600' },
           { label: 'סה"כ תורמים', val: donations.length, accent: 'text-gray-900' },
         ].map(s => (
           <div key={s.label} className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm text-center">
@@ -684,7 +684,7 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
                       <td className="px-4 py-3 font-medium text-gray-800">
                         {d.donor_name || <span className="text-gray-300">אנונימי</span>}
                         {groupName(d.group_id) && (
-                          <span className="block text-[11px] text-gray-400 font-normal mt-0.5">👥 {groupName(d.group_id)}</span>
+                          <span className="block text-[11px] text-gray-400 font-normal mt-0.5">{groupName(d.group_id)}</span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-gray-500 text-xs" dir="ltr">{d.donor_phone || '—'}</td>
@@ -692,7 +692,7 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
                       <td className="px-4 py-3 text-gray-400 text-xs max-w-[120px] truncate">{d.dedication || '—'}</td>
                       <td className="px-4 py-3">
                         <span className={`text-xs px-2 py-0.5 rounded-full ${d.kesher_transaction_id ? 'bg-green-50 text-green-700' : 'bg-blue-50 text-blue-700'}`}>
-                          {d.kesher_transaction_id ? '💻 אתר' : '✍️ ידני'}
+                          {d.kesher_transaction_id ? 'אתר' : 'ידני'}
                         </span>
                       </td>
                       <td className="px-4 py-3">

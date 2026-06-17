@@ -141,7 +141,7 @@ function BlockPreview({ block, data, design, onEdit }: {
         onClick={onEdit}
         className="opacity-0 group-hover:opacity-100 absolute top-2 left-2 z-10 text-xs font-semibold px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-all shadow-lg"
       >
-        ✏️ ערוך
+        ערוך
       </button>
     </div>
   )
@@ -206,7 +206,7 @@ function BlockPreview({ block, data, design, onEdit }: {
       <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
         <p className="text-base font-black text-gray-800 text-center mb-4">ההשפעה שלכם</p>
         <div className="grid grid-cols-2 gap-3">
-          {[['❤️', '₪180', 'ארוחה חמה ליום'], ['📚', '₪360', 'ספרי לימוד לחודש'], ['🏠', '₪720', 'סיוע בשכר דירה'], ['✨', '₪1,800', 'שנה של תמיכה']].map(([icon, amt, desc]) => (
+          {[['', '₪180', 'ארוחה חמה ליום'], ['', '₪360', 'ספרי לימוד לחודש'], ['', '₪720', 'סיוע בשכר דירה'], ['', '₪1,800', 'שנה של תמיכה']].map(([icon, amt, desc]) => (
             <div key={desc} className="text-center p-3 rounded-xl bg-gray-50 border border-gray-100">
               <div className="text-2xl mb-1">{icon}</div>
               <div className="font-black text-sm" style={{ color: p }}>{amt}</div>
@@ -397,7 +397,7 @@ function BlockEditFields({ blockId, data, onChange }: { blockId: BlockId; data: 
   }
 
   if (blockId === 'impact') {
-    const cells = (data.cells as { amount: string; icon: string; desc: string }[]) || Array(4).fill({ amount: '', icon: '❤️', desc: '' })
+    const cells = (data.cells as { amount: string; icon: string; desc: string }[]) || Array(4).fill({ amount: '', icon: '', desc: '' })
     return (
       <div className="space-y-3">
         {cells.map((c, i) => (

@@ -116,7 +116,7 @@ function ImportLeadsButton({ campaignId, orgId }: { campaignId: string; orgId: s
     <div className="flex items-center gap-2">
       <input ref={fileRef} type="file" accept=".csv" className="hidden" id="import-csv" onChange={handleFile} />
       <label htmlFor="import-csv" className={cn(buttonVariants({ variant: 'outline' }), 'cursor-pointer text-sm')}>
-        📂 ייבא לידים
+        ייבא לידים
       </label>
       {status && <span className="text-xs text-gray-500">{status}</span>}
     </div>
@@ -206,7 +206,7 @@ export default function CallersPage() {
       {loading ? (
         <div className="text-center py-12 text-gray-400">טוען...</div>
       ) : callers.length === 0 ? (
-        <Card><CardContent className="py-16 text-center text-gray-400"><div className="text-4xl mb-3">📞</div><p>אין טלפנים עדיין.</p></CardContent></Card>
+        <Card><CardContent className="py-16 text-center text-gray-400"><div className="text-4xl mb-3"></div><p>אין טלפנים עדיין.</p></CardContent></Card>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-gray-100">
           <table className="w-full text-sm">

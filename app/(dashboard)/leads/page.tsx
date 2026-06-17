@@ -9,20 +9,20 @@ import type { Lead, Caller } from '@/types'
 
 /* ── Phone Import Guide Modal ── */
 const IPHONE_STEPS = [
-  { icon: '🌐', title: 'פתח דפדפן', desc: 'עבור ל-icloud.com בדפדפן הפלאפון' },
-  { icon: '🔑', title: 'היכנס ל-iCloud', desc: 'התחבר עם Apple ID שלך' },
-  { icon: '👥', title: 'אנשי קשר', desc: 'לחץ על "אנשי קשר"' },
-  { icon: '☑️', title: 'בחר הכל', desc: 'לחץ Ctrl+A או בחר את כל אנשי הקשר' },
-  { icon: '⚙️', title: 'ייצוא vCard', desc: 'לחץ על גלגל השיניים → "ייצא vCard"' },
-  { icon: '📤', title: 'העלה כאן', desc: 'לחץ על כפתור "העלה קובץ .vcf" למטה' },
+  { icon: '', title: 'פתח דפדפן', desc: 'עבור ל-icloud.com בדפדפן הפלאפון' },
+  { icon: '', title: 'היכנס ל-iCloud', desc: 'התחבר עם Apple ID שלך' },
+  { icon: '', title: 'אנשי קשר', desc: 'לחץ על "אנשי קשר"' },
+  { icon: '', title: 'בחר הכל', desc: 'לחץ Ctrl+A או בחר את כל אנשי הקשר' },
+  { icon: '', title: 'ייצוא vCard', desc: 'לחץ על גלגל השיניים → "ייצא vCard"' },
+  { icon: '', title: 'העלה כאן', desc: 'לחץ על כפתור "העלה קובץ .vcf" למטה' },
 ]
 
 const ANDROID_STEPS = [
-  { icon: '📱', title: 'פתח אנשי קשר', desc: 'פתח את אפליקציית "אנשי קשר" בטלפון' },
+  { icon: '', title: 'פתח אנשי קשר', desc: 'פתח את אפליקציית "אנשי קשר" בטלפון' },
   { icon: '⋮', title: 'תפריט', desc: 'לחץ על שלוש הנקודות (⋮) בפינה' },
-  { icon: '📋', title: 'נהל/ייצוא', desc: 'בחר "ניהול אנשי קשר" → "ייצוא"' },
-  { icon: '💾', title: 'שמור .vcf', desc: 'בחר "שמור בזיכרון הפנימי" כקובץ vcf' },
-  { icon: '📤', title: 'העלה כאן', desc: 'לחץ על כפתור "העלה קובץ .vcf" למטה' },
+  { icon: '', title: 'נהל/ייצוא', desc: 'בחר "ניהול אנשי קשר" → "ייצוא"' },
+  { icon: '', title: 'שמור .vcf', desc: 'בחר "שמור בזיכרון הפנימי" כקובץ vcf' },
+  { icon: '', title: 'העלה כאן', desc: 'לחץ על כפתור "העלה קובץ .vcf" למטה' },
 ]
 
 function parseVcf(text: string): { name: string; phone: string }[] {
@@ -88,7 +88,7 @@ function PhoneImportGuide({ campaignId, orgId, onImported }: { campaignId: strin
         onClick={() => setOpen(true)}
         className={cn(buttonVariants({ variant: 'outline' }), 'gap-2')}
       >
-        📱 ייבא מהפלאפון
+        ייבא מהפלאפון
       </button>
 
       {open && (
@@ -109,7 +109,7 @@ function PhoneImportGuide({ campaignId, orgId, onImported }: { campaignId: strin
                     tab === t ? 'bg-white shadow text-gray-900' : 'text-gray-500'
                   )}
                 >
-                  {t === 'iphone' ? '🍎 iPhone' : '🤖 Android'}
+                  {t === 'iphone' ? 'iPhone' : 'Android'}
                 </button>
               ))}
             </div>
@@ -148,7 +148,7 @@ function PhoneImportGuide({ campaignId, orgId, onImported }: { campaignId: strin
               className="block w-full py-3.5 rounded-2xl text-white font-black text-center text-sm cursor-pointer transition-all hover:opacity-90 active:scale-95"
               style={{ background: 'linear-gradient(135deg, #3b82f6, #6366f1)' }}
             >
-              📂 העלה קובץ .vcf
+              העלה קובץ .vcf
             </label>
             {status && (
               <p className={cn('text-center text-sm mt-3 font-medium', status.includes('✓') ? 'text-green-600' : 'text-gray-500')}>
@@ -242,7 +242,7 @@ function LeadsImport({ campaignId, orgId, onImported }: { campaignId: string; or
     <div className="flex items-center gap-2">
       <input ref={fileRef} type="file" accept=".csv" className="hidden" id="leads-import-csv" onChange={handleFile} />
       <label htmlFor="leads-import-csv" className={cn(buttonVariants({ variant: 'outline' }), 'cursor-pointer')}>
-        📂 ייבא CSV
+        ייבא CSV
       </label>
       {status && <span className="text-xs text-gray-500">{status}</span>}
     </div>
@@ -345,7 +345,7 @@ export default function LeadsPage() {
   return (
     <div className="space-y-6" dir="rtl">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <h1 className="text-2xl font-bold text-gray-900">📋 ניהול לידים</h1>
+        <h1 className="text-2xl font-bold text-gray-900">ניהול לידים</h1>
         {campaignId && (
           <div className="flex items-center gap-2 flex-wrap">
             <LeadsImport campaignId={campaignId} orgId={orgId} onImported={() => fetchLeads(orgId, campaignId)} />

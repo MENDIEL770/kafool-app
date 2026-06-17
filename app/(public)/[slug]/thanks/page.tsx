@@ -87,7 +87,7 @@ export default async function ThanksPage({
         const { data: grp } = await supabaseService.from('groups').select('raised_amount').eq('id', groupId).single()
         if (grp) await supabaseService.from('groups').update({ raised_amount: (grp.raised_amount || 0) + totalShekels }).eq('id', groupId)
       }
-      console.log(`✅ Thanks page: ₪${totalShekels} for campaign ${campaign.id}`)
+      console.log(`Thanks page: ₪${totalShekels} for campaign ${campaign.id}`)
 
       // הפעל SMS automations (fire & forget)
       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://kafool.com'
