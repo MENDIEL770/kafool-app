@@ -540,9 +540,13 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
   )
 }
 
-function ProgressSection({ raised, goal, donorsCount, primaryColor }: { raised: number; goal: number; donorsCount: number; primaryColor: string }) {
+function ProgressSection({ raised, goal, donorsCount, primaryColor, bricks }: { raised: number; goal: number; donorsCount: number; primaryColor: string; bricks?: { total: number; price: number; label?: string } }) {
   const pct = goal > 0 ? Math.min(100, Math.round((raised / goal) * 100)) : 0
   const [animPct, setAnimPct] = useState(0)
+
+  const bricksTotal = bricks && bricks.total > 0 ? bricks.total : 0
+  const bricksAchieved = bricks && bricks.price > 0 ? Math.min(bricksTotal, Math.floor(raised / bricks.price)) : 0
+  const bricksLabel = bricks?.label || 'לבנים'
 
   useEffect(() => {
     const t = setTimeout(() => setAnimPct(pct), 300)
@@ -583,6 +587,30 @@ function ProgressSection({ raised, goal, donorsCount, primaryColor }: { raised: 
             {goal <= raised && goal > 0 && <span className="font-bold" style={{ color: primaryColor }}>היעד הושג! 🎉</span>}
           </div>
         </div>
+
+        {/* קיר הלבנים — כמה לבנים הושגו מתוך הסך */}
+        {bricksTotal > 0 && (
+          <div className="pt-4 mt-2 border-t border-gray-200 space-y-3">
+            <p className="text-center text-lg md:text-2xl font-black text-gray-800">
+              כבר הונחו <span className="tabular-nums" style={{ color: primaryColor }}>{bricksAchieved.toLocaleString('he-IL')}</span> מתוך {bricksTotal.toLocaleString('he-IL')} {bricksLabel} 🧱
+            </p>
+            <div className="flex flex-wrap justify-center gap-1 max-w-xl mx-auto">
+              {Array.from({ length: bricksTotal }).map((_, i) => {
+                const filled = i < bricksAchieved
+                return (
+                  <div
+                    key={i}
+                    title={`לבנה ${i + 1}`}
+                    className="w-6 h-3.5 rounded-[3px] transition-colors"
+                    style={filled
+                      ? { background: 'linear-gradient(135deg,#d8b48a,#b5835a)', border: '1px solid #9c6b41', boxShadow: '0 1px 1px rgba(0,0,0,0.12)' }
+                      : { background: '#e5e7eb', border: '1px solid #e5e7eb' }}
+                  />
+                )
+              })}
+            </div>
+          </div>
+        )}
 
       </div>
     </section>
@@ -1234,7 +1262,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
       <DonationPlans plans={donationPlans} primaryColor={primaryColor} campaignSlug={campaign.slug} groups={groups} buttonRadius={buttonRadius} onDonate={openDonate} />
 
       {/* 4. Progress */}
-      <ProgressSection raised={raisedAmount} goal={campaign.goal_amount} donorsCount={donations.length} primaryColor={primaryColor} />
+      <ProgressSection raised={raisedAmount} goal={campaign.goal_amount} donorsCount={donations.length} primaryColor={primaryColor} bricks={(campaign.settings as { bricks?: { total: number; price: number; label?: string } })?.bricks} />
 
       {/* 5+7. About (right) + Community (left) — two columns */}
       <section className="py-10 px-4 bg-white border-t border-gray-100 scroll-mt-20" id="about">
