@@ -646,6 +646,12 @@ export default function GroupsPage() {
     }
   }
 
+  // רענון מיידי של הדף הציבורי אחרי שינוי קבוצה (עוקף את מטמון ה-ISR)
+  function revalidatePublic() {
+    const slug = campaignInfo?.campaign_slug
+    if (slug) fetch('/api/revalidate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ slug }) }).catch(() => {})
+  }
+
   useEffect(() => { load() }, [campaignId])
 
   function set(key: string, value: string) {
@@ -679,6 +685,7 @@ export default function GroupsPage() {
     setShowForm(false)
     setLoading(false)
     load()
+    revalidatePublic()
   }
 
   const withPhone = groups.filter(g => g.manager_phone)
@@ -841,12 +848,12 @@ export default function GroupsPage() {
 
       {/* Edit modal */}
       {editGroup && (
-        <EditModal group={editGroup} onClose={() => setEditGroup(null)} onSaved={load} />
+        <EditModal group={editGroup} onClose={() => setEditGroup(null)} onSaved={() => { load(); revalidatePublic() }} />
       )}
 
       {/* Delete modal */}
       {deleteGroup && (
-        <DeleteModal group={deleteGroup} onClose={() => setDeleteGroup(null)} onDeleted={load} />
+        <DeleteModal group={deleteGroup} onClose={() => setDeleteGroup(null)} onDeleted={() => { load(); revalidatePublic() }} />
       )}
 
       {/* Bulk SMS modal */}

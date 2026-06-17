@@ -167,6 +167,8 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
       const gSum = sumCompleted(next.filter(d => d.group_id === gid))
       await supabase.from('groups').update({ raised_amount: gSum }).eq('id', gid)
     }
+    // רענון מיידי של הדף הציבורי (אחרת הסכום מתעדכן רק אחרי מטמון ה-ISR)
+    fetch('/api/revalidate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ slug: campaign.slug }) }).catch(() => {})
   }
 
   // ── מחיקה ──
