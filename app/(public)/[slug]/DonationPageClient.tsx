@@ -955,9 +955,24 @@ function FloatingBar({ primaryColor, buttonRadius, onDonate }: { campaign: Campa
 function DonationToasts({ donations, groups, primaryColor }: { donations: Donation[]; groups: Group[]; primaryColor: string }) {
   const recent = useMemo(() => donations.slice(0, 5), [donations])
   const [shown, setShown] = useState<{ key: number; d: Donation }[]>([])
+  const [dragX, setDragX] = useState(0)
   const idxRef = useRef(0)
   const keyRef = useRef(0)
+  const dragStart = useRef<number | null>(null)
+  const dismissedRef = useRef(false)
   const groupName = (id?: string | null) => (id ? groups.find(g => g.id === id)?.name : null) || null
+
+  // Swipe the whole stack to the right to dismiss all toasts at once.
+  function onPointerDown(e: React.PointerEvent) { dragStart.current = e.clientX }
+  function onPointerMove(e: React.PointerEvent) {
+    if (dragStart.current == null) return
+    setDragX(Math.max(0, e.clientX - dragStart.current))
+  }
+  function onPointerUp() {
+    if (dragX > 60) { dismissedRef.current = true; setShown([]) }
+    setDragX(0)
+    dragStart.current = null
+  }
 
   useEffect(() => {
     if (recent.length === 0) return
@@ -965,7 +980,7 @@ function DonationToasts({ donations, groups, primaryColor }: { donations: Donati
     const timers: ReturnType<typeof setInterval>[] = []
     // Show a batch of up to 3 donors at once, hold ~7s, then hide. Repeat every 3 min.
     const showBatch = () => {
-      if (!active) return
+      if (!active || dismissedRef.current) return
       const batch: { key: number; d: Donation }[] = []
       for (let n = 0; n < Math.min(3, recent.length); n++) {
         batch.push({ key: keyRef.current++, d: recent[idxRef.current % recent.length] })
@@ -979,23 +994,28 @@ function DonationToasts({ donations, groups, primaryColor }: { donations: Donati
     return () => { active = false; timers.forEach(t => { clearTimeout(t); clearInterval(t) }) }
   }, [recent])
 
-  if (recent.length === 0) return null
+  if (recent.length === 0 || shown.length === 0) return null
   return (
-    <div className="fixed top-20 right-2 z-[45] flex flex-col gap-2 w-[230px] max-w-[64vw] pointer-events-none" dir="rtl">
+    <div
+      className="fixed top-20 right-2 z-[45] flex flex-col gap-2 w-[230px] max-w-[64vw]"
+      dir="rtl"
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+      style={{
+        transform: `translateX(${dragX}px)`,
+        opacity: dragX > 0 ? Math.max(0, 1 - dragX / 180) : 1,
+        transition: dragStart.current == null ? 'transform .25s ease, opacity .25s ease' : 'none',
+        touchAction: 'pan-y',
+      }}
+    >
       <style>{`@keyframes kfToastIn{from{opacity:0;transform:translateY(-12px) scale(.96)}to{opacity:1;transform:none}}`}</style>
       {shown.map(({ key, d }) => {
         const via = groupName(d.group_id)
         return (
-          <div key={key} className="relative bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-white/60 pr-4 pl-8 py-3 flex items-center gap-3"
+          <div key={key} className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-white/60 px-4 py-3 flex items-center gap-3 select-none"
             style={{ animation: 'kfToastIn .35s ease-out' }}>
-            {/* כפתור סגירה — לחיץ (שאר הכרטיס שקוף ללחיצות) */}
-            <button
-              onClick={() => setShown(s => s.filter(x => x.key !== key))}
-              aria-label="סגור"
-              className="pointer-events-auto absolute top-1.5 left-1.5 w-6 h-6 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
             <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-black shrink-0"
               style={{ backgroundColor: `${primaryColor}1A`, color: primaryColor }}>
               {donorInitials(d.donor_name || 'אנונימי')}
