@@ -6,7 +6,7 @@ const FOOTER_NAV = [
     links: [
       { label: 'אודות כפול', href: '/about' },
       { label: 'שאלות ותשובות', href: '/faq' },
-      { label: 'צור קשר', href: '/contact' },
+      { label: 'אני רוצה דף גיוס', href: '/contact' },
     ],
   },
   {

@@ -57,7 +57,7 @@ const navLinks = [
   { label: 'אודות', href: '/about' },
   { label: 'העיצובים שלנו', href: '/design' },
   { label: 'שאלות ותשובות', href: '/faq' },
-  { label: 'צור קשר', href: '/contact' },
+  { label: 'אני רוצה דף גיוס', href: '/contact' },
 ]
 
 export default function MarketingHeader() {

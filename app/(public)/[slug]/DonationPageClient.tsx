@@ -107,7 +107,7 @@ function KafoolAnimatedLogo() {
 const NAV_LINKS = [
   { label: 'אודות', href: '/about' },
   { label: 'שאלות ותשובות', href: '/faq' },
-  { label: 'צור קשר', href: '/contact' },
+  { label: 'אני רוצה דף גיוס', href: '/contact' },
 ]
 
 function StickyHeader({ org, campaign, primaryColor, onDonate }: { org: Org; campaign: Campaign; primaryColor: string; onDonate: () => void }) {
