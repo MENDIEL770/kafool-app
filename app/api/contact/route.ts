@@ -45,7 +45,8 @@ export async function POST(request: Request) {
 
     if (error) {
       console.error('contact insert error:', error)
-      return NextResponse.json({ error: 'שגיאה בשמירת הפנייה' }, { status: 500 })
+      // TODO: temporary — surface the real DB error to diagnose the save failure
+      return NextResponse.json({ error: `שגיאה בשמירת הפנייה [${error.code || ''}]: ${error.message}` }, { status: 500 })
     }
 
     // Notify the admin by SMS with the lead details + WhatsApp link (fire & forget)
