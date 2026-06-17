@@ -52,6 +52,7 @@ export default function CampaignsPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [defaultId, setDefaultId] = useState<string>('')
   const [loading, setLoading] = useState(true)
+  const [orgName, setOrgName] = useState<string>('')   // when a super-admin views a specific org
 
   useEffect(() => {
     setDefaultId(localStorage.getItem(DEFAULT_KEY) || '')
@@ -60,8 +61,17 @@ export default function CampaignsPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
       const { data: profile } = await supabase.from('profiles').select('org_id, role').eq('id', user.id).single()
+      const isSuper = profile?.role === 'super_admin'
+      const orgParam = new URLSearchParams(window.location.search).get('org')
+
       const query = supabase.from('campaigns').select('id, title, slug, status, raised_amount, goal_amount, settings').order('created_at', { ascending: false })
-      if (profile?.role !== 'super_admin') query.eq('org_id', profile!.org_id)
+      if (isSuper && orgParam) {
+        query.eq('org_id', orgParam)
+        const { data: org } = await supabase.from('organizations').select('name').eq('id', orgParam).single()
+        if (org) setOrgName(org.name)
+      } else if (!isSuper) {
+        query.eq('org_id', profile!.org_id)
+      }
       const { data } = await query
       setCampaigns(data || [])
       setLoading(false)
@@ -92,12 +102,14 @@ export default function CampaignsPage() {
     <div className="space-y-6" dir="rtl">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">קמפיינים</h1>
-          {defaultId && (
-            <p className="text-xs text-gray-400 mt-0.5">
-              ★ קמפיין ברירת מחדל מסומן
-            </p>
-          )}
+          <h1 className="text-2xl font-bold text-gray-900">
+            קמפיינים{orgName && <span className="text-gray-400 font-semibold"> · {orgName}</span>}
+          </h1>
+          {orgName ? (
+            <Link href="/super-admin/orgs" className="text-xs text-blue-600 hover:underline mt-0.5 inline-block">← חזרה לניהול ארגונים</Link>
+          ) : defaultId ? (
+            <p className="text-xs text-gray-400 mt-0.5">★ קמפיין ברירת מחדל מסומן</p>
+          ) : null}
         </div>
         <Link
           href="/campaigns/new"

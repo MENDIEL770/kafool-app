@@ -24,6 +24,7 @@ import {
   UserCog,
   Sparkles,
   FileText,
+  Image as ImageIcon,
   Menu,
   X,
 } from 'lucide-react'
@@ -63,6 +64,7 @@ const superAdminItems = [
   { href: '/super-admin/agent', label: 'סוכן AI', icon: Bot },
   { href: '/super-admin/orgs', label: 'ניהול ארגונים', icon: Building2 },
   { href: '/super-admin/cms', label: 'ניהול תוכן', icon: FileText },
+  { href: '/super-admin/portfolio', label: 'עיצובים / תיק עבודות', icon: ImageIcon },
 ]
 
 function NavLink({

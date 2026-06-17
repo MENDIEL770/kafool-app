@@ -13,7 +13,6 @@ export default function OrgActions({ orgId, status, slug, ownerEmail }: {
 }) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
-  const [impersonating, setImpersonating] = useState(false)
   const [sending, setSending] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
 
@@ -31,21 +30,10 @@ export default function OrgActions({ orgId, status, slug, ownerEmail }: {
     setLoading(false)
   }
 
-  async function enterDashboard() {
-    setImpersonating(true)
+  function enterDashboard() {
+    // ניהול הארגון בתוך ה-session של הסופר-אדמין (בלי magic link / התנתקות)
     setMenuOpen(false)
-    const res = await fetch('/api/super-admin/orgs/impersonate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ orgId }),
-    })
-    const data = await res.json()
-    setImpersonating(false)
-    if (data.url) {
-      window.open(data.url, '_blank')
-    } else {
-      alert(data.error || 'שגיאה ביצירת קישור כניסה')
-    }
+    router.push(`/campaigns?org=${orgId}`)
   }
 
   async function sendLoginLink() {
@@ -66,7 +54,7 @@ export default function OrgActions({ orgId, status, slug, ownerEmail }: {
     }
   }
 
-  const busy = loading || impersonating || sending
+  const busy = loading || sending
 
   return (
     <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
@@ -78,7 +66,7 @@ export default function OrgActions({ orgId, status, slug, ownerEmail }: {
         className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 border border-blue-100 hover:bg-blue-100 transition-colors font-semibold disabled:opacity-40"
       >
         <LogIn className="w-3.5 h-3.5" />
-        {impersonating ? 'מייצר...' : 'כניסה'}
+        כניסה
       </button>
 
       {/* More actions dropdown */}
