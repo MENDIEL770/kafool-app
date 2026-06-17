@@ -32,12 +32,13 @@ type Tab = 'banner' | 'gallery' | 'buttons'
 
 /* ─── Banner Preview Component ─── */
 function BannerPreview({
-  coverUrl, logoUrl, orgLogoUrl, title, orgName, primaryColor, viewMode,
+  coverUrl, mobileCoverUrl, logoUrl, orgLogoUrl, title, orgName, primaryColor, viewMode,
 }: {
-  coverUrl: string | null; logoUrl: string | null; orgLogoUrl: string | null;
+  coverUrl: string | null; mobileCoverUrl?: string | null; logoUrl: string | null; orgLogoUrl: string | null;
   title: string; orgName: string; primaryColor: string; viewMode: 'desktop' | 'mobile';
 }) {
   const logoSrc = logoUrl || orgLogoUrl
+  const mobileSrc = mobileCoverUrl || coverUrl
 
   if (viewMode === 'mobile') {
     return (
@@ -48,8 +49,8 @@ function BannerPreview({
           <div className="rounded-[2rem] overflow-hidden bg-gray-100" style={{ height: 480 }}>
             {/* Hero */}
             <div className="relative h-44 overflow-hidden" style={{ backgroundColor: primaryColor }}>
-              {coverUrl
-                ? <img src={coverUrl} alt="" className="w-full h-full object-cover" />
+              {mobileSrc
+                ? <img src={mobileSrc} alt="" className="w-full h-full object-cover" />
                 : <div className="w-full h-full" style={{ background: `linear-gradient(135deg, ${primaryColor}, ${primaryColor}99)` }} />
               }
               <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-black/70" />
@@ -303,6 +304,15 @@ export default function CampaignMediaClient({
   const [banners, setBanners] = useState<string[]>(initialBanners)
   const [uploadingBanner, setUploadingBanner] = useState(false)
   const bannerRef = useRef<HTMLInputElement>(null)
+
+  // Dedicated mobile banners (optional) — shown only on phones
+  const initialMobileBanners: string[] =
+    (initialSettings.mobile_banners as { url: string; sort_order: number }[] | undefined)?.length
+      ? [...(initialSettings.mobile_banners as { url: string; sort_order: number }[])].sort((a, b) => a.sort_order - b.sort_order).map(b => b.url)
+      : []
+  const [mobileBanners, setMobileBanners] = useState<string[]>(initialMobileBanners)
+  const [uploadingMobileBanner, setUploadingMobileBanner] = useState(false)
+  const mobileBannerRef = useRef<HTMLInputElement>(null)
   const [logoUrl, setLogoUrl] = useState<string | null>(initialLogoUrl)
   const [uploadingLogo, setUploadingLogo] = useState(false)
   const [primaryColor, setPrimaryColor] = useState<string>(
@@ -359,6 +369,26 @@ export default function CampaignMediaClient({
     })
   }
 
+  /* ─── Mobile banners (optional) ─── */
+  async function handleMobileBannerUpload(files: FileList) {
+    setUploadingMobileBanner(true)
+    for (let i = 0; i < files.length; i++) {
+      const url = await uploadFile(files[i], `${orgId}/${campaignId}/banner-mobile-${Date.now()}-${i}`)
+      if (url) setMobileBanners(p => [...p, url])
+    }
+    setUploadingMobileBanner(false)
+  }
+  function removeMobileBanner(i: number) { setMobileBanners(p => p.filter((_, idx) => idx !== i)) }
+  function moveMobileBanner(i: number, dir: -1 | 1) {
+    setMobileBanners(p => {
+      const j = i + dir
+      if (j < 0 || j >= p.length) return p
+      const next = [...p]
+      ;[next[i], next[j]] = [next[j], next[i]]
+      return next
+    })
+  }
+
   /* ─── Logo upload ─── */
   async function handleLogoUpload(file: File) {
     if (!file.size) {
@@ -377,6 +407,7 @@ export default function CampaignMediaClient({
     const settings = {
       ...(initialSettings as object),
       banners: banners.map((url, i) => ({ url, sort_order: i })),
+      mobile_banners: mobileBanners.map((url, i) => ({ url, sort_order: i })),
       primary_color: primaryColor,
       about_text: aboutText || null,
     }
@@ -563,6 +594,63 @@ export default function CampaignMediaClient({
                 <p className="text-[11px] text-gray-400 leading-snug">💡 שמרו פרטים חשובים במרכז — הקצוות עשויים להיחתך. הסדר למעלה קובע את סדר ההתחלפות.</p>
               </div>
 
+              {/* ─── Mobile banners (optional) ─── */}
+              <div className="space-y-3 pt-2 border-t border-gray-100">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="font-semibold text-gray-800 text-sm flex items-center gap-1.5">
+                      <Smartphone className="w-4 h-4 text-gray-400" /> באנרים לנייד (אופציונלי)
+                    </p>
+                    <p className="text-xs text-gray-500">תמונה מותאמת לנייד. אם לא תעלה — יוצגו באנרי המחשב.</p>
+                  </div>
+                  <button onClick={() => mobileBannerRef.current?.click()} disabled={uploadingMobileBanner}
+                    className="flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-700 disabled:opacity-50 shrink-0">
+                    {uploadingMobileBanner
+                      ? <span className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                      : <Plus className="w-4 h-4" />}
+                    הוסף באנר לנייד
+                  </button>
+                  <input ref={mobileBannerRef} type="file" accept="image/*" multiple className="hidden"
+                    onChange={e => e.target.files && handleMobileBannerUpload(e.target.files)} />
+                </div>
+
+                {mobileBanners.length === 0 ? (
+                  <button onClick={() => mobileBannerRef.current?.click()}
+                    className="w-full aspect-[4/5] max-w-[180px] mx-auto border-2 border-dashed border-gray-200 rounded-2xl flex flex-col items-center justify-center text-gray-400 hover:border-blue-300 hover:bg-blue-50/30 transition-all">
+                    <Upload className="w-7 h-7 mb-2 opacity-40" />
+                    <p className="text-xs font-medium px-3 text-center">גרור תמונות או לחץ להוספה</p>
+                  </button>
+                ) : (
+                  <div className="space-y-2">
+                    {mobileBanners.map((url, i) => (
+                      <div key={i} className="flex items-center gap-2 border border-gray-100 rounded-xl p-2 bg-gray-50/50">
+                        <div className="flex flex-col gap-0.5 shrink-0">
+                          <button onClick={() => moveMobileBanner(i, -1)} disabled={i === 0} title="העבר למעלה"
+                            className="text-gray-300 hover:text-blue-600 disabled:opacity-20 transition-colors"><ChevronUp className="w-4 h-4" /></button>
+                          <button onClick={() => moveMobileBanner(i, 1)} disabled={i === mobileBanners.length - 1} title="העבר למטה"
+                            className="text-gray-300 hover:text-blue-600 disabled:opacity-20 transition-colors"><ChevronDown className="w-4 h-4" /></button>
+                        </div>
+                        <img src={url} alt="" className="h-20 w-16 object-cover rounded-lg shrink-0" />
+                        <span className="text-[11px] font-bold text-gray-400 flex-1">#{i + 1}</span>
+                        <button onClick={() => removeMobileBanner(i)} title="מחק באנר"
+                          className="w-8 h-8 rounded-lg text-red-400 hover:bg-red-50 flex items-center justify-center shrink-0"><Trash2 className="w-4 h-4" /></button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="rounded-xl bg-blue-50/60 border border-blue-100 px-3 py-2.5 space-y-1.5">
+                  <div className="flex items-center gap-1.5 text-[11px] font-bold text-blue-700">
+                    <Ruler className="w-3.5 h-3.5" /> מפרט באנר נייד
+                  </div>
+                  {[['מידות מומלצות', '1080 × 1350 px'], ['יחס', '4:5 (לאורך) או 1:1'], ['פורמט', 'JPG / WebP'], ['משקל מקסימלי', 'עד 2MB']].map(([l, v]) => (
+                    <div key={l} className="flex items-center justify-between text-[11px]">
+                      <span className="text-gray-500">{l}</span><span className="font-semibold text-gray-700">{v}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               <UploadZone
                 label="לוגו הקמפיין"
                 sublabel="מוצג בהדר העליון של עמוד הגיוס ומעל הבאנר"
@@ -644,6 +732,7 @@ export default function CampaignMediaClient({
 
               <BannerPreview
                 coverUrl={banners[0] || null}
+                mobileCoverUrl={mobileBanners[0] || null}
                 logoUrl={logoUrl}
                 orgLogoUrl={orgLogoUrl}
                 title={campaignTitle}

@@ -225,18 +225,13 @@ function VideoModal({ embedUrl, onClose }: { embedUrl: string; onClose: () => vo
   )
 }
 
-function HeroSection({ campaign, countdown }: {
-  campaign: Campaign
-  countdown: { d: number; h: number; m: number; s: number } | null
+// Single rotating banner carousel (used separately for desktop / mobile image sets)
+function BannerCarousel({ banners, videoEmbed, onPlayVideo }: {
+  banners: string[]
+  videoEmbed: string | null
+  onPlayVideo: () => void
 }) {
-  const settings = campaign.settings as { banners?: { url: string; sort_order: number }[] }
-  const banners = settings?.banners?.length
-    ? [...settings.banners].sort((a, b) => a.sort_order - b.sort_order).map(b => b.url)
-    : campaign.cover_image_url ? [campaign.cover_image_url] : []
-
   const [idx, setIdx] = useState(0)
-  const [videoOpen, setVideoOpen] = useState(false)
-  const videoEmbed = campaign.video_url ? getVideoEmbed(campaign.video_url) : null
 
   useEffect(() => {
     if (banners.length <= 1) return
@@ -244,90 +239,124 @@ function HeroSection({ campaign, countdown }: {
     return () => clearInterval(t)
   }, [banners.length])
 
+  if (banners.length === 0) {
+    return (
+      <div className="w-full relative flex flex-col items-center justify-center gap-3 py-20 border-2 border-dashed border-gray-200 bg-gray-50" style={{ minHeight: 260 }}>
+        <svg className="w-16 h-16 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+          <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+          <path strokeLinecap="round" d="M21 15l-5-5L5 21"/>
+        </svg>
+        <p className="text-gray-400 font-medium text-sm">אזור הבאנר של הקמפיין</p>
+        <p className="text-gray-300 text-xs">העלה באנרים בהגדרות הקמפיין</p>
+        {videoEmbed && (
+          <button
+            onClick={onPlayVideo}
+            className="mt-2 flex items-center gap-2 px-4 py-2 rounded-full bg-gray-800 text-white text-sm font-bold hover:bg-gray-700 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            צפה בוידאו
+          </button>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div className="relative overflow-hidden">
+      {banners.map((url, i) => (
+        <img
+          key={url}
+          src={url}
+          alt=""
+          aria-hidden
+          fetchPriority={i === 0 ? 'high' : 'low'}
+          decoding={i === 0 ? 'sync' : 'async'}
+          className="w-full h-auto object-contain absolute top-0 left-0 transition-opacity duration-700"
+          style={{ opacity: i === idx ? 1 : 0, position: i === 0 ? 'relative' : 'absolute' }}
+          loading={i === 0 ? 'eager' : 'lazy'}
+        />
+      ))}
+
+      {/* כפתור פלאי — inline style למניעת RTL flip */}
+      {videoEmbed && (
+        <button
+          onClick={e => { e.stopPropagation(); onPlayVideo() }}
+          aria-label="הפעל וידאו"
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            zIndex: 20,
+            background: 'none',
+            border: 'none',
+            padding: 0,
+            cursor: 'pointer',
+          }}
+        >
+          <div style={{
+            width: 72, height: 72,
+            borderRadius: '50%',
+            background: 'rgba(255,255,255,0.92)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
+            transition: 'transform 0.2s, background 0.2s',
+          }}>
+            <svg style={{ width: 32, height: 32, color: '#111', marginLeft: 4 }} fill="currentColor" viewBox="0 0 24 24">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
+          </div>
+        </button>
+      )}
+
+      {/* נקודות ניווט */}
+      {banners.length > 1 && (
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
+          {banners.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setIdx(i)}
+              className={`transition-all rounded-full ${i === idx ? 'w-5 h-2 bg-white' : 'w-2 h-2 bg-white/50'}`}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function HeroSection({ campaign, countdown }: {
+  campaign: Campaign
+  countdown: { d: number; h: number; m: number; s: number } | null
+}) {
+  const settings = campaign.settings as {
+    banners?: { url: string; sort_order: number }[]
+    mobile_banners?: { url: string; sort_order: number }[]
+  }
+  const banners = settings?.banners?.length
+    ? [...settings.banners].sort((a, b) => a.sort_order - b.sort_order).map(b => b.url)
+    : campaign.cover_image_url ? [campaign.cover_image_url] : []
+
+  // Dedicated mobile banner set; falls back to the desktop banners when none uploaded.
+  const mobileBanners = settings?.mobile_banners?.length
+    ? [...settings.mobile_banners].sort((a, b) => a.sort_order - b.sort_order).map(b => b.url)
+    : banners
+
+  const [videoOpen, setVideoOpen] = useState(false)
+  const videoEmbed = campaign.video_url ? getVideoEmbed(campaign.video_url) : null
+
   return (
     <>
       <section className="w-full" aria-label="באנר קמפיין">
-        {banners.length > 0 ? (
-          <div className="relative overflow-hidden">
-            {banners.map((url, i) => (
-              <img
-                key={url}
-                src={url}
-                alt=""
-                aria-hidden
-                fetchPriority={i === 0 ? 'high' : 'low'}
-                decoding={i === 0 ? 'sync' : 'async'}
-                className="w-full h-auto object-contain absolute top-0 left-0 transition-opacity duration-700"
-                style={{ opacity: i === idx ? 1 : 0, position: i === 0 ? 'relative' : 'absolute' }}
-                loading={i === 0 ? 'eager' : 'lazy'}
-              />
-            ))}
-
-            {/* כפתור פלאי — inline style למניעת RTL flip */}
-            {videoEmbed && (
-              <button
-                onClick={e => { e.stopPropagation(); setVideoOpen(true) }}
-                aria-label="הפעל וידאו"
-                style={{
-                  position: 'absolute',
-                  top: '50%',
-                  left: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  zIndex: 20,
-                  background: 'none',
-                  border: 'none',
-                  padding: 0,
-                  cursor: 'pointer',
-                }}
-              >
-                <div style={{
-                  width: 72, height: 72,
-                  borderRadius: '50%',
-                  background: 'rgba(255,255,255,0.92)',
-                  backdropFilter: 'blur(4px)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
-                  transition: 'transform 0.2s, background 0.2s',
-                }}>
-                  <svg style={{ width: 32, height: 32, color: '#111', marginLeft: 4 }} fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M8 5v14l11-7z"/>
-                  </svg>
-                </div>
-              </button>
-            )}
-
-            {/* נקודות ניווט */}
-            {banners.length > 1 && (
-              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
-                {banners.map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setIdx(i)}
-                    className={`transition-all rounded-full ${i === idx ? 'w-5 h-2 bg-white' : 'w-2 h-2 bg-white/50'}`}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="w-full relative flex flex-col items-center justify-center gap-3 py-20 border-2 border-dashed border-gray-200 bg-gray-50" style={{ minHeight: 260 }}>
-            <svg className="w-16 h-16 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
-              <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
-              <path strokeLinecap="round" d="M21 15l-5-5L5 21"/>
-            </svg>
-            <p className="text-gray-400 font-medium text-sm">אזור הבאנר של הקמפיין</p>
-            <p className="text-gray-300 text-xs">העלה באנרים בהגדרות הקמפיין</p>
-            {videoEmbed && (
-              <button
-                onClick={() => setVideoOpen(true)}
-                className="mt-2 flex items-center gap-2 px-4 py-2 rounded-full bg-gray-800 text-white text-sm font-bold hover:bg-gray-700 transition-colors"
-              >
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                צפה בוידאו
-              </button>
-            )}
-          </div>
-        )}
+        {/* Mobile banner set */}
+        <div className="md:hidden">
+          <BannerCarousel banners={mobileBanners} videoEmbed={videoEmbed} onPlayVideo={() => setVideoOpen(true)} />
+        </div>
+        {/* Desktop banner set */}
+        <div className="hidden md:block">
+          <BannerCarousel banners={banners} videoEmbed={videoEmbed} onPlayVideo={() => setVideoOpen(true)} />
+        </div>
 
         {countdown && (
           <div className="bg-white border-b border-gray-100 py-3 px-4">
