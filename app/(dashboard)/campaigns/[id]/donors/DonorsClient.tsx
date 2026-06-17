@@ -1,12 +1,34 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Pencil, Trash2, X, Check, Plus, Search } from 'lucide-react'
+import { Pencil, Trash2, X, Check, Plus, Search, FileSpreadsheet, Upload } from 'lucide-react'
+
+// One parsed row from the uploaded spreadsheet
+interface ImportRow {
+  amount: number
+  donor_name: string | null
+  donor_phone: string | null
+  donor_email: string | null
+  dedication: string | null
+  valid: boolean
+}
+
+// Find a column value by matching the header against a list of synonyms
+function pickCol(row: Record<string, unknown>, synonyms: string[]): string {
+  for (const key of Object.keys(row)) {
+    const norm = String(key).trim().toLowerCase()
+    if (synonyms.some(s => norm.includes(s))) {
+      const v = row[key]
+      return v == null ? '' : String(v).trim()
+    }
+  }
+  return ''
+}
 
 interface Donation {
   id: string
@@ -42,6 +64,15 @@ export default function DonorsClient({ campaign, donations: initial, groups }: {
   const [addForm, setAddForm] = useState({ amount: '', donor_name: '', donor_phone: '', donor_email: '', dedication: '', group_id: '' })
   const [saving, setSaving] = useState(false)
   const [addError, setAddError] = useState('')
+
+  // Excel import
+  const [showImport, setShowImport] = useState(false)
+  const [importRows, setImportRows] = useState<ImportRow[]>([])
+  const [importGroupId, setImportGroupId] = useState('')
+  const [importFileName, setImportFileName] = useState('')
+  const [importing, setImporting] = useState(false)
+  const [importError, setImportError] = useState('')
+  const importRef = useRef<HTMLInputElement>(null)
 
   const supabase = createClient()
   const groupName = (id: string | null) => groups.find(g => g.id === id)?.name || null
@@ -141,6 +172,73 @@ export default function DonorsClient({ campaign, donations: initial, groups }: {
     router.refresh()
   }
 
+  // ── ייבוא מאקסל ──
+  async function parseImportFile(file: File) {
+    setImportError('')
+    setImportFileName(file.name)
+    try {
+      const XLSX = await import('xlsx')
+      const buf = await file.arrayBuffer()
+      const wb = XLSX.read(buf, { type: 'array' })
+      const sheet = wb.Sheets[wb.SheetNames[0]]
+      const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' })
+      const rows: ImportRow[] = raw.map(r => {
+        const amount = Number(pickCol(r, ['סכום', 'amount', 'sum', 'תרומה', 'שקל']).replace(/[^\d.]/g, ''))
+        return {
+          amount: amount || 0,
+          donor_name: pickCol(r, ['שם', 'name', 'תורם', 'donor']) || null,
+          donor_phone: pickCol(r, ['טלפון', 'נייד', 'פלא', 'phone', 'tel', 'mobile']) || null,
+          donor_email: pickCol(r, ['אימייל', 'מייל', 'דוא', 'email', 'mail']) || null,
+          dedication: pickCol(r, ['הקדשה', 'dedication', 'לעילוי', 'הערה', 'note']) || null,
+          valid: !!amount && amount > 0,
+        }
+      })
+      if (rows.length === 0) { setImportError('הקובץ ריק או לא נקרא'); return }
+      setImportRows(rows)
+    } catch (e) {
+      setImportError('קריאת הקובץ נכשלה. ודא שזה קובץ Excel/CSV תקין.')
+      console.error(e)
+    }
+  }
+
+  async function runImport() {
+    const valid = importRows.filter(r => r.valid)
+    if (valid.length === 0) { setImportError('אין שורות תקינות לייבוא (חסר סכום)'); return }
+    setImporting(true)
+    setImportError('')
+    const groupId = importGroupId || null
+    const payload = valid.map(r => ({
+      campaign_id: campaign.id,
+      org_id: campaign.org_id,
+      amount: r.amount,
+      donor_name: r.donor_name,
+      donor_phone: r.donor_phone,
+      donor_email: r.donor_email,
+      dedication: r.dedication,
+      group_id: groupId,
+      payment_status: 'completed',
+    }))
+    const { data, error } = await supabase.from('donations').insert(payload).select()
+    if (error || !data) {
+      setImportError(error?.message || 'הייבוא נכשל')
+      setImporting(false)
+      return
+    }
+    const sum = valid.reduce((s, r) => s + r.amount, 0)
+    await supabase.rpc('increment_campaign_amount', {
+      campaign_id: campaign.id,
+      amount_agorot: Math.round(sum * 100),
+    })
+    if (groupId) await adjustGroupRaised(groupId, sum)
+    setDonations(ds => [...data, ...ds])
+    setImportRows([])
+    setImportFileName('')
+    setImportGroupId('')
+    setShowImport(false)
+    setImporting(false)
+    router.refresh()
+  }
+
   return (
     <div className="space-y-6" dir="rtl">
       {/* Header */}
@@ -149,10 +247,16 @@ export default function DonorsClient({ campaign, donations: initial, groups }: {
           <h1 className="text-2xl font-bold text-gray-900">תורמים</h1>
           <p className="text-sm text-gray-500 mt-0.5">{campaign.title}</p>
         </div>
-        <Button onClick={() => setShowAdd(true)} className="gap-2">
-          <Plus className="w-4 h-4" />
-          הוסף תרומה ידנית
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => { setShowImport(true); setShowAdd(false) }} className="gap-2">
+            <FileSpreadsheet className="w-4 h-4" />
+            ייבוא מאקסל
+          </Button>
+          <Button onClick={() => { setShowAdd(true); setShowImport(false) }} className="gap-2">
+            <Plus className="w-4 h-4" />
+            הוסף תרומה ידנית
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -231,6 +335,97 @@ export default function DonorsClient({ campaign, donations: initial, groups }: {
           <Button onClick={addDonation} disabled={saving || !addForm.amount} className="w-full">
             {saving ? 'שומר...' : 'הוסף תרומה'}
           </Button>
+        </div>
+      )}
+
+      {/* Import from Excel */}
+      {showImport && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-emerald-900 flex items-center gap-2">
+              <FileSpreadsheet className="w-4 h-4" /> ייבוא תורמים מאקסל
+            </h3>
+            <button onClick={() => { setShowImport(false); setImportRows([]); setImportFileName(''); setImportError('') }}>
+              <X className="w-4 h-4 text-emerald-400" />
+            </button>
+          </div>
+
+          <p className="text-xs text-emerald-700 leading-relaxed">
+            העלה קובץ Excel / CSV. השורה הראשונה צריכה להיות כותרות. נזהה אוטומטית את העמודות:
+            <strong> סכום</strong> (חובה), שם, טלפון, אימייל, הקדשה.
+          </p>
+
+          {/* File picker */}
+          <div
+            onClick={() => importRef.current?.click()}
+            className="cursor-pointer rounded-xl border-2 border-dashed border-emerald-300 bg-white hover:bg-emerald-50/50 transition-colors px-4 py-6 flex flex-col items-center justify-center text-center"
+          >
+            <Upload className="w-6 h-6 text-emerald-400 mb-2" />
+            <p className="text-sm font-medium text-emerald-800">{importFileName || 'גרור קובץ או לחץ לבחירה'}</p>
+            <p className="text-[11px] text-emerald-500 mt-0.5">.xlsx · .xls · .csv</p>
+            <input ref={importRef} type="file" accept=".xlsx,.xls,.csv" className="hidden"
+              onChange={e => { const f = e.target.files?.[0]; if (f) parseImportFile(f); e.target.value = '' }} />
+          </div>
+
+          {importError && (
+            <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2 text-center">{importError}</div>
+          )}
+
+          {/* Preview */}
+          {importRows.length > 0 && (() => {
+            const validRows = importRows.filter(r => r.valid)
+            const invalid = importRows.length - validRows.length
+            const sum = validRows.reduce((s, r) => s + r.amount, 0)
+            return (
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  <span className="bg-white border border-emerald-200 rounded-full px-2.5 py-1 font-semibold text-emerald-700">{validRows.length} שורות תקינות</span>
+                  {invalid > 0 && <span className="bg-amber-50 border border-amber-200 rounded-full px-2.5 py-1 font-semibold text-amber-700">{invalid} ידולגו (חסר סכום)</span>}
+                  <span className="bg-white border border-emerald-200 rounded-full px-2.5 py-1 font-semibold text-emerald-700">סה"כ ₪{sum.toLocaleString()}</span>
+                </div>
+
+                {groups.length > 0 && (
+                  <div className="space-y-1">
+                    <Label className="text-xs">שיוך כל הרשימה לקבוצה (אופציונלי)</Label>
+                    <select
+                      value={importGroupId}
+                      onChange={e => setImportGroupId(e.target.value)}
+                      className="w-full h-9 border border-gray-200 rounded-md px-3 text-sm bg-white outline-none focus:ring-2 focus:ring-emerald-400"
+                    >
+                      <option value="">ללא קבוצה</option>
+                      {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                    </select>
+                  </div>
+                )}
+
+                <div className="bg-white rounded-lg border border-emerald-100 overflow-x-auto max-h-56 overflow-y-auto">
+                  <table className="w-full text-xs">
+                    <thead className="bg-emerald-50/70 sticky top-0">
+                      <tr>{['שם', 'טלפון', 'אימייל', 'הקדשה', 'סכום'].map(h => (
+                        <th key={h} className="text-right px-3 py-2 font-semibold text-emerald-700">{h}</th>
+                      ))}</tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {importRows.slice(0, 50).map((r, i) => (
+                        <tr key={i} className={r.valid ? '' : 'opacity-40'}>
+                          <td className="px-3 py-1.5">{r.donor_name || <span className="text-gray-300">—</span>}</td>
+                          <td className="px-3 py-1.5" dir="ltr">{r.donor_phone || '—'}</td>
+                          <td className="px-3 py-1.5" dir="ltr">{r.donor_email || '—'}</td>
+                          <td className="px-3 py-1.5 max-w-[120px] truncate">{r.dedication || '—'}</td>
+                          <td className="px-3 py-1.5 font-bold">{r.valid ? `₪${r.amount.toLocaleString()}` : <span className="text-red-400">חסר</span>}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {importRows.length > 50 && <p className="text-[11px] text-emerald-600 text-center">מציג 50 שורות ראשונות מתוך {importRows.length}</p>}
+
+                <Button onClick={runImport} disabled={importing || validRows.length === 0} className="w-full bg-emerald-600 hover:bg-emerald-700">
+                  {importing ? 'מייבא...' : `ייבא ${validRows.length} תרומות (₪${sum.toLocaleString()})`}
+                </Button>
+              </div>
+            )
+          })()}
         </div>
       )}
 
