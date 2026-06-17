@@ -946,30 +946,25 @@ function DonationToasts({ donations, groups, primaryColor }: { donations: Donati
     if (recent.length === 0) return
     let active = true
     const timers: ReturnType<typeof setInterval>[] = []
-    const pushOne = () => {
+    // Show a batch of up to 3 donors at once, hold ~7s, then hide. Repeat every 3 min.
+    const showBatch = () => {
       if (!active) return
-      const d = recent[idxRef.current % recent.length]
-      idxRef.current += 1
-      const k = keyRef.current++
-      setShown(s => [...s, { key: k, d }].slice(-2))
-      timers.push(setTimeout(() => setShown(s => s.filter(x => x.key !== k)), 5000))
+      const batch: { key: number; d: Donation }[] = []
+      for (let n = 0; n < Math.min(3, recent.length); n++) {
+        batch.push({ key: keyRef.current++, d: recent[idxRef.current % recent.length] })
+        idxRef.current += 1
+      }
+      setShown(batch)
+      timers.push(setTimeout(() => setShown([]), 7000))
     }
-    // A 15-second burst: pop a donor every 3.5s, then stop.
-    const runBurst = () => {
-      if (!active) return
-      pushOne()
-      const iv = setInterval(pushOne, 3500)
-      timers.push(iv)
-      timers.push(setTimeout(() => clearInterval(iv), 15000))
-    }
-    timers.push(setTimeout(runBurst, 1000))   // first burst on load / refresh
-    timers.push(setInterval(runBurst, 180000)) // and again every 3 minutes on the page
+    timers.push(setTimeout(showBatch, 1500))    // first batch on load / refresh
+    timers.push(setInterval(showBatch, 180000)) // another batch every 3 minutes
     return () => { active = false; timers.forEach(t => { clearTimeout(t); clearInterval(t) }) }
   }, [recent])
 
   if (recent.length === 0) return null
   return (
-    <div className="fixed top-20 right-3 z-[45] flex flex-col gap-2 w-[260px] max-w-[78vw] pointer-events-none" dir="rtl">
+    <div className="fixed top-20 right-2 z-[45] flex flex-col gap-2 w-[230px] max-w-[64vw] pointer-events-none" dir="rtl">
       <style>{`@keyframes kfToastIn{from{opacity:0;transform:translateY(-12px) scale(.96)}to{opacity:1;transform:none}}`}</style>
       {shown.map(({ key, d }) => {
         const via = groupName(d.group_id)
@@ -1109,8 +1104,8 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
                 style={{ width: `${groupPct}%`, backgroundColor: primaryColor }}
               />
             </div>
-            <div className="flex items-center gap-4 flex-wrap">
-              <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
+              <div className="w-full sm:flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-3 min-w-0">
                     {/* עיגול תמונת הקבוצה */}
