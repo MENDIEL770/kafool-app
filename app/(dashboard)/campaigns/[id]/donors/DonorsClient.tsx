@@ -67,6 +67,9 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
   const [saving, setSaving] = useState(false)
   const [addError, setAddError] = useState('')
 
+  const [fixingTotals, setFixingTotals] = useState(false)
+  const [totalsFixed, setTotalsFixed] = useState(false)
+
   // Bulk selection
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [bulkGroupId, setBulkGroupId] = useState('')
@@ -107,6 +110,19 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
   const onlineTotal = donations.reduce((s, d) => s + (d.kesher_transaction_id ? (d.amount || 0) : 0), 0)
   const manualTotal = total - onlineTotal
 
+  // Does the campaign's stored raised_amount drift from the real donations sum?
+  const realRaised = donations.reduce((s, d) => s + (d.payment_status === 'completed' ? (d.amount || 0) : 0), 0)
+  const totalsMismatch = !totalsFixed && Math.round(realRaised) !== Math.round(campaign.raised_amount || 0)
+
+  async function fixTotals() {
+    setFixingTotals(true)
+    const allGroups = donations.map(d => d.group_id).filter(Boolean) as string[]
+    await syncTotals(donations, allGroups)
+    setFixingTotals(false)
+    setTotalsFixed(true)
+    router.refresh()
+  }
+
   // ── עריכה ──
   function startEdit(d: Donation) {
     setEditId(d.id)
@@ -128,27 +144,33 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
       group_id: newGroupId,
     }).eq('id', editId)
     if (!error) {
-      // עדכן סכומי קבוצות: הסר מהקבוצה הישנה, הוסף לחדשה
-      if (original?.group_id) await adjustGroupRaised(original.group_id, -(original.amount || 0))
-      if (newGroupId) await adjustGroupRaised(newGroupId, newAmount)
-      setDonations(ds => ds.map(d => d.id === editId ? { ...d, ...editForm, amount: newAmount, group_id: newGroupId } : d))
+      const next = donations.map(d => d.id === editId ? { ...d, ...editForm, amount: newAmount, group_id: newGroupId } : d)
+      setDonations(next)
+      const affected = [original?.group_id, newGroupId].filter(Boolean) as string[]
+      await syncTotals(next, affected)
       setEditId(null)
     }
     setSaving(false)
   }
 
-  // ── עדכון סכום קבוצה (read-modify-write, ללא מיגרציה) ──
-  async function adjustGroupRaised(groupId: string, delta: number) {
-    const { data: g } = await supabase.from('groups').select('raised_amount').eq('id', groupId).single()
-    if (g) {
-      await supabase.from('groups')
-        .update({ raised_amount: Math.max(0, (g.raised_amount || 0) + delta) })
-        .eq('id', groupId)
+  // ── חישוב סכום אמיתי (לא צובר טעויות) ──
+  // raised_amount = סכום כל התרומות שהושלמו. כך מחיקה/עריכה אף פעם לא יוצרות מינוס.
+  function sumCompleted(list: Donation[]) {
+    return list.reduce((s, d) => s + (d.payment_status === 'completed' ? (d.amount || 0) : 0), 0)
+  }
+  async function syncTotals(next: Donation[], affectedGroupIds: Iterable<string>) {
+    await supabase.from('campaigns').update({ raised_amount: sumCompleted(next) }).eq('id', campaign.id)
+    const seen = new Set<string>()
+    for (const gid of affectedGroupIds) {
+      if (!gid || seen.has(gid)) continue
+      seen.add(gid)
+      const gSum = sumCompleted(next.filter(d => d.group_id === gid))
+      await supabase.from('groups').update({ raised_amount: gSum }).eq('id', gid)
     }
   }
 
   // ── מחיקה ──
-  async function deleteDonation(id: string, amount: number, groupId: string | null) {
+  async function deleteDonation(id: string, groupId: string | null) {
     if (!confirm('למחוק תרומה זו?')) return
     // .select() מחזיר את השורות שנמחקו בפועל — כדי לזהות חסימת RLS (0 שורות)
     const { data, error } = await supabase.from('donations').delete().eq('id', id).select('id')
@@ -157,13 +179,9 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
       alert('המחיקה לא בוצעה (הרשאה חסרה). יש להריץ את add_donations_delete_policy.sql ב-Supabase.')
       return
     }
-    setDonations(ds => ds.filter(d => d.id !== id))
-    // עדכן raised_amount
-    await supabase.rpc('increment_campaign_amount', {
-      campaign_id: campaign.id,
-      amount_agorot: -Math.round(amount * 100),
-    })
-    if (groupId) await adjustGroupRaised(groupId, -amount)
+    const next = donations.filter(d => d.id !== id)
+    setDonations(next)
+    await syncTotals(next, groupId ? [groupId] : [])
     setSelected(s => { const n = new Set(s); n.delete(id); return n })
   }
 
@@ -172,13 +190,6 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
     setSelected(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
   }
   function clearSelection() { setSelected(new Set()) }
-
-  // Apply aggregated per-group deltas (one read-modify-write per group)
-  async function applyGroupDeltas(deltas: Map<string, number>) {
-    for (const [gid, delta] of deltas) {
-      if (delta !== 0) await adjustGroupRaised(gid, delta)
-    }
-  }
 
   async function bulkDelete() {
     const ids = [...selected]
@@ -193,14 +204,10 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
       setBulkBusy(false); return
     }
     const deletedIds = new Set(data.map(r => r.id))
-    const removed = rows.filter(r => deletedIds.has(r.id))
-    const sum = removed.reduce((s, r) => s + (r.amount || 0), 0)
-    await supabase.rpc('increment_campaign_amount', { campaign_id: campaign.id, amount_agorot: -Math.round(sum * 100) })
-    // group totals
-    const deltas = new Map<string, number>()
-    for (const r of removed) if (r.group_id) deltas.set(r.group_id, (deltas.get(r.group_id) || 0) - (r.amount || 0))
-    await applyGroupDeltas(deltas)
-    setDonations(ds => ds.filter(d => !deletedIds.has(d.id)))
+    const affected = rows.filter(r => deletedIds.has(r.id)).map(r => r.group_id).filter(Boolean) as string[]
+    const next = donations.filter(d => !deletedIds.has(d.id))
+    setDonations(next)
+    await syncTotals(next, affected)
     clearSelection()
     setBulkBusy(false)
     router.refresh()
@@ -214,15 +221,12 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
     const rows = donations.filter(d => selected.has(d.id))
     const { error } = await supabase.from('donations').update({ group_id: newGroupId }).in('id', ids)
     if (error) { alert('השיוך נכשל: ' + error.message); setBulkBusy(false); return }
-    // group totals: move each donation's amount from its old group to the new one
-    const deltas = new Map<string, number>()
-    for (const r of rows) {
-      if (r.group_id === newGroupId) continue
-      if (r.group_id) deltas.set(r.group_id, (deltas.get(r.group_id) || 0) - (r.amount || 0))
-      if (newGroupId) deltas.set(newGroupId, (deltas.get(newGroupId) || 0) + (r.amount || 0))
-    }
-    await applyGroupDeltas(deltas)
-    setDonations(ds => ds.map(d => selected.has(d.id) ? { ...d, group_id: newGroupId } : d))
+    const affected = new Set<string>()
+    for (const r of rows) { if (r.group_id) affected.add(r.group_id) }
+    if (newGroupId) affected.add(newGroupId)
+    const next = donations.map(d => selected.has(d.id) ? { ...d, group_id: newGroupId } : d)
+    setDonations(next)
+    await syncTotals(next, affected)
     clearSelection()
     setBulkGroupId('')
     setBulkBusy(false)
@@ -251,12 +255,9 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
       setSaving(false)
       return
     }
-    setDonations(ds => [data, ...ds])
-    await supabase.rpc('increment_campaign_amount', {
-      campaign_id: campaign.id,
-      amount_agorot: Math.round(amount * 100),
-    })
-    if (addForm.group_id) await adjustGroupRaised(addForm.group_id, amount)
+    const next = [data, ...donations]
+    setDonations(next)
+    await syncTotals(next, addForm.group_id ? [addForm.group_id] : [])
     setAddForm({ amount: '', donor_name: '', donor_phone: '', donor_email: '', dedication: '', group_id: '' })
     setShowAdd(false)
     setSaving(false)
@@ -319,13 +320,9 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
       setImporting(false)
       return
     }
-    const sum = valid.reduce((s, r) => s + r.amount, 0)
-    await supabase.rpc('increment_campaign_amount', {
-      campaign_id: campaign.id,
-      amount_agorot: Math.round(sum * 100),
-    })
-    if (groupId) await adjustGroupRaised(groupId, sum)
-    setDonations(ds => [...data, ...ds])
+    const next = [...data, ...donations]
+    setDonations(next)
+    await syncTotals(next, groupId ? [groupId] : [])
     setImportRows([])
     setImportFileName('')
     setImportGroupId('')
@@ -353,6 +350,19 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
           </Button>
         </div>
       </div>
+
+      {/* Totals mismatch warning + one-click fix */}
+      {totalsMismatch && (
+        <div className="flex flex-wrap items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+          <span className="text-sm text-amber-800">
+            הסכום המוצג בקמפיין (₪{Math.round(campaign.raised_amount || 0).toLocaleString()}) אינו תואם לסכום התרומות בפועל (₪{Math.round(realRaised).toLocaleString()}).
+          </span>
+          <button onClick={fixTotals} disabled={fixingTotals}
+            className="mr-auto px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-semibold">
+            {fixingTotals ? 'מתקן...' : 'תקן סכום'}
+          </button>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -691,7 +701,7 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
                       <td className="px-4 py-3">
                         <div className="flex gap-1">
                           <button onClick={() => startEdit(d)} className="p-1.5 rounded hover:bg-blue-50 text-blue-400 transition-colors"><Pencil className="w-3.5 h-3.5" /></button>
-                          <button onClick={() => deleteDonation(d.id, d.amount, d.group_id)} className="p-1.5 rounded hover:bg-red-50 text-red-400 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => deleteDonation(d.id, d.group_id)} className="p-1.5 rounded hover:bg-red-50 text-red-400 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
                         </div>
                       </td>
                     </>
