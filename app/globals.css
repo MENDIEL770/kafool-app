@@ -202,3 +202,11 @@
   .kafool-logo-trace,
   .kafool-logo-float { animation: none; }
 }
+
+/* Prevent iOS auto-zoom when focusing form fields (font < 16px triggers zoom).
+   Keep inputs at 16px on small screens so the page never zooms in on tap. */
+@media (max-width: 640px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}
