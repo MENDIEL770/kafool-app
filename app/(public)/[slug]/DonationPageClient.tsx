@@ -208,17 +208,19 @@ function VideoModal({ embedUrl, onClose }: { embedUrl: string; onClose: () => vo
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-3xl rounded-2xl overflow-hidden shadow-2xl bg-black"
+        className="relative w-full max-w-3xl"
         onClick={e => e.stopPropagation()}
       >
+        {/* כפתור סגירה מעל הנגן — לא חופף לפקדי היוטיוב */}
         <button
           onClick={onClose}
-          className="absolute top-3 left-3 z-10 w-9 h-9 rounded-full bg-black/60 flex items-center justify-center text-white hover:bg-black/80 transition-colors"
+          className="absolute -top-11 right-0 z-10 inline-flex items-center gap-1.5 px-3 h-9 rounded-full bg-white/15 hover:bg-white/25 text-white text-sm font-medium transition-colors"
           aria-label="סגור וידאו"
         >
-          <X className="w-5 h-5" />
+          <X className="w-4 h-4" />
+          סגור
         </button>
-        <div className="aspect-video">
+        <div className="aspect-video rounded-2xl overflow-hidden shadow-2xl bg-black">
           <iframe
             src={embedUrl}
             className="w-full h-full"
@@ -839,6 +841,26 @@ function AboutSection({ campaign, gallery }: { campaign: Campaign; gallery: Gall
 
   return (
     <div className="space-y-6">
+        {videoEmbed && (
+          <button
+            onClick={() => setVideoOpen(true)}
+            className="w-full rounded-3xl overflow-hidden aspect-video shadow-md relative group block cursor-pointer"
+            aria-label="הפעל וידאו"
+          >
+            {videoThumb
+              ? <img src={videoThumb} alt="תמונה מקדימה לוידאו" className="w-full h-full object-cover" />
+              : <div className="w-full h-full bg-gray-900" />
+            }
+            <div className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors flex items-center justify-center">
+              <div className="w-16 h-16 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow-2xl group-hover:scale-110 transition-transform">
+                <svg className="w-7 h-7 text-gray-900 translate-x-0.5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M8 5v14l11-7z"/>
+                </svg>
+              </div>
+            </div>
+          </button>
+        )}
+
       <h2 className="text-2xl font-black text-gray-900">אודות הקמפיין</h2>
 
         {gallery.length > 0 && (
@@ -864,26 +886,6 @@ function AboutSection({ campaign, gallery }: { campaign: Campaign; gallery: Gall
           <div className="prose prose-gray max-w-none">
             <p className="text-gray-600 leading-relaxed whitespace-pre-wrap text-base">{aboutText}</p>
           </div>
-        )}
-
-        {videoEmbed && (
-          <button
-            onClick={() => setVideoOpen(true)}
-            className="w-full rounded-3xl overflow-hidden aspect-video shadow-md relative group block cursor-pointer"
-            aria-label="הפעל וידאו"
-          >
-            {videoThumb
-              ? <img src={videoThumb} alt="תמונה מקדימה לוידאו" className="w-full h-full object-cover" />
-              : <div className="w-full h-full bg-gray-900" />
-            }
-            <div className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors flex items-center justify-center">
-              <div className="w-16 h-16 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow-2xl group-hover:scale-110 transition-transform">
-                <svg className="w-7 h-7 text-gray-900 translate-x-0.5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M8 5v14l11-7z"/>
-                </svg>
-              </div>
-            </div>
-          </button>
         )}
 
         {videoOpen && videoEmbed && (
