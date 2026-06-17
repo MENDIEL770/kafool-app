@@ -25,8 +25,22 @@ function EditModal({ group, onClose, onSaved }: { group: Group; onClose: () => v
   })
   const [saving, setSaving] = useState(false)
   const [slugError, setSlugError] = useState('')
+  const [imageUrl, setImageUrl] = useState<string | null>(group.image_url || null)
+  const [uploadingImg, setUploadingImg] = useState(false)
 
   function set(k: string, v: string) { setForm(p => ({ ...p, [k]: v })) }
+
+  async function uploadImage(file: File) {
+    setUploadingImg(true)
+    const fd = new FormData()
+    fd.append('file', file)
+    fd.append('path', `groups/${group.campaign_id}/${group.id}-${Date.now()}`)
+    const res = await fetch('/api/upload', { method: 'POST', body: fd })
+    setUploadingImg(false)
+    if (!res.ok) { setSlugError('העלאת התמונה נכשלה'); return }
+    const { url } = await res.json()
+    setImageUrl(url)
+  }
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
@@ -54,6 +68,7 @@ function EditModal({ group, onClose, onSaved }: { group: Group; onClose: () => v
       goal_amount: Number(form.goal_amount) || 0,
       manager_name: form.manager_name || null,
       manager_phone: form.manager_phone || null,
+      image_url: imageUrl,
     }).eq('id', group.id)
     setSaving(false)
     if (error) { setSlugError(error.message); return }
@@ -69,6 +84,34 @@ function EditModal({ group, onClose, onSaved }: { group: Group; onClose: () => v
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors"><X className="w-5 h-5" /></button>
         </div>
         <form onSubmit={handleSave} className="space-y-4">
+          {/* תמונת הקבוצה */}
+          <div className="space-y-1.5">
+            <Label>תמונת הקבוצה</Label>
+            <div className="flex items-center gap-3">
+              <label className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-dashed border-gray-200 hover:border-blue-300 bg-gray-50 flex items-center justify-center cursor-pointer shrink-0 group">
+                {imageUrl
+                  ? <img src={imageUrl} alt="" className="w-full h-full object-cover" />
+                  : <Pencil className="w-4 h-4 text-gray-300" />}
+                {uploadingImg && (
+                  <span className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                    <Loader2 className="w-4 h-4 text-white animate-spin" />
+                  </span>
+                )}
+                <input type="file" accept="image/*" className="hidden"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) uploadImage(f); e.target.value = '' }} />
+              </label>
+              <div className="flex flex-col gap-1">
+                <span className="text-xs text-gray-500">{imageUrl ? 'לחץ על התמונה כדי להחליף' : 'לחץ להעלאת תמונה'}</span>
+                {imageUrl && (
+                  <button type="button" onClick={() => setImageUrl(null)}
+                    className="text-xs text-red-400 hover:text-red-600 flex items-center gap-1 w-fit">
+                    <Trash2 className="w-3 h-3" /> הסר תמונה
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label>שם הקבוצה</Label>
@@ -594,7 +637,11 @@ export default function GroupsPage() {
           return (
             <div key={g.id} className="bg-white border border-gray-200 rounded-2xl p-4 hover:border-gray-300 transition-colors">
               <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
+                <div className="flex items-start gap-3 flex-1 min-w-0">
+                  {g.image_url && (
+                    <img src={g.image_url} alt="" className="w-11 h-11 rounded-full object-cover shrink-0 border border-gray-100" />
+                  )}
+                  <div className="flex-1 min-w-0">
                   <div className="font-semibold text-gray-900">{g.name}</div>
                   {g.manager_name && (
                     <div className="text-sm text-gray-500 mt-0.5">
@@ -609,6 +656,7 @@ export default function GroupsPage() {
                       <ExternalLink className="w-3 h-3" />
                     </a>
                   )}
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-1 shrink-0">
