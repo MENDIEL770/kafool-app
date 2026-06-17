@@ -16,9 +16,15 @@ export default async function CampaignDonorsPage({ params }: { params: Promise<{
 
   const { data: donations } = await supabase
     .from('donations')
-    .select('id, amount, donor_name, donor_phone, donor_email, dedication, payment_status, created_at, kesher_transaction_id')
+    .select('id, amount, donor_name, donor_phone, donor_email, dedication, payment_status, created_at, kesher_transaction_id, group_id')
     .eq('campaign_id', id)
     .order('created_at', { ascending: false })
 
-  return <DonorsClient campaign={campaign} donations={donations || []} />
+  const { data: groups } = await supabase
+    .from('groups')
+    .select('id, name')
+    .eq('campaign_id', id)
+    .order('created_at')
+
+  return <DonorsClient campaign={campaign} donations={donations || []} groups={groups || []} />
 }

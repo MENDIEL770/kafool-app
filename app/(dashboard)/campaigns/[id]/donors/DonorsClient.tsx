@@ -18,7 +18,10 @@ interface Donation {
   payment_status: string
   created_at: string
   kesher_transaction_id: string | null
+  group_id: string | null
 }
+
+interface GroupOption { id: string; name: string }
 
 interface Campaign {
   id: string
@@ -29,18 +32,19 @@ interface Campaign {
   org_id: string
 }
 
-export default function DonorsClient({ campaign, donations: initial }: { campaign: Campaign; donations: Donation[] }) {
+export default function DonorsClient({ campaign, donations: initial, groups }: { campaign: Campaign; donations: Donation[]; groups: GroupOption[] }) {
   const router = useRouter()
   const [donations, setDonations] = useState(initial)
   const [search, setSearch] = useState('')
   const [editId, setEditId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<Partial<Donation>>({})
   const [showAdd, setShowAdd] = useState(false)
-  const [addForm, setAddForm] = useState({ amount: '', donor_name: '', donor_phone: '', donor_email: '', dedication: '' })
+  const [addForm, setAddForm] = useState({ amount: '', donor_name: '', donor_phone: '', donor_email: '', dedication: '', group_id: '' })
   const [saving, setSaving] = useState(false)
   const [addError, setAddError] = useState('')
 
   const supabase = createClient()
+  const groupName = (id: string | null) => groups.find(g => g.id === id)?.name || null
 
   const filtered = donations.filter(d =>
     !search ||
@@ -51,6 +55,9 @@ export default function DonorsClient({ campaign, donations: initial }: { campaig
   )
 
   const total = donations.reduce((s, d) => s + (d.amount || 0), 0)
+  // Online = paid through the site (has a Kesher transaction); manual = entered by hand
+  const onlineTotal = donations.reduce((s, d) => s + (d.kesher_transaction_id ? (d.amount || 0) : 0), 0)
+  const manualTotal = total - onlineTotal
 
   // ── עריכה ──
   function startEdit(d: Donation) {
@@ -75,8 +82,18 @@ export default function DonorsClient({ campaign, donations: initial }: { campaig
     setSaving(false)
   }
 
+  // ── עדכון סכום קבוצה (read-modify-write, ללא מיגרציה) ──
+  async function adjustGroupRaised(groupId: string, delta: number) {
+    const { data: g } = await supabase.from('groups').select('raised_amount').eq('id', groupId).single()
+    if (g) {
+      await supabase.from('groups')
+        .update({ raised_amount: Math.max(0, (g.raised_amount || 0) + delta) })
+        .eq('id', groupId)
+    }
+  }
+
   // ── מחיקה ──
-  async function deleteDonation(id: string, amount: number) {
+  async function deleteDonation(id: string, amount: number, groupId: string | null) {
     if (!confirm('למחוק תרומה זו?')) return
     const { error } = await supabase.from('donations').delete().eq('id', id)
     if (!error) {
@@ -86,6 +103,7 @@ export default function DonorsClient({ campaign, donations: initial }: { campaig
         campaign_id: campaign.id,
         amount_agorot: -Math.round(amount * 100),
       })
+      if (groupId) await adjustGroupRaised(groupId, -amount)
     }
   }
 
@@ -103,6 +121,7 @@ export default function DonorsClient({ campaign, donations: initial }: { campaig
       donor_phone: addForm.donor_phone || null,
       donor_email: addForm.donor_email || null,
       dedication: addForm.dedication || null,
+      group_id: addForm.group_id || null,
       payment_status: 'completed',
     }).select().single()
     if (error || !data) {
@@ -115,7 +134,8 @@ export default function DonorsClient({ campaign, donations: initial }: { campaig
       campaign_id: campaign.id,
       amount_agorot: Math.round(amount * 100),
     })
-    setAddForm({ amount: '', donor_name: '', donor_phone: '', donor_email: '', dedication: '' })
+    if (addForm.group_id) await adjustGroupRaised(addForm.group_id, amount)
+    setAddForm({ amount: '', donor_name: '', donor_phone: '', donor_email: '', dedication: '', group_id: '' })
     setShowAdd(false)
     setSaving(false)
     router.refresh()
@@ -136,14 +156,15 @@ export default function DonorsClient({ campaign, donations: initial }: { campaig
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
-          { label: 'סה"כ תורמים', val: donations.length },
-          { label: 'סה"כ גויס', val: `₪${total.toLocaleString()}` },
-          { label: 'תרומה ממוצעת', val: donations.length ? `₪${Math.round(total / donations.length).toLocaleString()}` : '₪0' },
+          { label: 'סה"כ גויס', val: `₪${total.toLocaleString()}`, accent: 'text-gray-900' },
+          { label: '💻 נכנס באתר', val: `₪${onlineTotal.toLocaleString()}`, accent: 'text-green-600' },
+          { label: '✍️ נכנס ידני', val: `₪${manualTotal.toLocaleString()}`, accent: 'text-blue-600' },
+          { label: 'סה"כ תורמים', val: donations.length, accent: 'text-gray-900' },
         ].map(s => (
           <div key={s.label} className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm text-center">
-            <div className="text-2xl font-black text-gray-900">{s.val}</div>
+            <div className={`text-2xl font-black ${s.accent}`}>{s.val}</div>
             <div className="text-xs text-gray-500 mt-1">{s.label}</div>
           </div>
         ))}
@@ -185,9 +206,24 @@ export default function DonorsClient({ campaign, donations: initial }: { campaig
               <Input type="email" value={addForm.donor_email} onChange={e => setAddForm(f => ({ ...f, donor_email: e.target.value }))} dir="ltr" />
             </div>
           </div>
-          <div className="space-y-1">
-            <Label className="text-xs">הקדשה</Label>
-            <Input value={addForm.dedication} onChange={e => setAddForm(f => ({ ...f, dedication: e.target.value }))} />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs">הקדשה</Label>
+              <Input value={addForm.dedication} onChange={e => setAddForm(f => ({ ...f, dedication: e.target.value }))} />
+            </div>
+            {groups.length > 0 && (
+              <div className="space-y-1">
+                <Label className="text-xs">שיוך לקבוצה</Label>
+                <select
+                  value={addForm.group_id}
+                  onChange={e => setAddForm(f => ({ ...f, group_id: e.target.value }))}
+                  className="w-full h-9 border border-gray-200 rounded-md px-3 text-sm bg-white outline-none focus:ring-2 focus:ring-blue-400"
+                >
+                  <option value="">ללא קבוצה</option>
+                  {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                </select>
+              </div>
+            )}
           </div>
           {addError && (
             <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2 text-center">{addError}</div>
@@ -204,10 +240,10 @@ export default function DonorsClient({ campaign, donations: initial }: { campaig
           <div className="text-center py-12 text-gray-400">אין תרומות להצגה</div>
         ) : (
           <div className="overflow-x-auto -mx-1">
-          <table className="w-full text-sm min-w-[560px]">
+          <table className="w-full text-sm min-w-[640px]">
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
-                {['תאריך', 'שם', 'טלפון', 'סכום', 'הקדשה', 'סטטוס', ''].map(h => (
+                {['תאריך', 'שם', 'טלפון', 'סכום', 'הקדשה', 'מקור', 'סטטוס', ''].map(h => (
                   <th key={h} className="text-right px-4 py-3 text-xs font-semibold text-gray-500">{h}</th>
                 ))}
               </tr>
@@ -234,6 +270,7 @@ export default function DonorsClient({ campaign, donations: initial }: { campaig
                         <Input value={editForm.dedication || ''} onChange={e => setEditForm(f => ({ ...f, dedication: e.target.value }))} className="h-7 text-xs" />
                       </td>
                       <td className="px-4 py-2"></td>
+                      <td className="px-4 py-2"></td>
                       <td className="px-4 py-2">
                         <div className="flex gap-1">
                           <button onClick={saveEdit} disabled={saving} className="p-1 rounded hover:bg-green-100 text-green-600"><Check className="w-4 h-4" /></button>
@@ -247,10 +284,20 @@ export default function DonorsClient({ campaign, donations: initial }: { campaig
                       <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
                         {new Date(d.created_at).toLocaleDateString('he-IL')}
                       </td>
-                      <td className="px-4 py-3 font-medium text-gray-800">{d.donor_name || <span className="text-gray-300">אנונימי</span>}</td>
+                      <td className="px-4 py-3 font-medium text-gray-800">
+                        {d.donor_name || <span className="text-gray-300">אנונימי</span>}
+                        {groupName(d.group_id) && (
+                          <span className="block text-[11px] text-gray-400 font-normal mt-0.5">👥 {groupName(d.group_id)}</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-gray-500 text-xs" dir="ltr">{d.donor_phone || '—'}</td>
                       <td className="px-4 py-3 font-bold text-gray-900">₪{(d.amount || 0).toLocaleString()}</td>
                       <td className="px-4 py-3 text-gray-400 text-xs max-w-[120px] truncate">{d.dedication || '—'}</td>
+                      <td className="px-4 py-3">
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${d.kesher_transaction_id ? 'bg-green-50 text-green-700' : 'bg-blue-50 text-blue-700'}`}>
+                          {d.kesher_transaction_id ? '💻 אתר' : '✍️ ידני'}
+                        </span>
+                      </td>
                       <td className="px-4 py-3">
                         <span className={`text-xs px-2 py-0.5 rounded-full ${d.payment_status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                           {d.payment_status === 'completed' ? 'הושלם' : d.payment_status}
@@ -259,7 +306,7 @@ export default function DonorsClient({ campaign, donations: initial }: { campaig
                       <td className="px-4 py-3">
                         <div className="flex gap-1">
                           <button onClick={() => startEdit(d)} className="p-1.5 rounded hover:bg-blue-50 text-blue-400 transition-colors"><Pencil className="w-3.5 h-3.5" /></button>
-                          <button onClick={() => deleteDonation(d.id, d.amount)} className="p-1.5 rounded hover:bg-red-50 text-red-400 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => deleteDonation(d.id, d.amount, d.group_id)} className="p-1.5 rounded hover:bg-red-50 text-red-400 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
                         </div>
                       </td>
                     </>
