@@ -105,6 +105,9 @@ CREATE POLICY "donations_org_read" ON donations
 CREATE POLICY "donations_org_update" ON donations
   FOR UPDATE USING (org_id = auth_org_id() OR is_super_admin());
 
+CREATE POLICY "donations_org_delete" ON donations
+  FOR DELETE USING (org_id = auth_org_id() OR is_super_admin());
+
 -- ───────────────────────────────────────────
 -- dedications
 -- ───────────────────────────────────────────

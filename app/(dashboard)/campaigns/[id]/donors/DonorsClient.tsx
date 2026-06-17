@@ -44,6 +44,7 @@ interface Donation {
 }
 
 interface GroupOption { id: string; name: string }
+interface PlanOption { amount: number; label: string | null }
 
 interface Campaign {
   id: string
@@ -54,7 +55,7 @@ interface Campaign {
   org_id: string
 }
 
-export default function DonorsClient({ campaign, donations: initial, groups }: { campaign: Campaign; donations: Donation[]; groups: GroupOption[] }) {
+export default function DonorsClient({ campaign, donations: initial, groups, plans }: { campaign: Campaign; donations: Donation[]; groups: GroupOption[]; plans: PlanOption[] }) {
   const router = useRouter()
   const [donations, setDonations] = useState(initial)
   const [search, setSearch] = useState('')
@@ -126,16 +127,20 @@ export default function DonorsClient({ campaign, donations: initial, groups }: {
   // ── מחיקה ──
   async function deleteDonation(id: string, amount: number, groupId: string | null) {
     if (!confirm('למחוק תרומה זו?')) return
-    const { error } = await supabase.from('donations').delete().eq('id', id)
-    if (!error) {
-      setDonations(ds => ds.filter(d => d.id !== id))
-      // עדכן raised_amount
-      await supabase.rpc('increment_campaign_amount', {
-        campaign_id: campaign.id,
-        amount_agorot: -Math.round(amount * 100),
-      })
-      if (groupId) await adjustGroupRaised(groupId, -amount)
+    // .select() מחזיר את השורות שנמחקו בפועל — כדי לזהות חסימת RLS (0 שורות)
+    const { data, error } = await supabase.from('donations').delete().eq('id', id).select('id')
+    if (error) { alert('מחיקה נכשלה: ' + error.message); return }
+    if (!data || data.length === 0) {
+      alert('המחיקה לא בוצעה (הרשאה חסרה). יש להריץ את add_donations_delete_policy.sql ב-Supabase.')
+      return
     }
+    setDonations(ds => ds.filter(d => d.id !== id))
+    // עדכן raised_amount
+    await supabase.rpc('increment_campaign_amount', {
+      campaign_id: campaign.id,
+      amount_agorot: -Math.round(amount * 100),
+    })
+    if (groupId) await adjustGroupRaised(groupId, -amount)
   }
 
   // ── הוספה ידנית ──
@@ -184,9 +189,13 @@ export default function DonorsClient({ campaign, donations: initial, groups }: {
       const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' })
       const rows: ImportRow[] = raw.map(r => {
         const amount = Number(pickCol(r, ['סכום', 'amount', 'sum', 'תרומה', 'שקל']).replace(/[^\d.]/g, ''))
+        // Combine separate first/last-name columns when present; otherwise a single name column
+        const firstName = pickCol(r, ['שם פרטי', 'פרטי', 'first'])
+        const lastName = pickCol(r, ['שם משפחה', 'משפחה', 'last'])
+        const fullName = [firstName, lastName].filter(Boolean).join(' ').trim()
         return {
           amount: amount || 0,
-          donor_name: pickCol(r, ['שם', 'name', 'תורם', 'donor']) || null,
+          donor_name: fullName || pickCol(r, ['שם', 'name', 'תורם', 'donor']) || null,
           donor_phone: pickCol(r, ['טלפון', 'נייד', 'פלא', 'phone', 'tel', 'mobile']) || null,
           donor_email: pickCol(r, ['אימייל', 'מייל', 'דוא', 'email', 'mail']) || null,
           dedication: pickCol(r, ['הקדשה', 'dedication', 'לעילוי', 'הערה', 'note']) || null,
@@ -292,6 +301,28 @@ export default function DonorsClient({ campaign, donations: initial, groups }: {
             <h3 className="font-bold text-blue-900">הוספת תרומה ידנית</h3>
             <button onClick={() => setShowAdd(false)}><X className="w-4 h-4 text-blue-400" /></button>
           </div>
+
+          {plans.length > 0 && (
+            <div className="space-y-1.5">
+              <Label className="text-xs">מסלולי תרומה</Label>
+              <div className="flex flex-wrap gap-2">
+                {plans.map((p, i) => {
+                  const active = addForm.amount === String(p.amount)
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setAddForm(f => ({ ...f, amount: String(p.amount) }))}
+                      className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${active ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-blue-700 border-blue-200 hover:border-blue-400'}`}
+                    >
+                      ₪{p.amount.toLocaleString()}{p.label ? ` · ${p.label}` : ''}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label className="text-xs">סכום (₪) *</Label>
