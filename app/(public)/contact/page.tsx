@@ -12,7 +12,7 @@ interface ContactSettings {
 
 const CONTACT_DEFAULTS: ContactSettings = {
   phone: '0535035770',
-  email: 'info@kafool.co.il',
+  email: 'mendielharar@gmail.com',
   hours: "ימים א'–ה', 09:00–18:00",
 }
 
