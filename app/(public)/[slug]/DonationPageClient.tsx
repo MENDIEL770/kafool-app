@@ -521,7 +521,11 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
             className={`flex-1 py-2.5 sm:py-3.5 text-white font-black text-sm sm:text-base text-center shadow-lg hover:opacity-90 active:scale-95 transition-all ${buttonRadius}`}
             style={{ backgroundColor: primaryColor }}
           >
-            {finalAmount ? `תרום ₪${finalAmount.toLocaleString()}` : 'לתרומה'}
+            {finalAmount
+              ? (selectedMethod === 'hok' && selectedMonths
+                  ? `תרום ₪${finalAmount.toLocaleString()} × ${selectedMonths} חודשים (₪${(finalAmount * selectedMonths).toLocaleString()})`
+                  : `תרום ₪${finalAmount.toLocaleString()}`)
+              : 'לתרומה'}
           </button>
           <button
             onClick={() => navigator.share?.({ title: 'שתף את הקמפיין', url: window.location.href }) ?? navigator.clipboard.writeText(window.location.href)}
@@ -825,8 +829,7 @@ function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCre
   )
 }
 
-// Additional campaign videos (the main one plays from the banner). Shown only if any
-// extra video exists — as smaller thumbnails with an optional title.
+// Campaign videos (main first) shown as centered thumbnails with an optional title.
 function CampaignVideos({ campaign }: { campaign: Campaign }) {
   const settings = campaign.settings as { videos?: (string | { url: string; title?: string })[] }
   const raw = settings?.videos?.length ? settings.videos : (campaign.video_url ? [campaign.video_url] : [])
@@ -834,17 +837,14 @@ function CampaignVideos({ campaign }: { campaign: Campaign }) {
     .map(v => (typeof v === 'string' ? { url: v, title: '' } : { url: v.url, title: v.title || '' }))
     .map(v => ({ ...v, embed: getVideoEmbed(v.url), thumb: getYoutubeThumbnail(v.url) }))
     .filter(v => v.embed)
-  // The main video already plays from the banner — show only the extras here.
-  const extra = all.filter(v => v.url !== campaign.video_url)
   const [openEmbed, setOpenEmbed] = useState<string | null>(null)
 
-  if (extra.length === 0) return null
+  if (all.length === 0) return null
   return (
     <section className="py-6 px-4 bg-white border-t border-gray-100">
       <div className="max-w-3xl mx-auto">
-        <h3 className="text-base font-black text-gray-800 mb-3 text-center">סרטונים נוספים</h3>
         <div className="flex flex-wrap justify-center gap-4">
-          {extra.map((v, i) => (
+          {all.map((v, i) => (
             <div key={i} className="space-y-1.5 w-[200px] max-w-full">
               <button
                 onClick={() => setOpenEmbed(v.embed)}
