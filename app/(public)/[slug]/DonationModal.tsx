@@ -112,7 +112,19 @@ export default function DonationModal({
     }
     params.set('addactiondata', campaign.id)
     const origin = typeof window !== 'undefined' ? window.location.origin : ''
-    params.set('successurl', `${origin}/${campaign.slug}/thanks`)
+    // Carry the donor details on the success URL so the thanks page can save them
+    // server-side (the in-iframe localStorage/RLS update is unreliable on mobile).
+    const sParams = new URLSearchParams()
+    if (!form.anonymous) {
+      const name = [form.firstName, form.lastName].filter(Boolean).join(' ').trim()
+      if (name) sParams.set('dn', name)
+      if (form.phone) sParams.set('dp', form.phone)
+      if (form.email) sParams.set('de', form.email)
+    }
+    if (form.dedication) sParams.set('dd', form.dedication)
+    if (selectedGroupSlug) sParams.set('dg', selectedGroupSlug)
+    const successUrl = `${origin}/${campaign.slug}/thanks${sParams.toString() ? `?${sParams.toString()}` : ''}`
+    params.set('successurl', successUrl)
     const sep = activeUrl.includes('?') ? '&' : '?'
     return `${activeUrl}${sep}${params.toString()}`
   }

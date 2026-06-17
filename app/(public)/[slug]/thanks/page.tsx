@@ -51,11 +51,29 @@ export default async function ThanksPage({
       .single()
 
     if (!existing) {
+      // פרטי התורם מגיעים על ה-successurl (dn/dp/de/dd/dg) ונשמרים בצד השרת
+      const donorName = (sp.dn || '').trim() || null
+      const donorPhone = (sp.dp || '').trim() || null
+      const donorEmail = (sp.de || '').trim() || null
+      const dedication = (sp.dd || '').trim() || null
+
+      // שיוך לקבוצה לפי slug
+      let groupId: string | null = null
+      if (sp.dg) {
+        const { data: g } = await supabaseService
+          .from('groups').select('id').eq('campaign_id', campaign.id).eq('slug', sp.dg).maybeSingle()
+        groupId = g?.id ?? null
+      }
+
       await supabaseService.from('donations').insert({
         campaign_id: campaign.id,
         org_id: campaign.org_id,
         amount: totalShekels,
-        donor_name: null, // יתעדכן מ-localStorage בצד הלקוח
+        donor_name: donorName,
+        donor_phone: donorPhone,
+        donor_email: donorEmail,
+        dedication,
+        group_id: groupId,
         kesher_transaction_id: transactionNumber,
         payment_status: 'completed',
         kesher_raw: sp,
@@ -64,6 +82,11 @@ export default async function ThanksPage({
         campaign_id: campaign.id,
         amount_agorot: totalAgorot,
       })
+      // עדכן את סכום הקבוצה אם שויכה
+      if (groupId) {
+        const { data: grp } = await supabaseService.from('groups').select('raised_amount').eq('id', groupId).single()
+        if (grp) await supabaseService.from('groups').update({ raised_amount: (grp.raised_amount || 0) + totalShekels }).eq('id', groupId)
+      }
       console.log(`✅ Thanks page: ₪${totalShekels} for campaign ${campaign.id}`)
 
       // הפעל SMS automations (fire & forget)
@@ -74,8 +97,8 @@ export default async function ThanksPage({
         body: JSON.stringify({
           campaign_id: campaign.id,
           amount: totalShekels,
-          donor_phone: null, // יתעדכן מ-localStorage בצד הלקוח
-          donor_name: null,
+          donor_phone: donorPhone,
+          donor_name: donorName,
         }),
       }).catch(() => {})
     }
