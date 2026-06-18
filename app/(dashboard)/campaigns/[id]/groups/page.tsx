@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { ExternalLink, Pencil, MessageSquare, Send, X, Check, Loader2, ChevronDown, ChevronUp, Trash2, AlertTriangle } from 'lucide-react'
+import { ExternalLink, Pencil, MessageSquare, Send, X, Check, Loader2, ChevronDown, ChevronUp, Trash2, AlertTriangle, TrendingUp, TrendingDown } from 'lucide-react'
 import type { Group } from '@/types'
 
 interface CampaignInfo { slug: string; campaign_slug: string }
@@ -690,6 +690,18 @@ export default function GroupsPage() {
 
   const withPhone = groups.filter(g => g.manager_phone)
 
+  // Commitments overview: sum of group goals (the total committed) vs what was
+  // actually raised, and each group ranked by % of its own personal goal.
+  const totalCommit = groups.reduce((s, g) => s + (g.goal_amount || 0), 0)
+  const totalRaised = groups.reduce((s, g) => s + (g.raised_amount || 0), 0)
+  const overallPct = totalCommit > 0 ? Math.round((totalRaised / totalCommit) * 100) : 0
+  const ranked = groups
+    .filter(g => (g.goal_amount || 0) > 0)
+    .map(g => ({ id: g.id, name: g.name, pct: Math.round(((g.raised_amount || 0) / g.goal_amount) * 100) }))
+    .sort((a, b) => b.pct - a.pct)
+  const strong = ranked.slice(0, 3)
+  const weak = ranked.slice(-3).reverse()
+
   return (
     <div className="max-w-2xl mx-auto space-y-5" dir="rtl">
       {/* Header */}
@@ -767,6 +779,64 @@ export default function GroupsPage() {
       )}
 
       {/* Groups list */}
+      {/* Commitments overview */}
+      {groups.length > 0 && (
+        <div className="space-y-3">
+          <div className="bg-white border border-gray-200 rounded-2xl p-4">
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div>
+                <div className="text-[11px] text-gray-400">סה״כ התחייבויות</div>
+                <div className="text-base sm:text-lg font-black text-gray-900">₪{totalCommit.toLocaleString('he-IL')}</div>
+              </div>
+              <div>
+                <div className="text-[11px] text-gray-400">גויס בפועל</div>
+                <div className="text-base sm:text-lg font-black text-green-600">₪{totalRaised.toLocaleString('he-IL')}</div>
+              </div>
+              <div>
+                <div className="text-[11px] text-gray-400">אחוז השגה</div>
+                <div className="text-base sm:text-lg font-black text-blue-600">{overallPct}%</div>
+              </div>
+            </div>
+            <div className="mt-3 h-2 bg-gray-100 rounded-full overflow-hidden">
+              <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${Math.min(100, overallPct)}%` }} />
+            </div>
+          </div>
+
+          {ranked.length > 1 && (
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div className="bg-white border border-gray-200 rounded-2xl p-4">
+                <div className="flex items-center gap-1.5 text-sm font-bold text-green-700 mb-2">
+                  <TrendingUp className="w-4 h-4" /> החזקים ביותר
+                </div>
+                <ul className="space-y-1.5">
+                  {strong.map(g => (
+                    <li key={g.id} className="flex items-center justify-between gap-2 text-sm">
+                      <span className="truncate text-gray-700">{g.name}</span>
+                      <span className="font-bold text-green-600 shrink-0">{g.pct}%</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              {ranked.length > 3 && (
+                <div className="bg-white border border-gray-200 rounded-2xl p-4">
+                  <div className="flex items-center gap-1.5 text-sm font-bold text-amber-700 mb-2">
+                    <TrendingDown className="w-4 h-4" /> טעונים חיזוק
+                  </div>
+                  <ul className="space-y-1.5">
+                    {weak.map(g => (
+                      <li key={g.id} className="flex items-center justify-between gap-2 text-sm">
+                        <span className="truncate text-gray-700">{g.name}</span>
+                        <span className="font-bold text-amber-600 shrink-0">{g.pct}%</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="space-y-3">
         {groups.length === 0 && (
           <div className="text-center py-14 text-gray-400">
