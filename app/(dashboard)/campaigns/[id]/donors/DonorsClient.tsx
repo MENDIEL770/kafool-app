@@ -41,6 +41,9 @@ interface Donation {
   created_at: string
   kesher_transaction_id: string | null
   group_id: string | null
+  payment_type?: string | null
+  installments?: number | null
+  monthly_amount?: number | null
 }
 
 interface GroupOption { id: string; name: string }
@@ -623,7 +626,7 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
                     onChange={e => setSelected(e.target.checked ? new Set(sorted.map(d => d.id)) : new Set())}
                   />
                 </th>
-                {['תאריך', 'שם', 'טלפון', 'סכום', 'הקדשה', 'מקור', 'סטטוס', ''].map(h => (
+                {['תאריך', 'שם', 'טלפון', 'סכום', 'סוג', 'הקדשה', 'מקור', 'סטטוס', ''].map(h => (
                   <th key={h} className="text-right px-4 py-3 text-xs font-semibold text-gray-500">{h}</th>
                 ))}
               </tr>
@@ -660,6 +663,7 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
                       <td className="px-4 py-2">
                         <Input type="number" value={editForm.amount || ''} onChange={e => setEditForm(f => ({ ...f, amount: Number(e.target.value) }))} className="h-7 text-xs w-20" dir="ltr" />
                       </td>
+                      <td className="px-4 py-2"></td>
                       <td className="px-4 py-2">
                         <Input value={editForm.dedication || ''} onChange={e => setEditForm(f => ({ ...f, dedication: e.target.value }))} className="h-7 text-xs" />
                       </td>
@@ -689,6 +693,18 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
                       </td>
                       <td className="px-4 py-3 text-gray-500 text-xs" dir="ltr">{d.donor_phone || '—'}</td>
                       <td className="px-4 py-3 font-bold text-gray-900">₪{(d.amount || 0).toLocaleString()}</td>
+                      <td className="px-4 py-3">
+                        {d.payment_type === 'hok' ? (
+                          <span
+                            title={d.monthly_amount ? `₪${Number(d.monthly_amount).toLocaleString()} לחודש × ${d.installments ?? '?'}` : undefined}
+                            className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 whitespace-nowrap"
+                          >
+                            הו״ק{d.installments ? ` · ${d.installments} ח׳` : ''}
+                          </span>
+                        ) : (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-gray-50 text-gray-500">חד״פ</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-gray-400 text-xs max-w-[120px] truncate">{d.dedication || '—'}</td>
                       <td className="px-4 py-3">
                         <span className={`text-xs px-2 py-0.5 rounded-full ${d.kesher_transaction_id ? 'bg-green-50 text-green-700' : 'bg-blue-50 text-blue-700'}`}>

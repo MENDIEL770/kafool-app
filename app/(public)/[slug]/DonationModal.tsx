@@ -123,6 +123,13 @@ export default function DonationModal({
     }
     if (form.dedication) sParams.set('dd', form.dedication)
     if (selectedGroupSlug) sParams.set('dg', selectedGroupSlug)
+    // Standing order: carry type + monthly amount + #months so the thanks page
+    // can record the FULL commitment (monthly × months), not just one payment.
+    if (paymentMethod === 'hok' && months && months > 0) {
+      sParams.set('dpt', 'hok')
+      sParams.set('dmo', String(months))
+      if (finalAmount) sParams.set('dma', String(finalAmount))
+    }
     const successUrl = `${origin}/${campaign.slug}/thanks${sParams.toString() ? `?${sParams.toString()}` : ''}`
     params.set('successurl', successUrl)
     const sep = activeUrl.includes('?') ? '&' : '?'

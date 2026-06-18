@@ -54,7 +54,6 @@ export async function POST(req: NextRequest) {
     }
 
     const amountTotal = Number(body?.Sum ?? 0)
-    const amountAgorot = Math.round(amountTotal * 100)
     const numTransaction = String(body?.NumTransaction ?? '')
 
     // campaign ID חוזר ב-Details או adddata (מה ששלחנו כ-addactiondata)
@@ -88,24 +87,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true })
     }
 
-    // הכנס תרומה
-    await supabase.from('donations').insert({
-      campaign_id: campaignId,
-      org_id: campaign.org_id,
-      amount: amountTotal,
-      donor_name: donorName,
-      kesher_transaction_id: numTransaction || null,
-      payment_status: 'completed',
-      kesher_raw: body,
-    })
+    // הכנס תרומה רק אם העסקה לא קיימת — דף התודה הוא הסמכות (הוא יודע סכומי הו"ק),
+    // אז כאן לא דורסים שורה שכבר נרשמה.
+    const { data: existing } = await supabase
+      .from('donations').select('id').eq('kesher_transaction_id', numTransaction).maybeSingle()
+    if (!existing && numTransaction) {
+      await supabase.from('donations').insert({
+        campaign_id: campaignId,
+        org_id: campaign.org_id,
+        amount: amountTotal,
+        donor_name: donorName,
+        kesher_transaction_id: numTransaction,
+        payment_status: 'completed',
+        kesher_raw: body,
+      })
+    }
 
-    // עדכן סכום קמפיין
-    await supabase.rpc('increment_campaign_amount', {
-      campaign_id: campaignId,
-      amount_agorot: amountAgorot,
-    })
-
-    console.log(`Donation saved: ₪${amountTotal} for campaign ${campaignId}`)
+    // raised_amount = סכום התרומות שהושלמו (drift-free, ללא ספירה כפולה)
+    const { recomputeCampaignRaised } = await import('@/lib/donations')
+    await recomputeCampaignRaised(supabase, campaignId)
+    console.log(`Kesher webhook: recorded/recomputed for campaign ${campaignId}`)
   } catch (err) {
     console.error('Kesher webhook error:', err)
   }
@@ -136,7 +137,6 @@ export async function GET(req: NextRequest) {
     }
 
     const amountTotal = Number(body?.Sum ?? body?.total ?? 0)
-    const amountAgorot = Math.round(amountTotal * 100)
     const numTransaction = String(body?.NumTransaction ?? body?.transactionNumber ?? '')
     const campaignId = String(body?.Details ?? body?.adddata ?? body?.ref ?? '').trim() || null
     const donorName = String(body?.ReceiptName ?? '').trim() || null
@@ -150,18 +150,23 @@ export async function GET(req: NextRequest) {
     const { data: campaign } = await supabase.from('campaigns').select('org_id').eq('id', campaignId).single()
     if (!campaign) return NextResponse.json({ ok: true })
 
-    await supabase.from('donations').insert({
-      campaign_id: campaignId,
-      org_id: campaign.org_id,
-      amount: amountTotal,
-      donor_name: donorName,
-      kesher_transaction_id: numTransaction || null,
-      payment_status: 'completed',
-      kesher_raw: body,
-    })
+    const { data: existing } = await supabase
+      .from('donations').select('id').eq('kesher_transaction_id', numTransaction).maybeSingle()
+    if (!existing && numTransaction) {
+      await supabase.from('donations').insert({
+        campaign_id: campaignId,
+        org_id: campaign.org_id,
+        amount: amountTotal,
+        donor_name: donorName,
+        kesher_transaction_id: numTransaction,
+        payment_status: 'completed',
+        kesher_raw: body,
+      })
+    }
 
-    await supabase.rpc('increment_campaign_amount', { campaign_id: campaignId, amount_agorot: amountAgorot })
-    console.log(`GET webhook: ₪${amountTotal} for campaign ${campaignId}`)
+    const { recomputeCampaignRaised } = await import('@/lib/donations')
+    await recomputeCampaignRaised(supabase, campaignId)
+    console.log(`Kesher GET webhook: recorded/recomputed for campaign ${campaignId}`)
   } catch (err) {
     console.error('Kesher GET webhook error:', err)
   }
