@@ -10,8 +10,11 @@ export async function POST(req: NextRequest) {
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
   if (profile?.role !== 'super_admin') return NextResponse.json({ error: 'אין הרשאה' }, { status: 403 })
 
-  const { orgName, slug, ownerEmail, ownerName, ownerPhone, sendInvite } = await req.json()
+  const { orgName, slug, ownerEmail, ownerName, ownerPhone, ownerPassword, sendInvite } = await req.json()
   if (!orgName || !slug) return NextResponse.json({ error: 'חסרים שדות חובה' }, { status: 400 })
+  if (ownerPassword && String(ownerPassword).length < 6) {
+    return NextResponse.json({ error: 'הסיסמה חייבת להכיל לפחות 6 תווים' }, { status: 400 })
+  }
 
   const adminClient = createAdmin(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -34,7 +37,32 @@ export async function POST(req: NextRequest) {
   // If owner email provided — invite or create user
   if (ownerEmail) {
     try {
-      if (sendInvite) {
+      if (ownerPassword) {
+        // Create a ready-to-use login account with the chosen password.
+        const { data: created, error: createErr } = await adminClient.auth.admin.createUser({
+          email: ownerEmail,
+          password: String(ownerPassword),
+          email_confirm: true,
+          user_metadata: { org_id: org.id, role: 'admin', full_name: ownerName || '', phone: ownerPhone || '' },
+        })
+        if (createErr || !created?.user) {
+          if (createErr?.message?.includes('registered')) {
+            // email already has an account → link it as the owner
+            const { data: { users } } = await adminClient.auth.admin.listUsers()
+            const target = users.find(u => u.email === ownerEmail)
+            if (target) {
+              await adminClient.from('profiles').update({ org_id: org.id, role: 'admin', ...(ownerName && { full_name: ownerName }), ...(ownerPhone && { phone: ownerPhone }) }).eq('id', target.id)
+              await adminClient.from('organizations').update({ owner_id: target.id, status: 'active' }).eq('id', org.id)
+            }
+          } else {
+            return NextResponse.json({ error: createErr?.message || 'יצירת המשתמש נכשלה' }, { status: 500 })
+          }
+        } else {
+          // ensure the profile is linked (in case the DB trigger didn't map metadata)
+          await adminClient.from('profiles').update({ org_id: org.id, role: 'admin', ...(ownerName && { full_name: ownerName }), ...(ownerPhone && { phone: ownerPhone }) }).eq('id', created.user.id)
+          await adminClient.from('organizations').update({ owner_id: created.user.id, status: 'active' }).eq('id', org.id)
+        }
+      } else if (sendInvite) {
         // Send magic invite link via Supabase
         const { error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(ownerEmail, {
           data: { org_id: org.id, role: 'admin', full_name: ownerName || '', phone: ownerPhone || '' },
