@@ -43,7 +43,7 @@ const STR = {
   bricksPlural: ['לבנים', 'bricks'],
   anonymous: ['אנונימי', 'Anonymous'],
   via: ['דרך', 'via'],
-  readMore: ['קרא עוד', 'Read more'],
+  readMore: ['הצג עוד', 'Read more'],
   readLess: ['הצג פחות', 'Show less'],
 } as const
 
@@ -53,20 +53,19 @@ const STR = {
 function Dedication({ text, primaryColor }: { text: string; primaryColor: string }) {
   const [expanded, setExpanded] = useState(false)
   const t = useT()
-  const isLong = text.length > 80
+  const isLong = text.length > 120 // ~more than 3 lines
   return (
     <div className="mt-3">
       <div className="relative">
         <p
-          className={`text-sm text-gray-600 leading-relaxed bg-gray-50 rounded-xl px-3 py-2 border-r-2 whitespace-pre-line ${!expanded && isLong ? 'line-clamp-2' : ''}`}
-          style={{ borderColor: primaryColor }}
+          className={`text-sm text-gray-600 leading-relaxed whitespace-pre-line ${!expanded && isLong ? 'line-clamp-3' : ''}`}
         >
           {text}
         </p>
         {isLong && !expanded && (
           <button
             onClick={() => setExpanded(true)}
-            className="absolute bottom-2 left-3 text-xs font-bold pr-6 bg-gradient-to-r from-gray-50 via-gray-50 to-transparent"
+            className="absolute bottom-0 left-0 text-sm font-bold pr-8 bg-gradient-to-r from-white via-white to-transparent"
             style={{ color: primaryColor }}
           >
             {t('readMore')}
@@ -74,7 +73,7 @@ function Dedication({ text, primaryColor }: { text: string; primaryColor: string
         )}
       </div>
       {isLong && expanded && (
-        <button onClick={() => setExpanded(false)} className="text-xs font-bold mt-1" style={{ color: primaryColor }}>
+        <button onClick={() => setExpanded(false)} className="text-sm font-bold mt-1" style={{ color: primaryColor }}>
           {t('readLess')}
         </button>
       )}
