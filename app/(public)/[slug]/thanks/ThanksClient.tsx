@@ -11,9 +11,12 @@ interface Props {
   primaryColor: string
   receiptUrl: string | null
   transactionNumber: string | null
+  logoUrl?: string | null
+  thanksTitle?: string | null
+  thanksMessage?: string | null
 }
 
-export default function ThanksClient({ slug, orgName, campaignTitle, primaryColor, receiptUrl, transactionNumber }: Props) {
+export default function ThanksClient({ slug, orgName, campaignTitle, primaryColor, receiptUrl, transactionNumber, logoUrl, thanksTitle, thanksMessage }: Props) {
   const router = useRouter()
   const [seconds, setSeconds] = useState(10)
   const [donorName, setDonorName] = useState<string | null>(null)
@@ -70,6 +73,11 @@ export default function ThanksClient({ slug, orgName, campaignTitle, primaryColo
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4" dir="rtl">
       <div className="text-center space-y-6 max-w-md w-full">
+        {logoUrl && (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img src={logoUrl} alt={campaignTitle} className="h-20 w-auto object-contain mx-auto" />
+        )}
+
         <div
           className="w-24 h-24 rounded-full flex items-center justify-center mx-auto shadow-lg"
           style={{ backgroundColor: primaryColor + '20' }}
@@ -80,8 +88,8 @@ export default function ThanksClient({ slug, orgName, campaignTitle, primaryColo
         </div>
 
         <div>
-          <h1 className="text-3xl font-black text-gray-900 mb-2">תודה רבה!</h1>
-          <p className="text-gray-500 text-lg">תרומתך התקבלה בהצלחה</p>
+          <h1 className="text-3xl font-black text-gray-900 mb-2">{thanksTitle || 'תודה רבה!'}</h1>
+          <p className="text-gray-500 text-lg whitespace-pre-line">{thanksMessage || 'תרומתך התקבלה בהצלחה'}</p>
           {donorName && <p className="text-gray-700 font-bold mt-1">{donorName}</p>}
           {orgName && <p className="text-gray-400 text-sm mt-1">{orgName}</p>}
         </div>

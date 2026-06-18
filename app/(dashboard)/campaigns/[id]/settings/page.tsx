@@ -30,6 +30,8 @@ export default function CampaignSettingsPage() {
     countdown_end: '',
     whatsapp_phone: '',
     whatsapp_message: '',
+    thanks_title: '',
+    thanks_message: '',
   })
 
   useEffect(() => {
@@ -49,6 +51,8 @@ export default function CampaignSettingsPage() {
           countdown_end: data.settings?.countdown_end || '',
           whatsapp_phone: data.settings?.whatsapp_phone || '',
           whatsapp_message: data.settings?.whatsapp_message || '',
+          thanks_title: data.settings?.thanks?.title || '',
+          thanks_message: data.settings?.thanks?.message || '',
         })
         const rawVids: (string | { url: string; title?: string })[] = data.settings?.videos?.length
           ? data.settings.videos
@@ -107,6 +111,10 @@ export default function CampaignSettingsPage() {
         countdown_end: form.countdown_end || null,
         whatsapp_phone: form.whatsapp_phone || null,
         whatsapp_message: form.whatsapp_message || null,
+        thanks: {
+          title: form.thanks_title.trim() || null,
+          message: form.thanks_message.trim() || null,
+        },
       },
     }).eq('id', id)
     setLoading(false)
@@ -338,6 +346,34 @@ export default function CampaignSettingsPage() {
                   </button>
                 ))}
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* ── עמוד תודה ── */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">עמוד תודה (לאחר תרומה)</CardTitle>
+            <p className="text-xs text-gray-400 mt-1">הלוגו של הקמפיין מוצג אוטומטית. אפשר להתאים אישית את הכותרת והטקסט שהתורם רואה אחרי התרומה.</p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-1">
+              <Label>כותרת</Label>
+              <Input
+                value={form.thanks_title}
+                onChange={(e) => set('thanks_title', e.target.value)}
+                placeholder="תודה רבה!"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>טקסט</Label>
+              <Textarea
+                value={form.thanks_message}
+                onChange={(e) => set('thanks_message', e.target.value)}
+                rows={3}
+                placeholder="תרומתך התקבלה בהצלחה"
+              />
+              <p className="text-[11px] text-gray-400">השאר ריק כדי להשתמש בברירת המחדל</p>
             </div>
           </CardContent>
         </Card>

@@ -15,7 +15,7 @@ export default async function ThanksPage({
 
   const { data: campaign } = await supabase
     .from('campaigns')
-    .select('id, title, slug, settings, org_id')
+    .select('id, title, slug, settings, org_id, logo_url')
     .eq('slug', slug)
     .eq('status', 'active')
     .single()
@@ -31,6 +31,8 @@ export default async function ThanksPage({
   if (!org) notFound()
 
   const primaryColor = (campaign.settings as { primary_color?: string })?.primary_color || '#2563eb'
+  const thanks = (campaign.settings as { thanks?: { title?: string; message?: string } } | null)?.thanks
+  const logoUrl = (campaign as { logo_url?: string | null }).logo_url || org.logo_url || null
   const receiptUrl = sp.receiptLink || sp.receipturl || sp.receipt_url || sp.receiptUrl || null
   const transactionNumber = sp.transactionNumber || sp.NumTransaction || null
 
@@ -120,6 +122,9 @@ export default async function ThanksPage({
       primaryColor={primaryColor}
       receiptUrl={receiptUrl}
       transactionNumber={transactionNumber}
+      logoUrl={logoUrl}
+      thanksTitle={thanks?.title || null}
+      thanksMessage={thanks?.message || null}
     />
   )
 }
