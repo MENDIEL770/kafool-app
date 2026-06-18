@@ -686,6 +686,7 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
                       </td>
                       <td className="px-4 py-2 text-xs text-gray-400">
                         {new Date(d.created_at).toLocaleDateString('he-IL')}
+                        <span className="block text-[11px] text-gray-300">{new Date(d.created_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</span>
                       </td>
                       <td className="px-4 py-2">
                         <Input value={editForm.donor_name || ''} onChange={e => setEditForm(f => ({ ...f, donor_name: e.target.value }))} className="h-7 text-xs" />
@@ -751,6 +752,7 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
                       </td>
                       <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
                         {new Date(d.created_at).toLocaleDateString('he-IL')}
+                        <span className="block text-[11px] text-gray-300">{new Date(d.created_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</span>
                       </td>
                       <td className="px-4 py-3 font-medium text-gray-800">
                         {d.donor_name || <span className="text-gray-300">אנונימי</span>}
