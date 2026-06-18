@@ -624,6 +624,7 @@ export default function GroupsPage() {
 
   const [groups, setGroups] = useState<Group[]>([])
   const [campaignInfo, setCampaignInfo] = useState<CampaignInfo | null>(null)
+  const [campaignTotal, setCampaignTotal] = useState(0)
   const [loading, setLoading] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [editGroup, setEditGroup] = useState<Group | null>(null)
@@ -639,10 +640,11 @@ export default function GroupsPage() {
     setGroups(data || [])
 
     // Get campaign + org slug for group page links
-    const { data: campaign } = await supabase.from('campaigns').select('slug, org_id, group_welcome_sms').eq('id', campaignId).single()
+    const { data: campaign } = await supabase.from('campaigns').select('slug, org_id, group_welcome_sms, raised_amount').eq('id', campaignId).single()
     if (campaign) {
       setCampaignInfo({ slug: campaign.slug, campaign_slug: campaign.slug })
       setWelcomeSms(campaign.group_welcome_sms || '')
+      setCampaignTotal(campaign.raised_amount || 0)
     }
   }
 
@@ -789,7 +791,7 @@ export default function GroupsPage() {
                 <div className="text-base sm:text-lg font-black text-gray-900">₪{totalCommit.toLocaleString('he-IL')}</div>
               </div>
               <div>
-                <div className="text-[11px] text-gray-400">גויס בפועל</div>
+                <div className="text-[11px] text-gray-400">גויס דרך הקבוצות</div>
                 <div className="text-base sm:text-lg font-black text-green-600">₪{totalRaised.toLocaleString('he-IL')}</div>
               </div>
               <div>
@@ -800,6 +802,9 @@ export default function GroupsPage() {
             <div className="mt-3 h-2 bg-gray-100 rounded-full overflow-hidden">
               <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${Math.min(100, overallPct)}%` }} />
             </div>
+            <p className="text-[11px] text-gray-400 text-center mt-2">
+              סה״כ שגויס בקמפיין (כולל תרומות ישירות): <span className="font-bold text-gray-600">₪{campaignTotal.toLocaleString('he-IL')}</span>
+            </p>
           </div>
 
           {ranked.length > 1 && (
