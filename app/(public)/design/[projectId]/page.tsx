@@ -1,8 +1,9 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { ArrowRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
+import { getHiddenNavPages } from '@/lib/nav'
 import Footer from '../../_components/Footer'
 import { isUuid } from '@/lib/media'
 import ProjectView, { type Project } from './ProjectView'
@@ -46,6 +47,11 @@ export async function generateMetadata({ params }: { params: Promise<{ projectId
 
 export default async function ProjectPage({ params }: { params: Promise<{ projectId: string }> }) {
   const { projectId } = await params
+
+  // Whole portfolio hidden from the public site? send visitors home.
+  const hidden = await getHiddenNavPages(await createClient())
+  if (hidden.includes('design')) redirect('/')
+
   const project = await getProject(projectId)
   if (!project) notFound()
 

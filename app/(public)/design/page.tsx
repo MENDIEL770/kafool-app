@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { getHiddenNavPages } from '@/lib/nav'
 import Footer from '../_components/Footer'
 import AnimatedKafoolLogo from '../_components/AnimatedKafoolLogo'
 import PortfolioGallery, { type PortfolioItem } from './PortfolioGallery'
@@ -12,6 +14,11 @@ export const metadata: Metadata = {
 
 export default async function DesignPage() {
   const supabase = await createClient()
+
+  // Hidden from the public site via the CMS "ניווט" toggle → don't render it.
+  const hidden = await getHiddenNavPages(supabase)
+  if (hidden.includes('design')) redirect('/')
+
   const { data } = await supabase
     .from('portfolio_items')
     .select('*')
