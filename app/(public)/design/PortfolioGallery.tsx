@@ -1,13 +1,24 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
-import { X } from 'lucide-react'
+import Link from 'next/link'
+import { X, Layers } from 'lucide-react'
 
 export interface PortfolioItem {
   id: string
   image_url: string
   label?: string | null
   title?: string | null
+  slug?: string | null
+  description?: string | null
+  video_url?: string | null
+  project_images?: string[] | null
+}
+
+// An item is a "project" (opens a dedicated page) when it carries more than the
+// cover ad — extra images, a description, or a video.
+function hasProject(it: PortfolioItem): boolean {
+  return (it.project_images?.length ?? 0) > 0 || !!it.description || !!it.video_url
 }
 
 export default function PortfolioGallery({ items }: { items: PortfolioItem[] }) {
@@ -50,26 +61,41 @@ export default function PortfolioGallery({ items }: { items: PortfolioItem[] }) 
 
       {/* masonry grid */}
       <div className="columns-2 md:columns-3 lg:columns-4 gap-4">
-        {shown.map(it => (
-          <button
-            key={it.id}
-            onClick={() => setLightbox(it)}
-            className="mb-4 block w-full break-inside-avoid group relative overflow-hidden rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg transition-shadow"
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={it.image_url}
-              alt={it.title || it.label || 'עבודת עיצוב'}
-              loading="lazy"
-              className="w-full object-cover group-hover:scale-[1.03] transition-transform duration-500"
-            />
-            {it.label && (
-              <span className="absolute top-2 right-2 text-[11px] font-semibold bg-white/90 backdrop-blur text-gray-700 rounded-full px-2.5 py-1 shadow-sm">
-                {it.label}
-              </span>
-            )}
-          </button>
-        ))}
+        {shown.map(it => {
+          const inner = (
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={it.image_url}
+                alt={it.title || it.label || 'עבודת עיצוב'}
+                loading="lazy"
+                className="w-full object-cover group-hover:scale-[1.03] transition-transform duration-500"
+              />
+              {it.label && (
+                <span className="absolute top-2 right-2 text-[11px] font-semibold bg-white/90 backdrop-blur text-gray-700 rounded-full px-2.5 py-1 shadow-sm">
+                  {it.label}
+                </span>
+              )}
+              {hasProject(it) && (
+                <span className="absolute bottom-2 left-2 inline-flex items-center gap-1 text-[11px] font-bold bg-blue-600 text-white rounded-full px-2.5 py-1 shadow-sm">
+                  <Layers className="w-3 h-3" />
+                  פרויקט מלא
+                </span>
+              )}
+            </>
+          )
+          const cls = 'mb-4 block w-full break-inside-avoid group relative overflow-hidden rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg transition-shadow'
+          // Projects open their dedicated, shareable page; plain ads just enlarge.
+          return hasProject(it) ? (
+            <Link key={it.id} href={`/design/${it.slug || it.id}`} className={cls}>
+              {inner}
+            </Link>
+          ) : (
+            <button key={it.id} onClick={() => setLightbox(it)} className={cls}>
+              {inner}
+            </button>
+          )
+        })}
       </div>
 
       {/* lightbox */}

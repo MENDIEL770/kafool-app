@@ -31,7 +31,7 @@ export default async function DesignPage() {
           </div>
           <h1 className="text-3xl sm:text-4xl font-black text-gray-900 mb-3">תיק העבודות שלנו</h1>
           <p className="text-lg text-gray-600 mb-8 leading-relaxed">
-            עיצובים, מודעות וקמפיינים שיצרנו ללקוחות שלנו — לחצו על כל עבודה כדי להגדיל
+            עיצובים, מודעות וקמפיינים שיצרנו ללקוחות שלנו — לחצו על מודעה לצפייה בפרויקט המלא
           </p>
           <Link
             href="/contact"

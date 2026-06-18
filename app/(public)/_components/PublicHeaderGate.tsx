@@ -20,6 +20,10 @@ const MARKETING_PATHS = [
 
 export default function PublicHeaderGate({ hiddenPages = [] }: { hiddenPages?: string[] }) {
   const pathname = usePathname()
-  if (!MARKETING_PATHS.includes(pathname)) return null
+  // Match the page itself and any sub-path (e.g. /design/<project-slug>).
+  // Campaign routes are single-segment slugs (/einav, /einav/donate …) and never
+  // start with a marketing prefix, so they're safely excluded.
+  const isMarketing = MARKETING_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'))
+  if (!isMarketing) return null
   return <MarketingHeader hiddenPages={hiddenPages} />
 }

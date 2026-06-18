@@ -5,15 +5,25 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
   Upload, Trash2, Eye, EyeOff, ArrowUp, ArrowDown, ImageIcon, ExternalLink, Loader2,
+  Pencil, Layers,
 } from 'lucide-react'
+import ProjectEditorModal from './ProjectEditorModal'
 
 export interface PortfolioItem {
   id: string
   image_url: string
   label?: string | null
   title?: string | null
+  slug?: string | null
+  description?: string | null
+  video_url?: string | null
+  project_images?: string[] | null
   sort_order: number
   is_published: boolean
+}
+
+function isProject(it: PortfolioItem): boolean {
+  return (it.project_images?.length ?? 0) > 0 || !!it.description || !!it.video_url
 }
 
 export default function PortfolioAdminClient({ items }: { items: PortfolioItem[] }) {
@@ -22,6 +32,7 @@ export default function PortfolioAdminClient({ items }: { items: PortfolioItem[]
   const fileRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [editing, setEditing] = useState<PortfolioItem | null>(null)
   const [labels, setLabels] = useState<Record<string, string>>(
     Object.fromEntries(items.map(i => [i.id, i.label ?? '']))
   )
@@ -128,6 +139,12 @@ export default function PortfolioAdminClient({ items }: { items: PortfolioItem[]
                   {!item.is_published && (
                     <span className="absolute top-2 right-2 text-[10px] font-bold bg-amber-100 text-amber-700 rounded-full px-2 py-0.5">מוסתר</span>
                   )}
+                  {isProject(item) && (
+                    <span className="absolute bottom-2 left-2 inline-flex items-center gap-1 text-[10px] font-bold bg-blue-600 text-white rounded-full px-2 py-0.5 shadow-sm">
+                      <Layers className="w-3 h-3" />
+                      פרויקט
+                    </span>
+                  )}
                 </div>
 
                 {/* label */}
@@ -139,6 +156,13 @@ export default function PortfolioAdminClient({ items }: { items: PortfolioItem[]
                     placeholder="תווית / סגנון"
                     className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition"
                   />
+                  <button
+                    onClick={() => setEditing(item)}
+                    className="w-full inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                    ערוך פרויקט
+                  </button>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1">
                       <IconBtn title="הזז קדימה" disabled={idx === 0 || busyId === item.id} onClick={() => move(item, -1)}><ArrowUp className="w-3.5 h-3.5" /></IconBtn>
@@ -159,6 +183,14 @@ export default function PortfolioAdminClient({ items }: { items: PortfolioItem[]
           </div>
         )}
       </div>
+
+      {editing && (
+        <ProjectEditorModal
+          item={editing}
+          onClose={() => setEditing(null)}
+          onSaved={() => router.refresh()}
+        />
+      )}
     </div>
   )
 }
