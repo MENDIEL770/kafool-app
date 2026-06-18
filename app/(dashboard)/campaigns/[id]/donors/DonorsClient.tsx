@@ -66,7 +66,7 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
   const [editId, setEditId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<Partial<Donation>>({})
   const [showAdd, setShowAdd] = useState(false)
-  const [addForm, setAddForm] = useState({ amount: '', donor_name: '', donor_phone: '', donor_email: '', dedication: '', group_id: '' })
+  const [addForm, setAddForm] = useState({ amount: '', donor_name: '', donor_phone: '', donor_email: '', dedication: '', group_id: '', payment_type: 'one_time', installments: '' })
   const [saving, setSaving] = useState(false)
   const [addError, setAddError] = useState('')
 
@@ -129,7 +129,15 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
   // ── עריכה ──
   function startEdit(d: Donation) {
     setEditId(d.id)
-    setEditForm({ donor_name: d.donor_name || '', donor_phone: d.donor_phone || '', donor_email: d.donor_email || '', dedication: d.dedication || '', amount: d.amount, group_id: d.group_id })
+    const isHok = d.payment_type === 'hok'
+    setEditForm({
+      donor_name: d.donor_name || '', donor_phone: d.donor_phone || '', donor_email: d.donor_email || '',
+      dedication: d.dedication || '', group_id: d.group_id,
+      payment_type: isHok ? 'hok' : 'one_time',
+      installments: d.installments ?? null,
+      // the amount field holds the MONTHLY amount when it's a הו"ק, else the full amount
+      amount: isHok ? (d.monthly_amount ?? d.amount) : d.amount,
+    })
   }
 
   async function saveEdit() {
@@ -137,7 +145,14 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
     setSaving(true)
     const original = donations.find(d => d.id === editId)
     const newGroupId = editForm.group_id || null
-    const newAmount = Number(editForm.amount) || 0
+    // For a הו"ק the edited amount is the MONTHLY amount; store the full total.
+    const isHok = editForm.payment_type === 'hok'
+    const months = isHok ? (Number(editForm.installments) || 0) : 0
+    const inputAmount = Number(editForm.amount) || 0
+    const newAmount = isHok && months > 0 ? inputAmount * months : inputAmount
+    const newType = isHok ? 'hok' : 'one_time'
+    const newInstallments = isHok && months > 0 ? months : null
+    const newMonthly = isHok ? inputAmount : null
     const { error } = await supabase.from('donations').update({
       donor_name: editForm.donor_name || null,
       donor_phone: editForm.donor_phone || null,
@@ -145,9 +160,12 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
       dedication: editForm.dedication || null,
       amount: newAmount,
       group_id: newGroupId,
+      payment_type: newType,
+      installments: newInstallments,
+      monthly_amount: newMonthly,
     }).eq('id', editId)
     if (!error) {
-      const next = donations.map(d => d.id === editId ? { ...d, ...editForm, amount: newAmount, group_id: newGroupId } : d)
+      const next = donations.map(d => d.id === editId ? { ...d, ...editForm, amount: newAmount, group_id: newGroupId, payment_type: newType, installments: newInstallments, monthly_amount: newMonthly } : d)
       setDonations(next)
       const affected = [original?.group_id, newGroupId].filter(Boolean) as string[]
       await syncTotals(next, affected)
@@ -240,10 +258,14 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
 
   // ── הוספה ידנית ──
   async function addDonation() {
-    const amount = Number(addForm.amount)
-    if (!amount) { setAddError('יש להזין סכום'); return }
+    const inputAmount = Number(addForm.amount)
+    if (!inputAmount) { setAddError('יש להזין סכום'); return }
     setSaving(true)
     setAddError('')
+    // For a הו"ק the entered amount is the MONTHLY amount; we store the full total.
+    const isHok = addForm.payment_type === 'hok'
+    const months = isHok ? (Number(addForm.installments) || 0) : 0
+    const amount = isHok && months > 0 ? inputAmount * months : inputAmount
     const { data, error } = await supabase.from('donations').insert({
       campaign_id: campaign.id,
       org_id: campaign.org_id, // ← היה undefined (הבאג): org_id הוא NOT NULL
@@ -254,6 +276,9 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
       dedication: addForm.dedication || null,
       group_id: addForm.group_id || null,
       payment_status: 'completed',
+      payment_type: isHok ? 'hok' : 'one_time',
+      installments: isHok && months > 0 ? months : null,
+      monthly_amount: isHok ? inputAmount : null,
     }).select().single()
     if (error || !data) {
       setAddError(error?.message || 'הוספת התרומה נכשלה')
@@ -263,7 +288,7 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
     const next = [data, ...donations]
     setDonations(next)
     await syncTotals(next, addForm.group_id ? [addForm.group_id] : [])
-    setAddForm({ amount: '', donor_name: '', donor_phone: '', donor_email: '', dedication: '', group_id: '' })
+    setAddForm({ amount: '', donor_name: '', donor_phone: '', donor_email: '', dedication: '', group_id: '', payment_type: 'one_time', installments: '' })
     setShowAdd(false)
     setSaving(false)
     router.refresh()
@@ -440,8 +465,27 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <Label className="text-xs">סכום (₪) *</Label>
+              <Label className="text-xs">{addForm.payment_type === 'hok' ? 'סכום חודשי (₪) *' : 'סכום (₪) *'}</Label>
               <Input type="number" value={addForm.amount} onChange={e => setAddForm(f => ({ ...f, amount: e.target.value }))} placeholder="180" />
+              {addForm.payment_type === 'hok' && Number(addForm.amount) > 0 && Number(addForm.installments) > 0 && (
+                <p className="text-[11px] text-gray-400">סה״כ ₪{(Number(addForm.amount) * Number(addForm.installments)).toLocaleString()}</p>
+              )}
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">סוג תרומה</Label>
+              <div className="flex gap-2">
+                <select
+                  value={addForm.payment_type}
+                  onChange={e => setAddForm(f => ({ ...f, payment_type: e.target.value }))}
+                  className="flex-1 h-9 border border-gray-200 rounded-md px-2 text-sm bg-white outline-none focus:ring-2 focus:ring-blue-400"
+                >
+                  <option value="one_time">חד״פ</option>
+                  <option value="hok">הו״ק</option>
+                </select>
+                {addForm.payment_type === 'hok' && (
+                  <Input type="number" min="1" value={addForm.installments} onChange={e => setAddForm(f => ({ ...f, installments: e.target.value }))} placeholder="חודשים" className="w-24" dir="ltr" />
+                )}
+              </div>
             </div>
             <div className="space-y-1">
               <Label className="text-xs">שם תורם</Label>
@@ -662,8 +706,31 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
                       </td>
                       <td className="px-4 py-2">
                         <Input type="number" value={editForm.amount || ''} onChange={e => setEditForm(f => ({ ...f, amount: Number(e.target.value) }))} className="h-7 text-xs w-20" dir="ltr" />
+                        {editForm.payment_type === 'hok' && (
+                          <span className="block text-[10px] text-gray-400 mt-0.5">
+                            חודשי{Number(editForm.installments) > 0 ? ` ·= ₪${((Number(editForm.amount) || 0) * Number(editForm.installments)).toLocaleString()}` : ''}
+                          </span>
+                        )}
                       </td>
-                      <td className="px-4 py-2"></td>
+                      <td className="px-4 py-2">
+                        <select
+                          value={editForm.payment_type === 'hok' ? 'hok' : 'one_time'}
+                          onChange={e => setEditForm(f => ({ ...f, payment_type: e.target.value, installments: e.target.value === 'hok' ? (f.installments || 12) : null }))}
+                          aria-label="סוג תרומה"
+                          className="h-7 w-full border border-gray-200 rounded-md px-1 text-xs bg-white outline-none focus:ring-2 focus:ring-blue-400"
+                        >
+                          <option value="one_time">חד״פ</option>
+                          <option value="hok">הו״ק</option>
+                        </select>
+                        {editForm.payment_type === 'hok' && (
+                          <input
+                            type="number" min="1" value={editForm.installments ?? ''}
+                            onChange={e => setEditForm(f => ({ ...f, installments: Number(e.target.value) }))}
+                            className="mt-1 h-7 w-full border border-gray-200 rounded-md px-1 text-xs outline-none focus:ring-2 focus:ring-blue-400"
+                            dir="ltr" placeholder="חודשים"
+                          />
+                        )}
+                      </td>
                       <td className="px-4 py-2">
                         <Input value={editForm.dedication || ''} onChange={e => setEditForm(f => ({ ...f, dedication: e.target.value }))} className="h-7 text-xs" />
                       </td>
