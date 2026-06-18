@@ -1,9 +1,46 @@
 'use client'
 
-import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
+import { useEffect, useState, useRef, useCallback, useMemo, createContext, useContext } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Campaign, Group } from '@/types'
 import { Search, Share2, Heart, Menu, X, ChevronDown, Globe } from 'lucide-react'
+
+/* ─── i18n ─── */
+export type Lang = 'he' | 'en'
+const LangCtx = createContext<Lang>('he')
+const useLang = () => useContext(LangCtx)
+
+// [Hebrew, English]
+const STR = {
+  about: ['אודות', 'About'],
+  faq: ['שאלות ותשובות', 'FAQ'],
+  wantPage: ['אני רוצה דף גיוס', 'Start a campaign'],
+  share: ['שיתוף', 'Share'],
+  donateNow: ['לתרומה עכשיו', 'Donate now'],
+  chooseAmount: ['בחר סכום תרומה', 'Choose an amount'],
+  perMonth: ['לחודש', '/mo'],
+  otherAmount: ['סכום אחר', 'Other'],
+  donate: ['לתרומה', 'Donate'],
+  oneTime: ['חד״פ', 'One-time'],
+  standingOrder: ['הוראת קבע', 'Monthly'],
+  raisedOfGoal: ['גויסו מתוך יעד', 'raised of'],
+  remaining: ['נותר', 'left'],
+  goalReached: ['היעד הושג!', 'Goal reached!'],
+  beFirst: ['היה הראשון לתרום!', 'Be the first to donate!'],
+  loadMore: ['טען עוד', 'Load more'],
+  raised: ['גויס', 'raised'],
+  goalWord: ['יעד', 'goal'],
+  enterGroup: ['כנס לקבוצה', 'View group'],
+  aboutCampaign: ['אודות הקמפיין', 'About the campaign'],
+  securePayment: ['תשלום מאובטח', 'Secure payment'],
+  groups: ['קבוצות', 'Groups'],
+  recentDonors: ['תורמים אחרונים', 'Recent donors'],
+} as const
+
+function useT() {
+  const lang = useLang()
+  return (key: keyof typeof STR) => STR[key][lang === 'en' ? 1 : 0]
+}
 import DonationModal from './DonationModal'
 import CreateGroupModal from './CreateGroupModal'
 import AccessibilityWidget from '../_components/AccessibilityWidget'
@@ -105,14 +142,15 @@ function KafoolAnimatedLogo() {
   )
 }
 
-const NAV_LINKS = [
-  { label: 'אודות', href: '/about' },
-  { label: 'שאלות ותשובות', href: '/faq' },
-  { label: 'אני רוצה דף גיוס', href: '/contact' },
+const NAV_LINKS: { key: 'about' | 'faq' | 'wantPage'; href: string }[] = [
+  { key: 'about', href: '/about' },
+  { key: 'faq', href: '/faq' },
+  { key: 'wantPage', href: '/contact' },
 ]
 
-function StickyHeader({ org, campaign, primaryColor, onDonate }: { org: Org; campaign: Campaign; primaryColor: string; onDonate: () => void }) {
+function StickyHeader({ org, campaign, primaryColor, onDonate, lang, onToggleLang }: { org: Org; campaign: Campaign; primaryColor: string; onDonate: () => void; lang: Lang; onToggleLang: () => void }) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const t = useT()
   const settings = campaign.settings as { tagline?: string | null }
   // the campaign's own logo (uploaded by the manager in the media tab),
   // falling back to the org logo, then the Kafool logo
@@ -153,7 +191,7 @@ function StickyHeader({ org, campaign, primaryColor, onDonate }: { org: Org; cam
           {NAV_LINKS.map(l => (
             <a key={l.href} href={l.href}
               className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
-              {l.label}
+              {t(l.key)}
             </a>
           ))}
         </nav>
@@ -161,18 +199,27 @@ function StickyHeader({ org, campaign, primaryColor, onDonate }: { org: Org; cam
         {/* Actions */}
         <div className="flex items-center gap-2 shrink-0">
           <button
+            onClick={onToggleLang}
+            className="flex items-center gap-1 text-sm font-bold px-2.5 py-1.5 rounded-full border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all"
+            aria-label="Switch language"
+            title="עברית / English"
+          >
+            <Globe className="w-3.5 h-3.5" />
+            {lang === 'he' ? 'EN' : 'עב'}
+          </button>
+          <button
             onClick={() => navigator.share?.({ title: campaign.title, url: window.location.href }) ?? navigator.clipboard.writeText(window.location.href)}
             className="hidden sm:flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-full border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all"
           >
             <Share2 className="w-3.5 h-3.5" />
-            שיתוף
+            {t('share')}
           </button>
           <button
             onClick={() => onDonate()}
             className="flex items-center gap-1.5 text-sm font-bold px-4 py-2 rounded-full text-white shadow-md hover:opacity-90 transition-all"
             style={{ backgroundColor: primaryColor }}>
             <Heart className="w-3.5 h-3.5" />
-            לתרומה עכשיו
+            {t('donateNow')}
           </button>
           <button
             className="md:hidden p-1.5"
@@ -188,7 +235,7 @@ function StickyHeader({ org, campaign, primaryColor, onDonate }: { org: Org; cam
         <nav className="md:hidden bg-white border-t shadow-lg px-4 py-4 space-y-3" aria-label="תפריט נייד">
           {NAV_LINKS.map(l => (
             <a key={l.href} href={l.href} onClick={() => setMenuOpen(false)}
-              className="block text-sm font-medium text-gray-700 py-1.5">{l.label}</a>
+              className="block text-sm font-medium text-gray-700 py-1.5">{t(l.key)}</a>
           ))}
         </nav>
       )}
@@ -410,11 +457,13 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
   const customInputRef = useRef<HTMLInputElement>(null)
 
   const finalAmount = selected ?? (custom ? Number(custom) : null)
+  const lang = useLang()
+  const t = useT()
 
   return (
     <section className="bg-white border-b border-gray-100 py-8 px-4" aria-label="מסלולי תרומה">
       <div className="max-w-6xl mx-auto">
-        <h2 className="text-lg font-bold text-gray-700 mb-6 text-center">בחר סכום תרומה</h2>
+        <h2 className="text-lg font-bold text-gray-700 mb-6 text-center">{t('chooseAmount')}</h2>
 
         {/* Grid: 3 columns on mobile, scrollable row on md+ */}
         <div className="grid grid-cols-3 gap-4 pb-2 px-1 md:flex md:gap-5 md:overflow-x-auto md:pb-6 md:pt-4 md:px-4 md:scrollbar-hide md:snap-x md:justify-center md:flex-nowrap" style={{ overflowY: 'visible' }}>
@@ -464,7 +513,7 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
                 {/* טקסט מתחת */}
                 <div className="text-center">
                   <div className="text-xs md:text-sm font-bold text-gray-800">
-                    ₪{amount.toLocaleString()}{payment_type === 'hok' ? ' לחודש' : ''}
+                    ₪{amount.toLocaleString()}{payment_type === 'hok' ? ` ${t('perMonth')}` : ''}
                   </div>
                   {label && <div className="text-[10px] md:text-[11px] text-gray-400 mt-0.5">{label}</div>}
                 </div>
@@ -491,7 +540,7 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
                     transform: customActive ? 'scale(1.08)' : 'scale(1)',
                   }}
                 >
-                  <span className="text-[10px] md:text-xs text-gray-400 mb-1">סכום אחר</span>
+                  <span className="text-[10px] md:text-xs text-gray-400 mb-1">{t('otherAmount')}</span>
                   <div className="flex items-center gap-0.5">
                     <span className="text-sm font-bold text-gray-500">₪</span>
                     <input
@@ -508,7 +557,7 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
                   </div>
                 </div>
                 <div className="text-center">
-                  <div className="text-xs md:text-sm font-bold text-gray-400">אחר</div>
+                  <div className="text-xs md:text-sm font-bold text-gray-400">{t('otherAmount')}</div>
                 </div>
               </button>
             )
@@ -524,16 +573,18 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
           >
             {finalAmount
               ? (selectedMethod === 'hok' && selectedMonths
-                  ? `תרום ₪${finalAmount.toLocaleString()} × ${selectedMonths} חודשים (₪${(finalAmount * selectedMonths).toLocaleString()})`
-                  : `תרום ₪${finalAmount.toLocaleString()}`)
-              : 'לתרומה'}
+                  ? (lang === 'en'
+                      ? `Donate ₪${finalAmount.toLocaleString()} × ${selectedMonths} months (₪${(finalAmount * selectedMonths).toLocaleString()})`
+                      : `תרום ₪${finalAmount.toLocaleString()} × ${selectedMonths} חודשים (₪${(finalAmount * selectedMonths).toLocaleString()})`)
+                  : `${t('donate')} ₪${finalAmount.toLocaleString()}`)
+              : t('donate')}
           </button>
           <button
-            onClick={() => navigator.share?.({ title: 'שתף את הקמפיין', url: window.location.href }) ?? navigator.clipboard.writeText(window.location.href)}
+            onClick={() => navigator.share?.({ title: lang === 'en' ? 'Share the campaign' : 'שתף את הקמפיין', url: window.location.href }) ?? navigator.clipboard.writeText(window.location.href)}
             className={`flex-none px-4 sm:px-6 py-2.5 sm:py-3.5 border-2 font-bold text-xs sm:text-sm transition-colors hover:bg-gray-50 ${buttonRadius}`}
             style={{ borderColor: primaryColor, color: primaryColor }}
           >
-            שתף
+            {t('share')}
           </button>
         </div>
       </div>
@@ -544,6 +595,9 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
 function ProgressSection({ raised, goal, donorsCount, primaryColor, bricks }: { raised: number; goal: number; donorsCount: number; primaryColor: string; bricks?: { total: number; price: number; label?: string } }) {
   const pct = goal > 0 ? Math.min(100, Math.round((raised / goal) * 100)) : 0
   const [animPct, setAnimPct] = useState(0)
+  const lang = useLang()
+  const t = useT()
+  const completed = lang === 'en' ? 'complete' : 'הושלם'
 
   const bricksTotal = bricks && bricks.total > 0 ? bricks.total : 0
   const bricksAchieved = bricks && bricks.price > 0 ? Math.min(bricksTotal, Math.floor(raised / bricks.price)) : 0
@@ -564,7 +618,7 @@ function ProgressSection({ raised, goal, donorsCount, primaryColor, bricks }: { 
             ₪{raised.toLocaleString('he-IL')}
           </div>
           <div className="text-base md:text-lg text-gray-500">
-            גויסו מתוך יעד ₪{goal.toLocaleString('he-IL')}
+            {t('raisedOfGoal')} ₪{goal.toLocaleString('he-IL')}
           </div>
         </div>
 
@@ -583,9 +637,9 @@ function ProgressSection({ raised, goal, donorsCount, primaryColor, bricks }: { 
             </div>
           </div>
           <div className="flex justify-between text-xs text-gray-400 mt-1.5">
-            <span>{pct}% הושלם</span>
-            {goal > raised && <span>נותר ₪{(goal - raised).toLocaleString('he-IL')}</span>}
-            {goal <= raised && goal > 0 && <span className="font-bold" style={{ color: primaryColor }}>היעד הושג!</span>}
+            <span>{pct}% {completed}</span>
+            {goal > raised && <span>{t('remaining')} ₪{(goal - raised).toLocaleString('he-IL')}</span>}
+            {goal <= raised && goal > 0 && <span className="font-bold" style={{ color: primaryColor }}>{t('goalReached')}</span>}
           </div>
         </div>
 
@@ -660,6 +714,8 @@ function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCre
   const [sortBy, setSortBy] = useState<SortBy>('recent')
   const [liked, setLiked] = useState<Set<string>>(new Set())
   const [visible, setVisible] = useState(12)
+  const lang = useLang()
+  const t = useT()
 
   const filtered = donations
     .filter(d => !search || (d.donor_name ?? '').includes(search) || (d.dedication ?? '').includes(search))
@@ -754,7 +810,7 @@ function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCre
             {filtered.length === 0 ? (
               <div className="text-center py-16 text-gray-400">
                 <Heart className="w-10 h-10 mx-auto mb-3 opacity-20" />
-                <p className="text-sm">היה הראשון לתרום!</p>
+                <p className="text-sm">{t('beFirst')}</p>
               </div>
             ) : (
               <>
@@ -830,7 +886,7 @@ function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCre
                       className="px-8 py-3 rounded-full border-2 text-sm font-bold transition-all hover:opacity-80"
                       style={{ borderColor: primaryColor, color: primaryColor }}
                     >
-                      טען עוד ({filtered.length - visible} נותרו)
+                      {t('loadMore')} ({filtered.length - visible})
                     </button>
                   </div>
                 )}
@@ -888,12 +944,12 @@ function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCre
                         <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: primaryColor }} />
                       </div>
                       <div className="flex justify-between text-[11px] text-gray-400 mt-1.5">
-                        <span>₪{(g.raised_amount || 0).toLocaleString()} גויס</span>
-                        <span>יעד ₪{(g.goal_amount || 0).toLocaleString()}</span>
+                        <span>₪{(g.raised_amount || 0).toLocaleString()} {t('raised')}</span>
+                        <span>{t('goalWord')} ₪{(g.goal_amount || 0).toLocaleString()}</span>
                       </div>
 
                       <div className="mt-3 flex items-center justify-center gap-1 text-xs font-bold py-2 rounded-xl transition-all group-hover:opacity-90" style={{ color: primaryColor, backgroundColor: `${primaryColor}12` }}>
-                        <span>כנס לקבוצה</span>
+                        <span>{t('enterGroup')}</span>
                         <span className="text-base leading-none">←</span>
                       </div>
                     </div>
@@ -948,8 +1004,11 @@ function CampaignVideos({ campaign }: { campaign: Campaign }) {
 }
 
 function AboutSection({ campaign, gallery }: { campaign: Campaign; gallery: GalleryItem[] }) {
-  const settings = campaign.settings as { about_text?: string | null }
-  const aboutText = settings?.about_text
+  const lang = useLang()
+  const t = useT()
+  const settings = campaign.settings as { about_text?: string | null; about_text_en?: string | null }
+  // English visitors see the English about text when provided; otherwise fall back.
+  const aboutText = (lang === 'en' && settings?.about_text_en?.trim()) ? settings.about_text_en : settings?.about_text
   const [idx, setIdx] = useState(0)
 
   useEffect(() => {
@@ -962,7 +1021,7 @@ function AboutSection({ campaign, gallery }: { campaign: Campaign; gallery: Gall
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-black text-gray-900">אודות הקמפיין</h2>
+      <h2 className="text-2xl font-black text-gray-900">{t('aboutCampaign')}</h2>
 
         {gallery.length > 0 && (
           <div className="relative rounded-3xl overflow-hidden aspect-video shadow-md cursor-pointer" onClick={() => {}}>
@@ -1201,6 +1260,7 @@ function PopupAd({ ad, campaignId }: { ad?: { image_url?: string; link?: string 
 export default function DonationPageClient({ org, campaign, donations: initialDonations, groups, gallery, activeGroup, donationUrl = '', paymentUrls, paymentProvider, nedarim }: Props) {
   const [donations, setDonations] = useState<Donation[]>(initialDonations)
   const [raisedAmount, setRaisedAmount] = useState(campaign.raised_amount)
+  const [lang, setLang] = useState<Lang>('he')
   const [modalOpen, setModalOpen] = useState(false)
   const [modalAmount, setModalAmount] = useState<number | undefined>()
   const [modalGroupSlug, setModalGroupSlug] = useState<string | undefined>()
@@ -1276,9 +1336,10 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
     : 0
 
   return (
+    <LangCtx.Provider value={lang}>
     <div className="min-h-screen bg-gray-50" dir="rtl">
       {/* 1. Sticky Header */}
-      <StickyHeader org={org} campaign={campaign} primaryColor={primaryColor} onDonate={openDonate} />
+      <StickyHeader org={org} campaign={campaign} primaryColor={primaryColor} onDonate={openDonate} lang={lang} onToggleLang={() => setLang(l => l === 'he' ? 'en' : 'he')} />
 
       {/* Group stats strip */}
       {activeGroup && (
@@ -1326,18 +1387,18 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
                 <div className="text-2xl font-black tabular-nums" style={{ color: primaryColor }}>
                   ₪{groupRaised.toLocaleString('he-IL')}
                 </div>
-                <div className="text-[11px] text-gray-400">מתוך ₪{activeGroup.goal_amount.toLocaleString('he-IL')} יעד</div>
+                <div className="text-[11px] text-gray-400">{lang === 'en' ? 'of' : 'מתוך'} ₪{activeGroup.goal_amount.toLocaleString('he-IL')} {lang === 'en' ? 'goal' : 'יעד'}</div>
               </div>
               <div className="text-center shrink-0">
                 <div className="text-2xl font-black text-gray-700 tabular-nums">{groupDonors}</div>
-                <div className="text-[11px] text-gray-400">תורמים</div>
+                <div className="text-[11px] text-gray-400">{lang === 'en' ? 'donors' : 'תורמים'}</div>
               </div>
               <button
                 onClick={() => openDonate(undefined, activeGroup?.slug)}
                 className="shrink-0 px-6 py-2.5 rounded-full text-white font-black text-sm shadow hover:opacity-90 active:scale-95 transition-all"
                 style={{ backgroundColor: primaryColor }}
               >
-                תרום
+                {lang === 'en' ? 'Donate' : 'תרום'}
               </button>
             </div>
           </div>
@@ -1357,7 +1418,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
           className="inline-flex items-center gap-1.5 px-5 py-2 rounded-full border-2 text-sm font-bold transition-colors"
           style={{ borderColor: primaryColor, color: primaryColor }}
         >
-          אודות הקמפיין
+          {lang === 'en' ? 'About the campaign' : 'אודות הקמפיין'}
           <ChevronDown className="w-4 h-4" />
         </button>
       </div>
@@ -1447,5 +1508,6 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
 
       <Footer />
     </div>
+    </LangCtx.Provider>
   )
 }

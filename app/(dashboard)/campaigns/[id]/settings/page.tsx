@@ -24,6 +24,7 @@ export default function CampaignSettingsPage() {
     bonus_goal_amount: '',
     primary_color: '#2563eb',
     about_text: '',
+    about_text_en: '',
     button_radius: 'pill' as 'pill' | 'rounded' | 'square',
     countdown_end: '',
     whatsapp_phone: '',
@@ -45,6 +46,7 @@ export default function CampaignSettingsPage() {
           bonus_goal_amount: String(data.bonus_goal_amount || ''),
           primary_color: data.settings?.primary_color || '#2563eb',
           about_text: data.settings?.about_text || '',
+          about_text_en: data.settings?.about_text_en || '',
           button_radius: data.settings?.button_radius || 'pill',
           countdown_end: data.settings?.countdown_end || '',
           whatsapp_phone: data.settings?.whatsapp_phone || '',
@@ -79,6 +81,7 @@ export default function CampaignSettingsPage() {
         primary_color: form.primary_color,
         tagline: form.tagline || null,
         about_text: form.about_text || null,
+        about_text_en: form.about_text_en || null,
         button_radius: form.button_radius,
         countdown_end: form.countdown_end || null,
         whatsapp_phone: form.whatsapp_phone || null,
@@ -138,6 +141,15 @@ export default function CampaignSettingsPage() {
             <div className="space-y-1">
               <Label>טקסט אודות</Label>
               <Textarea value={form.about_text} onChange={(e) => set('about_text', e.target.value)} rows={4} />
+            </div>
+
+            <div className="space-y-1">
+              <Label className="flex items-center gap-2">
+                טקסט אודות באנגלית
+                <span className="text-[11px] font-normal text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full">English</span>
+              </Label>
+              <Textarea value={form.about_text_en} onChange={(e) => set('about_text_en', e.target.value)} rows={4} dir="ltr" placeholder="About text shown when visitors switch the page to English" />
+              <p className="text-[11px] text-gray-400">מוצג כשהמבקר עובר לאנגלית בדף הגיוס. ריק = יוצג הטקסט בעברית.</p>
             </div>
 
             <p className="text-[11px] text-gray-400">
