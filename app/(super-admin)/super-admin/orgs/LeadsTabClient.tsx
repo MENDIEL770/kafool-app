@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
   Plus, Sparkles, Phone, Mail, CreditCard, CheckCircle2,
-  MessageSquare, UserPlus, Banknote, GripVertical, TrendingUp, Pencil,
+  MessageSquare, UserPlus, Banknote, GripVertical, TrendingUp, Pencil, Link2,
 } from 'lucide-react'
 import NewLeadModal from './NewLeadModal'
 import LeadPaymentModal from './LeadPaymentModal'
@@ -207,6 +207,26 @@ function LeadCard({ lead, dragging, onDragStart, onDragEnd, onPay, onEdit }: {
           {lead.contact_name && <div className="text-xs text-gray-400 mt-0.5 truncate">{lead.contact_name}</div>}
         </div>
         <div className="shrink-0 flex items-center gap-1.5">
+          {!converted && (
+            <button
+              onClick={async e => {
+                e.stopPropagation()
+                const res = await fetch('/api/super-admin/leads/intake-link', {
+                  method: 'POST', headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ leadId: lead.id }),
+                })
+                const data = await res.json().catch(() => ({}))
+                if (!res.ok) { alert(data.error || 'שגיאה ביצירת הקישור'); return }
+                try { await navigator.clipboard.writeText(data.link) } catch { /* ignore */ }
+                alert(`קישור מילוי הפרטים ללקוח (הועתק):\n${data.link}`)
+              }}
+              aria-label="קישור מילוי ללקוח"
+              title="צור קישור מילוי פרטים ללקוח"
+              className="text-gray-300 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-all"
+            >
+              <Link2 className="w-3.5 h-3.5" />
+            </button>
+          )}
           <button
             onClick={e => { e.stopPropagation(); onEdit() }}
             aria-label="ערוך ליד"
