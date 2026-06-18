@@ -43,7 +43,32 @@ const STR = {
   bricksPlural: ['לבנים', 'bricks'],
   anonymous: ['אנונימי', 'Anonymous'],
   via: ['דרך', 'via'],
+  readMore: ['קרא עוד', 'Read more'],
+  readLess: ['הצג פחות', 'Show less'],
 } as const
+
+// Dedication text — clamped to keep donor cards compact; long text reveals
+// behind a "read more" toggle instead of growing the card.
+function Dedication({ text, primaryColor }: { text: string; primaryColor: string }) {
+  const [expanded, setExpanded] = useState(false)
+  const t = useT()
+  const isLong = text.length > 90
+  return (
+    <div className="mt-3">
+      <p
+        className={`text-sm text-gray-600 leading-relaxed bg-gray-50 rounded-xl px-3 py-2 border-r-2 whitespace-pre-line ${!expanded && isLong ? 'line-clamp-2' : ''}`}
+        style={{ borderColor: primaryColor }}
+      >
+        {text}
+      </p>
+      {isLong && (
+        <button onClick={() => setExpanded(v => !v)} className="text-xs font-semibold mt-1" style={{ color: primaryColor }}>
+          {expanded ? t('readLess') : t('readMore')}
+        </button>
+      )}
+    </div>
+  )
+}
 
 function useT() {
   const lang = useLang()
@@ -836,13 +861,13 @@ function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCre
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 auto-rows-fr">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
                   {filtered.slice(0, visible).map(d => {
                     const donorGroup = d.group_id ? groups.find(g => g.id === d.group_id) : null
                     return (
                     <article
                       key={d.id}
-                      className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm hover:shadow-md transition-shadow h-full flex flex-col justify-center"
+                      className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm hover:shadow-md transition-shadow"
                     >
                       <div className="flex items-start gap-3">
                         {/* avatar (rightmost in RTL) */}
@@ -892,11 +917,7 @@ function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCre
                         </div>
                       </div>
 
-                      {d.dedication && (
-                        <p className="text-sm text-gray-600 mt-3 leading-relaxed bg-gray-50 rounded-xl px-3 py-2 border-r-2 whitespace-pre-line" style={{ borderColor: primaryColor }}>
-                          {d.dedication}
-                        </p>
-                      )}
+                      {d.dedication && <Dedication text={d.dedication} primaryColor={primaryColor} />}
                     </article>
                     )
                   })}
