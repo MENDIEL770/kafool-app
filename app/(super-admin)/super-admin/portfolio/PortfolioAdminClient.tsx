@@ -2,7 +2,6 @@
 
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import {
   Upload, Trash2, Eye, EyeOff, ArrowUp, ArrowDown, ImageIcon, ExternalLink, Loader2,
   Pencil, Layers,
@@ -28,31 +27,54 @@ function isProject(it: PortfolioItem): boolean {
 
 export default function PortfolioAdminClient({ items }: { items: PortfolioItem[] }) {
   const router = useRouter()
-  const supabase = createClient()
   const fileRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [editing, setEditing] = useState<PortfolioItem | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const [labels, setLabels] = useState<Record<string, string>>(
     Object.fromEntries(items.map(i => [i.id, i.label ?? '']))
   )
 
+  // All writes go through /api/portfolio (service role + super-admin check) so
+  // they don't silently fail on RLS, and real errors surface to the user.
+  async function patchItem(id: string, fields: Record<string, unknown>): Promise<boolean> {
+    const res = await fetch('/api/portfolio', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, ...fields }),
+    })
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}))
+      setError(d.error || 'העדכון נכשל')
+      return false
+    }
+    return true
+  }
+
   async function onFiles(files: FileList | null) {
     if (!files || files.length === 0) return
     setUploading(true)
+    setError(null)
     let order = items.length
     for (const file of Array.from(files)) {
       try {
         const fd = new FormData()
         fd.append('file', file)
         fd.append('path', `portfolio/${crypto.randomUUID()}`)
-        const res = await fetch('/api/upload', { method: 'POST', body: fd })
+        const up = await fetch('/api/upload', { method: 'POST', body: fd })
+        const upData = await up.json()
+        if (!up.ok || !upData.url) throw new Error(upData.error || 'העלאת הקובץ נכשלה')
+
+        const res = await fetch('/api/portfolio', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image_url: upData.url, sort_order: order++ }),
+        })
         const data = await res.json()
-        if (data.url) {
-          await supabase.from('portfolio_items').insert({ image_url: data.url, sort_order: order++ })
-        }
+        if (!res.ok) throw new Error(data.error || 'שמירת העבודה נכשלה')
       } catch (e) {
-        console.error('portfolio upload error', e)
+        setError(e instanceof Error ? e.message : 'שגיאה בהעלאה')
       }
     }
     setUploading(false)
@@ -61,13 +83,13 @@ export default function PortfolioAdminClient({ items }: { items: PortfolioItem[]
   }
 
   async function saveLabel(id: string) {
-    await supabase.from('portfolio_items').update({ label: labels[id]?.trim() || null }).eq('id', id)
+    await patchItem(id, { label: labels[id]?.trim() || null })
     router.refresh()
   }
 
   async function togglePublish(item: PortfolioItem) {
     setBusyId(item.id)
-    await supabase.from('portfolio_items').update({ is_published: !item.is_published }).eq('id', item.id)
+    await patchItem(item.id, { is_published: !item.is_published })
     setBusyId(null)
     router.refresh()
   }
@@ -75,7 +97,15 @@ export default function PortfolioAdminClient({ items }: { items: PortfolioItem[]
   async function remove(item: PortfolioItem) {
     if (!confirm('למחוק את העבודה מהתיק?')) return
     setBusyId(item.id)
-    await supabase.from('portfolio_items').delete().eq('id', item.id)
+    const res = await fetch('/api/portfolio', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: item.id }),
+    })
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}))
+      setError(d.error || 'המחיקה נכשלה')
+    }
     setBusyId(null)
     router.refresh()
   }
@@ -86,8 +116,8 @@ export default function PortfolioAdminClient({ items }: { items: PortfolioItem[]
     if (!swapWith) return
     setBusyId(item.id)
     await Promise.all([
-      supabase.from('portfolio_items').update({ sort_order: swapWith.sort_order }).eq('id', item.id),
-      supabase.from('portfolio_items').update({ sort_order: item.sort_order }).eq('id', swapWith.id),
+      patchItem(item.id, { sort_order: swapWith.sort_order }),
+      patchItem(swapWith.id, { sort_order: item.sort_order }),
     ])
     setBusyId(null)
     router.refresh()
@@ -121,6 +151,13 @@ export default function PortfolioAdminClient({ items }: { items: PortfolioItem[]
             </button>
           </div>
         </div>
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3 flex items-center justify-between gap-3">
+            <span>{error}</span>
+            <button onClick={() => setError(null)} className="text-red-400 hover:text-red-600 text-xs font-bold shrink-0">סגור</button>
+          </div>
+        )}
 
         {/* Grid */}
         {items.length === 0 ? (

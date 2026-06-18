@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { toSlug } from '@/lib/media'
 import { X, Upload, Trash2, Loader2, GripVertical } from 'lucide-react'
 import type { PortfolioItem } from './PortfolioAdminClient'
@@ -22,7 +21,6 @@ export default function ProjectEditorModal({
   onClose: () => void
   onSaved: () => void
 }) {
-  const supabase = createClient()
   const coverRef = useRef<HTMLInputElement>(null)
   const imagesRef = useRef<HTMLInputElement>(null)
 
@@ -86,9 +84,11 @@ export default function ProjectEditorModal({
     if (isProject && !finalSlug) {
       finalSlug = toSlug(title) || `proj-${Math.random().toString(36).slice(2, 8)}`
     }
-    const { error } = await supabase
-      .from('portfolio_items')
-      .update({
+    const res = await fetch('/api/portfolio', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: item.id,
         image_url: cover,
         title: title.trim() || null,
         label: label.trim() || null,
@@ -96,14 +96,16 @@ export default function ProjectEditorModal({
         description: description.trim() || null,
         video_url: videoUrl.trim() || null,
         project_images: images,
-      })
-      .eq('id', item.id)
+      }),
+    })
     setSaving(false)
-    if (error) {
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}))
+      const msg = String(d.error || '')
       // Most likely a duplicate slug.
-      setError(error.message.includes('duplicate') || error.message.includes('unique')
+      setError(msg.includes('duplicate') || msg.includes('unique')
         ? 'הכתובת (slug) כבר תפוסה — בחר כתובת אחרת.'
-        : error.message)
+        : msg || 'השמירה נכשלה')
       return
     }
     onSaved()
