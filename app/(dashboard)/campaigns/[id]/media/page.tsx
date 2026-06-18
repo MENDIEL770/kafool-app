@@ -8,7 +8,7 @@ export default async function CampaignMediaPage({ params }: { params: Promise<{ 
 
   const { data: campaign } = await supabase
     .from('campaigns')
-    .select('id, title, slug, org_id, cover_image_url, logo_url, settings')
+    .select('id, title, slug, org_id, cover_image_url, logo_url, video_url, settings')
     .eq('id', id)
     .single()
 
@@ -38,6 +38,7 @@ export default async function CampaignMediaPage({ params }: { params: Promise<{ 
       orgLogoUrl={org?.logo_url || null}
       initialCoverUrl={campaign.cover_image_url || null}
       initialLogoUrl={campaign.logo_url || null}
+      initialVideoUrl={campaign.video_url || null}
       initialGallery={gallery || []}
       initialSettings={settings}
     />

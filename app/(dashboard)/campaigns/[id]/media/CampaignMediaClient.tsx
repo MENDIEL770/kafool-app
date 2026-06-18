@@ -7,7 +7,7 @@ import Link from 'next/link'
 import { buttonVariants } from '@/components/ui/button'
 import {
   Upload, ImageIcon, Trash2, X, Monitor, Smartphone,
-  LayoutGrid, Plus, Check, ArrowRight, Eye, Palette, Image, Ruler, ChevronUp, ChevronDown
+  LayoutGrid, Plus, Check, ArrowRight, Eye, Palette, Image, Ruler, ChevronUp, ChevronDown, Video
 } from 'lucide-react'
 
 /* ─── Types ─── */
@@ -23,12 +23,13 @@ interface Props {
   orgLogoUrl: string | null
   initialCoverUrl: string | null
   initialLogoUrl: string | null
+  initialVideoUrl: string | null
   initialGallery: GalleryItem[]
   initialSettings: Record<string, unknown>
 }
 
 
-type Tab = 'banner' | 'gallery' | 'buttons'
+type Tab = 'banner' | 'gallery' | 'buttons' | 'videos'
 
 /* ─── Banner Preview Component ─── */
 function BannerPreview({
@@ -286,7 +287,7 @@ function PlanEditor({ plan, uploading, isFirst, isLast, onChange, onUpload, onRe
 /* ─── Main Component ─── */
 export default function CampaignMediaClient({
   campaignId, campaignTitle, campaignSlug, orgId, orgName, orgLogoUrl,
-  initialCoverUrl, initialLogoUrl, initialGallery, initialSettings,
+  initialCoverUrl, initialLogoUrl, initialVideoUrl, initialGallery, initialSettings,
 }: Props) {
   campaignSlugRef = campaignSlug
 
@@ -343,6 +344,46 @@ export default function CampaignMediaClient({
   const [uploadingPlan, setUploadingPlan] = useState<number | null>(null)
   const [savingAmounts, setSavingAmounts] = useState(false)
   const [savedAmounts, setSavedAmounts] = useState(false)
+
+  // Campaign videos (YouTube/Vimeo) — main video shows on the banner + social
+  // preview; all videos show above the donate button and the About section.
+  const initialVideos: { url: string; title: string }[] = (() => {
+    const raw = (initialSettings.videos as (string | { url: string; title?: string })[] | undefined)?.length
+      ? (initialSettings.videos as (string | { url: string; title?: string })[])
+      : (initialVideoUrl ? [initialVideoUrl] : [])
+    return raw.map(v => typeof v === 'string' ? { url: v, title: '' } : { url: v.url || '', title: v.title || '' })
+  })()
+  const [videos, setVideos] = useState(initialVideos)
+  const [mainVideo, setMainVideo] = useState(Math.max(0, initialVideos.findIndex(v => v.url === initialVideoUrl)))
+  const [savingVideos, setSavingVideos] = useState(false)
+  const [savedVideos, setSavedVideos] = useState(false)
+
+  function setVideoField(i: number, field: 'url' | 'title', val: string) {
+    setVideos(v => v.map((x, idx) => (idx === i ? { ...x, [field]: val } : x)))
+  }
+  function addVideo() { setVideos(v => [...v, { url: '', title: '' }]) }
+  function removeVideo(i: number) {
+    setVideos(v => v.filter((_, idx) => idx !== i))
+    setMainVideo(m => (i === m ? 0 : i < m ? m - 1 : m))
+  }
+
+  async function saveVideos() {
+    setSavingVideos(true)
+    const mainUrl = (videos[mainVideo]?.url || '').trim()
+    const clean = videos.map(v => ({ url: v.url.trim(), title: v.title.trim() })).filter(v => v.url)
+    const ordered = mainUrl
+      ? [...clean.filter(v => v.url === mainUrl), ...clean.filter(v => v.url !== mainUrl)]
+      : clean
+    // re-fetch current settings so we never clobber edits made on another tab
+    const { data: existing } = await supabase.from('campaigns').select('settings').eq('id', campaignId).single()
+    await supabase.from('campaigns').update({
+      video_url: ordered[0]?.url || null,
+      settings: { ...(existing?.settings as object), videos: ordered },
+    }).eq('id', campaignId)
+    setSavingVideos(false); setSavedVideos(true)
+    setTimeout(() => setSavedVideos(false), 2000)
+    router.refresh()
+  }
 
   /* ─── Upload helper — uses server-side API to bypass RLS ─── */
   async function uploadFile(file: File, path: string): Promise<string | null> {
@@ -513,6 +554,7 @@ export default function CampaignMediaClient({
 
   const tabs: { key: Tab; label: string; icon: React.ElementType }[] = [
     { key: 'banner', label: 'באנר עליון', icon: Image },
+    { key: 'videos', label: 'סרטונים', icon: Video },
     { key: 'gallery', label: 'גלריה', icon: LayoutGrid },
     { key: 'buttons', label: 'כפתורי תרומה', icon: Palette },
   ]
@@ -820,6 +862,63 @@ export default function CampaignMediaClient({
                   {banners.length} באנרים — יתחלפו אוטומטית כל 4 שניות בעמוד הגיוס
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── TAB: Videos ─── */}
+      {tab === 'videos' && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+          <div className="px-6 py-4 border-b border-gray-50">
+            <h2 className="font-bold text-gray-800">סרטוני הקמפיין</h2>
+            <p className="text-xs text-gray-400 mt-1">
+              קישורי YouTube / Vimeo. הסרטון המסומן כ<strong>ראשי</strong> מופיע על באנר הקמפיין ובתצוגה לרשתות;
+              כל הסרטונים מוצגים מעל כפתור התרומה ומעל מקטע &quot;אודות&quot;.
+            </p>
+          </div>
+          <div className="p-6 space-y-4">
+            <div className="space-y-3">
+              {videos.length === 0 && (
+                <p className="text-sm text-gray-400 text-center py-6 bg-gray-50 rounded-xl">עוד לא נוספו סרטונים.</p>
+              )}
+              {videos.map((v, i) => (
+                <div key={i} className="flex items-start gap-2 border border-gray-100 rounded-xl p-2.5 bg-gray-50/50">
+                  <label className="flex flex-col items-center gap-0.5 text-[11px] text-gray-500 shrink-0 cursor-pointer pt-1.5" title="קבע כסרטון ראשי">
+                    <input type="radio" name="mainVideo" checked={mainVideo === i} onChange={() => setMainVideo(i)} className="accent-blue-600" />
+                    ראשי
+                  </label>
+                  <div className="flex-1 space-y-2 min-w-0">
+                    <input
+                      value={v.url}
+                      onChange={(e) => setVideoField(i, 'url', e.target.value)}
+                      placeholder="https://youtube.com/watch?v=...  או  https://vimeo.com/..."
+                      dir="ltr"
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    />
+                    <input
+                      value={v.title}
+                      onChange={(e) => setVideoField(i, 'title', e.target.value)}
+                      placeholder="כותרת לסרטון (אופציונלי) — מוצגת בסרטונים הנוספים"
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    />
+                  </div>
+                  <button type="button" onClick={() => removeVideo(i)} title="הסר"
+                    className="w-9 h-9 rounded-lg text-red-400 hover:bg-red-50 flex items-center justify-center shrink-0"><X className="w-4 h-4" /></button>
+                </div>
+              ))}
+            </div>
+
+            <button type="button" onClick={addVideo}
+              className="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-700">
+              <Plus className="w-4 h-4" /> הוסף סרטון
+            </button>
+
+            <div className="pt-2">
+              <button onClick={saveVideos} disabled={savingVideos}
+                className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors">
+                {savedVideos ? <><Check className="w-4 h-4" /> נשמר!</> : savingVideos ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> שומר...</> : 'שמור'}
+              </button>
             </div>
           </div>
         </div>
