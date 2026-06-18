@@ -73,7 +73,9 @@ const CSS = `
   transition:transform .15s ease, box-shadow .3s ease;
 }
 .kf404 .pushke .slot{position:absolute;top:16px;left:50%;transform:translateX(-50%);width:64px;height:9px;border-radius:6px;background:#080c16;box-shadow:inset 0 2px 4px rgba(0,0,0,.8), 0 0 0 1px var(--line)}
-.kf404 .pushke .heart{position:absolute;top:40%;left:50%;transform:translateX(-50%);font-size:30px;color:var(--accent);opacity:.45}
+.kf404 .pushke .heart{position:absolute;top:52%;left:50%;transform:translate(-50%,-50%);width:46px;height:46px;filter:drop-shadow(0 4px 10px rgba(241,94,77,.5));animation:kf-heart 2.4s ease-in-out infinite}
+.kf404 .pushke .heart svg{display:block;width:100%;height:100%}
+@keyframes kf-heart{0%,100%{transform:translate(-50%,-50%) scale(1)}15%{transform:translate(-50%,-50%) scale(1.14)}30%{transform:translate(-50%,-50%) scale(1)}45%{transform:translate(-50%,-50%) scale(1.08)}60%{transform:translate(-50%,-50%) scale(1)}}
 .kf404 .pushke .ring{position:absolute;inset:0;border-radius:14px;border:2px solid var(--brand);opacity:0;transition:opacity .25s;pointer-events:none}
 .kf404 .box.hot .pushke{transform:scale(1.05)}
 .kf404 .box.hot .pushke .ring{opacity:.9;animation:kf-ringPulse 1s ease-in-out infinite}
@@ -92,7 +94,7 @@ const CSS = `
 .kf404 .fallback{margin-top:14px}
 .kf404 .fallback a{color:var(--muted);font-size:13px;text-decoration:none;border-bottom:1px solid var(--line);padding-bottom:2px}
 .kf404 .fallback a:hover{color:var(--brand-soft)}
-@media (prefers-reduced-motion:reduce){.kf404 .coin,.kf404 .coin-glow,.kf404 .ambient span{animation:none!important}}
+@media (prefers-reduced-motion:reduce){.kf404 .coin,.kf404 .coin-glow,.kf404 .ambient span,.kf404 .pushke .heart{animation:none!important}}
 @media (max-width:480px){.kf404 .play{height:330px}.kf404 .coin{width:78px;height:78px}.kf404 .coin .mark{font-size:30px}}
 `
 
@@ -260,7 +262,18 @@ export default function NotFound() {
             <div className="pushke">
               <div className="ring" />
               <div className="slot" />
-              <div className="heart"><svg viewBox="0 0 24 24" width="100%" height="100%" fill="currentColor"><path d="M12 21s-7.5-4.9-10-9.2C.4 8.7 1.9 5.5 5 5.1c2-.3 3.4.9 4 2 .6-1.1 2-2.3 4-2 3.1.4 4.6 3.6 3 6.7C19.5 16.1 12 21 12 21z"/></svg></div>
+              <div className="heart">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <defs>
+                    <linearGradient id="kfHeartGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0" stopColor="#ff8a7a" />
+                      <stop offset="0.55" stopColor="#f15e4d" />
+                      <stop offset="1" stopColor="#d8392a" />
+                    </linearGradient>
+                  </defs>
+                  <path fill="url(#kfHeartGrad)" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                </svg>
+              </div>
             </div>
             <div className="box-label">קופת צדקה</div>
           </div>
