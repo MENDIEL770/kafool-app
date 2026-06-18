@@ -47,23 +47,35 @@ const STR = {
   readLess: ['הצג פחות', 'Show less'],
 } as const
 
-// Dedication text — clamped to keep donor cards compact; long text reveals
-// behind a "read more" toggle instead of growing the card.
+// Dedication text — clamped to 2 lines so all donor cards stay the same size.
+// When long, a bold "read more" sits at the end of the last visible line; click
+// it to expand the card and reveal the full text.
 function Dedication({ text, primaryColor }: { text: string; primaryColor: string }) {
   const [expanded, setExpanded] = useState(false)
   const t = useT()
-  const isLong = text.length > 90
+  const isLong = text.length > 80
   return (
     <div className="mt-3">
-      <p
-        className={`text-sm text-gray-600 leading-relaxed bg-gray-50 rounded-xl px-3 py-2 border-r-2 whitespace-pre-line ${!expanded && isLong ? 'line-clamp-2' : ''}`}
-        style={{ borderColor: primaryColor }}
-      >
-        {text}
-      </p>
-      {isLong && (
-        <button onClick={() => setExpanded(v => !v)} className="text-xs font-semibold mt-1" style={{ color: primaryColor }}>
-          {expanded ? t('readLess') : t('readMore')}
+      <div className="relative">
+        <p
+          className={`text-sm text-gray-600 leading-relaxed bg-gray-50 rounded-xl px-3 py-2 border-r-2 whitespace-pre-line ${!expanded && isLong ? 'line-clamp-2' : ''}`}
+          style={{ borderColor: primaryColor }}
+        >
+          {text}
+        </p>
+        {isLong && !expanded && (
+          <button
+            onClick={() => setExpanded(true)}
+            className="absolute bottom-2 left-3 text-xs font-bold pr-6 bg-gradient-to-r from-gray-50 via-gray-50 to-transparent"
+            style={{ color: primaryColor }}
+          >
+            {t('readMore')}
+          </button>
+        )}
+      </div>
+      {isLong && expanded && (
+        <button onClick={() => setExpanded(false)} className="text-xs font-bold mt-1" style={{ color: primaryColor }}>
+          {t('readLess')}
         </button>
       )}
     </div>
@@ -197,7 +209,7 @@ function StickyHeader({ org, campaign, primaryColor, onDonate, lang, onToggleLan
       <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
 
         {/* Logo + tagline */}
-        <div className="flex items-center gap-2.5 shrink-0">
+        <div className="flex items-center gap-2.5 min-w-0 shrink">
           {/* Kafool logo · divider · the campaign's own logo */}
           <KafoolAnimatedLogo />
           {logoUrl && (
@@ -861,13 +873,13 @@ function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCre
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 auto-rows-fr">
                   {filtered.slice(0, visible).map(d => {
                     const donorGroup = d.group_id ? groups.find(g => g.id === d.group_id) : null
                     return (
                     <article
                       key={d.id}
-                      className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm hover:shadow-md transition-shadow"
+                      className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm hover:shadow-md transition-shadow h-full min-h-[140px] flex flex-col"
                     >
                       <div className="flex items-start gap-3">
                         {/* avatar (rightmost in RTL) */}
@@ -1383,7 +1395,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
 
   return (
     <LangCtx.Provider value={lang}>
-    <div className="min-h-screen bg-gray-50" dir="rtl">
+    <div className="min-h-screen bg-gray-50 overflow-x-hidden" dir="rtl">
       {/* 1. Sticky Header */}
       <StickyHeader org={org} campaign={campaign} primaryColor={primaryColor} onDonate={openDonate} lang={lang} onToggleLang={() => setLang(l => l === 'he' ? 'en' : 'he')} />
 
