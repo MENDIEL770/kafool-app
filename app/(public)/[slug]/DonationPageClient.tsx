@@ -35,6 +35,14 @@ const STR = {
   securePayment: ['תשלום מאובטח', 'Secure payment'],
   groups: ['קבוצות', 'Groups'],
   recentDonors: ['תורמים אחרונים', 'Recent donors'],
+  donorsCommunity: ['קהילת התורמים', 'Donor community'],
+  donorsTab: ['תורמים', 'Donors'],
+  searchDonor: ['חיפוש תורם...', 'Search donor...'],
+  donorsWord: ['תורמים', 'donors'],
+  brickSingular: ['לבנה', 'brick'],
+  bricksPlural: ['לבנים', 'bricks'],
+  anonymous: ['אנונימי', 'Anonymous'],
+  via: ['דרך', 'via'],
 } as const
 
 function useT() {
@@ -77,16 +85,17 @@ function donorInitials(name: string): string {
   return parts[0][0] + parts[parts.length - 1][0]
 }
 
-function relativeTime(iso: string): string {
+function relativeTime(iso: string, lang: Lang = 'he'): string {
   const diff = Date.now() - new Date(iso).getTime()
   const m = Math.floor(diff / 60000)
-  if (m < 1) return 'הרגע'
-  if (m < 60) return `לפני ${m} דקות`
+  const en = lang === 'en'
+  if (m < 1) return en ? 'just now' : 'הרגע'
+  if (m < 60) return en ? `${m}m ago` : `לפני ${m} דקות`
   const h = Math.floor(m / 60)
-  if (h < 24) return `לפני ${h} שעות`
+  if (h < 24) return en ? `${h}h ago` : `לפני ${h} שעות`
   const days = Math.floor(h / 24)
-  if (days < 30) return `לפני ${days} ימים`
-  return new Date(iso).toLocaleDateString('he-IL', { day: 'numeric', month: 'short' })
+  if (days < 30) return en ? `${days}d ago` : `לפני ${days} ימים`
+  return new Date(iso).toLocaleDateString(en ? 'en-US' : 'he-IL', { day: 'numeric', month: 'short' })
 }
 
 function useCountdown(endAt: string | null) {
@@ -387,6 +396,7 @@ function HeroSection({ campaign, countdown }: {
   campaign: Campaign
   countdown: { d: number; h: number; m: number; s: number } | null
 }) {
+  const lang = useLang()
   const settings = campaign.settings as {
     banners?: { url: string; sort_order: number }[]
     mobile_banners?: { url: string; sort_order: number }[]
@@ -419,7 +429,7 @@ function HeroSection({ campaign, countdown }: {
           <div className="bg-white border-b border-gray-100 py-4 md:py-5 px-4">
             <div className="max-w-md mx-auto flex items-center justify-center" dir="ltr">
               <div className="flex items-center gap-3 md:gap-5">
-                {[{ val: countdown.d, label: 'ימים' }, { val: countdown.h, label: 'שעות' }, { val: countdown.m, label: 'דקות' }, { val: countdown.s, label: 'שניות' }].map((item, i) => (
+                {[{ val: countdown.d, label: lang === 'en' ? 'days' : 'ימים' }, { val: countdown.h, label: lang === 'en' ? 'hours' : 'שעות' }, { val: countdown.m, label: lang === 'en' ? 'min' : 'דקות' }, { val: countdown.s, label: lang === 'en' ? 'sec' : 'שניות' }].map((item, i) => (
                   <div key={item.label} className="flex items-center gap-3 md:gap-5">
                     <div className="text-center">
                       <div className="text-3xl md:text-5xl font-black tabular-nums text-gray-800 leading-none">{String(item.val).padStart(2, '0')}</div>
@@ -601,7 +611,7 @@ function ProgressSection({ raised, goal, donorsCount, primaryColor, bricks }: { 
 
   const bricksTotal = bricks && bricks.total > 0 ? bricks.total : 0
   const bricksAchieved = bricks && bricks.price > 0 ? Math.min(bricksTotal, Math.floor(raised / bricks.price)) : 0
-  const bricksLabel = bricks?.label || 'לבנים'
+  const bricksLabel = bricks?.label || (lang === 'en' ? 'bricks' : 'לבנים')
 
   useEffect(() => {
     const t = setTimeout(() => setAnimPct(pct), 300)
@@ -657,10 +667,22 @@ function ProgressSection({ raised, goal, donorsCount, primaryColor, bricks }: { 
 
               <div className="text-center">
                 <p className="text-xl md:text-2xl font-black text-gray-800">
-                  כבר גויסו <span className="tabular-nums" style={{ color: primaryColor }}>{bricksAchieved.toLocaleString('he-IL')}</span> {bricksLabel} מתוך {bricksTotal.toLocaleString('he-IL')} {bricksLabel}
+                  {lang === 'en' ? (
+                    <>
+                      <span className="tabular-nums" style={{ color: primaryColor }}>{bricksAchieved.toLocaleString()}</span> {bricksLabel} of {bricksTotal.toLocaleString()} {bricksLabel} raised
+                    </>
+                  ) : (
+                    <>
+                      כבר גויסו <span className="tabular-nums" style={{ color: primaryColor }}>{bricksAchieved.toLocaleString('he-IL')}</span> {bricksLabel} מתוך {bricksTotal.toLocaleString('he-IL')} {bricksLabel}
+                    </>
+                  )}
                 </p>
                 {bricks?.price ? (
-                  <p className="text-xs text-gray-400 mt-0.5">כל לבנה = ₪{bricks.price.toLocaleString('he-IL')} · {pct}% מהבית נבנה</p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {lang === 'en'
+                      ? `Each ${t('brickSingular')} = ₪${bricks.price.toLocaleString()} · ${pct}% of the building built`
+                      : `כל לבנה = ₪${bricks.price.toLocaleString('he-IL')} · ${pct}% מהבית נבנה`}
+                  </p>
                 ) : null}
               </div>
 
@@ -726,8 +748,8 @@ function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCre
     })
 
   const allTabs: { key: CommunityTab; label: string; count?: number; show: boolean }[] = [
-    { key: 'donors' as CommunityTab, label: 'תורמים', count: donations.length, show: true },
-    { key: 'groups' as CommunityTab, label: 'קבוצות', count: groups.length, show: groups.length > 0 },
+    { key: 'donors' as CommunityTab, label: t('donorsTab'), count: donations.length, show: true },
+    { key: 'groups' as CommunityTab, label: t('groups'), count: groups.length, show: groups.length > 0 },
     { key: 'communities' as CommunityTab, label: 'קהילות', show: false },
   ]
   const tabs = allTabs.filter(t => t.show)
@@ -735,7 +757,7 @@ function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCre
   return (
     <div id="donors">
       <div>
-        <h2 className="text-2xl font-black text-gray-900 mb-4">קהילת התורמים</h2>
+        <h2 className="text-2xl font-black text-gray-900 mb-4">{t('donorsCommunity')}</h2>
 
         {/* מחובר לקבוצה — מציג רק את התורמים שלה, עם אפשרות לראות את כולם */}
         {activeGroupName && (
@@ -789,7 +811,7 @@ function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCre
                   type="search"
                   value={search}
                   onChange={e => setSearch(e.target.value)}
-                  placeholder="חיפוש תורם..."
+                  placeholder={t('searchDonor')}
                   aria-label="חיפוש תורמים"
                   className="w-full bg-gray-50 border border-gray-200 rounded-2xl pr-9 pl-4 py-2.5 text-sm outline-none focus:ring-2 focus:border-transparent"
                   style={{ '--tw-ring-color': primaryColor } as React.CSSProperties}
@@ -829,18 +851,18 @@ function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCre
                           style={{ backgroundColor: `${primaryColor}1A`, color: primaryColor }}
                           aria-hidden
                         >
-                          {donorInitials(d.donor_name || 'אנונימי')}
+                          {donorInitials(d.donor_name || t('anonymous'))}
                         </div>
 
                         <div className="flex-1 min-w-0">
                           {/* שם התורם — שורה משלו */}
                           <div className="font-bold text-base text-gray-900 leading-tight break-words">
-                            {d.donor_name || 'אנונימי'}
+                            {d.donor_name || t('anonymous')}
                           </div>
 
                           {/* מימין: לפני כמה זמן · משמאל: הסכום */}
                           <div className="flex items-center justify-between gap-2 mt-1.5">
-                            <span className="text-xs text-gray-400" suppressHydrationWarning>{relativeTime(d.created_at)}</span>
+                            <span className="text-xs text-gray-400" suppressHydrationWarning>{relativeTime(d.created_at, lang)}</span>
                             <div className="flex items-center gap-1.5 shrink-0">
                               <span className="text-lg font-black leading-none" style={{ color: primaryColor }}>
                                 ₪{d.amount.toLocaleString()}
@@ -864,7 +886,7 @@ function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCre
                               className="flex items-center gap-1 mt-2 px-2 py-0.5 rounded-full text-[11px] font-semibold hover:opacity-80 transition-opacity max-w-full w-fit"
                               style={{ backgroundColor: `${primaryColor}1A`, color: primaryColor }}
                             >
-                              <span className="truncate">דרך {donorGroup.name}</span>
+                              <span className="truncate">{t('via')} {donorGroup.name}</span>
                             </a>
                           )}
                         </div>
@@ -1053,6 +1075,7 @@ function AboutSection({ campaign, gallery }: { campaign: Campaign; gallery: Gall
 
 function FloatingBar({ primaryColor, buttonRadius, onDonate }: { campaign: Campaign; primaryColor: string; buttonRadius: string; donateHref?: string; onDonate: () => void }) {
   const [visible, setVisible] = useState(false)
+  const t = useT()
   useEffect(() => {
     const fn = () => setVisible(window.scrollY > 400)
     window.addEventListener('scroll', fn, { passive: true })
@@ -1073,15 +1096,15 @@ function FloatingBar({ primaryColor, buttonRadius, onDonate }: { campaign: Campa
           className={`flex-[2] py-3 text-white font-black text-sm text-center shadow-md hover:opacity-90 active:scale-95 transition-all ${buttonRadius}`}
           style={{ backgroundColor: primaryColor }}
         >
-          לתרומה
+          {t('donate')}
         </button>
         <button
-          onClick={() => navigator.share?.({ title: 'שתף', url: window.location.href }) ?? navigator.clipboard.writeText(window.location.href)}
+          onClick={() => navigator.share?.({ title: t('share'), url: window.location.href }) ?? navigator.clipboard.writeText(window.location.href)}
           className={`flex-1 py-3 border-2 font-bold text-sm transition-colors hover:bg-gray-50 ${buttonRadius}`}
           style={{ borderColor: primaryColor, color: primaryColor }}
           aria-label="שתף קמפיין"
         >
-          שתף
+          {t('share')}
         </button>
       </div>
     </div>
@@ -1091,6 +1114,8 @@ function FloatingBar({ primaryColor, buttonRadius, onDonate }: { campaign: Campa
 // Social-proof popups (top of page): cycles through the latest donations, 1–2 visible
 // at a time, to make a visitor feel others just donated.
 function DonationToasts({ donations, groups, primaryColor }: { donations: Donation[]; groups: Group[]; primaryColor: string }) {
+  const lang = useLang()
+  const t = useT()
   const recent = useMemo(() => donations.slice(0, 5), [donations])
   const [shown, setShown] = useState<{ key: number; d: Donation }[]>([])
   const [dragX, setDragX] = useState(0)
@@ -1156,14 +1181,14 @@ function DonationToasts({ donations, groups, primaryColor }: { donations: Donati
             style={{ animation: 'kfToastIn .35s ease-out' }}>
             <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-black shrink-0"
               style={{ backgroundColor: `${primaryColor}1A`, color: primaryColor }}>
-              {donorInitials(d.donor_name || 'אנונימי')}
+              {donorInitials(d.donor_name || t('anonymous'))}
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-base font-black leading-tight" style={{ color: primaryColor }}>₪{d.amount.toLocaleString()}</p>
-              <p className="text-sm font-bold text-gray-900 truncate leading-tight">{d.donor_name || 'אנונימי'}</p>
+              <p className="text-sm font-bold text-gray-900 truncate leading-tight">{d.donor_name || t('anonymous')}</p>
               <p className="text-[11px] text-gray-400 mt-0.5 truncate">
-                {via ? <>דרך {via} · </> : null}
-                <span suppressHydrationWarning>{relativeTime(d.created_at)}</span>
+                {via ? <>{t('via')} {via} · </> : null}
+                <span suppressHydrationWarning>{relativeTime(d.created_at, lang)}</span>
               </p>
             </div>
           </div>
@@ -1432,12 +1457,12 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
       {/* 5+7. About (right) + Community (left) — two columns */}
       <section className="py-10 px-4 bg-white border-t border-gray-100 scroll-mt-20" id="about">
         <div className="max-w-6xl mx-auto">
-          <div className="flex flex-col lg:flex-row gap-10">
-            {/* ימין — אודות */}
-            <div className="lg:w-[45%] shrink-0">
+          <div className={`flex flex-col lg:flex-row gap-10 ${lang === 'en' ? 'lg:flex-row-reverse' : ''}`}>
+            {/* אודות — ימין בעברית, שמאל באנגלית (טקסט מיושר לשמאל) */}
+            <div className="lg:w-[45%] shrink-0" dir={lang === 'en' ? 'ltr' : undefined}>
               <AboutSection campaign={campaign} gallery={gallery} />
             </div>
-            {/* שמאל — תורמים */}
+            {/* תורמים — שמאל בעברית, ימין באנגלית */}
             <div className="flex-1 min-w-0">
               <CommunitySection donations={activeGroup ? donations.filter(d => d.group_id === activeGroup.id) : donations} groups={groups} primaryColor={primaryColor} campaignSlug={campaign.slug} onCreateGroup={() => setCreateGroupOpen(true)} activeGroupName={activeGroup?.name} />
             </div>
