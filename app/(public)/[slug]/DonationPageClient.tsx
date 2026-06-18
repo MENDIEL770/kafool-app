@@ -15,7 +15,8 @@ interface Donation { id: string; donor_name: string | null; amount: number; dedi
 interface GalleryItem { id: string; image_url: string; caption: string | null }
 interface ActiveGroup { id: string; name: string; slug: string; goal_amount: number; raised_amount: number; manager_name: string | null; image_url?: string | null; donorCount?: number }
 interface PaymentUrls { one_time: string; hok: string; bit: string; bank: string }
-interface Props { org: Org; campaign: Campaign; donations: Donation[]; groups: Group[]; gallery: GalleryItem[]; activeGroup?: ActiveGroup; donationUrl?: string; paymentUrls?: PaymentUrls }
+interface NedarimConfig { mosad: string; apiValid: string; active: boolean }
+interface Props { org: Org; campaign: Campaign; donations: Donation[]; groups: Group[]; gallery: GalleryItem[]; activeGroup?: ActiveGroup; donationUrl?: string; paymentUrls?: PaymentUrls; paymentProvider?: string; nedarim?: NedarimConfig | null }
 
 /* ─── Helpers ─── */
 function getVideoEmbed(url: string): string | null {
@@ -1197,7 +1198,7 @@ function PopupAd({ ad, campaignId }: { ad?: { image_url?: string; link?: string 
 }
 
 /* ─── Main Page ─── */
-export default function DonationPageClient({ org, campaign, donations: initialDonations, groups, gallery, activeGroup, donationUrl = '', paymentUrls }: Props) {
+export default function DonationPageClient({ org, campaign, donations: initialDonations, groups, gallery, activeGroup, donationUrl = '', paymentUrls, paymentProvider, nedarim }: Props) {
   const [donations, setDonations] = useState<Donation[]>(initialDonations)
   const [raisedAmount, setRaisedAmount] = useState(campaign.raised_amount)
   const [modalOpen, setModalOpen] = useState(false)
@@ -1433,6 +1434,8 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
         presetMonths={modalMonths}
         donationUrl={donationUrl}
         paymentUrls={paymentUrls}
+        paymentProvider={paymentProvider}
+        nedarim={nedarim}
         campaign={campaign}
         primaryColor={primaryColor}
         buttonRadius={buttonRadius}

@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from 'react'
 import { X, CreditCard, RefreshCw, Smartphone, Landmark } from 'lucide-react'
+import NedarimPayment from './NedarimPayment'
 
 interface Group { id: string; name: string; slug: string }
 interface PaymentUrls { one_time: string; hok: string; bit: string; bank: string }
+interface NedarimConfig { mosad: string; apiValid: string; active: boolean }
 
 const PAYMENT_METHODS = [
   { key: 'one_time', label: 'תרומה חד"פ',   Icon: CreditCard  },
@@ -24,6 +26,8 @@ interface Props {
   presetMonths?: number
   donationUrl: string
   paymentUrls?: PaymentUrls
+  paymentProvider?: string
+  nedarim?: NedarimConfig | null
   campaign: { id: string; title: string; slug: string }
   primaryColor: string
   buttonRadius: string
@@ -39,11 +43,14 @@ export default function DonationModal({
   presetMonths,
   donationUrl,
   paymentUrls,
+  paymentProvider,
+  nedarim,
   campaign,
   primaryColor,
   buttonRadius,
   groups,
 }: Props) {
+  const useNedarim = paymentProvider === 'nedarim' && !!nedarim?.active && !!nedarim?.mosad && !!nedarim?.apiValid
   const [step, setStep] = useState<'details' | 'payment'>('details')
   const [amount, setAmount] = useState(typeof presetAmount === 'number' ? presetAmount : 0)
   const [customAmount, setCustomAmount] = useState('')
@@ -348,13 +355,32 @@ export default function DonationModal({
               )}
 
               <p className="text-center text-xs text-gray-400 flex items-center justify-center gap-1">
-                <span></span> תשלום מאובטח — קשר
+                <span></span> תשלום מאובטח — {useNedarim ? 'נדרים פלוס' : 'קשר'}
               </p>
             </div>
           )}
 
-          {/* Step: Payment iframe */}
-          {step === 'payment' && (() => {
+          {/* Step: Payment — Nedarim Plus iframe (postMessage) */}
+          {step === 'payment' && useNedarim && (
+            <NedarimPayment
+              mosad={nedarim!.mosad}
+              apiValid={nedarim!.apiValid}
+              amount={finalAmount}
+              tashlumim={months}
+              isHok={paymentMethod === 'hok'}
+              donor={{ firstName: form.firstName, lastName: form.lastName, phone: form.phone, email: form.email }}
+              comment={form.dedication}
+              campaignId={campaign.id}
+              groupSlug={selectedGroupSlug || undefined}
+              slug={campaign.slug}
+              primaryColor={primaryColor}
+              buttonRadius={buttonRadius}
+              onBack={() => setStep('details')}
+            />
+          )}
+
+          {/* Step: Payment iframe — Kesher (redirect page) */}
+          {step === 'payment' && !useNedarim && (() => {
             const payUrl = buildPaymentUrl()
             const isValid = payUrl.startsWith('http://') || payUrl.startsWith('https://')
             if (!isValid) {

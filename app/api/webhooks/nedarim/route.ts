@@ -63,6 +63,15 @@ async function handle(body: Record<string, unknown>, ip: string): Promise<void> 
   const donorPhone = pick(body, 'Phone', 'Tel') || null
   const donorEmail = pick(body, 'Mail', 'Email') || null
 
+  // optional group attribution — the iframe passes the group slug in Param2
+  const groupSlug = pick(body, 'Param2', 'param2')
+  let groupId: string | null = null
+  if (groupSlug) {
+    const { data: g } = await supabase
+      .from('groups').select('id').eq('campaign_id', campaignId).eq('slug', groupSlug).maybeSingle()
+    groupId = g?.id ?? null
+  }
+
   // insert-if-absent (idempotent); reuse kesher_transaction_id as the external id
   const { data: existing } = await supabase
     .from('donations').select('id').eq('kesher_transaction_id', transactionId).maybeSingle()
@@ -74,6 +83,7 @@ async function handle(body: Record<string, unknown>, ip: string): Promise<void> 
       donor_name: donorName,
       donor_phone: donorPhone,
       donor_email: donorEmail,
+      group_id: groupId,
       kesher_transaction_id: transactionId,
       payment_status: 'completed',
       payment_type: isHok ? 'hok' : 'one_time',
