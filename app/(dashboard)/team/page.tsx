@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { getClientOrgId } from '@/lib/tenancy-client'
 import { UserPlus, Shield, User, MoreVertical, Check, X, Loader2 } from 'lucide-react'
 
 interface Member {
@@ -36,13 +37,14 @@ export default function TeamPage() {
     if (!user) return
     setCurrentUserId(user.id)
 
-    const { data: profile } = await supabase.from('profiles').select('org_id').eq('id', user.id).single()
-    if (!profile?.org_id) return
+    const { data: profile } = await supabase.from('profiles').select('org_id, role').eq('id', user.id).single()
+    const ctxOrgId = getClientOrgId(profile)
+    if (!ctxOrgId) return
 
     const { data } = await supabase
       .from('profiles')
       .select('id, full_name, role, is_active, phone')
-      .eq('org_id', profile.org_id)
+      .eq('org_id', ctxOrgId)
       .order('role', { ascending: true })
 
     setMembers(data || [])

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { getClientOrgId } from '@/lib/tenancy-client'
 
 export default function PaymentSettingsPage() {
   const [loading, setLoading] = useState(false)
@@ -24,17 +25,18 @@ export default function PaymentSettingsPage() {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('org_id')
+        .select('org_id, role')
         .eq('id', user.id)
         .single()
 
-      if (!profile?.org_id) return
-      setOrgId(profile.org_id)
+      const ctxOrgId = getClientOrgId(profile)
+      if (!ctxOrgId) return
+      setOrgId(ctxOrgId)
 
       const { data: org } = await supabase
         .from('organizations')
         .select('kesher_page_id, kesher_page_url, kesher_webhook_secret, kesher_active, slug')
-        .eq('id', profile.org_id)
+        .eq('id', ctxOrgId)
         .single()
 
       if (org) {

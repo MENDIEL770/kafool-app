@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { getClientOrgId } from '@/lib/tenancy-client'
 import Link from 'next/link'
 import { Star, Plus, ExternalLink, Clock } from 'lucide-react'
 
@@ -62,15 +63,16 @@ export default function CampaignsPage() {
       if (!user) return
       const { data: profile } = await supabase.from('profiles').select('org_id, role').eq('id', user.id).single()
       const isSuper = profile?.role === 'super_admin'
-      const orgParam = new URLSearchParams(window.location.search).get('org')
+      // sticky org context (super admin: the entered org; else own org)
+      const ctxOrgId = getClientOrgId(profile)
 
       const query = supabase.from('campaigns').select('id, title, slug, status, raised_amount, goal_amount, settings').order('created_at', { ascending: false })
-      if (isSuper && orgParam) {
-        query.eq('org_id', orgParam)
-        const { data: org } = await supabase.from('organizations').select('name').eq('id', orgParam).single()
-        if (org) setOrgName(org.name)
-      } else if (!isSuper) {
-        query.eq('org_id', profile!.org_id)
+      if (ctxOrgId) {
+        query.eq('org_id', ctxOrgId)
+        if (isSuper) {
+          const { data: org } = await supabase.from('organizations').select('name').eq('id', ctxOrgId).single()
+          if (org) setOrgName(org.name)
+        }
       }
       const { data } = await query
       setCampaigns(data || [])

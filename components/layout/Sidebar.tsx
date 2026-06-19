@@ -37,6 +37,8 @@ interface Profile {
 
 interface Props {
   profile: Profile
+  contextOrgName?: string | null   // org currently in scope (super admin may view another org)
+  viewingOtherOrg?: boolean        // super admin "entered" a specific org
 }
 
 const DEFAULT_CAMPAIGN_KEY = 'kafool_default_campaign'
@@ -123,9 +125,10 @@ function NavLink({
   )
 }
 
-export default function Sidebar({ profile }: Props) {
+export default function Sidebar({ profile, contextOrgName, viewingOtherOrg }: Props) {
   const pathname = usePathname()
   const router = useRouter()
+  const isSuperAdmin = profile.role === 'super_admin'
   const isPlusActive = kafoolPlusItems.some(item => pathname.startsWith(item.href))
   const [plusOpen, setPlusOpen] = useState(isPlusActive)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -139,7 +142,16 @@ export default function Sidebar({ profile }: Props) {
     router.push('/login')
   }
 
-  const org = profile.organizations
+  // super admin: leave the current org context and return to the global overview
+  async function backToGlobal() {
+    await fetch('/api/super-admin/context', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}),
+    })
+    router.push('/super-admin/orgs')
+    router.refresh()
+  }
+
+  const orgName = contextOrgName ?? profile.organizations?.name ?? null
   const initials = profile.full_name
     ? profile.full_name.split(' ').map((n) => n[0]).join('').slice(0, 2)
     : '?'
@@ -188,12 +200,31 @@ export default function Sidebar({ profile }: Props) {
             <X className="w-5 h-5" />
           </button>
         </div>
-        {org && (
+        {viewingOtherOrg ? (
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-purple-500/15 border border-purple-500/20">
+              <div className="w-2 h-2 rounded-full bg-purple-400 shrink-0" />
+              <span className="text-xs text-purple-200 truncate">צופה בארגון: <span className="font-bold">{orgName}</span></span>
+            </div>
+            <button
+              onClick={backToGlobal}
+              className="w-full flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-slate-300 bg-slate-800/60 hover:bg-slate-800 transition-colors"
+            >
+              <ChevronRight className="w-3 h-3" />
+              חזרה למבט-על
+            </button>
+          </div>
+        ) : isSuperAdmin ? (
+          <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-purple-500/15 border border-purple-500/20">
+            <div className="w-2 h-2 rounded-full bg-purple-400 shrink-0" />
+            <span className="text-xs text-purple-200 truncate">מבט-על · כל הארגונים</span>
+          </div>
+        ) : orgName ? (
           <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-slate-800/60">
             <div className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
-            <span className="text-xs text-slate-400 truncate">{org.name}</span>
+            <span className="text-xs text-slate-400 truncate">{orgName}</span>
           </div>
-        )}
+        ) : null}
       </div>
 
       {/* Navigation */}

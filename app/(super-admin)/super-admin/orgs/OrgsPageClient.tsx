@@ -31,7 +31,11 @@ function OrgAvatar({ name, logo }: { name: string; logo?: string | null }) {
   )
 }
 
-export default function OrgsPageClient({ orgs }: { orgs: Org[] }) {
+interface PlatformStats { totalRaised: number; orgCount: number; campaignCount: number; donationCount: number }
+
+export default function OrgsPageClient({ orgs, raisedByOrg = {}, stats: platformStats }: {
+  orgs: Org[]; raisedByOrg?: Record<string, number>; stats?: PlatformStats
+}) {
   const [showCreate, setShowCreate] = useState(false)
   const [filter, setFilter] = useState<'all' | 'active' | 'pending' | 'suspended'>('all')
 
@@ -67,6 +71,28 @@ export default function OrgsPageClient({ orgs }: { orgs: Org[] }) {
           ארגון חדש
         </button>
       </div>
+
+      {/* ─── Platform aggregate (global overview) ─── */}
+      {platformStats && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-gradient-to-l from-blue-50 to-indigo-50 border border-blue-100 rounded-2xl p-4">
+          <div>
+            <div className="text-[11px] font-semibold text-gray-500">סה״כ גויס בפלטפורמה</div>
+            <div className="text-xl font-black text-blue-700">₪{platformStats.totalRaised.toLocaleString('he-IL')}</div>
+          </div>
+          <div>
+            <div className="text-[11px] font-semibold text-gray-500">ארגונים</div>
+            <div className="text-xl font-black text-gray-900">{platformStats.orgCount}</div>
+          </div>
+          <div>
+            <div className="text-[11px] font-semibold text-gray-500">קמפיינים</div>
+            <div className="text-xl font-black text-gray-900">{platformStats.campaignCount}</div>
+          </div>
+          <div>
+            <div className="text-[11px] font-semibold text-gray-500">תרומות</div>
+            <div className="text-xl font-black text-gray-900">{platformStats.donationCount}</div>
+          </div>
+        </div>
+      )}
 
       {/* ─── Stat cards (clickable filters) ─── */}
       <div className="grid grid-cols-4 gap-3">
@@ -114,6 +140,7 @@ export default function OrgsPageClient({ orgs }: { orgs: Org[] }) {
                 <th className="px-5 py-3 text-right text-xs font-semibold text-gray-400">בעלים</th>
                 <th className="px-5 py-3 text-right text-xs font-semibold text-gray-400">נרשם</th>
                 <th className="px-5 py-3 text-right text-xs font-semibold text-gray-400">סטטוס</th>
+                <th className="px-5 py-3 text-right text-xs font-semibold text-gray-400">סכום שגויס</th>
                 <th className="px-5 py-3 text-left text-xs font-semibold text-gray-400">פעולות</th>
               </tr>
             </thead>
@@ -170,6 +197,11 @@ export default function OrgsPageClient({ orgs }: { orgs: Org[] }) {
                         <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${s.dot}`} />
                         {s.label}
                       </span>
+                    </td>
+
+                    {/* Raised */}
+                    <td className="px-5 py-4 font-bold text-gray-800 whitespace-nowrap">
+                      ₪{(raisedByOrg[org.id] || 0).toLocaleString('he-IL')}
                     </td>
 
                     {/* Actions */}

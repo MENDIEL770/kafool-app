@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { getContext } from '@/lib/tenancy'
 import Link from 'next/link'
 import { buttonVariants } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -10,28 +11,30 @@ export default async function DashboardPage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('org_id, full_name, role')
+    .select('full_name, role')
     .eq('id', user!.id)
     .single()
+
+  const { orgId } = await getContext(supabase)
 
   const [{ data: campaigns }, { data: recentDonations }, { count: totalDonations }] = await Promise.all([
     supabase
       .from('campaigns')
       .select('id, title, slug, status, raised_amount, goal_amount')
-      .eq('org_id', profile!.org_id)
+      .eq('org_id', orgId)
       .order('created_at', { ascending: false })
       .limit(5),
     supabase
       .from('donations')
       .select('id, donor_name, amount, created_at, campaigns(title)')
-      .eq('org_id', profile!.org_id)
+      .eq('org_id', orgId)
       .eq('payment_status', 'completed')
       .order('created_at', { ascending: false })
       .limit(8),
     supabase
       .from('donations')
       .select('*', { count: 'exact', head: true })
-      .eq('org_id', profile!.org_id)
+      .eq('org_id', orgId)
       .eq('payment_status', 'completed'),
   ])
 

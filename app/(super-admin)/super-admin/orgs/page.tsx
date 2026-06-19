@@ -33,5 +33,24 @@ export default async function SuperAdminOrgsPage() {
     profiles: o.owner_id ? ownerMap.get(o.owner_id) ?? null : null,
   }))
 
-  return <OrgsLeadsView orgs={orgs} leads={leads ?? []} />
+  // Platform-wide aggregates + raised-amount per org (sum of each org's campaigns)
+  const { data: campaignRows } = await supabase.from('campaigns').select('org_id, raised_amount')
+  const raisedByOrg: Record<string, number> = {}
+  let totalRaised = 0
+  for (const c of campaignRows ?? []) {
+    const amt = Number(c.raised_amount) || 0
+    if (c.org_id) raisedByOrg[c.org_id] = (raisedByOrg[c.org_id] || 0) + amt
+    totalRaised += amt
+  }
+  const { count: donationCount } = await supabase
+    .from('donations').select('*', { count: 'exact', head: true }).eq('payment_status', 'completed')
+
+  const stats = {
+    totalRaised,
+    orgCount: orgs.length,
+    campaignCount: campaignRows?.length || 0,
+    donationCount: donationCount || 0,
+  }
+
+  return <OrgsLeadsView orgs={orgs} leads={leads ?? []} raisedByOrg={raisedByOrg} stats={stats} />
 }

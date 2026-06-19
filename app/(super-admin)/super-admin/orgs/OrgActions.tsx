@@ -30,10 +30,15 @@ export default function OrgActions({ orgId, status, slug, ownerEmail }: {
     setLoading(false)
   }
 
-  function enterDashboard() {
-    // ניהול הארגון בתוך ה-session של הסופר-אדמין (בלי magic link / התנתקות)
+  // Enter the org context (sticky cookie) and navigate into the dashboard.
+  async function enterOrg(target: string) {
     setMenuOpen(false)
-    router.push(`/campaigns?org=${orgId}`)
+    setLoading(true)
+    await fetch('/api/super-admin/context', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orgId }),
+    })
+    router.push(target)
+    router.refresh()
   }
 
   async function sendLoginLink() {
@@ -60,7 +65,7 @@ export default function OrgActions({ orgId, status, slug, ownerEmail }: {
     <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
       {/* Enter dashboard */}
       <button
-        onClick={enterDashboard}
+        onClick={() => enterOrg('/dashboard')}
         disabled={busy || !['active', 'pending'].includes(status)}
         title="כניסה לדשבורד הארגון"
         className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 border border-blue-100 hover:bg-blue-100 transition-colors font-semibold disabled:opacity-40"
@@ -84,13 +89,12 @@ export default function OrgActions({ orgId, status, slug, ownerEmail }: {
             <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
             <div className="absolute left-0 top-full mt-1 z-20 bg-white rounded-xl shadow-lg border border-gray-100 py-1 min-w-[160px]">
               {/* Campaigns */}
-              <a
-                href={`/campaigns?org=${orgId}`}
-                className="flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
-                onClick={() => setMenuOpen(false)}
+              <button
+                onClick={() => enterOrg('/campaigns')}
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors text-right"
               >
                 קמפיינים
-              </a>
+              </button>
 
               {/* Copy login link */}
               <button

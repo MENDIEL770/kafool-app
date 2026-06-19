@@ -1,11 +1,10 @@
 import { createClient } from '@/lib/supabase/server'
+import { getContext } from '@/lib/tenancy'
 import SmsClient from './SmsClient'
 
 export default async function SmsPage() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  const { data: profile } = await supabase.from('profiles').select('org_id').eq('id', user!.id).single()
-  const orgId = profile!.org_id
+  const { orgId } = await getContext(supabase)
 
   const [{ data: rules }, { data: logs }, { data: campaigns }] = await Promise.all([
     supabase
@@ -31,7 +30,7 @@ export default async function SmsPage() {
       initialRules={rules || []}
       initialLogs={logs || []}
       campaigns={campaigns || []}
-      orgId={orgId}
+      orgId={orgId ?? ''}
     />
   )
 }

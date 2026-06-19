@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { getClientOrgId } from '@/lib/tenancy-client'
 import { Check, Copy, Info, ExternalLink } from 'lucide-react'
 
 const PAYMENT_METHODS = [
@@ -38,9 +39,10 @@ export default function KesherSettingsPage() {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
-      const { data: profile } = await supabase.from('profiles').select('org_id').eq('id', user.id).single()
-      if (!profile?.org_id) return
-      setOrgId(profile.org_id)
+      const { data: profile } = await supabase.from('profiles').select('org_id, role').eq('id', user.id).single()
+      const ctxOrgId = getClientOrgId(profile)
+      if (!ctxOrgId) return
+      setOrgId(ctxOrgId)
 
       const base = (process.env.NEXT_PUBLIC_BASE_URL || window.location.origin).replace(/^http:/, 'https:')
       setWebhookUrl(base + '/api/webhooks/kesher')
@@ -48,7 +50,7 @@ export default function KesherSettingsPage() {
       const { data: org } = await supabase
         .from('organizations')
         .select('kesher_page_url, kesher_url_hok, kesher_url_bit, kesher_url_bank, kesher_page_url_en, kesher_url_hok_en, payment_provider, nedarim_mosad, nedarim_api_valid')
-        .eq('id', profile.org_id)
+        .eq('id', ctxOrgId)
         .single()
 
       if (org) {

@@ -16,7 +16,11 @@ interface Org {
   profiles?: { full_name: string; phone?: string; id: string } | null
 }
 
-export default function OrgsLeadsView({ orgs, leads }: { orgs: Org[]; leads: Lead[] }) {
+export interface PlatformStats { totalRaised: number; orgCount: number; campaignCount: number; donationCount: number }
+
+export default function OrgsLeadsView({ orgs, leads, raisedByOrg = {}, stats }: {
+  orgs: Org[]; leads: Lead[]; raisedByOrg?: Record<string, number>; stats?: PlatformStats
+}) {
   const [tab, setTab] = useState<'leads' | 'orgs'>('leads')
 
   const openLeads = leads.filter(l => !['won', 'lost'].includes(l.stage)).length
@@ -52,7 +56,7 @@ export default function OrgsLeadsView({ orgs, leads }: { orgs: Org[]; leads: Lea
         })}
       </div>
 
-      {tab === 'leads' ? <LeadsTabClient leads={leads} /> : <OrgsPageClient orgs={orgs} />}
+      {tab === 'leads' ? <LeadsTabClient leads={leads} /> : <OrgsPageClient orgs={orgs} raisedByOrg={raisedByOrg} stats={stats} />}
       </div>
     </div>
   )

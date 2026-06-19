@@ -1,27 +1,27 @@
 import { createClient } from '@/lib/supabase/server'
+import { getContext } from '@/lib/tenancy'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 export default async function ReportsPage() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  const { data: profile } = await supabase.from('profiles').select('org_id').eq('id', user!.id).single()
+  const { orgId } = await getContext(supabase)
 
   const [{ data: campaigns }, { data: donations }, { data: callers }] = await Promise.all([
     supabase
       .from('campaigns')
       .select('id, title, raised_amount, goal_amount, status')
-      .eq('org_id', profile!.org_id)
+      .eq('org_id', orgId)
       .order('raised_amount', { ascending: false }),
     supabase
       .from('donations')
       .select('amount, created_at, campaign_id, caller_id')
-      .eq('org_id', profile!.org_id)
+      .eq('org_id', orgId)
       .eq('payment_status', 'completed')
       .order('created_at', { ascending: false }),
     supabase
       .from('callers')
       .select('id, profiles(full_name)')
-      .eq('org_id', profile!.org_id),
+      .eq('org_id', orgId),
   ])
 
   const totalRaised = donations?.reduce((s, d) => s + (d.amount || 0), 0) || 0
