@@ -126,7 +126,7 @@ export default function LoginPage() {
           <p className="text-center text-sm text-slate-500">
             אין לך חשבון?{' '}
             <Link href="/register" className="text-blue-400 hover:text-blue-300 font-medium">
-              הרשמה
+              לשליחת פנייה לפתיחת חשבון
             </Link>
           </p>
         </div>
