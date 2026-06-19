@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { buttonVariants } from '@/components/ui/button'
+import RichTextEditor from '@/components/RichTextEditor'
 import {
   Upload, ImageIcon, Trash2, X, Monitor, Smartphone,
   LayoutGrid, Plus, Check, ArrowRight, Eye, Palette, Image, Ruler, ChevronUp, ChevronDown, Video
@@ -808,14 +809,10 @@ export default function CampaignMediaClient({
 
               <div className="space-y-1">
                 <label className="text-sm font-medium text-gray-700">טקסט אודות / תיאור</label>
-                <p className="text-xs text-gray-400">מופיע כ-tagline מתחת לכותרת בהיירו ובטאב "אודות"</p>
-                <textarea
-                  value={aboutText}
-                  onChange={e => setAboutText(e.target.value)}
-                  rows={3}
-                  placeholder="כתוב כאן את תיאור הקמפיין..."
-                  className="w-full mt-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-400 resize-none"
-                />
+                <p className="text-xs text-gray-400">מופיע במקטע "אודות". אפשר להדגיש, לצבוע, לשנות גודל, ליישר ולהוסיף קישורים</p>
+                <div className="mt-1">
+                  <RichTextEditor value={aboutText} onChange={setAboutText} placeholder="כתוב כאן את תיאור הקמפיין..." />
+                </div>
               </div>
 
               <button onClick={saveBannerSettings} disabled={savingBanner}

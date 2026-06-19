@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback, useMemo, createContext, useContext } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { sanitizeHtml } from '@/lib/sanitize'
 import type { Campaign, Group } from '@/types'
 import { Search, Share2, Heart, Menu, X, ChevronDown, Globe } from 'lucide-react'
 
@@ -143,7 +144,7 @@ interface Org { id: string; name: string; slug: string; logo_url: string | null 
 interface Donation { id: string; donor_name: string | null; amount: number; dedication: string | null; created_at: string; group_id?: string | null }
 interface GalleryItem { id: string; image_url: string; caption: string | null }
 interface ActiveGroup { id: string; name: string; slug: string; goal_amount: number; raised_amount: number; manager_name: string | null; image_url?: string | null; donorCount?: number }
-interface PaymentUrls { one_time: string; hok: string; bit: string; bank: string }
+interface PaymentUrls { one_time: string; hok: string; bit: string; bank: string; one_time_en?: string; hok_en?: string }
 interface NedarimConfig { mosad: string; apiValid: string; active: boolean }
 interface Props { org: Org; campaign: Campaign; donations: Donation[]; groups: Group[]; gallery: GalleryItem[]; activeGroup?: ActiveGroup; donationUrl?: string; paymentUrls?: PaymentUrls; paymentProvider?: string; nedarim?: NedarimConfig | null }
 
@@ -1100,9 +1101,10 @@ function AboutSection({ campaign, gallery }: { campaign: Campaign; gallery: Gall
         )}
 
         {aboutText && (
-          <div className="prose prose-gray max-w-none">
-            <p className="text-gray-600 leading-relaxed whitespace-pre-wrap text-base">{aboutText}</p>
-          </div>
+          <div
+            className="kf-about text-gray-600 leading-relaxed text-base whitespace-pre-wrap break-words [&_a]:text-blue-600 [&_a]:underline"
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(aboutText) }}
+          />
         )}
     </div>
   )
@@ -1561,6 +1563,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
         primaryColor={primaryColor}
         buttonRadius={buttonRadius}
         groups={groups.map(g => ({ id: g.id, name: g.name, slug: g.slug }))}
+        lang={lang}
       />
 
       {/* Bottom padding for floating bar */}

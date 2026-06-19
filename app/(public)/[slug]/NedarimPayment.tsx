@@ -25,13 +25,15 @@ interface Props {
   slug: string
   primaryColor: string
   buttonRadius: string
+  lang?: 'he' | 'en'
   onBack: () => void
 }
 
 export default function NedarimPayment({
   mosad, apiValid, amount, tashlumim, isHok, donor, comment,
-  campaignId, groupSlug, slug, primaryColor, buttonRadius, onBack,
+  campaignId, groupSlug, slug, primaryColor, buttonRadius, lang = 'he', onBack,
 }: Props) {
+  const en = lang === 'en'
   const frameRef = useRef<HTMLIFrameElement>(null)
   const [height, setHeight] = useState(360)
   const [status, setStatus] = useState<'idle' | 'paying' | 'error'>('idle')
@@ -59,7 +61,7 @@ export default function NedarimPayment({
           window.location.href = `/${slug}/thanks`
         } else {
           setStatus('error')
-          setError(v.Message || v.message || 'התשלום לא הושלם — נסו שוב')
+          setError(v.Message || v.message || (en ? 'Payment was not completed — please try again' : 'התשלום לא הושלם — נסו שוב'))
         }
       }
     }
@@ -103,7 +105,7 @@ export default function NedarimPayment({
         ref={frameRef}
         src={`${NEDARIM_IFRAME}?Mosad=${encodeURIComponent(mosad)}`}
         style={{ width: '100%', height, border: 'none' }}
-        title="תשלום מאובטח — נדרים פלוס"
+        title={en ? 'Secure payment — Nedarim Plus' : 'תשלום מאובטח — נדרים פלוס'}
         allow="payment"
       />
 
@@ -117,16 +119,16 @@ export default function NedarimPayment({
           style={{ backgroundColor: primaryColor }}
         >
           {status === 'paying'
-            ? 'מעבד תשלום...'
+            ? (en ? 'Processing payment...' : 'מעבד תשלום...')
             : <span className="flex items-center justify-center gap-2">
-                <span className="text-sm font-bold opacity-90">{isHok ? 'אשר הוראת קבע' : 'שלם'}</span>
+                <span className="text-sm font-bold opacity-90">{isHok ? (en ? 'Confirm monthly donation' : 'אשר הוראת קבע') : (en ? 'Pay' : 'שלם')}</span>
                 {total > 0 && <span className="text-xl font-black">₪{total.toLocaleString()}</span>}
               </span>}
         </button>
         <button onClick={onBack} className="w-full text-xs text-gray-400 hover:text-gray-600">
-          ← חזרה לפרטים
+          {en ? '← Back to details' : '← חזרה לפרטים'}
         </button>
-        <p className="text-center text-xs text-gray-400">תשלום מאובטח — נדרים פלוס</p>
+        <p className="text-center text-xs text-gray-400">{en ? 'Secure payment — Nedarim Plus' : 'תשלום מאובטח — נדרים פלוס'}</p>
       </div>
     </div>
   )

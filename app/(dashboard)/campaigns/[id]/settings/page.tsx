@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import RichTextEditor from '@/components/RichTextEditor'
 
 export default function CampaignSettingsPage() {
   const router = useRouter()
@@ -140,7 +141,7 @@ export default function CampaignSettingsPage() {
             </div>
             <div className="space-y-1">
               <Label>טקסט אודות</Label>
-              <Textarea value={form.about_text} onChange={(e) => set('about_text', e.target.value)} rows={4} />
+              <RichTextEditor value={form.about_text} onChange={(html) => set('about_text', html)} placeholder="ספרו על הקמפיין... אפשר להדגיש, לצבוע, לשנות גודל, ליישר ולהוסיף קישורים" />
             </div>
 
             <div className="space-y-1">
@@ -148,7 +149,7 @@ export default function CampaignSettingsPage() {
                 טקסט אודות באנגלית
                 <span className="text-[11px] font-normal text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full">English</span>
               </Label>
-              <Textarea value={form.about_text_en} onChange={(e) => set('about_text_en', e.target.value)} rows={4} dir="ltr" placeholder="About text shown when visitors switch the page to English" />
+              <RichTextEditor value={form.about_text_en} onChange={(html) => set('about_text_en', html)} dir="ltr" placeholder="About text shown when visitors switch the page to English" />
               <p className="text-[11px] text-gray-400">מוצג כשהמבקר עובר לאנגלית בדף הגיוס. ריק = יוצג הטקסט בעברית.</p>
             </div>
 
