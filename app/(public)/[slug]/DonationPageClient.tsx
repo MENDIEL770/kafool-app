@@ -67,7 +67,7 @@ function DonorCard({ d, donorGroup, primaryColor, campaignSlug, liked, onToggleL
 
   return (
     <article
-      className={`bg-white rounded-2xl p-3.5 border border-gray-100 shadow-sm hover:shadow-md transition-shadow flex flex-col ${expanded ? 'h-auto' : 'h-[150px] overflow-hidden'}`}
+      className={`bg-white rounded-2xl p-3.5 border border-gray-100 shadow-sm hover:shadow-md transition-shadow flex flex-col ${expanded ? 'h-auto' : 'h-[176px] overflow-hidden'}`}
     >
       <div className="flex items-start gap-3">
         <div
@@ -108,7 +108,7 @@ function DonorCard({ d, donorGroup, primaryColor, campaignSlug, liked, onToggleL
 
       {ded && (
         <div className="mt-2 relative">
-          <p className={`text-sm text-gray-600 leading-relaxed whitespace-pre-line ${!expanded ? 'line-clamp-3' : ''}`}>{ded}</p>
+          <p className={`text-sm text-gray-600 leading-snug whitespace-pre-line ${!expanded ? 'line-clamp-3' : ''}`}>{ded}</p>
           {isLong && !expanded && (
             <button
               onClick={() => setExpanded(true)}
