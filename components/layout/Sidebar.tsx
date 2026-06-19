@@ -144,6 +144,7 @@ export default function Sidebar({ profile, contextOrgName, viewingOtherOrg }: Pr
 
   // super admin: leave the current org context and return to the global overview
   async function backToGlobal() {
+    try { localStorage.removeItem(DEFAULT_CAMPAIGN_KEY) } catch { /* ignore */ }
     await fetch('/api/super-admin/context', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}),
     })

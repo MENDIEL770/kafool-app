@@ -34,6 +34,9 @@ export default function OrgActions({ orgId, status, slug, ownerEmail }: {
   async function enterOrg(target: string) {
     setMenuOpen(false)
     setLoading(true)
+    // Drop the saved "default campaign" — it belongs to the previous org and
+    // would otherwise make the sidebar jump into that org's campaign.
+    try { localStorage.removeItem('kafool_default_campaign') } catch { /* ignore */ }
     await fetch('/api/super-admin/context', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orgId }),
     })
