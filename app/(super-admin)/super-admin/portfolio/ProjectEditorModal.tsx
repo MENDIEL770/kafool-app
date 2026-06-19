@@ -163,8 +163,8 @@ export default function ProjectEditorModal({
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-y" />
           </Field>
 
-          <Field label="וידאו (YouTube / Vimeo, אופציונלי)">
-            <input value={videoUrl} onChange={e => setVideoUrl(e.target.value)} placeholder="https://youtube.com/watch?v=…" dir="ltr"
+          <Field label="וידאו (YouTube / Vimeo / Google Drive, אופציונלי)">
+            <input value={videoUrl} onChange={e => setVideoUrl(e.target.value)} placeholder="YouTube / Vimeo / Google Drive — הדבק קישור" dir="ltr"
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
           </Field>
 

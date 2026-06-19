@@ -7,6 +7,9 @@ export function getVideoEmbed(url: string): string | null {
   if (yt) return `https://www.youtube.com/embed/${yt[1]}?rel=0&modestbranding=1&playsinline=1`
   const vi = url.match(/vimeo\.com\/(\d+)/)
   if (vi) return `https://player.vimeo.com/video/${vi[1]}`
+  // Google Drive share link → embeddable preview player
+  const gd = url.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?id=|.*[?&]id=)([\w-]+)/)
+  if (gd) return `https://drive.google.com/file/d/${gd[1]}/preview`
   return null
 }
 

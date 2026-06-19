@@ -873,7 +873,7 @@ export default function CampaignMediaClient({
           <div className="px-6 py-4 border-b border-gray-50">
             <h2 className="font-bold text-gray-800">סרטוני הקמפיין</h2>
             <p className="text-xs text-gray-400 mt-1">
-              קישורי YouTube / Vimeo. הסרטון המסומן כ<strong>ראשי</strong> מופיע על באנר הקמפיין ובתצוגה לרשתות;
+              קישורי YouTube / Vimeo / Google Drive. הסרטון המסומן כ<strong>ראשי</strong> מופיע על באנר הקמפיין ובתצוגה לרשתות;
               כל הסרטונים מוצגים מעל כפתור התרומה ומעל מקטע &quot;אודות&quot;.
             </p>
           </div>
@@ -892,7 +892,7 @@ export default function CampaignMediaClient({
                     <input
                       value={v.url}
                       onChange={(e) => setVideoField(i, 'url', e.target.value)}
-                      placeholder="https://youtube.com/watch?v=...  או  https://vimeo.com/..."
+                      placeholder="YouTube / Vimeo / Google Drive — הדבק קישור"
                       dir="ltr"
                       className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     />
