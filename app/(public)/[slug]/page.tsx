@@ -115,15 +115,18 @@ export default async function PublicDonationPage({ params }: { params: Promise<{
     hok:      o.kesher_url_hok  || '',
     bit:      o.kesher_url_bit  || '',
     bank:     o.kesher_url_bank || '',
+    one_time_en: '',
+    hok_en:      '',
   }
 
-  // Payment provider config — fetched separately and guarded, so if the
-  // nedarim_* columns aren't present yet the live page just stays on Kesher.
+  // Payment provider config + English Kesher links — fetched separately and
+  // guarded, so if those columns aren't present yet the live page just falls
+  // back (Kesher provider, Hebrew payment links).
   let paymentProvider = 'kesher'
   let nedarim: { mosad: string; apiValid: string; active: boolean } | null = null
   const { data: pp } = await supabase
     .from('organizations')
-    .select('payment_provider, nedarim_mosad, nedarim_api_valid, nedarim_active')
+    .select('payment_provider, nedarim_mosad, nedarim_api_valid, nedarim_active, kesher_page_url_en, kesher_url_hok_en')
     .eq('id', campaign.org_id)
     .maybeSingle()
   if (pp) {
@@ -134,6 +137,8 @@ export default async function PublicDonationPage({ params }: { params: Promise<{
       apiValid: (p.nedarim_api_valid as string) || '',
       active: !!p.nedarim_active,
     }
+    paymentUrls.one_time_en = (p.kesher_page_url_en as string) || ''
+    paymentUrls.hok_en = (p.kesher_url_hok_en as string) || ''
   }
 
   return (

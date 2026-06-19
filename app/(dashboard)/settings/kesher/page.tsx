@@ -9,6 +9,8 @@ const PAYMENT_METHODS = [
   { key: 'kesher_url_hok',  label: 'הוראת קבע',    icon: '', required: false, hint: 'קישור לדף הוראת קבע' },
   { key: 'kesher_url_bit',  label: 'ביט',           icon: '', required: false, hint: 'קישור לדף תשלום ביט' },
   { key: 'kesher_url_bank', label: 'העברה בנקאית', icon: '', required: false, hint: 'קישור לדף העברה בנקאית' },
+  { key: 'kesher_page_url_en', label: 'תרומה חד"פ — אנגלית', icon: '', required: false, hint: 'דף תשלום באנגלית לחד"פ — מוצג כשהתורם עובר לאנגלית' },
+  { key: 'kesher_url_hok_en',  label: 'הוראת קבע — אנגלית',  icon: '', required: false, hint: 'דף תשלום באנגלית להו"ק' },
 ] as const
 
 type PaymentKey = typeof PAYMENT_METHODS[number]['key']
@@ -26,6 +28,8 @@ export default function KesherSettingsPage() {
     kesher_url_hok: '',
     kesher_url_bit: '',
     kesher_url_bank: '',
+    kesher_page_url_en: '',
+    kesher_url_hok_en: '',
   })
 
   useEffect(() => {
@@ -42,7 +46,7 @@ export default function KesherSettingsPage() {
 
       const { data: org } = await supabase
         .from('organizations')
-        .select('kesher_page_url, kesher_url_hok, kesher_url_bit, kesher_url_bank, payment_provider, nedarim_mosad, nedarim_api_valid')
+        .select('kesher_page_url, kesher_url_hok, kesher_url_bit, kesher_url_bank, kesher_page_url_en, kesher_url_hok_en, payment_provider, nedarim_mosad, nedarim_api_valid')
         .eq('id', profile.org_id)
         .single()
 
@@ -55,6 +59,8 @@ export default function KesherSettingsPage() {
           kesher_url_hok:  o.kesher_url_hok  || '',
           kesher_url_bit:  o.kesher_url_bit  || '',
           kesher_url_bank: o.kesher_url_bank || '',
+          kesher_page_url_en: o.kesher_page_url_en || '',
+          kesher_url_hok_en:  o.kesher_url_hok_en  || '',
         })
       }
     }
@@ -72,6 +78,8 @@ export default function KesherSettingsPage() {
       kesher_url_hok:  urls.kesher_url_hok  || null,
       kesher_url_bit:  urls.kesher_url_bit  || null,
       kesher_url_bank: urls.kesher_url_bank || null,
+      kesher_page_url_en: urls.kesher_page_url_en || null,
+      kesher_url_hok_en:  urls.kesher_url_hok_en  || null,
       nedarim_mosad:     nedarim.mosad.trim() || null,
       nedarim_api_valid: nedarim.apiValid.trim() || null,
       nedarim_active:    provider === 'nedarim',

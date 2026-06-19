@@ -5,17 +5,26 @@ import { X, CreditCard, RefreshCw, Smartphone, Landmark } from 'lucide-react'
 import NedarimPayment from './NedarimPayment'
 
 interface Group { id: string; name: string; slug: string }
-interface PaymentUrls { one_time: string; hok: string; bit: string; bank: string }
+interface PaymentUrls { one_time: string; hok: string; bit: string; bank: string; one_time_en?: string; hok_en?: string }
 interface NedarimConfig { mosad: string; apiValid: string; active: boolean }
 
+type Lang = 'he' | 'en'
+
 const PAYMENT_METHODS = [
-  { key: 'one_time', label: 'תרומה חד"פ',   Icon: CreditCard  },
-  { key: 'hok',      label: 'הוראת קבע',    Icon: RefreshCw   },
-  { key: 'bit',      label: 'ביט',           Icon: Smartphone  },
-  { key: 'bank',     label: 'העברה בנקאית', Icon: Landmark    },
+  { key: 'one_time', Icon: CreditCard  },
+  { key: 'hok',      Icon: RefreshCw   },
+  { key: 'bit',      Icon: Smartphone  },
+  { key: 'bank',     Icon: Landmark    },
 ] as const
 
 type PaymentMethod = typeof PAYMENT_METHODS[number]['key']
+
+const METHOD_LABEL: Record<PaymentMethod, [string, string]> = {
+  one_time: ['תרומה חד"פ', 'One-time'],
+  hok:      ['הוראת קבע', 'Monthly'],
+  bit:      ['ביט', 'Bit'],
+  bank:     ['העברה בנקאית', 'Bank transfer'],
+}
 
 interface Props {
   isOpen: boolean
@@ -32,6 +41,7 @@ interface Props {
   primaryColor: string
   buttonRadius: string
   groups: Group[]
+  lang?: Lang
 }
 
 export default function DonationModal({
@@ -49,7 +59,37 @@ export default function DonationModal({
   primaryColor,
   buttonRadius,
   groups,
+  lang = 'he',
 }: Props) {
+  const en = lang === 'en'
+  const T = {
+    securePay: en ? 'Secure payment' : 'תשלום מאובטח',
+    donorDetails: en ? 'Donor details' : 'פרטי התורם',
+    amountLabel: en ? 'Donation amount' : 'סכום התרומה',
+    amountPh: en ? 'Enter amount...' : 'הזן סכום...',
+    paymentMethod: en ? 'Payment method' : 'אמצעי תשלום',
+    hokMonths: en ? 'Number of monthly payments' : 'מספר חודשי הוראת הקבע',
+    anonymous: en ? 'Anonymous donation' : 'תרומה אנונימית',
+    firstName: en ? 'First name' : 'שם',
+    lastName: en ? 'Last name' : 'שם משפחה',
+    phone: en ? 'Phone' : 'טלפון',
+    email: en ? 'Email' : 'אימייל',
+    dedication: en ? 'Dedication' : 'הקדשה',
+    optional: en ? '(optional)' : '(אופציונלי)',
+    dedicationPh: en ? 'In memory of / for the recovery of / in honor of...' : 'לע"נ / לרפואת / לכבוד...',
+    group: en ? 'Assign to group' : 'שיוך לקבוצה',
+    noGroup: en ? 'No group' : 'ללא קבוצה',
+    noCreditHold: en ? '* Does not hold your credit limit' : '* לא תופס את מסגרת האשראי',
+    continueToPay: en ? 'Continue to payment' : 'המשך לתשלום',
+    fillRequired: en ? 'Please enter name, phone and email to continue (or check "Anonymous donation")' : 'יש למלא שם, טלפון ואימייל כדי להמשיך (או לסמן "תרומה אנונימית")',
+    perMonth: en ? '/mo' : 'לחודש',
+    months: en ? 'months' : 'חודשים',
+    total: en ? 'total' : 'בסך הכל',
+    notConfigured: en ? 'Payment page not set up yet' : 'דף התשלום טרם הוגדר',
+    notConfiguredSub: en ? 'Set a payment link in the organization settings' : 'יש להגדיר קישור תשלום בהגדרות הארגון',
+    back: en ? '← Back' : '← חזרה',
+    backToDetails: en ? '← Back to details' : '← חזרה לפרטים',
+  }
   const useNedarim = paymentProvider === 'nedarim' && !!nedarim?.active && !!nedarim?.mosad && !!nedarim?.apiValid
   const [step, setStep] = useState<'details' | 'payment'>('details')
   const [amount, setAmount] = useState(typeof presetAmount === 'number' ? presetAmount : 0)
@@ -65,7 +105,9 @@ export default function DonationModal({
   const hasMultipleMethods = availableMethods.length > 1
 
   function getActiveUrl(): string {
-    if (paymentMethod === 'one_time') return donationUrl
+    // In English, use the English Kesher page for חד"פ / הו"ק when configured.
+    if (paymentMethod === 'one_time') return (en && paymentUrls?.one_time_en) || donationUrl
+    if (paymentMethod === 'hok') return (en && paymentUrls?.hok_en) || paymentUrls?.hok || donationUrl
     return paymentUrls?.[paymentMethod] || donationUrl
   }
   const [form, setForm] = useState({
@@ -163,7 +205,7 @@ export default function DonationModal({
         <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-gray-100 shrink-0">
           <div>
             <h2 className="font-black text-gray-900 text-lg">
-              {step === 'payment' ? 'תשלום מאובטח' : 'פרטי התורם'}
+              {step === 'payment' ? T.securePay : T.donorDetails}
             </h2>
             <p className="text-xs text-gray-400 mt-0.5">{campaign.title}</p>
           </div>
@@ -172,7 +214,7 @@ export default function DonationModal({
               <span className="font-black text-base text-left leading-tight" style={{ color: primaryColor }}>
                 ₪{finalAmount.toLocaleString()}
                 {paymentMethod === 'hok' && months > 0 && (
-                  <span className="block text-[10px] font-bold opacity-80">לחודש × {months} ח׳</span>
+                  <span className="block text-[10px] font-bold opacity-80">{T.perMonth} × {months}</span>
                 )}
               </span>
             )}
@@ -191,12 +233,12 @@ export default function DonationModal({
           {/* Step: Amount (if no preset) */}
           {step === 'details' && !presetAmount && amount === 0 && (
             <div className="px-5 py-4 border-b border-gray-100">
-              <label className="text-xs font-medium text-gray-500 block mb-2">סכום התרומה</label>
+              <label className="text-xs font-medium text-gray-500 block mb-2">{T.amountLabel}</label>
               <input
                 type="number"
                 value={customAmount}
                 onChange={e => setCustomAmount(e.target.value)}
-                placeholder="הזן סכום..."
+                placeholder={T.amountPh}
                 className="w-full border border-gray-200 rounded-xl px-4 py-3 text-lg font-bold text-center outline-none focus:ring-2"
                 style={{ '--tw-ring-color': primaryColor } as React.CSSProperties}
                 dir="ltr"
@@ -212,7 +254,7 @@ export default function DonationModal({
               {/* אמצעי תשלום — מתחת לשדה סכום התרומה */}
               {hasMultipleMethods && (
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-gray-500">אמצעי תשלום</label>
+                  <label className="text-xs font-medium text-gray-500">{T.paymentMethod}</label>
                   <div className="grid grid-cols-2 gap-2">
                     {availableMethods.map(m => (
                       <button
@@ -227,7 +269,7 @@ export default function DonationModal({
                         style={paymentMethod === m.key ? { borderColor: primaryColor, color: primaryColor, backgroundColor: `${primaryColor}10` } : {}}
                       >
                         <m.Icon className="w-4 h-4 shrink-0" />
-                        {m.label}
+                        {METHOD_LABEL[m.key][en ? 1 : 0]}
                       </button>
                     ))}
                   </div>
@@ -237,17 +279,17 @@ export default function DonationModal({
               {/* standing-order duration — chosen in the form, sent to Kesher */}
               {paymentMethod === 'hok' && (
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-gray-500">מספר חודשי הוראת הקבע</label>
+                  <label className="text-xs font-medium text-gray-500">{T.hokMonths}</label>
                   <select
                     value={months}
                     onChange={e => setMonths(Number(e.target.value))}
                     className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-400 bg-white"
                   >
-                    {[6, 12, 18, 24, 36, 48, 60].map(m => <option key={m} value={m}>{m} חודשים</option>)}
+                    {[6, 12, 18, 24, 36, 48, 60].map(m => <option key={m} value={m}>{m} {T.months}</option>)}
                   </select>
                   {finalAmount > 0 && months > 0 && (
                     <p className="text-xs text-gray-600 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2 text-center">
-                      ₪{finalAmount.toLocaleString()} לחודש × {months} חודשים = <strong className="text-gray-900">₪{(finalAmount * months).toLocaleString()}</strong> בסך הכל
+                      ₪{finalAmount.toLocaleString()} {T.perMonth} × {months} {T.months} = <strong className="text-gray-900">₪{(finalAmount * months).toLocaleString()}</strong> {T.total}
                     </p>
                   )}
                 </div>
@@ -261,32 +303,32 @@ export default function DonationModal({
                   className="w-4 h-4"
                   style={{ accentColor: primaryColor }}
                 />
-                <span className="text-sm text-gray-600">תרומה אנונימית</span>
+                <span className="text-sm text-gray-600">{T.anonymous}</span>
               </label>
 
               {!form.anonymous && (
                 <>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <label className="text-xs font-medium text-gray-500">שם <span className="text-red-400">*</span></label>
+                      <label className="text-xs font-medium text-gray-500">{T.firstName} <span className="text-red-400">*</span></label>
                       <input value={form.firstName} onChange={e => setField('firstName', e.target.value)}
                         className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-400" />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-xs font-medium text-gray-500">שם משפחה</label>
+                      <label className="text-xs font-medium text-gray-500">{T.lastName}</label>
                       <input value={form.lastName} onChange={e => setField('lastName', e.target.value)}
                         className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-400" />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <label className="text-xs font-medium text-gray-500">טלפון <span className="text-red-400">*</span></label>
+                      <label className="text-xs font-medium text-gray-500">{T.phone} <span className="text-red-400">*</span></label>
                       <input type="tel" value={form.phone} onChange={e => setField('phone', e.target.value)}
                         className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-400"
                         dir="ltr" placeholder="050-0000000" />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-xs font-medium text-gray-500">אימייל <span className="text-red-400">*</span></label>
+                      <label className="text-xs font-medium text-gray-500">{T.email} <span className="text-red-400">*</span></label>
                       <input type="email" value={form.email} onChange={e => setField('email', e.target.value)}
                         className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-400"
                         dir="ltr" placeholder="you@example.com" />
@@ -297,21 +339,21 @@ export default function DonationModal({
 
               <div className="space-y-1">
                 <label className="text-xs font-medium text-gray-500">
-                  הקדשה <span className="text-gray-300">(אופציונלי)</span>
+                  {T.dedication} <span className="text-gray-300">{T.optional}</span>
                 </label>
                 <textarea value={form.dedication} onChange={e => setField('dedication', e.target.value)}
-                  placeholder='לע"נ / לרפואת / לכבוד...' rows={2}
+                  placeholder={T.dedicationPh} rows={2}
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-400 resize-none" />
               </div>
 
               {groups.length > 0 && (
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-gray-500">
-                    שיוך לקבוצה <span className="text-gray-300">(אופציונלי)</span>
+                    {T.group} <span className="text-gray-300">{T.optional}</span>
                   </label>
                   <select value={selectedGroupSlug} onChange={e => setSelectedGroupSlug(e.target.value)}
                     className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-400 bg-white">
-                    <option value="">ללא קבוצה</option>
+                    <option value="">{T.noGroup}</option>
                     {groups.map(g => <option key={g.id} value={g.slug}>{g.name}</option>)}
                   </select>
                 </div>
@@ -319,7 +361,7 @@ export default function DonationModal({
 
               {/* בולט מודגש לפני התשלום */}
               {paymentMethod === 'hok' && (
-                <p className="text-sm font-bold text-center text-gray-800">* לא תופס את מסגרת האשראי</p>
+                <p className="text-sm font-bold text-center text-gray-800">{T.noCreditHold}</p>
               )}
 
               <button
@@ -341,7 +383,7 @@ export default function DonationModal({
                   const total = paymentMethod === 'hok' ? finalAmount * months : finalAmount
                   return (
                     <span className="flex items-center justify-center gap-2">
-                      <span className="text-sm font-bold opacity-90">המשך לתשלום</span>
+                      <span className="text-sm font-bold opacity-90">{T.continueToPay}</span>
                       {total > 0 && <span className="text-xl font-black">₪{total.toLocaleString()}</span>}
                     </span>
                   )
@@ -350,12 +392,12 @@ export default function DonationModal({
 
               {!form.anonymous && finalAmount > 0 && !detailsValid && (
                 <p className="text-center text-xs text-amber-600 -mt-1">
-                  יש למלא שם, טלפון ואימייל כדי להמשיך (או לסמן "תרומה אנונימית")
+                  {T.fillRequired}
                 </p>
               )}
 
               <p className="text-center text-xs text-gray-400 flex items-center justify-center gap-1">
-                <span></span> תשלום מאובטח — {useNedarim ? 'נדרים פלוס' : 'קשר'}
+                <span></span> {T.securePay} — {useNedarim ? 'נדרים פלוס' : 'קשר'}
               </p>
             </div>
           )}
@@ -375,6 +417,7 @@ export default function DonationModal({
               slug={campaign.slug}
               primaryColor={primaryColor}
               buttonRadius={buttonRadius}
+              lang={lang}
               onBack={() => setStep('details')}
             />
           )}
@@ -387,10 +430,10 @@ export default function DonationModal({
               return (
                 <div className="px-5 py-10 text-center space-y-3">
                   <div className="text-4xl"></div>
-                  <p className="font-bold text-gray-700">דף התשלום טרם הוגדר</p>
-                  <p className="text-sm text-gray-400">יש להגדיר קישור תשלום בהגדרות הארגון</p>
+                  <p className="font-bold text-gray-700">{T.notConfigured}</p>
+                  <p className="text-sm text-gray-400">{T.notConfiguredSub}</p>
                   <button onClick={() => setStep('details')} className="text-sm text-blue-500 hover:underline">
-                    ← חזרה
+                    {T.back}
                   </button>
                 </div>
               )
@@ -401,12 +444,12 @@ export default function DonationModal({
                   src={payUrl}
                   className="w-full"
                   style={{ height: '520px', border: 'none' }}
-                  title="דף תשלום מאובטח"
+                  title={T.securePay}
                   allow="payment"
                 />
                 <div className="px-5 pb-4 pt-2 text-center">
                   <button onClick={() => setStep('details')} className="text-xs text-gray-400 hover:text-gray-600">
-                    ← חזרה לפרטים
+                    {T.backToDetails}
                   </button>
                 </div>
               </div>
