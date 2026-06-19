@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { X, Building2, User, Mail, Phone, Link2, Send, Plus, Lock } from 'lucide-react'
+import { X, Building2, User, Mail, Phone, Send, Plus, Lock } from 'lucide-react'
 
 interface Props {
   onClose: () => void
@@ -13,11 +13,9 @@ export default function CreateOrgModal({ onClose }: Props) {
   const [step, setStep] = useState<'form' | 'success'>('form')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [createdSlug, setCreatedSlug] = useState('')
 
   const [form, setForm] = useState({
     orgName: '',
-    slug: '',
     ownerName: '',
     ownerEmail: '',
     ownerPhone: '',
@@ -26,24 +24,13 @@ export default function CreateOrgModal({ onClose }: Props) {
     ownerPasswordConfirm: '',
   })
 
-  function autoSlug(name: string) {
-    return name
-      .toLowerCase()
-      .replace(/\s+/g, '-')
-      .replace(/[^a-z0-9-]/g, '')
-      .slice(0, 30)
-  }
-
   function set(key: keyof typeof form, val: string | boolean) {
     setForm(f => ({ ...f, [key]: val }))
-    if (key === 'orgName' && typeof val === 'string' && !form.slug) {
-      setForm(f => ({ ...f, orgName: val, slug: autoSlug(val) }))
-    }
   }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
-    if (!form.orgName || !form.slug) { setError('שם ארגון ו-slug הם חובה'); return }
+    if (!form.orgName) { setError('שם הארגון הוא חובה'); return }
     if (form.ownerEmail && form.accountMode === 'password') {
       if (form.ownerPassword.length < 6) { setError('הסיסמה חייבת להכיל לפחות 6 תווים'); return }
       if (form.ownerPassword !== form.ownerPasswordConfirm) { setError('הסיסמאות אינן תואמות'); return }
@@ -56,7 +43,6 @@ export default function CreateOrgModal({ onClose }: Props) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         orgName: form.orgName,
-        slug: form.slug,
         ownerName: form.ownerName,
         ownerEmail: form.ownerEmail,
         ownerPhone: form.ownerPhone,
@@ -69,7 +55,6 @@ export default function CreateOrgModal({ onClose }: Props) {
 
     if (!res.ok) { setError(data.error || 'שגיאה'); return }
 
-    setCreatedSlug(data.slug)
     setStep('success')
     router.refresh()
   }
@@ -111,23 +96,6 @@ export default function CreateOrgModal({ onClose }: Props) {
                   placeholder="ישיבת... / עמותת... / מוסד..."
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition"
                 />
-              </div>
-
-              {/* Slug */}
-              <div>
-                <label className="text-xs font-semibold text-gray-500 mb-1.5 flex items-center gap-1.5">
-                  <Link2 className="w-3.5 h-3.5" /> כתובת (slug) *
-                </label>
-                <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-400 transition">
-                  <span className="px-3 py-2.5 bg-gray-50 text-xs text-gray-400 border-l border-gray-200 shrink-0">kafool.com/</span>
-                  <input
-                    value={form.slug}
-                    onChange={e => set('slug', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
-                    placeholder="org-slug"
-                    className="flex-1 px-3 py-2.5 text-sm outline-none bg-white"
-                    dir="ltr"
-                  />
-                </div>
               </div>
 
               <div className="border-t border-gray-100 pt-4">
@@ -241,7 +209,7 @@ export default function CreateOrgModal({ onClose }: Props) {
                 </button>
                 <button
                   type="submit"
-                  disabled={loading || !form.orgName || !form.slug}
+                  disabled={loading || !form.orgName}
                   className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 transition disabled:opacity-50"
                 >
                   {loading ? 'יוצר...' : 'צור ארגון'}
@@ -263,9 +231,7 @@ export default function CreateOrgModal({ onClose }: Props) {
                   : 'הארגון מוכן לשימוש'}
               </p>
             </div>
-            <div className="bg-gray-50 rounded-xl px-4 py-3 text-sm font-mono text-gray-600" dir="ltr">
-              kafool.com/{createdSlug}
-            </div>
+            <p className="text-xs text-gray-400">כתובת דף הגיוס (slug) תיקבע בעת יצירת הקמפיין הראשון.</p>
             <button
               onClick={onClose}
               className="w-full py-3 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 transition"

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdmin } from '@supabase/supabase-js'
+import { toSlug } from '@/lib/media'
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
@@ -10,8 +11,8 @@ export async function POST(req: NextRequest) {
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
   if (profile?.role !== 'super_admin') return NextResponse.json({ error: 'אין הרשאה' }, { status: 403 })
 
-  const { orgName, slug, ownerEmail, ownerName, ownerPhone, ownerPassword, sendInvite } = await req.json()
-  if (!orgName || !slug) return NextResponse.json({ error: 'חסרים שדות חובה' }, { status: 400 })
+  const { orgName, ownerEmail, ownerName, ownerPhone, ownerPassword, sendInvite } = await req.json()
+  if (!orgName) return NextResponse.json({ error: 'שם ארגון הוא חובה' }, { status: 400 })
   if (ownerPassword && String(ownerPassword).length < 6) {
     return NextResponse.json({ error: 'הסיסמה חייבת להכיל לפחות 6 תווים' }, { status: 400 })
   }
@@ -21,9 +22,15 @@ export async function POST(req: NextRequest) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  // Check slug availability
-  const { data: existing } = await adminClient.from('organizations').select('id').eq('slug', slug).single()
-  if (existing) return NextResponse.json({ error: 'Slug תפוס' }, { status: 409 })
+  // Auto-generate a unique org slug (the public donation-page slug is chosen
+  // later, per campaign). The org slug is just an internal handle.
+  const root = toSlug(orgName) || `org-${Math.random().toString(36).slice(2, 8)}`
+  let slug = root
+  for (let i = 0; i < 25; i++) {
+    const { data: taken } = await adminClient.from('organizations').select('id').eq('slug', slug).maybeSingle()
+    if (!taken) break
+    slug = `${root}-${i + 2}`
+  }
 
   // Create org
   const { data: org, error: orgError } = await adminClient
