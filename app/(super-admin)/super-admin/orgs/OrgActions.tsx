@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { LogIn, Send, ChevronDown } from 'lucide-react'
+import { LogIn, Send, ChevronDown, KeyRound } from 'lucide-react'
 
 export default function OrgActions({ orgId, status, slug, ownerEmail }: {
   orgId: string
@@ -42,6 +42,19 @@ export default function OrgActions({ orgId, status, slug, ownerEmail }: {
     })
     router.push(target)
     router.refresh()
+  }
+
+  async function resetPassword() {
+    setMenuOpen(false)
+    const password = window.prompt('הזן סיסמה חדשה לבעל הארגון (לפחות 6 תווים):')
+    if (!password) return
+    setLoading(true)
+    const res = await fetch('/api/super-admin/orgs/set-password', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orgId, password }),
+    })
+    const data = await res.json().catch(() => ({}))
+    setLoading(false)
+    alert(res.ok ? 'הסיסמה עודכנה — אפשר להתחבר עם המייל והסיסמה החדשה.' : (data.error || 'עדכון הסיסמה נכשל'))
   }
 
   async function sendLoginLink() {
@@ -107,6 +120,15 @@ export default function OrgActions({ orgId, status, slug, ownerEmail }: {
               >
                 <Send className="w-3 h-3" />
                 {sending ? 'יוצר...' : 'העתק קישור כניסה'}
+              </button>
+
+              {/* Reset owner password */}
+              <button
+                onClick={resetPassword}
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                <KeyRound className="w-3 h-3" />
+                אפס סיסמה לבעלים
               </button>
 
               <div className="border-t border-gray-100 my-1" />
