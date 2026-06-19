@@ -18,6 +18,7 @@ type PaymentKey = typeof PAYMENT_METHODS[number]['key']
 export default function KesherSettingsPage() {
   const [loading, setLoading] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [orgId, setOrgId] = useState<string | null>(null)
   const [webhookUrl, setWebhookUrl] = useState('')
@@ -72,7 +73,7 @@ export default function KesherSettingsPage() {
     if (!orgId) return
     setLoading(true)
     const supabase = createClient()
-    await supabase.from('organizations').update({
+    const { error } = await supabase.from('organizations').update({
       payment_provider: provider,
       kesher_page_url: urls.kesher_page_url || null,
       kesher_url_hok:  urls.kesher_url_hok  || null,
@@ -85,6 +86,8 @@ export default function KesherSettingsPage() {
       nedarim_active:    provider === 'nedarim',
     }).eq('id', orgId)
     setLoading(false)
+    if (error) { setSaveError(error.message); return }
+    setSaveError(null)
     setSaved(true)
     setTimeout(() => setSaved(false), 3000)
   }
@@ -231,6 +234,13 @@ export default function KesherSettingsPage() {
             </div>
           </div>
         </div>
+        )}
+
+        {saveError && (
+          <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-2.5">
+            השמירה נכשלה: {saveError}
+            {/column .* does not exist|schema cache/i.test(saveError) && ' — צריך להריץ את מיגרציית קישורי האנגלית ב-Supabase.'}
+          </div>
         )}
 
         <button
