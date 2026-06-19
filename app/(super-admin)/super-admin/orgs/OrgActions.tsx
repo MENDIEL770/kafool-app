@@ -46,15 +46,19 @@ export default function OrgActions({ orgId, status, slug, ownerEmail }: {
 
   async function resetPassword() {
     setMenuOpen(false)
-    const password = window.prompt('הזן סיסמה חדשה לבעל הארגון (לפחות 6 תווים):')
+    const email = (window.prompt('מייל הבעלים (נדרש רק אם עדיין אין חשבון לארגון — אחרת אפשר להשאיר ריק):') || '').trim()
+    const password = window.prompt('סיסמה לבעל הארגון (לפחות 6 תווים):')
     if (!password) return
     setLoading(true)
     const res = await fetch('/api/super-admin/orgs/set-password', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orgId, password }),
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orgId, email, password }),
     })
     const data = await res.json().catch(() => ({}))
     setLoading(false)
-    alert(res.ok ? 'הסיסמה עודכנה — אפשר להתחבר עם המייל והסיסמה החדשה.' : (data.error || 'עדכון הסיסמה נכשל'))
+    if (res.ok) router.refresh()
+    alert(res.ok
+      ? (data.created ? 'החשבון נוצר — אפשר להתחבר עם המייל והסיסמה.' : 'הסיסמה עודכנה — אפשר להתחבר.')
+      : (data.error || 'הפעולה נכשלה'))
   }
 
   async function sendLoginLink() {
@@ -128,7 +132,7 @@ export default function OrgActions({ orgId, status, slug, ownerEmail }: {
                 className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
               >
                 <KeyRound className="w-3 h-3" />
-                אפס סיסמה לבעלים
+                הגדר/אפס סיסמת בעלים
               </button>
 
               <div className="border-t border-gray-100 my-1" />

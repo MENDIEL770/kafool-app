@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
   if (profile?.role !== 'super_admin') return NextResponse.json({ error: 'אין הרשאה' }, { status: 403 })
 
-  const { orgId, password } = await req.json().catch(() => ({}))
+  const { orgId, email, password } = await req.json().catch(() => ({}))
   if (!orgId) return NextResponse.json({ error: 'חסר מזהה ארגון' }, { status: 400 })
   if (!password || String(password).length < 6) {
     return NextResponse.json({ error: 'הסיסמה חייבת להכיל לפחות 6 תווים' }, { status: 400 })
@@ -22,11 +22,36 @@ export async function POST(req: NextRequest) {
 
   const admin = createAdmin(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
   const { data: org } = await admin.from('organizations').select('owner_id').eq('id', orgId).maybeSingle()
-  if (!org?.owner_id) {
-    return NextResponse.json({ error: 'לארגון אין חשבון בעלים מקושר. צור חשבון דרך "ארגון חדש".' }, { status: 400 })
+  if (!org) return NextResponse.json({ error: 'הארגון לא נמצא' }, { status: 404 })
+
+  // 1) Owner already linked → just reset their password.
+  if (org.owner_id) {
+    const { error } = await admin.auth.admin.updateUserById(org.owner_id, { password: String(password), email_confirm: true })
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ ok: true, created: false })
   }
 
-  const { error } = await admin.auth.admin.updateUserById(org.owner_id, { password: String(password), email_confirm: true })
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ ok: true })
+  // 2) No owner yet → create (or link an existing user) using the provided email.
+  const mail = String(email || '').trim().toLowerCase()
+  if (!mail) return NextResponse.json({ error: 'לארגון אין בעלים — יש להזין מייל כדי ליצור חשבון.' }, { status: 400 })
+
+  const { data: list } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 })
+  let userId = list?.users.find(u => (u.email || '').toLowerCase() === mail)?.id || null
+
+  if (userId) {
+    const { error: upErr } = await admin.auth.admin.updateUserById(userId, { password: String(password), email_confirm: true })
+    if (upErr) return NextResponse.json({ error: upErr.message }, { status: 500 })
+  } else {
+    const { data: created, error: createErr } = await admin.auth.admin.createUser({
+      email: mail, password: String(password), email_confirm: true,
+      user_metadata: { org_id: orgId, role: 'admin' },
+    })
+    if (createErr || !created?.user) return NextResponse.json({ error: createErr?.message || 'יצירת החשבון נכשלה' }, { status: 500 })
+    userId = created.user.id
+  }
+
+  // link profile → org and set org owner + activate
+  await admin.from('profiles').update({ org_id: orgId, role: 'admin' }).eq('id', userId)
+  await admin.from('organizations').update({ owner_id: userId, status: 'active' }).eq('id', orgId)
+  return NextResponse.json({ ok: true, created: true })
 }
