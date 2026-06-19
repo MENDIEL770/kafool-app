@@ -58,7 +58,7 @@ const kafoolPlusItems = [
 
 const settingsItems = [
   { href: '/team', label: 'צוות', icon: UserCog },
-  { href: '/settings/kesher', label: 'חיבור קשר', icon: CreditCard },
+  { href: '/settings/kesher', label: 'חיבור לתשלום', icon: CreditCard },
   { href: '/settings', label: 'הגדרות', icon: Settings },
 ]
 
