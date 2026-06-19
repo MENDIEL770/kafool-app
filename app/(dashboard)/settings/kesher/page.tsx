@@ -94,13 +94,17 @@ export default function KesherSettingsPage() {
     setTimeout(() => setSaved(false), 3000)
   }
 
-  function copyWebhook() {
-    navigator.clipboard.writeText(webhookUrl)
+  function copyWebhook(url: string) {
+    navigator.clipboard.writeText(url)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
 
   const isConnected = provider === 'kesher' ? !!urls.kesher_page_url : (!!nedarim.mosad && !!nedarim.apiValid)
+  // Nedarim posts its CallBack from a server, so use www to avoid a redirect.
+  const nedarimWebhookUrl = webhookUrl
+    .replace('/api/webhooks/kesher', '/api/webhooks/nedarim')
+    .replace('https://kafool.com', 'https://www.kafool.com')
 
   return (
     <div className="max-w-2xl mx-auto space-y-6" dir="rtl">
@@ -154,7 +158,31 @@ export default function KesherSettingsPage() {
           <span className="text-xs font-mono text-gray-600 flex-1 break-all" dir="ltr">{webhookUrl}</span>
           <button
             type="button"
-            onClick={copyWebhook}
+            onClick={() => copyWebhook(webhookUrl)}
+            className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 font-semibold shrink-0 transition-colors"
+          >
+            {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+            {copied ? 'הועתק!' : 'העתק'}
+          </button>
+        </div>
+      </div>
+      )}
+
+      {/* Webhook card — נדרים פלוס */}
+      {provider === 'nedarim' && (
+      <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 space-y-3">
+        <div className="flex items-center gap-2">
+          <Info className="w-4 h-4 text-blue-500 shrink-0" />
+          <h2 className="font-bold text-blue-800 text-sm">כתובת ה-Webhook שלך (CallBack)</h2>
+        </div>
+        <p className="text-xs text-blue-600 leading-relaxed">
+          הדבק כתובת זו בהגדרות המוסד בנדרים פלוס, בשדה ה-CallBack — כך תרומות יירשמו אוטומטית במערכת.
+        </p>
+        <div className="flex items-center gap-2 bg-white border border-blue-200 rounded-xl px-4 py-2.5">
+          <span className="text-xs font-mono text-gray-600 flex-1 break-all" dir="ltr">{nedarimWebhookUrl}</span>
+          <button
+            type="button"
+            onClick={() => copyWebhook(nedarimWebhookUrl)}
             className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 font-semibold shrink-0 transition-colors"
           >
             {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
