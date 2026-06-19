@@ -47,37 +47,85 @@ const STR = {
   readLess: ['הצג פחות', 'Show less'],
 } as const
 
-// Dedication text — clamped to 2 lines so all donor cards stay the same size.
-// When long, a bold "read more" sits at the end of the last visible line; click
-// it to expand the card and reveal the full text.
-function Dedication({ text, primaryColor }: { text: string; primaryColor: string }) {
-  const [expanded, setExpanded] = useState(false)
+// Donor card — fixed uniform height regardless of dedication length (up to 3
+// lines fit). Long dedications show a bold "show more" at the end of the last
+// line; clicking it expands just that card to reveal the full text.
+function DonorCard({ d, donorGroup, primaryColor, campaignSlug, liked, onToggleLike }: {
+  d: Donation
+  donorGroup: Group | null | undefined
+  primaryColor: string
+  campaignSlug: string
+  liked: boolean
+  onToggleLike: () => void
+}) {
   const t = useT()
-  const isLong = text.length > 120 // ~more than 3 lines
+  const lang = useLang()
+  const [expanded, setExpanded] = useState(false)
+  const ded = d.dedication
+  // "Long" = would exceed 3 lines, by character count OR by explicit line breaks.
+  const isLong = (ded?.length ?? 0) > 120 || (ded ? ded.split('\n').length > 3 : false)
+
   return (
-    <div className="mt-3">
-      <div className="relative">
-        <p
-          className={`text-sm text-gray-600 leading-relaxed whitespace-pre-line ${!expanded && isLong ? 'line-clamp-3' : ''}`}
+    <article
+      className={`bg-white rounded-2xl p-3.5 border border-gray-100 shadow-sm hover:shadow-md transition-shadow flex flex-col ${expanded ? 'h-auto' : 'h-[150px] overflow-hidden'}`}
+    >
+      <div className="flex items-start gap-3">
+        <div
+          className="w-10 h-10 rounded-full flex items-center justify-center text-base font-black shrink-0"
+          style={{ backgroundColor: `${primaryColor}1A`, color: primaryColor }}
+          aria-hidden
         >
-          {text}
-        </p>
-        {isLong && !expanded && (
-          <button
-            onClick={() => setExpanded(true)}
-            className="absolute bottom-0 left-0 text-sm font-bold pr-8 bg-gradient-to-r from-white via-white to-transparent"
-            style={{ color: primaryColor }}
-          >
-            {t('readMore')}
-          </button>
-        )}
+          {donorInitials(d.donor_name || t('anonymous'))}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="font-bold text-base text-gray-900 leading-tight line-clamp-1">{d.donor_name || t('anonymous')}</div>
+          <div className="flex items-center justify-between gap-2 mt-1">
+            <span className="text-xs text-gray-400" suppressHydrationWarning>{relativeTime(d.created_at, lang)}</span>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span className="text-lg font-black leading-none" style={{ color: primaryColor }}>₪{d.amount.toLocaleString()}</span>
+              <button
+                onClick={onToggleLike}
+                aria-label={liked ? 'הסר לייק' : 'תן לייק'}
+                aria-pressed={liked}
+                className="transition-colors"
+                style={{ color: liked ? '#ef4444' : '#d1d5db' }}
+              >
+                <Heart className={`w-3.5 h-3.5 ${liked ? 'fill-red-500' : ''}`} />
+              </button>
+            </div>
+          </div>
+          {donorGroup && (
+            <a
+              href={`/${campaignSlug}/g/${donorGroup.slug}`}
+              className="flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold hover:opacity-80 transition-opacity max-w-full w-fit"
+              style={{ backgroundColor: `${primaryColor}1A`, color: primaryColor }}
+            >
+              <span className="truncate">{t('via')} {donorGroup.name}</span>
+            </a>
+          )}
+        </div>
       </div>
-      {isLong && expanded && (
-        <button onClick={() => setExpanded(false)} className="text-sm font-bold mt-1" style={{ color: primaryColor }}>
-          {t('readLess')}
-        </button>
+
+      {ded && (
+        <div className="mt-2 relative">
+          <p className={`text-sm text-gray-600 leading-relaxed whitespace-pre-line ${!expanded ? 'line-clamp-3' : ''}`}>{ded}</p>
+          {isLong && !expanded && (
+            <button
+              onClick={() => setExpanded(true)}
+              className="absolute bottom-0 left-0 text-sm font-bold pr-8 bg-gradient-to-r from-white via-white to-transparent"
+              style={{ color: primaryColor }}
+            >
+              {t('readMore')}
+            </button>
+          )}
+          {isLong && expanded && (
+            <button onClick={() => setExpanded(false)} className="text-sm font-bold mt-1" style={{ color: primaryColor }}>
+              {t('readLess')}
+            </button>
+          )}
+        </div>
       )}
-    </div>
+    </article>
   )
 }
 
@@ -105,6 +153,9 @@ function getVideoEmbed(url: string): string | null {
   if (yt) return `https://www.youtube.com/embed/${yt[1]}?rel=0&autoplay=1&modestbranding=1&playsinline=1&disablekb=0`
   const vi = url.match(/vimeo\.com\/(\d+)/)
   if (vi) return `https://player.vimeo.com/video/${vi[1]}?autoplay=1`
+  // Google Drive share link → embeddable preview player
+  const gd = url.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?id=|.*[?&]id=)([\w-]+)/)
+  if (gd) return `https://drive.google.com/file/d/${gd[1]}/preview`
   return null
 }
 
@@ -872,66 +923,18 @@ function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCre
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 auto-rows-fr">
-                  {filtered.slice(0, visible).map(d => {
-                    const donorGroup = d.group_id ? groups.find(g => g.id === d.group_id) : null
-                    return (
-                    <article
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+                  {filtered.slice(0, visible).map(d => (
+                    <DonorCard
                       key={d.id}
-                      className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm hover:shadow-md transition-shadow h-full min-h-[140px] flex flex-col"
-                    >
-                      <div className="flex items-start gap-3">
-                        {/* avatar (rightmost in RTL) */}
-                        <div
-                          className="w-11 h-11 rounded-full flex items-center justify-center text-base font-black shrink-0"
-                          style={{ backgroundColor: `${primaryColor}1A`, color: primaryColor }}
-                          aria-hidden
-                        >
-                          {donorInitials(d.donor_name || t('anonymous'))}
-                        </div>
-
-                        <div className="flex-1 min-w-0">
-                          {/* שם התורם — שורה משלו */}
-                          <div className="font-bold text-base text-gray-900 leading-tight break-words">
-                            {d.donor_name || t('anonymous')}
-                          </div>
-
-                          {/* מימין: לפני כמה זמן · משמאל: הסכום */}
-                          <div className="flex items-center justify-between gap-2 mt-1.5">
-                            <span className="text-xs text-gray-400" suppressHydrationWarning>{relativeTime(d.created_at, lang)}</span>
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              <span className="text-lg font-black leading-none" style={{ color: primaryColor }}>
-                                ₪{d.amount.toLocaleString()}
-                              </span>
-                              <button
-                                onClick={() => setLiked(s => { const n = new Set(s); n.has(d.id) ? n.delete(d.id) : n.add(d.id); return n })}
-                                aria-label={liked.has(d.id) ? 'הסר לייק' : 'תן לייק'}
-                                aria-pressed={liked.has(d.id)}
-                                className="transition-colors"
-                                style={{ color: liked.has(d.id) ? '#ef4444' : '#d1d5db' }}
-                              >
-                                <Heart className={`w-3.5 h-3.5 ${liked.has(d.id) ? 'fill-red-500' : ''}`} />
-                              </button>
-                            </div>
-                          </div>
-
-                          {/* מתחת: דרך איזו קבוצה */}
-                          {donorGroup && (
-                            <a
-                              href={`/${campaignSlug}/g/${donorGroup.slug}`}
-                              className="flex items-center gap-1 mt-2 px-2 py-0.5 rounded-full text-[11px] font-semibold hover:opacity-80 transition-opacity max-w-full w-fit"
-                              style={{ backgroundColor: `${primaryColor}1A`, color: primaryColor }}
-                            >
-                              <span className="truncate">{t('via')} {donorGroup.name}</span>
-                            </a>
-                          )}
-                        </div>
-                      </div>
-
-                      {d.dedication && <Dedication text={d.dedication} primaryColor={primaryColor} />}
-                    </article>
-                    )
-                  })}
+                      d={d}
+                      donorGroup={d.group_id ? groups.find(g => g.id === d.group_id) : null}
+                      primaryColor={primaryColor}
+                      campaignSlug={campaignSlug}
+                      liked={liked.has(d.id)}
+                      onToggleLike={() => setLiked(s => { const n = new Set(s); n.has(d.id) ? n.delete(d.id) : n.add(d.id); return n })}
+                    />
+                  ))}
                 </div>
                 {visible < filtered.length && (
                   <div className="text-center pt-2">
