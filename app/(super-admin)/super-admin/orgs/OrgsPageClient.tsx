@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, Building2, Users, Clock, Ban, LogIn, ChevronDown, Send, ExternalLink } from 'lucide-react'
+import { Plus, Building2, Users, Clock, Ban, LogIn, ChevronDown, Send } from 'lucide-react'
 import OrgActions from './OrgActions'
 import CreateOrgModal from './CreateOrgModal'
 
@@ -157,16 +157,6 @@ export default function OrgsPageClient({ orgs, raisedByOrg = {}, stats: platform
                         <OrgAvatar name={org.name} logo={org.logo_url} />
                         <div className="min-w-0">
                           <div className="font-bold text-gray-800 leading-tight">{org.name}</div>
-                          <a
-                            href={`https://kafool.com/${org.slug}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs text-blue-400 hover:text-blue-600 hover:underline flex items-center gap-0.5 mt-0.5 w-fit transition-colors"
-                            dir="ltr"
-                          >
-                            kafool.com/{org.slug}
-                            <ExternalLink className="w-2.5 h-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                          </a>
                           {org.registration_number && (
                             <div className="text-[11px] text-gray-300 mt-0.5">ח.פ {org.registration_number}</div>
                           )}
