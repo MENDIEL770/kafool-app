@@ -10,7 +10,6 @@ import {
   Users,
   Group,
   MessageSquare,
-  Palette,
   Globe,
   ChevronLeft,
 } from 'lucide-react'
@@ -38,7 +37,6 @@ export default function CampaignNav({ campaign, orgSlug }: Props) {
     { href: `${base}/media`, label: 'מדיה', icon: Image },
     { href: `${base}/donors`, label: 'תורמים', icon: Users },
     { href: `${base}/groups`, label: 'קבוצות', icon: Group },
-    { href: `${base}/builder`, label: 'עורך תבנית', icon: Palette },
   ]
 
   const statusLabel: Record<string, { label: string; color: string }> = {

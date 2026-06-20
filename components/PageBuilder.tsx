@@ -561,7 +561,7 @@ function EditDrawer({ block, data, onChange, onClose }: {
 }
 
 /* ─── Main Component ─── */
-export default function CampaignPageBuilder() {
+export default function PageBuilder() {
   const [blocks, setBlocks] = useState<Block[]>(INITIAL_BLOCKS)
   const [selectedBlock, setSelectedBlock] = useState<BlockId | null>(null)
   const [blockData, setBlockData] = useState<Record<BlockId, BlockData>>({} as Record<BlockId, BlockData>)

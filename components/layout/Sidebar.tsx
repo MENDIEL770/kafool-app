@@ -27,6 +27,7 @@ import {
   Image as ImageIcon,
   Menu,
   X,
+  FlaskConical,
 } from 'lucide-react'
 
 interface Profile {
@@ -68,6 +69,11 @@ const superAdminItems = [
   { href: '/super-admin/cms', label: 'ניהול תוכן', icon: FileText },
   { href: '/super-admin/portfolio', label: 'עיצובים / תיק עבודות', icon: ImageIcon },
   { href: '/media-guide', label: 'מדריך מדיה', icon: ImageIcon },
+]
+
+// Experimental features, super-admin only, not yet released to managers.
+const devItems = [
+  { href: '/super-admin/builder', label: 'עורך תבנית (ניסיוני)', icon: FlaskConical },
 ]
 
 function NavLink({
@@ -306,6 +312,22 @@ export default function Sidebar({ profile, contextOrgName, viewingOtherOrg }: Pr
               </div>
             </div>
             {superAdminItems.map((item) => (
+              <NavLink
+                key={item.href}
+                href={item.href}
+                label={item.label}
+                icon={item.icon}
+                pathname={pathname}
+                accent="purple"
+              />
+            ))}
+
+            <div className="pt-4 pb-1.5 px-3">
+              <div className="text-[10px] font-semibold text-slate-600 uppercase tracking-widest">
+                פיתוח
+              </div>
+            </div>
+            {devItems.map((item) => (
               <NavLink
                 key={item.href}
                 href={item.href}
