@@ -6,11 +6,12 @@
  * PDF export of all the requirements.
  *
  * Deps for the PDF export (lazy-loaded, install once):
- *   npm i jspdf html2canvas
+ *   npm i jspdf html2canvas-pro
  *
  * The interactive part uses pure CSS transitions — no extra deps.
- * The PDF is built from a hidden node styled with inline HEX colors only,
- * because html2canvas cannot parse Tailwind v4's oklch() color values.
+ * We use html2canvas-pro (not the original html2canvas) because it parses
+ * Tailwind v4's oklch() color values, which the original throws on while
+ * scanning the page stylesheets.
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react'
@@ -93,8 +94,10 @@ export default function MediaGuide() {
     if (!printRef.current) return
     setGenerating(true)
     try {
+      // html2canvas-pro is a maintained fork that understands Tailwind v4's
+      // oklch()/lab() colors; the original html2canvas throws on them.
       const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
-        import('html2canvas'),
+        import('html2canvas-pro'),
         import('jspdf'),
       ])
       const node = printRef.current
@@ -122,7 +125,7 @@ export default function MediaGuide() {
       pdf.save('Kafool-מדריך-מדיה.pdf')
     } catch (err) {
       console.error('PDF export failed', err)
-      alert('יצירת ה-PDF נכשלה. ודאו שהחבילות jspdf ו-html2canvas מותקנות.')
+      alert('יצירת ה-PDF נכשלה. ודאו שהחבילות jspdf ו-html2canvas-pro מותקנות.')
     } finally {
       setGenerating(false)
     }
