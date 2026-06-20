@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
+import { DEFAULT_DESIGN, resolveBuilderConfig } from '@/lib/builder-config'
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor,
   useSensor, useSensors, DragEndEvent,
@@ -561,18 +562,42 @@ function EditDrawer({ block, data, onChange, onClose }: {
 }
 
 /* ─── Main Component ─── */
-export default function PageBuilder() {
+export interface BuilderCampaign {
+  id: string
+  title: string
+  slug: string
+  settings: { builder?: unknown } | null
+}
+
+export default function PageBuilder({ campaigns = [] }: { campaigns?: BuilderCampaign[] }) {
+  const [campaignId, setCampaignId] = useState<string>('')
   const [blocks, setBlocks] = useState<Block[]>(INITIAL_BLOCKS)
   const [selectedBlock, setSelectedBlock] = useState<BlockId | null>(null)
   const [blockData, setBlockData] = useState<Record<BlockId, BlockData>>({} as Record<BlockId, BlockData>)
-  const [design, setDesign] = useState<DesignSettings>({
-    primary: '#1a56db', secondary: '#16a34a', cta: '#f59e0b', bg: '#ffffff',
-    titleFont: 'Heebo', bodyFont: 'Rubik', radius: 'md', fontSize: 16,
-  })
+  const [design, setDesign] = useState<DesignSettings>(DEFAULT_DESIGN)
   const [hasUnsaved, setHasUnsaved] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [viewMode, setViewMode] = useState<'desktop' | 'mobile'>('desktop')
   const [rightTab, setRightTab] = useState<'blocks' | 'design'>('blocks')
+
+  // Load a campaign's saved config onto the rich block list (preserving each
+  // block's label/icon/colour), or reset to defaults when it has none yet.
+  const loadCampaign = useCallback((id: string) => {
+    setCampaignId(id)
+    setSelectedBlock(null)
+    setHasUnsaved(false)
+    const camp = campaigns.find(c => c.id === id)
+    const cfg = resolveBuilderConfig(camp?.settings?.builder)
+    if (!cfg) {
+      setBlocks(INITIAL_BLOCKS)
+      setDesign(DEFAULT_DESIGN)
+      return
+    }
+    const byId = new Map(INITIAL_BLOCKS.map(b => [b.id, b]))
+    setBlocks(cfg.blocks.filter(cb => byId.has(cb.id)).map(cb => ({ ...byId.get(cb.id)!, active: cb.active })))
+    setDesign({ ...DEFAULT_DESIGN, ...cfg.design })
+  }, [campaigns])
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -601,10 +626,29 @@ export default function PageBuilder() {
     setHasUnsaved(true)
   }
 
-  const handleSave = () => {
-    setHasUnsaved(false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+  const handleSave = async () => {
+    if (!campaignId) { alert('בחרו קמפיין לעריכה'); return }
+    setSaving(true)
+    try {
+      const config = {
+        blocks: blocks.map(b => ({ id: b.id, active: b.active })),
+        design,
+      }
+      const res = await fetch('/api/super-admin/builder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ campaignId, config }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'השמירה נכשלה')
+      setHasUnsaved(false)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'השמירה נכשלה')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const activeBlocks = blocks.filter(b => b.active)
@@ -617,8 +661,19 @@ export default function PageBuilder() {
 
       {/* ── RIGHT: Block Manager ── */}
       <div className="w-[220px] shrink-0 border-l border-gray-200 flex flex-col bg-white">
-        <div className="px-4 py-3 border-b border-gray-100">
+        <div className="px-4 py-3 border-b border-gray-100 space-y-2">
           <h2 className="text-sm font-bold text-gray-800">עורך התבנית</h2>
+          {/* Campaign picker — which campaign this config is saved to */}
+          <select
+            value={campaignId}
+            onChange={e => loadCampaign(e.target.value)}
+            className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-300 bg-white"
+          >
+            <option value="">— בחרו קמפיין —</option>
+            {campaigns.map(c => (
+              <option key={c.id} value={c.id}>{c.title}</option>
+            ))}
+          </select>
         </div>
 
         {/* Tabs */}
@@ -659,10 +714,15 @@ export default function PageBuilder() {
               )}
               <button
                 onClick={handleSave}
-                className="w-full py-2 text-sm font-semibold border-2 border-gray-300 rounded-lg hover:border-gray-400 hover:bg-gray-50 transition-all"
+                disabled={saving || !campaignId}
+                className="w-full py-2 text-sm font-semibold rounded-lg text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ background: campaignId && !saving ? '#2B4C9B' : '#94a3b8' }}
               >
-                {saved ? '✓ נשמר' : 'שמור תבנית'}
+                {saving ? 'שומר…' : saved ? '✓ נשמר' : 'שמור תבנית'}
               </button>
+              {!campaignId && (
+                <p className="text-[11px] text-gray-400 text-center">בחרו קמפיין למעלה כדי לשמור</p>
+              )}
             </div>
           </>
         )}

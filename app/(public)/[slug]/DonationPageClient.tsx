@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { sanitizeHtml } from '@/lib/sanitize'
 import type { Campaign, Group } from '@/types'
 import { Search, Share2, Heart, Menu, X, ChevronDown, Globe } from 'lucide-react'
+import { resolveBuilderConfig, activeBlockMap, radiusToButtonClass } from '@/lib/builder-config'
 
 /* ─── i18n ─── */
 export type Lang = 'he' | 'en'
@@ -1333,8 +1334,16 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
     button_radius?: string
     whatsapp_phone?: string
     whatsapp_message?: string
+    builder?: unknown
   }
-  const primaryColor = settings?.primary_color || '#2563eb'
+  // Page-builder config (super-admin). When absent the page renders exactly as
+  // before; when present it drives theme + block visibility.
+  const builderCfg = resolveBuilderConfig(settings?.builder)
+  const blockOn = activeBlockMap(builderCfg)
+  // A section shows unless the builder explicitly turned it off.
+  const isOn = (id: string) => !blockOn || blockOn[id] !== false
+  const pageBg = builderCfg?.design.bg
+  const primaryColor = builderCfg?.design.primary || settings?.primary_color || '#2563eb'
   const whatsappPhone = settings?.whatsapp_phone?.replace(/\D/g, '')
   const whatsappUrl = whatsappPhone
     ? `https://wa.me/${whatsappPhone}${settings?.whatsapp_message ? `?text=${encodeURIComponent(settings.whatsapp_message)}` : ''}`
@@ -1342,7 +1351,9 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
   const donationPlans = settings?.donation_plans ||
     (settings?.donation_amounts || [180, 360, 720, 1800, 3600]).map(amount => ({ amount }))
   const buttonRadiusMap: Record<string, string> = { pill: 'rounded-full', rounded: 'rounded-xl', square: 'rounded-md' }
-  const buttonRadius = buttonRadiusMap[settings?.button_radius || 'pill'] || 'rounded-full'
+  const buttonRadius = builderCfg
+    ? radiusToButtonClass(builderCfg.design.radius)
+    : (buttonRadiusMap[settings?.button_radius || 'pill'] || 'rounded-full')
 
   // Realtime
   useEffect(() => {
@@ -1393,7 +1404,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
 
   return (
     <LangCtx.Provider value={lang}>
-    <div className="min-h-screen bg-gray-50 overflow-x-hidden" dir="rtl">
+    <div className="min-h-screen bg-gray-50 overflow-x-hidden" dir="rtl" style={pageBg ? { backgroundColor: pageBg } : undefined}>
       {/* 1. Sticky Header */}
       <StickyHeader org={org} campaign={campaign} primaryColor={primaryColor} onDonate={openDonate} lang={lang} onToggleLang={() => setLang(l => l === 'he' ? 'en' : 'he')} />
 
@@ -1462,12 +1473,13 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
       )}
 
       {/* 2. Hero */}
-      <HeroSection campaign={campaign} countdown={countdown} />
+      {isOn('hero') && <HeroSection campaign={campaign} countdown={countdown} />}
 
       {/* סרטוני הקמפיין — מעל כפתור התרומה ומעל "אודות" */}
-      <CampaignVideos campaign={campaign} />
+      {isOn('video') && <CampaignVideos campaign={campaign} />}
 
       {/* בנייד — כפתור קיצור ל"אודות" לפני כפתורי התרומה */}
+      {isOn('gallery') && (
       <div className="md:hidden bg-white px-4 pt-4 -mb-2 text-center">
         <button
           onClick={() => document.getElementById('about')?.scrollIntoView({ behavior: 'smooth' })}
@@ -1478,28 +1490,35 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
           <ChevronDown className="w-4 h-4" />
         </button>
       </div>
+      )}
 
       {/* 3. Donation Plans */}
-      <DonationPlans plans={donationPlans} primaryColor={primaryColor} campaignSlug={campaign.slug} groups={groups} buttonRadius={buttonRadius} onDonate={openDonate} />
+      {isOn('amounts') && <DonationPlans plans={donationPlans} primaryColor={primaryColor} campaignSlug={campaign.slug} groups={groups} buttonRadius={buttonRadius} onDonate={openDonate} />}
 
       {/* 4. Progress */}
-      <ProgressSection raised={raisedAmount} goal={campaign.goal_amount} donorsCount={donations.length} primaryColor={primaryColor} bricks={(campaign.settings as { bricks?: { total: number; price: number; label?: string } })?.bricks} />
+      {isOn('goal') && <ProgressSection raised={raisedAmount} goal={campaign.goal_amount} donorsCount={donations.length} primaryColor={primaryColor} bricks={(campaign.settings as { bricks?: { total: number; price: number; label?: string } })?.bricks} />}
 
       {/* 5+7. About (right) + Community (left) — two columns */}
+      {(isOn('gallery') || isOn('donors')) && (
       <section className="py-10 px-4 bg-white border-t border-gray-100 scroll-mt-20" id="about">
         <div className="max-w-6xl mx-auto">
           <div className={`flex flex-col lg:flex-row gap-10 ${lang === 'en' ? 'lg:flex-row-reverse' : ''}`}>
             {/* אודות — ימין בעברית, שמאל באנגלית (טקסט מיושר לשמאל) */}
+            {isOn('gallery') && (
             <div className="lg:w-[45%] shrink-0" dir={lang === 'en' ? 'ltr' : undefined}>
               <AboutSection campaign={campaign} gallery={gallery} />
             </div>
+            )}
             {/* תורמים — שמאל בעברית, ימין באנגלית */}
+            {isOn('donors') && (
             <div className="flex-1 min-w-0">
               <CommunitySection donations={activeGroup ? donations.filter(d => d.group_id === activeGroup.id) : donations} groups={groups} primaryColor={primaryColor} campaignSlug={campaign.slug} onCreateGroup={() => setCreateGroupOpen(true)} activeGroupName={activeGroup?.name} />
             </div>
+            )}
           </div>
         </div>
       </section>
+      )}
 
       {/* 8. Floating bar */}
       {/* WhatsApp floating button */}
