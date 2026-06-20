@@ -8,7 +8,7 @@ import { buttonVariants } from '@/components/ui/button'
 import RichTextEditor from '@/components/RichTextEditor'
 import {
   Upload, ImageIcon, Trash2, X, Monitor, Smartphone,
-  LayoutGrid, Plus, Check, ArrowRight, Eye, Palette, Image, Ruler, ChevronUp, ChevronDown, Video
+  LayoutGrid, Plus, Check, ArrowRight, Eye, Palette, Image, Ruler, ChevronUp, ChevronDown, Video, BookOpen
 } from 'lucide-react'
 
 /* ─── Types ─── */
@@ -594,6 +594,13 @@ export default function CampaignMediaClient({
             {t.label}
           </button>
         ))}
+        {/* Highlighted link to the full media guide (opens in a new tab) */}
+        <Link href="/media-guide" target="_blank"
+          className="flex items-center justify-center gap-2 py-2.5 px-4 text-sm font-bold rounded-xl text-white shadow-md transition-all hover:opacity-90 hover:scale-[1.02]"
+          style={{ background: '#2B4C9B' }}>
+          <BookOpen className="w-4 h-4" />
+          מדריך מדיה
+        </Link>
       </div>
 
       {/* ─── TAB: Banner ─── */}
