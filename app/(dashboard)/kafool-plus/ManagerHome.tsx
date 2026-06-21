@@ -13,9 +13,12 @@ export interface Branch {
 export interface Member {
   id: string; email: string; role: string; branch_id: string | null; user_id: string | null; is_active: boolean
 }
+export interface Group { id: string; display_name: string | null; branch_id: string | null }
+export interface Promise_ { amount: number; status: string; caller_group_id: string | null }
 
-export default function ManagerHome({ campaigns, branches, members }: {
+export default function ManagerHome({ campaigns, branches, members, groups = [], promises = [], leadStatuses = [], callsCount = 0 }: {
   campaigns: MasterCampaign[]; branches: Branch[]; members: Member[]
+  groups?: Group[]; promises?: Promise_[]; leadStatuses?: string[]; callsCount?: number
 }) {
   const router = useRouter()
   const [selectedId, setSelectedId] = useState(campaigns[0]?.id ?? '')
@@ -35,6 +38,17 @@ export default function ManagerHome({ campaigns, branches, members }: {
 
   const selected = campaigns.find(c => c.id === selectedId) || null
   const campaignBranches = branches.filter(b => b.master_campaign_id === selectedId)
+
+  // org-wide dashboard
+  const promisedTotal = promises.reduce((s, p) => s + (p.amount || 0), 0)
+  const donatedCount = leadStatuses.filter(s => s === 'donated').length
+  const promisedCount = leadStatuses.filter(s => s === 'promised').length
+  const groupName = (id: string | null) => groups.find(g => g.id === id)?.display_name || 'טלפן'
+  const byGroup = promises.reduce<Record<string, number>>((acc, p) => {
+    if (p.caller_group_id) acc[p.caller_group_id] = (acc[p.caller_group_id] || 0) + (p.amount || 0)
+    return acc
+  }, {})
+  const leaderboard = Object.entries(byGroup).map(([gid, amt]) => ({ gid, amt })).sort((a, b) => b.amt - a.amt).slice(0, 10)
 
   async function api(url: string, method: string, body: unknown): Promise<boolean> {
     setBusy(true); setError(null)
@@ -85,6 +99,31 @@ export default function ManagerHome({ campaigns, branches, members }: {
         <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3 flex justify-between gap-3">
           <span>{error}</span>
           <button onClick={() => setError(null)} className="text-red-400 text-xs font-bold">סגור</button>
+        </div>
+      )}
+
+      {/* Org-wide dashboard */}
+      {campaigns.length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <Stat icon={Target} label="שיחות" value={callsCount.toLocaleString()} />
+          <Stat icon={CheckCircle2} label="הבטחות (₪)" value={`₪${promisedTotal.toLocaleString()}`} />
+          <Stat icon={Clock} label="ממתינים לתרומה" value={String(promisedCount)} />
+          <Stat icon={Users} label="תרמו" value={String(donatedCount)} />
+        </div>
+      )}
+
+      {leaderboard.length > 0 && (
+        <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
+          <h2 className="font-bold text-gray-800 mb-3">דירוג טלפנים (לפי הבטחות)</h2>
+          <div className="space-y-1.5">
+            {leaderboard.map((row, i) => (
+              <div key={row.gid} className="flex items-center gap-3 text-sm">
+                <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black ${i === 0 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'}`}>{i + 1}</span>
+                <span className="flex-1 font-medium text-gray-700">{groupName(row.gid)}</span>
+                <span className="font-black text-gray-900">₪{row.amt.toLocaleString()}</span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

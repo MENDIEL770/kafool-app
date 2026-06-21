@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { getContext } from '@/lib/tenancy'
+import { getKafoolPlusContext } from '@/lib/kafoolplus'
 import Sidebar from '@/components/layout/Sidebar'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -52,9 +53,21 @@ export default async function DashboardLayout({ children }: { children: React.Re
     )
   }
 
+  // Kafool+-only lock: coordinators/callers of an org flagged kafoolplus_only
+  // are restricted to the Kafool+ module (the sidebar hides everything else).
+  let lockToKafoolPlus = false
+  const kp = await getKafoolPlusContext(supabase)
+  if (kp.role === 'coordinator' || kp.role === 'caller') {
+    if (kp.orgId) {
+      const admin = await createServiceClient()
+      const { data: o } = await admin.from('organizations').select('kafoolplus_only').eq('id', kp.orgId).maybeSingle()
+      lockToKafoolPlus = !!o?.kafoolplus_only
+    }
+  }
+
   return (
     <div className="flex min-h-screen bg-gray-50">
-      <Sidebar profile={profile} contextOrgName={contextOrgName} viewingOtherOrg={ctx.isSuperAdmin && !!ctx.orgId} />
+      <Sidebar profile={profile} contextOrgName={contextOrgName} viewingOtherOrg={ctx.isSuperAdmin && !!ctx.orgId} lockToKafoolPlus={lockToKafoolPlus} />
       <main className="flex-1 min-w-0 p-4 lg:p-6 pt-[4.5rem] lg:pt-6 overflow-x-hidden">{children}</main>
     </div>
   )

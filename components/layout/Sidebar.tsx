@@ -41,6 +41,7 @@ interface Props {
   profile: Profile
   contextOrgName?: string | null   // org currently in scope (super admin may view another org)
   viewingOtherOrg?: boolean        // super admin "entered" a specific org
+  lockToKafoolPlus?: boolean       // kafoolplus_only coordinator/caller — Kafool+ only
 }
 
 const DEFAULT_CAMPAIGN_KEY = 'kafool_default_campaign'
@@ -134,7 +135,7 @@ function NavLink({
   )
 }
 
-export default function Sidebar({ profile, contextOrgName, viewingOtherOrg }: Props) {
+export default function Sidebar({ profile, contextOrgName, viewingOtherOrg, lockToKafoolPlus }: Props) {
   const pathname = usePathname()
   const router = useRouter()
   const isSuperAdmin = profile.role === 'super_admin'
@@ -243,6 +244,10 @@ export default function Sidebar({ profile, contextOrgName, viewingOtherOrg }: Pr
 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+        {lockToKafoolPlus ? (
+          <NavLink href="/kafool-plus" label="מוקד טלפוני" icon={Megaphone} pathname={pathname} accent="purple" />
+        ) : (
+        <>
         {showOrgNav && (
         <>
         {navItems.map((item) => (
@@ -348,6 +353,8 @@ export default function Sidebar({ profile, contextOrgName, viewingOtherOrg }: Pr
               />
             ))}
           </>
+        )}
+        </>
         )}
       </nav>
 
