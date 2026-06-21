@@ -62,7 +62,7 @@ export default function CoordinatorHome({ branch, callerGroups, leads, members }
     setBusy(false)
     if (!res.ok || !d.url) { setError(d.error || 'יצירת הקישור נכשלה'); return }
     await navigator.clipboard.writeText(d.url).catch(() => {})
-    alert('קישור הכניסה הועתק ללוח — שלח אותו לטלפן.')
+    window.prompt('קישור הכניסה לטלפן (הועתק ללוח — שלח לו אותו):', d.url)
   }
 
   const connected = (gid: string) => !!members.find(m => m.caller_group_id === gid)?.user_id
