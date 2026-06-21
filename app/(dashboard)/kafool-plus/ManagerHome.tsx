@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Building2, Users, Target, Trash2, Loader2, CheckCircle2, Clock, Megaphone } from 'lucide-react'
+import { Plus, Building2, Users, Target, Trash2, Loader2, CheckCircle2, Clock, Megaphone, Send, Lock } from 'lucide-react'
 
 export interface MasterCampaign {
   id: string; name: string; goal_amount: number; is_standalone: boolean; created_at: string
@@ -16,11 +16,12 @@ export interface Member {
 export interface Group { id: string; display_name: string | null; branch_id: string | null }
 export interface Promise_ { amount: number; status: string; caller_group_id: string | null }
 
-export default function ManagerHome({ campaigns, branches, members, groups = [], promises = [], leadStatuses = [], callsCount = 0 }: {
+export default function ManagerHome({ campaigns, branches, members, groups = [], promises = [], leadStatuses = [], callsCount = 0, kafoolplusOnly = false }: {
   campaigns: MasterCampaign[]; branches: Branch[]; members: Member[]
-  groups?: Group[]; promises?: Promise_[]; leadStatuses?: string[]; callsCount?: number
+  groups?: Group[]; promises?: Promise_[]; leadStatuses?: string[]; callsCount?: number; kafoolplusOnly?: boolean
 }) {
   const router = useRouter()
+  const [kpOnly, setKpOnly] = useState(kafoolplusOnly)
   const [selectedId, setSelectedId] = useState(campaigns[0]?.id ?? '')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -74,6 +75,21 @@ export default function ManagerHome({ campaigns, branches, members, groups = [],
     if (!confirm('להסיר את הסניף והרכז שלו? (הטלפנים והלידים בסניף יימחקו)')) return
     if (await api('/api/kafoolplus/coordinators', 'DELETE', { branch_id: id })) router.refresh()
   }
+  async function toggleKpOnly() {
+    const next = !kpOnly
+    setKpOnly(next)
+    if (!(await api('/api/kafoolplus/org-settings', 'PATCH', { kafoolplus_only: next }))) setKpOnly(!next)
+  }
+  async function sendInvite(email: string | null, name: string | null) {
+    if (!email) return
+    setBusy(true); setError(null)
+    const res = await fetch('/api/kafoolplus/invite', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, name }) })
+    const d = await res.json().catch(() => ({}))
+    setBusy(false)
+    if (!res.ok || !d.url) { setError(d.error || 'יצירת הקישור נכשלה'); return }
+    await navigator.clipboard.writeText(d.url).catch(() => {})
+    alert('קישור הכניסה הועתק ללוח — שלח אותו לרכז (וואטסאפ/מייל).')
+  }
 
   const coordinatorOf = (branchId: string) => members.find(m => m.branch_id === branchId && m.role === 'coordinator')
 
@@ -101,6 +117,20 @@ export default function ManagerHome({ campaigns, branches, members, groups = [],
           <button onClick={() => setError(null)} className="text-red-400 text-xs font-bold">סגור</button>
         </div>
       )}
+
+      {/* Kafool+-only mode */}
+      <div className="bg-white border border-gray-200 rounded-2xl px-5 py-3.5 shadow-sm flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <Lock className="w-4 h-4 text-gray-400" />
+          <div>
+            <div className="text-sm font-bold text-gray-800">מצב מוקד בלבד</div>
+            <div className="text-[11px] text-gray-400">רכזים וטלפנים יראו רק את Kafool+, בלי דפי הגיוס הרגילים</div>
+          </div>
+        </div>
+        <button onClick={toggleKpOnly} disabled={busy} className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${kpOnly ? 'bg-indigo-600' : 'bg-gray-300'}`}>
+          <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${kpOnly ? 'translate-x-1' : 'translate-x-6'}`} />
+        </button>
+      </div>
 
       {/* Org-wide dashboard */}
       {campaigns.length > 0 && (
@@ -203,6 +233,9 @@ export default function ManagerHome({ campaigns, branches, members, groups = [],
                             ) : (
                               <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-500"><Clock className="w-3.5 h-3.5" /> ממתין לכניסה</span>
                             )}
+                            <button onClick={() => sendInvite(b.coordinator_email, b.name)} disabled={busy} title="צור קישור כניסה והעתק" className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 border border-indigo-100 bg-indigo-50 hover:bg-indigo-100 rounded-lg px-2.5 py-1.5">
+                              <Send className="w-3.5 h-3.5" /> קישור כניסה
+                            </button>
                             <button onClick={() => removeBranch(b.id)} disabled={busy} className="w-8 h-8 rounded-lg border border-gray-200 text-red-500 hover:bg-red-50 flex items-center justify-center">
                               <Trash2 className="w-4 h-4" />
                             </button>

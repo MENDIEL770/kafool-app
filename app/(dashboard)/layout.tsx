@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import { headers } from 'next/headers'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { getContext } from '@/lib/tenancy'
 import { getKafoolPlusContext } from '@/lib/kafoolplus'
@@ -63,6 +64,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
       const { data: o } = await admin.from('organizations').select('kafoolplus_only').eq('id', kp.orgId).maybeSingle()
       lockToKafoolPlus = !!o?.kafoolplus_only
     }
+  }
+
+  // Hard lock: a kafoolplus_only coordinator/caller may only be inside Kafool+.
+  if (lockToKafoolPlus) {
+    const pathname = (await headers()).get('x-pathname') || ''
+    if (!pathname.startsWith('/kafool-plus')) redirect('/kafool-plus')
   }
 
   return (
