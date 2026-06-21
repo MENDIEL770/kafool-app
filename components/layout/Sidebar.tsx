@@ -136,6 +136,10 @@ export default function Sidebar({ profile, contextOrgName, viewingOtherOrg }: Pr
   const pathname = usePathname()
   const router = useRouter()
   const isSuperAdmin = profile.role === 'super_admin'
+  // Org-specific nav (dashboard/campaigns/reports/SMS/Kafool+/settings) only
+  // makes sense when an org is in scope. In the super-admin global "מבט-על"
+  // mode there's no org, so we hide it and show only the super-admin sections.
+  const showOrgNav = !isSuperAdmin || !!viewingOtherOrg
   const isPlusActive = kafoolPlusItems.some(item => pathname.startsWith(item.href))
   const [plusOpen, setPlusOpen] = useState(isPlusActive)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -237,6 +241,8 @@ export default function Sidebar({ profile, contextOrgName, viewingOtherOrg }: Pr
 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+        {showOrgNav && (
+        <>
         {navItems.map((item) => (
           <NavLink
             key={item.href}
@@ -303,6 +309,8 @@ export default function Sidebar({ profile, contextOrgName, viewingOtherOrg }: Pr
             pathname={pathname}
           />
         ))}
+        </>
+        )}
 
         {profile.role === 'super_admin' && (
           <>
