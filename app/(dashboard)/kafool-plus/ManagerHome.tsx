@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Building2, Users, Target, Trash2, Loader2, CheckCircle2, Clock, Megaphone, Send, Lock } from 'lucide-react'
+import { Plus, Building2, Users, Target, Trash2, Loader2, CheckCircle2, Clock, Megaphone, Send, Lock, UploadCloud } from 'lucide-react'
+import NetworkImport from './NetworkImport'
 
 export interface MasterCampaign {
   id: string; name: string; goal_amount: number; is_standalone: boolean; created_at: string
@@ -22,6 +23,8 @@ export default function ManagerHome({ campaigns, branches, members, groups = [],
 }) {
   const router = useRouter()
   const [kpOnly, setKpOnly] = useState(kafoolplusOnly)
+  const [showNetwork, setShowNetwork] = useState(false)
+  const [branchEmails, setBranchEmails] = useState<Record<string, string>>({})
   const [selectedId, setSelectedId] = useState(campaigns[0]?.id ?? '')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -79,6 +82,13 @@ export default function ManagerHome({ campaigns, branches, members, groups = [],
     const next = !kpOnly
     setKpOnly(next)
     if (!(await api('/api/kafoolplus/org-settings', 'PATCH', { kafoolplus_only: next }))) setKpOnly(!next)
+  }
+  async function assignEmail(branchId: string) {
+    const email = (branchEmails[branchId] || '').trim()
+    if (!email) return
+    if (await api('/api/kafoolplus/coordinators', 'PATCH', { branch_id: branchId, email })) {
+      setBranchEmails(s => ({ ...s, [branchId]: '' })); router.refresh()
+    }
   }
   async function sendInvite(email: string | null, name: string | null) {
     if (!email) return
@@ -202,7 +212,10 @@ export default function ManagerHome({ campaigns, branches, members, groups = [],
 
               {/* Coordinators / branches */}
               <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm space-y-4">
-                <h2 className="font-bold text-gray-800 flex items-center gap-2"><Building2 className="w-4 h-4" /> סניפים ורכזים</h2>
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <h2 className="font-bold text-gray-800 flex items-center gap-2"><Building2 className="w-4 h-4" /> סניפים ורכזים</h2>
+                  <button onClick={() => setShowNetwork(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100"><UploadCloud className="w-4 h-4" /> ייבוא רשת סניפים</button>
+                </div>
 
                 {/* add coordinator */}
                 <div className="grid sm:grid-cols-[1fr_1fr_120px_auto] gap-2 items-center bg-gray-50 rounded-xl p-3">
@@ -225,17 +238,24 @@ export default function ManagerHome({ campaigns, branches, members, groups = [],
                         <div key={b.id} className="flex items-center justify-between gap-3 border border-gray-100 rounded-xl px-4 py-3">
                           <div className="min-w-0">
                             <div className="font-bold text-sm text-gray-800">{b.name}</div>
-                            <div className="text-xs text-gray-400 truncate" dir="ltr">{b.coordinator_email}</div>
+                            {b.coordinator_email && <div className="text-xs text-gray-400 truncate" dir="ltr">{b.coordinator_email}</div>}
                           </div>
-                          <div className="flex items-center gap-3 shrink-0">
-                            {linked ? (
-                              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600"><CheckCircle2 className="w-3.5 h-3.5" /> התחבר</span>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {b.coordinator_email ? (
+                              <>
+                                {linked
+                                  ? <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600"><CheckCircle2 className="w-3.5 h-3.5" /> התחבר</span>
+                                  : <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-500"><Clock className="w-3.5 h-3.5" /> ממתין</span>}
+                                <button onClick={() => sendInvite(b.coordinator_email, b.name)} disabled={busy} title="צור קישור כניסה והעתק" className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 border border-indigo-100 bg-indigo-50 hover:bg-indigo-100 rounded-lg px-2.5 py-1.5">
+                                  <Send className="w-3.5 h-3.5" /> קישור
+                                </button>
+                              </>
                             ) : (
-                              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-500"><Clock className="w-3.5 h-3.5" /> ממתין לכניסה</span>
+                              <>
+                                <input value={branchEmails[b.id] || ''} onChange={e => setBranchEmails(s => ({ ...s, [b.id]: e.target.value }))} type="email" dir="ltr" placeholder="מייל הרכז" className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs w-40 outline-none focus:ring-2 focus:ring-indigo-300" />
+                                <button onClick={() => assignEmail(b.id)} disabled={busy || !(branchEmails[b.id] || '').trim()} className="text-[11px] font-bold text-white rounded-lg px-2.5 py-1.5 disabled:opacity-40" style={{ background: '#4f46e5' }}>הזן רכז</button>
+                              </>
                             )}
-                            <button onClick={() => sendInvite(b.coordinator_email, b.name)} disabled={busy} title="צור קישור כניסה והעתק" className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 border border-indigo-100 bg-indigo-50 hover:bg-indigo-100 rounded-lg px-2.5 py-1.5">
-                              <Send className="w-3.5 h-3.5" /> קישור כניסה
-                            </button>
                             <button onClick={() => removeBranch(b.id)} disabled={busy} className="w-8 h-8 rounded-lg border border-gray-200 text-red-500 hover:bg-red-50 flex items-center justify-center">
                               <Trash2 className="w-4 h-4" />
                             </button>
@@ -249,6 +269,10 @@ export default function ManagerHome({ campaigns, branches, members, groups = [],
             </>
           )}
         </>
+      )}
+
+      {showNetwork && selectedId && (
+        <NetworkImport masterCampaignId={selectedId} onClose={() => setShowNetwork(false)} onDone={() => { setShowNetwork(false); router.refresh() }} />
       )}
     </div>
   )

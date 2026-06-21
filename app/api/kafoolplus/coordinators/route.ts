@@ -37,6 +37,42 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ branch })
 }
 
+// Assign (or change) a coordinator email on an EXISTING branch — used after the
+// network import, where branches are created without coordinators.
+export async function PATCH(req: NextRequest) {
+  const supabase = await createClient()
+  const kp = await getKafoolPlusContext(supabase)
+  if (kp.role !== 'manager' || !kp.orgId) return NextResponse.json({ error: 'אין הרשאה' }, { status: 403 })
+  const body = await req.json().catch(() => ({}))
+  const branchId = String(body.branch_id || '')
+  const email = String(body.email || '').trim().toLowerCase()
+  if (!branchId || !email) return NextResponse.json({ error: 'חסר סניף או מייל' }, { status: 400 })
+
+  const { createServiceClient } = await import('@/lib/supabase/server')
+  const admin = await createServiceClient()
+  const { data: branch } = await admin.from('kafoolplus_branches').select('id, master_campaign_id, org_id').eq('id', branchId).maybeSingle()
+  if (!branch) return NextResponse.json({ error: 'הסניף לא נמצא' }, { status: 404 })
+
+  await admin.from('kafoolplus_branches').update({ coordinator_email: email }).eq('id', branchId)
+
+  // upsert a coordinator member row for this branch
+  const { data: existing } = await admin.from('kafoolplus_members')
+    .select('id').eq('branch_id', branchId).eq('role', 'coordinator').maybeSingle()
+  if (existing) {
+    await admin.from('kafoolplus_members').update({ email, user_id: null }).eq('id', existing.id)
+  } else {
+    const { error } = await admin.from('kafoolplus_members').insert({
+      org_id: branch.org_id, email, role: 'coordinator',
+      master_campaign_id: branch.master_campaign_id, branch_id: branchId,
+    })
+    if (error) {
+      const msg = error.code === '23505' ? 'הרכז כבר רשום בקמפיין הזה' : error.message
+      return NextResponse.json({ error: msg }, { status: 400 })
+    }
+  }
+  return NextResponse.json({ ok: true })
+}
+
 export async function DELETE(req: NextRequest) {
   const supabase = await createClient()
   const kp = await getKafoolPlusContext(supabase)
