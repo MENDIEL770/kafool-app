@@ -7,6 +7,7 @@ import {
   Pencil, Layers, Tags, Plus, X, Check,
 } from 'lucide-react'
 import ProjectEditorModal from './ProjectEditorModal'
+import { uploadImage } from '@/lib/image-client'
 
 export interface PortfolioItem {
   id: string
@@ -40,6 +41,12 @@ export default function PortfolioAdminClient({ items, labels }: { items: Portfol
   const [error, setError] = useState<string | null>(null)
   const [managingLabels, setManagingLabels] = useState(false)
   const labelNames = labels.map(l => l.name)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [busyBulk, setBusyBulk] = useState(false)
+  const toggleSelect = (id: string) => setSelected(s => {
+    const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n
+  })
+  const clearSelection = () => setSelected(new Set())
 
   // All writes go through /api/portfolio (service role + super-admin check) so
   // they don't silently fail on RLS, and real errors surface to the user.
@@ -64,19 +71,13 @@ export default function PortfolioAdminClient({ items, labels }: { items: Portfol
     let order = items.length
     for (const file of Array.from(files)) {
       try {
-        const fd = new FormData()
-        fd.append('file', file)
-        fd.append('path', `portfolio/${crypto.randomUUID()}`)
-        const up = await fetch('/api/upload', { method: 'POST', body: fd })
-        const upData = await up.json()
-        if (!up.ok || !upData.url) throw new Error(upData.error || 'העלאת הקובץ נכשלה')
-
+        const url = await uploadImage(file, `portfolio/${crypto.randomUUID()}`)
         const res = await fetch('/api/portfolio', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ image_url: upData.url, sort_order: order++ }),
+          body: JSON.stringify({ image_url: url, sort_order: order++ }),
         })
-        const data = await res.json()
+        const data = await res.json().catch(() => ({}))
         if (!res.ok) throw new Error(data.error || 'שמירת העבודה נכשלה')
       } catch (e) {
         setError(e instanceof Error ? e.message : 'שגיאה בהעלאה')
@@ -116,6 +117,28 @@ export default function PortfolioAdminClient({ items, labels }: { items: Portfol
   async function deleteLabel(id: string) {
     if (!confirm('למחוק את התווית מהרשימה? (עבודות שכבר תויגו בה לא ישתנו)')) return
     if (await labelApi('DELETE', { id })) router.refresh()
+  }
+
+  // ─── Bulk actions on selected works ───
+  async function bulkApplyLabel(value: string) {
+    if (selected.size === 0) return
+    setBusyBulk(true)
+    const label = value === '__none' ? null : value
+    await Promise.all([...selected].map(id => patchItem(id, { label })))
+    setBusyBulk(false)
+    clearSelection()
+    router.refresh()
+  }
+  async function bulkDelete() {
+    if (selected.size === 0) return
+    if (!confirm(`למחוק ${selected.size} עבודות מהתיק?`)) return
+    setBusyBulk(true)
+    await Promise.all([...selected].map(id =>
+      fetch('/api/portfolio', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
+    ))
+    setBusyBulk(false)
+    clearSelection()
+    router.refresh()
   }
 
   async function togglePublish(item: PortfolioItem) {
@@ -208,6 +231,31 @@ export default function PortfolioAdminClient({ items, labels }: { items: Portfol
           </div>
         )}
 
+        {/* Bulk action bar */}
+        {selected.size > 0 && (
+          <div className="sticky top-2 z-20 flex items-center gap-3 flex-wrap bg-blue-600 text-white rounded-2xl px-4 py-2.5 shadow-lg">
+            <span className="text-sm font-bold">{selected.size} נבחרו</span>
+            <select
+              defaultValue=""
+              disabled={busyBulk}
+              onChange={e => { const v = e.target.value; e.currentTarget.value = ''; if (v) bulkApplyLabel(v) }}
+              className="text-sm text-gray-800 rounded-lg px-2 py-1.5 bg-white outline-none"
+            >
+              <option value="" disabled>החל תווית…</option>
+              <option value="__none">— הסר תווית —</option>
+              {labels.map(l => <option key={l.id} value={l.name}>{l.name}</option>)}
+            </select>
+            <button
+              onClick={bulkDelete}
+              disabled={busyBulk}
+              className="inline-flex items-center gap-1.5 text-sm font-bold bg-white/15 hover:bg-white/25 rounded-lg px-3 py-1.5 transition-colors disabled:opacity-50"
+            >
+              <Trash2 className="w-4 h-4" /> מחק נבחרים
+            </button>
+            <button onClick={clearSelection} className="text-sm text-blue-100 hover:text-white mr-auto">בטל בחירה</button>
+          </div>
+        )}
+
         {/* Grid */}
         {items.length === 0 ? (
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm py-20 text-center space-y-2">
@@ -216,12 +264,22 @@ export default function PortfolioAdminClient({ items, labels }: { items: Portfol
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {items.map((item, idx) => (
-              <div key={item.id} className={`bg-white rounded-2xl border shadow-sm overflow-hidden ${item.is_published ? 'border-gray-100' : 'border-amber-200'}`}>
+            {items.map((item, idx) => {
+              const isSel = selected.has(item.id)
+              return (
+              <div key={item.id} className={`bg-white rounded-2xl border shadow-sm overflow-hidden transition-shadow ${isSel ? 'border-blue-500 ring-2 ring-blue-500/40' : item.is_published ? 'border-gray-100' : 'border-amber-200'}`}>
                 {/* image */}
                 <div className="relative bg-gray-50 aspect-square">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={item.image_url} alt={item.label || ''} className="w-full h-full object-cover" />
+                  {/* selection checkbox */}
+                  <button
+                    onClick={() => toggleSelect(item.id)}
+                    title="בחר"
+                    className={`absolute top-2 left-2 w-6 h-6 rounded-md border-2 flex items-center justify-center transition-colors ${isSel ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white/80 border-white/90 text-transparent hover:border-blue-400'}`}
+                  >
+                    <Check className="w-4 h-4" />
+                  </button>
                   {!item.is_published && (
                     <span className="absolute top-2 right-2 text-[10px] font-bold bg-amber-100 text-amber-700 rounded-full px-2 py-0.5">מוסתר</span>
                   )}
@@ -272,7 +330,8 @@ export default function PortfolioAdminClient({ items, labels }: { items: Portfol
                   </div>
                 </div>
               </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>

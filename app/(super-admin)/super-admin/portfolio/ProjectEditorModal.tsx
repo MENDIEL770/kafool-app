@@ -2,17 +2,9 @@
 
 import { useState, useRef } from 'react'
 import { toSlug } from '@/lib/media'
-import { X, Upload, Trash2, Loader2, GripVertical } from 'lucide-react'
+import { uploadImage } from '@/lib/image-client'
+import { X, Upload, Trash2, Loader2, GripVertical, Star } from 'lucide-react'
 import type { PortfolioItem, PortfolioLabel } from './PortfolioAdminClient'
-
-async function uploadFile(file: File, path: string): Promise<string | null> {
-  const fd = new FormData()
-  fd.append('file', file)
-  fd.append('path', path)
-  const res = await fetch('/api/upload', { method: 'POST', body: fd })
-  const data = await res.json()
-  return data.url ?? null
-}
 
 export default function ProjectEditorModal({
   item, labels, onClose, onSaved,
@@ -41,20 +33,20 @@ export default function ProjectEditorModal({
   async function onCover(files: FileList | null) {
     const file = files?.[0]
     if (!file) return
-    setUploadingCover(true)
-    const url = await uploadFile(file, `portfolio/${crypto.randomUUID()}`)
-    if (url) setCover(url)
+    setUploadingCover(true); setError(null)
+    try { setCover(await uploadImage(file, `portfolio/${crypto.randomUUID()}`)) }
+    catch (e) { setError(e instanceof Error ? e.message : 'העלאה נכשלה') }
     setUploadingCover(false)
     if (coverRef.current) coverRef.current.value = ''
   }
 
   async function onAddImages(files: FileList | null) {
     if (!files || files.length === 0) return
-    setUploadingImgs(true)
+    setUploadingImgs(true); setError(null)
     const added: string[] = []
     for (const file of Array.from(files)) {
-      const url = await uploadFile(file, `portfolio/${item.id}/${crypto.randomUUID()}`)
-      if (url) added.push(url)
+      try { added.push(await uploadImage(file, `portfolio/${item.id}/${crypto.randomUUID()}`)) }
+      catch (e) { setError(e instanceof Error ? e.message : 'העלאה נכשלה') }
     }
     setImages(prev => [...prev, ...added])
     setUploadingImgs(false)
@@ -184,6 +176,9 @@ export default function ProjectEditorModal({
                 הוסף תמונות
               </button>
             </div>
+            <p className="text-[11px] text-gray-400 mb-2">
+              העלו את כל תמונות הפרויקט, ואז עברו עם העכבר על תמונה ולחצו ⭐ כדי להגדיר אותה כתמונה הראשית (הכריכה).
+            </p>
             {images.length === 0 ? (
               <p className="text-xs text-gray-400 bg-gray-50 rounded-lg py-6 text-center">
                 אין תמונות נוספות. בלי תמונות/תיאור/וידאו — המודעה תוצג כתמונה בודדת (ללא עמוד פרויקט).
@@ -195,6 +190,10 @@ export default function ProjectEditorModal({
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={url} alt="" className="w-full h-full object-cover" />
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
+                      <button onClick={() => setCover(url)} title="הגדר כתמונה ראשית"
+                        className={`w-7 h-7 rounded-md flex items-center justify-center ${cover === url ? 'bg-amber-400 text-white' : 'bg-white/90 text-amber-500'}`}>
+                        <Star className={`w-3.5 h-3.5 ${cover === url ? 'fill-white' : ''}`} />
+                      </button>
                       <button onClick={() => moveImage(i, -1)} disabled={i === 0} title="הזז שמאלה"
                         className="w-7 h-7 rounded-md bg-white/90 text-gray-700 flex items-center justify-center disabled:opacity-30">
                         <GripVertical className="w-3.5 h-3.5" />
@@ -204,7 +203,11 @@ export default function ProjectEditorModal({
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
-                    {i === 0 && <span className="absolute top-1 right-1 text-[9px] font-bold bg-blue-600 text-white rounded px-1.5 py-0.5">1</span>}
+                    {cover === url && (
+                      <span className="absolute top-1 right-1 inline-flex items-center gap-0.5 text-[9px] font-bold bg-amber-500 text-white rounded px-1.5 py-0.5">
+                        <Star className="w-2.5 h-2.5 fill-white" /> ראשי
+                      </span>
+                    )}
                   </div>
                 ))}
               </div>
