@@ -10,10 +10,32 @@ function Notice({ children }: { children: React.ReactNode }) {
   return <div dir="rtl" className="max-w-2xl mx-auto px-4 py-16 text-center text-gray-500">{children}</div>
 }
 
-export default async function KafoolPlusPage() {
+const SAMPLE_GROUP = { id: 'demo', display_name: 'דוד כהן (תצוגה)', public_slug: 'demo', donation_link: 'https://www.kafool.com/demo', personal_goal: 50000 }
+const SAMPLE_LEADS = [
+  { id: 'd1', full_name: 'משה לוי', phone: '0501234567', email: 'moshe@example.com', address: 'רחוב הרצל 5, תל אביב', birthday: null, notes: 'מעדיף שיחות בערב', status: 'new', is_vip: true, donation_history: [{ year: 2024, amount: 5000 }, { year: 2023, amount: 3600 }] },
+  { id: 'd2', full_name: 'שרה כהן', phone: '0529876543', email: null, address: null, birthday: null, notes: null, status: 'new', is_vip: false, donation_history: [{ year: 2024, amount: 360 }] },
+  { id: 'd3', full_name: 'יעקב פרידמן', phone: '0541112222', email: 'yaakov@example.com', address: 'ירושלים', birthday: null, notes: null, status: 'no_answer', is_vip: false, donation_history: [] },
+]
+
+export default async function KafoolPlusPage({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
   const supabase = await createClient()
   const kp = await getKafoolPlusContext(supabase)
-  if (!kp.role) return <Notice>אין לך גישה למוקד Kafool+.</Notice>
+  if (!kp.role) return (
+    <Notice>
+      <div className="space-y-2">
+        <p className="font-bold text-gray-700">חשבון Google זה אינו רשום במוקד Kafool+</p>
+        <p>פנה למנהל כדי שירשום את כתובת המייל שלך, ואז התחבר שוב.</p>
+        <a href="/kafool-plus-login" className="text-indigo-600 hover:underline text-sm">חזרה להתחברות</a>
+      </div>
+    </Notice>
+  )
+
+  // Manager/super-admin can preview the caller screen with sample data.
+  const sp = await searchParams
+  if (kp.role === 'manager' && sp?.preview === 'caller') {
+    return <CallerScreen group={SAMPLE_GROUP} leads={SAMPLE_LEADS} calls={[]} reminders={[]} callScript={'פתיחה: שלום, מדבר/ת ___ ממוקד הגיוס...\nסיפור: ...\nהתנגדויות: ...\nסגירה: אשמח אם תוכל/י לתרום היום.'} />
+  }
+
   const admin = await createServiceClient()
 
   // ─── Caller ───

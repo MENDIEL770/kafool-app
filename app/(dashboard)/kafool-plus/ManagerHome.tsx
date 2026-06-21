@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Building2, Users, Target, Trash2, Loader2, CheckCircle2, Clock, Megaphone, Send, UploadCloud } from 'lucide-react'
+import { Plus, Building2, Users, Target, Trash2, Loader2, CheckCircle2, Clock, Megaphone, Send, UploadCloud, Phone } from 'lucide-react'
 import NetworkImport from './NetworkImport'
 
 export interface MasterCampaign {
@@ -84,15 +84,10 @@ export default function ManagerHome({ campaigns, branches, members, groups = [],
       setBranchEmails(s => ({ ...s, [branchId]: '' })); router.refresh()
     }
   }
-  async function sendInvite(email: string | null, name: string | null) {
-    if (!email) return
-    setBusy(true); setError(null)
-    const res = await fetch('/api/kafoolplus/invite', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, name }) })
-    const d = await res.json().catch(() => ({}))
-    setBusy(false)
-    if (!res.ok || !d.url) { setError(d.error || 'יצירת הקישור נכשלה'); return }
-    await navigator.clipboard.writeText(d.url).catch(() => {})
-    window.prompt('קישור הכניסה לרכז (הועתק ללוח — שלח לו אותו):', d.url)
+  function shareLogin() {
+    const url = `${window.location.origin}/kafool-plus-login`
+    navigator.clipboard.writeText(url).catch(() => {})
+    window.prompt('קישור התחברות (Google) — שלח לרכז. הוא יתחבר עם חשבון ה-Google של המייל הרשום:', url)
   }
 
   const coordinatorOf = (branchId: string) => members.find(m => m.branch_id === branchId && m.role === 'coordinator')
@@ -110,9 +105,14 @@ export default function ManagerHome({ campaigns, branches, members, groups = [],
             <p className="text-sm text-gray-400">ניהול קמפיין ראשי, סניפים ורכזים</p>
           </div>
         </div>
-        <button onClick={() => setShowNew(v => !v)} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-sm font-bold shadow-sm hover:opacity-90" style={{ background: '#4f46e5' }}>
-          <Plus className="w-4 h-4" /> קמפיין ראשי חדש
-        </button>
+        <div className="flex items-center gap-2">
+          <a href="/kafool-plus?preview=caller" className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-gray-700 border border-gray-200 bg-white hover:bg-gray-50">
+            <Phone className="w-4 h-4" /> תצוגת מסך טלפן
+          </a>
+          <button onClick={() => setShowNew(v => !v)} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-sm font-bold shadow-sm hover:opacity-90" style={{ background: '#4f46e5' }}>
+            <Plus className="w-4 h-4" /> קמפיין ראשי חדש
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -226,7 +226,7 @@ export default function ManagerHome({ campaigns, branches, members, groups = [],
                                 {linked
                                   ? <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600"><CheckCircle2 className="w-3.5 h-3.5" /> התחבר</span>
                                   : <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-500"><Clock className="w-3.5 h-3.5" /> ממתין</span>}
-                                <button onClick={() => sendInvite(b.coordinator_email, b.name)} disabled={busy} title="צור קישור כניסה והעתק" className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 border border-indigo-100 bg-indigo-50 hover:bg-indigo-100 rounded-lg px-2.5 py-1.5">
+                                <button onClick={shareLogin} disabled={busy} title="העתק קישור התחברות לשליחה" className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 border border-indigo-100 bg-indigo-50 hover:bg-indigo-100 rounded-lg px-2.5 py-1.5">
                                   <Send className="w-3.5 h-3.5" /> קישור
                                 </button>
                               </>

@@ -54,15 +54,10 @@ export default function CoordinatorHome({ branch, callerGroups, leads, members }
     if (callerGroups.length === 0) { setError('אין טלפנים לחלק אליהם'); return }
     if (await api('/api/kafoolplus/leads', 'PATCH', { auto: true, branch_id: branch!.id })) router.refresh()
   }
-  async function sendInvite(email: string | null, name: string | null) {
-    if (!email) return
-    setBusy(true); setError(null)
-    const res = await fetch('/api/kafoolplus/invite', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, name }) })
-    const d = await res.json().catch(() => ({}))
-    setBusy(false)
-    if (!res.ok || !d.url) { setError(d.error || 'יצירת הקישור נכשלה'); return }
-    await navigator.clipboard.writeText(d.url).catch(() => {})
-    window.prompt('קישור הכניסה לטלפן (הועתק ללוח — שלח לו אותו):', d.url)
+  function shareLogin() {
+    const url = `${window.location.origin}/kafool-plus-login`
+    navigator.clipboard.writeText(url).catch(() => {})
+    window.prompt('קישור התחברות (Google) — שלח לטלפן. הוא יתחבר עם חשבון ה-Google של המייל הרשום:', url)
   }
 
   const connected = (gid: string) => !!members.find(m => m.caller_group_id === gid)?.user_id
@@ -106,7 +101,7 @@ export default function CoordinatorHome({ branch, callerGroups, leads, members }
                   {connected(g.id)
                     ? <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600"><CheckCircle2 className="w-3.5 h-3.5" /> התחבר</span>
                     : <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-500"><Clock className="w-3.5 h-3.5" /> ממתין</span>}
-                  <button onClick={() => sendInvite(g.caller_email, g.display_name)} disabled={busy} title="צור קישור כניסה והעתק" className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 border border-indigo-100 bg-indigo-50 hover:bg-indigo-100 rounded-lg px-2.5 py-1.5"><Send className="w-3.5 h-3.5" /> קישור כניסה</button>
+                  <button onClick={shareLogin} disabled={busy} title="העתק קישור התחברות לשליחה" className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 border border-indigo-100 bg-indigo-50 hover:bg-indigo-100 rounded-lg px-2.5 py-1.5"><Send className="w-3.5 h-3.5" /> קישור כניסה</button>
                   <button onClick={() => removeCaller(g.id)} disabled={busy} className="w-8 h-8 rounded-lg border border-gray-200 text-red-500 hover:bg-red-50 flex items-center justify-center"><Trash2 className="w-4 h-4" /></button>
                 </div>
               </div>
