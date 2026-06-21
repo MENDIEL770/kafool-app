@@ -28,6 +28,7 @@ import {
   Menu,
   X,
   FlaskConical,
+  Megaphone,
 } from 'lucide-react'
 
 interface Profile {
@@ -52,6 +53,7 @@ const navItems = [
 ]
 
 const kafoolPlusItems = [
+  { href: '/kafool-plus', label: 'מוקד טלפוני', icon: Megaphone },
   { href: '/callers', label: 'טלפנים / KafoolPulse', icon: Phone },
   { href: '/leads', label: 'לידים', icon: Users },
   { href: '/war-room', label: 'חמ"ל גיוס', icon: Tv2 },
