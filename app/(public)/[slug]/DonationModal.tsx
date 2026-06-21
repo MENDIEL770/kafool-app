@@ -98,10 +98,15 @@ export default function DonationModal({
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(presetMethod ?? 'one_time')
   const [months, setMonths] = useState<number>(presetMonths ?? 12)
 
-  // Available methods = only those with a URL configured
+  // Available methods = only those with a URL configured.
+  // Bit is NOT a top-level method — it's offered as a separate button under
+  // one-time payment (opens its own link in a new tab).
   const availableMethods = PAYMENT_METHODS.filter(m =>
-    m.key === 'one_time' ? !!donationUrl : !!(paymentUrls?.[m.key])
+    m.key === 'bit' ? false
+      : m.key === 'one_time' ? !!donationUrl
+      : !!(paymentUrls?.[m.key])
   )
+  const bitUrl = paymentUrls?.bit || ''
   const hasMultipleMethods = availableMethods.length > 1
 
   function getActiveUrl(): string {
@@ -141,8 +146,19 @@ export default function DonationModal({
     setForm(p => ({ ...p, [key]: value }))
   }
 
-  function buildPaymentUrl() {
-    const activeUrl = getActiveUrl()
+  // Save donor details locally so the thanks page can attach them to the donation.
+  function persistDonor() {
+    localStorage.setItem('kafool_donor', JSON.stringify({
+      name: [form.firstName, form.lastName].filter(Boolean).join(' ') || null,
+      phone: form.phone || null,
+      email: form.email || null,
+      dedication: form.dedication || null,
+      anonymous: form.anonymous,
+    }))
+  }
+
+  function buildPaymentUrl(baseUrl?: string) {
+    const activeUrl = baseUrl ?? getActiveUrl()
     const params = new URLSearchParams()
     if (finalAmount) params.set('total', String(finalAmount))
     if (!form.anonymous) {
@@ -365,16 +381,7 @@ export default function DonationModal({
               )}
 
               <button
-                onClick={() => {
-                  localStorage.setItem('kafool_donor', JSON.stringify({
-                    name: [form.firstName, form.lastName].filter(Boolean).join(' ') || null,
-                    phone: form.phone || null,
-                    email: form.email || null,
-                    dedication: form.dedication || null,
-                    anonymous: form.anonymous,
-                  }))
-                  setStep('payment')
-                }}
+                onClick={() => { persistDonor(); setStep('payment') }}
                 disabled={!canProceed}
                 className={`w-full py-4 font-black text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all ${buttonRadius}`}
                 style={{ backgroundColor: primaryColor }}
@@ -389,6 +396,31 @@ export default function DonationModal({
                   )
                 })()}
               </button>
+
+              {/* תשלום בביט — נפתח בקישור נפרד (טאב חדש), זמין בתרומה חד"פ */}
+              {paymentMethod === 'one_time' && bitUrl && (
+                <>
+                  <div className="flex items-center gap-2 text-[11px] text-gray-300">
+                    <span className="flex-1 h-px bg-gray-200" />
+                    {en ? 'or' : 'או'}
+                    <span className="flex-1 h-px bg-gray-200" />
+                  </div>
+                  <button
+                    type="button"
+                    disabled={!canProceed}
+                    onClick={() => {
+                      if (!canProceed) return
+                      persistDonor()
+                      window.open(buildPaymentUrl(bitUrl), '_blank', 'noopener')
+                    }}
+                    className={`w-full py-3.5 font-black flex items-center justify-center gap-2.5 disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:opacity-90 ${buttonRadius}`}
+                    style={{ backgroundColor: '#0A2E36', color: '#37E5E0' }}
+                  >
+                    <BitLogo className="w-6 h-6 rounded-md" />
+                    {en ? 'Pay with Bit' : 'שלם בביט'}
+                  </button>
+                </>
+              )}
 
               {!form.anonymous && finalAmount > 0 && !detailsValid && (
                 <p className="text-center text-xs text-amber-600 -mt-1">
@@ -458,5 +490,15 @@ export default function DonationModal({
         </div>
       </div>
     </div>
+  )
+}
+
+// Bit wordmark (Bank Hapoalim) — dark teal tile + cyan "bit".
+function BitLogo({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 64 64" className={className} xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <rect width="64" height="64" rx="15" fill="#0A2E36" />
+      <text x="32" y="44" textAnchor="middle" fontFamily="Arial, Helvetica, sans-serif" fontSize="34" fontWeight="700" fill="#37E5E0">bit</text>
+    </svg>
   )
 }
