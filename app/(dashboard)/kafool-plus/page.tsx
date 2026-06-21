@@ -66,7 +66,7 @@ export default async function KafoolPlusPage() {
 
   // ─── Manager ───
   if (!kp.orgId) return <Notice>היכנס לארגון (ניהול ארגונים → כניסה) כדי לנהל מוקד Kafool+.</Notice>
-  const [campaignsRes, branchesRes, membersRes, groupsRes, promisesRes, leadsRes, callsCount, orgRes] = await Promise.all([
+  const [campaignsRes, branchesRes, membersRes, groupsRes, promisesRes, leadsRes, callsCount] = await Promise.all([
     admin.from('kafoolplus_master_campaigns').select('*').eq('org_id', kp.orgId).order('created_at', { ascending: false }),
     admin.from('kafoolplus_branches').select('*').eq('org_id', kp.orgId).order('created_at', { ascending: false }),
     admin.from('kafoolplus_members').select('id, email, role, branch_id, user_id, is_active').eq('org_id', kp.orgId),
@@ -74,7 +74,6 @@ export default async function KafoolPlusPage() {
     admin.from('kafoolplus_promises').select('amount, status, caller_group_id').eq('org_id', kp.orgId),
     admin.from('kafoolplus_leads').select('status').eq('org_id', kp.orgId),
     admin.from('kafoolplus_calls').select('id', { count: 'exact', head: true }).eq('org_id', kp.orgId),
-    admin.from('organizations').select('kafoolplus_only').eq('id', kp.orgId).maybeSingle(),
   ])
 
   return (
@@ -86,7 +85,6 @@ export default async function KafoolPlusPage() {
       promises={promisesRes.data ?? []}
       leadStatuses={(leadsRes.data ?? []).map(l => l.status)}
       callsCount={callsCount.count ?? 0}
-      kafoolplusOnly={!!orgRes.data?.kafoolplus_only}
     />
   )
 }

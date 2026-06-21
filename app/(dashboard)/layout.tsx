@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
-import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server'
 import { getContext } from '@/lib/tenancy'
 import { getKafoolPlusContext } from '@/lib/kafoolplus'
 import Sidebar from '@/components/layout/Sidebar'
@@ -54,19 +54,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
     )
   }
 
-  // Kafool+-only lock: coordinators/callers of an org flagged kafoolplus_only
-  // are restricted to the Kafool+ module (the sidebar hides everything else).
-  let lockToKafoolPlus = false
+  // Coordinators and callers are Kafool+ users — they only ever see the Kafool+
+  // module (no regular dashboard sidebar/pages), regardless of any org flag.
   const kp = await getKafoolPlusContext(supabase)
-  if (kp.role === 'coordinator' || kp.role === 'caller') {
-    if (kp.orgId) {
-      const admin = await createServiceClient()
-      const { data: o } = await admin.from('organizations').select('kafoolplus_only').eq('id', kp.orgId).maybeSingle()
-      lockToKafoolPlus = !!o?.kafoolplus_only
-    }
-  }
+  const lockToKafoolPlus = kp.role === 'coordinator' || kp.role === 'caller'
 
-  // Hard lock: a kafoolplus_only coordinator/caller may only be inside Kafool+.
+  // Hard lock (server-side): such a user may only be inside Kafool+.
   if (lockToKafoolPlus) {
     const pathname = (await headers()).get('x-pathname') || ''
     if (!pathname.startsWith('/kafool-plus')) redirect('/kafool-plus')

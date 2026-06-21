@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Building2, Users, Target, Trash2, Loader2, CheckCircle2, Clock, Megaphone, Send, Lock, UploadCloud } from 'lucide-react'
+import { Plus, Building2, Users, Target, Trash2, Loader2, CheckCircle2, Clock, Megaphone, Send, UploadCloud } from 'lucide-react'
 import NetworkImport from './NetworkImport'
 
 export interface MasterCampaign {
@@ -17,12 +17,11 @@ export interface Member {
 export interface Group { id: string; display_name: string | null; branch_id: string | null }
 export interface Promise_ { amount: number; status: string; caller_group_id: string | null }
 
-export default function ManagerHome({ campaigns, branches, members, groups = [], promises = [], leadStatuses = [], callsCount = 0, kafoolplusOnly = false }: {
+export default function ManagerHome({ campaigns, branches, members, groups = [], promises = [], leadStatuses = [], callsCount = 0 }: {
   campaigns: MasterCampaign[]; branches: Branch[]; members: Member[]
-  groups?: Group[]; promises?: Promise_[]; leadStatuses?: string[]; callsCount?: number; kafoolplusOnly?: boolean
+  groups?: Group[]; promises?: Promise_[]; leadStatuses?: string[]; callsCount?: number
 }) {
   const router = useRouter()
-  const [kpOnly, setKpOnly] = useState(kafoolplusOnly)
   const [showNetwork, setShowNetwork] = useState(false)
   const [branchEmails, setBranchEmails] = useState<Record<string, string>>({})
   const [selectedId, setSelectedId] = useState(campaigns[0]?.id ?? '')
@@ -78,11 +77,6 @@ export default function ManagerHome({ campaigns, branches, members, groups = [],
     if (!confirm('להסיר את הסניף והרכז שלו? (הטלפנים והלידים בסניף יימחקו)')) return
     if (await api('/api/kafoolplus/coordinators', 'DELETE', { branch_id: id })) router.refresh()
   }
-  async function toggleKpOnly() {
-    const next = !kpOnly
-    setKpOnly(next)
-    if (!(await api('/api/kafoolplus/org-settings', 'PATCH', { kafoolplus_only: next }))) setKpOnly(!next)
-  }
   async function assignEmail(branchId: string) {
     const email = (branchEmails[branchId] || '').trim()
     if (!email) return
@@ -127,20 +121,6 @@ export default function ManagerHome({ campaigns, branches, members, groups = [],
           <button onClick={() => setError(null)} className="text-red-400 text-xs font-bold">סגור</button>
         </div>
       )}
-
-      {/* Kafool+-only mode */}
-      <div className="bg-white border border-gray-200 rounded-2xl px-5 py-3.5 shadow-sm flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5">
-          <Lock className="w-4 h-4 text-gray-400" />
-          <div>
-            <div className="text-sm font-bold text-gray-800">מצב מוקד בלבד</div>
-            <div className="text-[11px] text-gray-400">רכזים וטלפנים יראו רק את Kafool+, בלי דפי הגיוס הרגילים</div>
-          </div>
-        </div>
-        <button onClick={toggleKpOnly} disabled={busy} className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${kpOnly ? 'bg-indigo-600' : 'bg-gray-300'}`}>
-          <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${kpOnly ? 'translate-x-1' : 'translate-x-6'}`} />
-        </button>
-      </div>
 
       {/* Org-wide dashboard */}
       {campaigns.length > 0 && (
