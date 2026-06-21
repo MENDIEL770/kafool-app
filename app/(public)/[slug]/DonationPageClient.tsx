@@ -607,15 +607,7 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
                   }}
                 >
                   {image_url ? (
-                    <>
-                      <img src={image_url} alt={label || `₪${amount}`} className="w-full h-full object-cover" />
-                      {large && (
-                        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent pt-8 pb-2 px-2 text-center">
-                          <span className="text-white font-black text-xl drop-shadow">₪{amount.toLocaleString()}{payment_type === 'hok' ? ` ${t('perMonth')}` : ''}</span>
-                          {label && <div className="text-white/90 text-xs font-medium">{label}</div>}
-                        </div>
-                      )}
-                    </>
+                    <img src={image_url} alt={label || `₪${amount}`} className="w-full h-full object-cover" />
                   ) : (
                     <div
                       className="w-full h-full flex flex-col items-center justify-center text-center px-2"
