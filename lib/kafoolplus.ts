@@ -40,6 +40,12 @@ export async function getKafoolPlusContext(supabase: SupabaseClient): Promise<Kp
   const ctx = await getContext(supabase)
   const admin = await createServiceClient()
 
+  // 0) platform admins / super admins are ALWAYS managers — never demoted by a
+  // stray coordinator/caller membership (e.g. if they used their own email).
+  if (ctx.isSuperAdmin || ctx.role === 'admin' || ctx.role === 'manager') {
+    return { role: 'manager', orgId: ctx.orgId, isSuperAdmin: ctx.isSuperAdmin, userId: user.id, member: null }
+  }
+
   // 1) explicit membership by user_id
   let { data: member } = await admin
     .from('kafoolplus_members').select(COLS)
