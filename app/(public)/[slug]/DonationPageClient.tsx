@@ -715,7 +715,9 @@ function ProgressSection({ raised, goal, donorsCount, primaryColor, bricks }: { 
   const completed = lang === 'en' ? 'complete' : 'הושלם'
 
   const bricksTotal = bricks && bricks.total > 0 ? bricks.total : 0
-  const bricksAchieved = bricks && bricks.price > 0 ? Math.min(bricksTotal, Math.floor(raised / bricks.price)) : 0
+  // Bricks mirror the money percentage exactly, so the wall + its "% built"
+  // always match the progress bar (no drift between raised/goal and raised/price).
+  const bricksAchieved = bricksTotal > 0 ? Math.min(bricksTotal, Math.round((pct / 100) * bricksTotal)) : 0
   const bricksLabel = bricks?.label || (lang === 'en' ? 'bricks' : 'לבנים')
 
   useEffect(() => {
@@ -765,7 +767,7 @@ function ProgressSection({ raised, goal, donorsCount, primaryColor, bricks }: { 
           for (let i = 0; i < bricksTotal; i += COLS) {
             rows.push(Array.from({ length: Math.min(COLS, bricksTotal - i) }, (_, c) => (i + c) < bricksAchieved))
           }
-          const pct = Math.round((bricksAchieved / bricksTotal) * 100)
+          // use the money percentage so the wall label matches the progress bar
           return (
             <div className="pt-5 mt-3 border-t border-gray-200 space-y-3">
               <style>{`@keyframes brickGlow{0%,100%{box-shadow:inset 0 1px 0 rgba(255,255,255,.4),0 0 0 0 rgba(180,90,40,.5)}50%{box-shadow:inset 0 1px 0 rgba(255,255,255,.4),0 0 0 5px rgba(180,90,40,0)}}`}</style>
