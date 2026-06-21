@@ -23,10 +23,14 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}))
   if (!body.image_url) return NextResponse.json({ error: 'חסרה תמונה' }, { status: 400 })
 
+  const insert: Record<string, unknown> = { image_url: body.image_url, sort_order: body.sort_order ?? 0 }
+  // Optional: create a full project in one shot (a set of images at once).
+  if (Array.isArray(body.project_images)) insert.project_images = body.project_images
+
   const supabase = await createServiceClient()
   const { data, error } = await supabase
     .from('portfolio_items')
-    .insert({ image_url: body.image_url, sort_order: body.sort_order ?? 0 })
+    .insert(insert)
     .select()
     .single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

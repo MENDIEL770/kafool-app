@@ -35,7 +35,9 @@ function isProject(it: PortfolioItem): boolean {
 export default function PortfolioAdminClient({ items, labels }: { items: PortfolioItem[]; labels: PortfolioLabel[] }) {
   const router = useRouter()
   const fileRef = useRef<HTMLInputElement>(null)
+  const projectFileRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
+  const [uploadingProject, setUploadingProject] = useState(false)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [editing, setEditing] = useState<PortfolioItem | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -86,6 +88,34 @@ export default function PortfolioAdminClient({ items, labels }: { items: Portfol
     setUploading(false)
     if (fileRef.current) fileRef.current.value = ''
     router.refresh()
+  }
+
+  // Upload several images at once as ONE project, then open the editor so the
+  // user can pick the main image / add a title & description.
+  async function onProjectFiles(files: FileList | null) {
+    if (!files || files.length === 0) return
+    setUploadingProject(true)
+    setError(null)
+    try {
+      const urls: string[] = []
+      for (const file of Array.from(files)) {
+        urls.push(await uploadImage(file, `portfolio/${crypto.randomUUID()}`))
+      }
+      if (urls.length === 0) throw new Error('לא הועלו תמונות')
+      const res = await fetch('/api/portfolio', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image_url: urls[0], project_images: urls, sort_order: items.length }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'יצירת הפרויקט נכשלה')
+      router.refresh()
+      if (data.item) setEditing(data.item as PortfolioItem)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'שגיאה בהעלאת הפרויקט')
+    }
+    setUploadingProject(false)
+    if (projectFileRef.current) projectFileRef.current.value = ''
   }
 
   async function saveLabel(id: string, value: string) {
@@ -200,10 +230,21 @@ export default function PortfolioAdminClient({ items, labels }: { items: Portfol
               <Tags className="w-4 h-4" />
               ניהול תוויות
             </button>
+            <input ref={projectFileRef} type="file" accept="image/*" multiple className="hidden" onChange={e => onProjectFiles(e.target.files)} />
+            <button
+              onClick={() => projectFileRef.current?.click()}
+              disabled={uploadingProject}
+              title="בחרו כמה תמונות שיהפכו לפרויקט אחד"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-gray-800 border border-gray-200 bg-white hover:bg-gray-50 active:scale-95 transition-all disabled:opacity-60"
+            >
+              {uploadingProject ? <Loader2 className="w-4 h-4 animate-spin" /> : <Layers className="w-4 h-4" />}
+              {uploadingProject ? 'מעלה פרויקט...' : 'העלה פרויקט שלם'}
+            </button>
             <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={e => onFiles(e.target.files)} />
             <button
               onClick={() => fileRef.current?.click()}
               disabled={uploading}
+              title="כל תמונה תהפוך לעבודה נפרדת"
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-white shadow-sm hover:opacity-90 active:scale-95 transition-all disabled:opacity-60"
               style={{ background: 'linear-gradient(135deg, #2563eb, #1d4ed8)' }}
             >
