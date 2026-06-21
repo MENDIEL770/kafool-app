@@ -27,11 +27,13 @@ export default function CampaignSettingsPage() {
     about_text: '',
     about_text_en: '',
     button_radius: 'pill' as 'pill' | 'rounded' | 'square',
+    donation_button_size: 'default' as 'default' | 'large',
     countdown_end: '',
     whatsapp_phone: '',
     whatsapp_message: '',
     thanks_title: '',
     thanks_message: '',
+    logo_url: '',
   })
 
   useEffect(() => {
@@ -49,11 +51,13 @@ export default function CampaignSettingsPage() {
           about_text: data.settings?.about_text || '',
           about_text_en: data.settings?.about_text_en || '',
           button_radius: data.settings?.button_radius || 'pill',
+          donation_button_size: data.settings?.donation_button_size || 'default',
           countdown_end: data.settings?.countdown_end || '',
           whatsapp_phone: data.settings?.whatsapp_phone || '',
           whatsapp_message: data.settings?.whatsapp_message || '',
           thanks_title: data.settings?.thanks?.title || '',
           thanks_message: data.settings?.thanks?.message || '',
+          logo_url: data.logo_url || '',
         })
       }
     }
@@ -84,6 +88,7 @@ export default function CampaignSettingsPage() {
         about_text: form.about_text || null,
         about_text_en: form.about_text_en || null,
         button_radius: form.button_radius,
+        donation_button_size: form.donation_button_size,
         countdown_end: form.countdown_end || null,
         whatsapp_phone: form.whatsapp_phone || null,
         whatsapp_message: form.whatsapp_message || null,
@@ -297,6 +302,33 @@ export default function CampaignSettingsPage() {
                 ))}
               </div>
             </div>
+
+            {/* גודל כפתורי תרומה */}
+            <div className="space-y-2">
+              <Label>גודל כפתורי תרומה</Label>
+              <p className="text-[11px] text-gray-400 -mt-1">קובע איך מוצגים מסלולי הסכומים בדף הגיוס</p>
+              <div className="grid grid-cols-2 gap-3">
+                {([
+                  { key: 'default', label: 'רגיל', desc: 'עיגולים קטנים (ברירת מחדל)', dots: [10, 10, 10] },
+                  { key: 'large', label: 'גדול', desc: 'כפתורים גדולים 1:1 — גדול בנייד, עיגולים גדולים במחשב', dots: [22, 22] },
+                ] as const).map(opt => (
+                  <button
+                    key={opt.key}
+                    type="button"
+                    onClick={() => set('donation_button_size', opt.key)}
+                    className={`p-3 border-2 rounded-xl flex flex-col items-center gap-2 text-center transition-all ${form.donation_button_size === opt.key ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}
+                  >
+                    <div className="flex items-center justify-center gap-1.5 h-7">
+                      {opt.dots.map((d, i) => (
+                        <span key={i} className="rounded-full" style={{ width: d, height: d, backgroundColor: primaryColor }} />
+                      ))}
+                    </div>
+                    <span className="text-xs font-bold text-gray-700">{opt.label}</span>
+                    <span className="text-[10px] text-gray-400 leading-tight">{opt.desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
           </CardContent>
         </Card>
 
@@ -324,6 +356,35 @@ export default function CampaignSettingsPage() {
                 placeholder="תרומתך התקבלה בהצלחה"
               />
               <p className="text-[11px] text-gray-400">השאר ריק כדי להשתמש בברירת המחדל</p>
+            </div>
+
+            {/* תצוגה מקדימה חיה */}
+            <div className="space-y-2">
+              <Label>תצוגה מקדימה</Label>
+              <div className="rounded-2xl border border-gray-200 bg-gray-50 p-6" dir="rtl">
+                <div className="text-center space-y-4 max-w-sm mx-auto">
+                  {form.logo_url && (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img src={form.logo_url} alt="" className="h-14 w-auto object-contain mx-auto" />
+                  )}
+                  <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto shadow" style={{ backgroundColor: primaryColor + '20' }}>
+                    <svg className="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke={primaryColor} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-black text-gray-900">{form.thanks_title || 'תודה רבה!'}</h3>
+                    <p className="text-gray-500 whitespace-pre-line mt-1">{form.thanks_message || 'תרומתך התקבלה בהצלחה'}</p>
+                  </div>
+                  <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                    <p className="text-gray-600 text-xs leading-relaxed">קבלה תישלח לאימייל שלך בקרוב.<br />תרומתך תשנה חיים.</p>
+                  </div>
+                  <button type="button" disabled className="w-full py-2.5 rounded-xl font-bold text-white text-sm" style={{ backgroundColor: primaryColor }}>
+                    חזרה לדף הקמפיין
+                  </button>
+                </div>
+              </div>
+              <p className="text-[11px] text-gray-400">כך יראה התורם את העמוד מיד אחרי תרומה (הלוגו והצבע נלקחים מהגדרות הקמפיין).</p>
             </div>
           </CardContent>
         </Card>

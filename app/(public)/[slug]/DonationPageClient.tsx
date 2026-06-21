@@ -540,12 +540,13 @@ function HeroSection({ campaign, countdown }: {
   )
 }
 
-function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius, onDonate }: {
+function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius, buttonSize = 'default', onDonate }: {
   plans: { amount: number; label?: string; image_url?: string | null; payment_type?: 'one_time' | 'hok'; months?: number | null }[]
   primaryColor: string
   campaignSlug: string
   groups: Group[]
   buttonRadius: string
+  buttonSize?: 'default' | 'large'
   onDonate: (amount?: number, groupSlug?: string, method?: 'one_time' | 'hok', months?: number) => void
 }) {
   const [selected, setSelected] = useState<number | null>(null)
@@ -559,13 +560,27 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
   const lang = useLang()
   const t = useT()
 
+  // Large mode: big 1:1 buttons (full-width-ish squares on mobile, large circles
+  // side by side on desktop) so the donor clearly sees what each choice funds.
+  const large = buttonSize === 'large'
+  const gridCls = large
+    ? 'grid grid-cols-2 gap-4 md:flex md:gap-6 md:overflow-x-auto md:pb-6 md:pt-4 md:px-4 md:scrollbar-hide md:justify-center md:flex-nowrap'
+    : 'grid grid-cols-3 gap-4 pb-2 px-1 md:flex md:gap-5 md:overflow-x-auto md:pb-6 md:pt-4 md:px-4 md:scrollbar-hide md:snap-x md:justify-center md:flex-nowrap'
+  const itemCls = large
+    ? 'snap-start flex flex-col items-center gap-2 cursor-pointer focus:outline-none w-full md:w-auto md:flex-none'
+    : 'flex-none snap-start flex flex-col items-center gap-2 cursor-pointer focus:outline-none'
+  const shapeCls = large
+    ? 'w-full aspect-square rounded-2xl md:w-[180px] md:h-[180px] md:aspect-auto md:rounded-full overflow-hidden transition-all duration-200 relative'
+    : 'w-[90px] h-[90px] md:w-[110px] md:h-[110px] rounded-full overflow-hidden transition-all duration-200 relative'
+  const amountTextCls = large ? 'text-white font-black text-3xl md:text-3xl' : 'text-white font-black text-lg md:text-xl'
+
   return (
     <section className="bg-white border-b border-gray-100 py-8 px-4" aria-label="מסלולי תרומה">
       <div className="max-w-6xl mx-auto">
         <h2 className="text-lg font-bold text-gray-700 mb-6 text-center">{t('chooseAmount')}</h2>
 
-        {/* Grid: 3 columns on mobile, scrollable row on md+ */}
-        <div className="grid grid-cols-3 gap-4 pb-2 px-1 md:flex md:gap-5 md:overflow-x-auto md:pb-6 md:pt-4 md:px-4 md:scrollbar-hide md:snap-x md:justify-center md:flex-nowrap" style={{ overflowY: 'visible' }}>
+        {/* Grid: 3 columns on mobile, scrollable row on md+ (or large 1:1 buttons) */}
+        <div className={gridCls} style={{ overflowY: 'visible' }}>
           {plans.map(({ amount, label, image_url, payment_type, months }) => {
             const isActive = selected === amount
             return (
@@ -579,11 +594,11 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
                   setCustom('')
                 }}
                 aria-pressed={isActive}
-                className="flex-none snap-start flex flex-col items-center gap-2 cursor-pointer focus:outline-none"
+                className={itemCls}
               >
-                {/* עיגול */}
+                {/* עיגול / כפתור גדול */}
                 <div
-                  className="w-[90px] h-[90px] md:w-[110px] md:h-[110px] rounded-full overflow-hidden transition-all duration-200 relative"
+                  className={shapeCls}
                   style={{
                     boxShadow: isActive
                       ? `0 0 0 4px white, 0 0 0 7px ${primaryColor}, 0 6px 20px ${primaryColor}44`
@@ -592,13 +607,22 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
                   }}
                 >
                   {image_url ? (
-                    <img src={image_url} alt={label || `₪${amount}`} className="w-full h-full object-cover" />
+                    <>
+                      <img src={image_url} alt={label || `₪${amount}`} className="w-full h-full object-cover" />
+                      {large && (
+                        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent pt-8 pb-2 px-2 text-center">
+                          <span className="text-white font-black text-xl drop-shadow">₪{amount.toLocaleString()}{payment_type === 'hok' ? ` ${t('perMonth')}` : ''}</span>
+                          {label && <div className="text-white/90 text-xs font-medium">{label}</div>}
+                        </div>
+                      )}
+                    </>
                   ) : (
                     <div
-                      className="w-full h-full flex items-center justify-center"
+                      className="w-full h-full flex flex-col items-center justify-center text-center px-2"
                       style={{ background: `linear-gradient(135deg, ${primaryColor}dd, ${primaryColor}88)` }}
                     >
-                      <span className="text-white font-black text-lg md:text-xl">₪{amount.toLocaleString()}</span>
+                      <span className={amountTextCls}>₪{amount.toLocaleString()}</span>
+                      {large && label && <span className="text-white/90 text-xs font-medium mt-1">{label}</span>}
                     </div>
                   )}
                   {isActive && (
@@ -627,11 +651,11 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
               <button
                 type="button"
                 onClick={() => { customInputRef.current?.focus(); setSelected(null); setSelectedMethod('one_time'); setSelectedMonths(undefined) }}
-                className="flex-none snap-start flex flex-col items-center gap-2 cursor-pointer focus:outline-none"
+                className={itemCls}
                 aria-pressed={customActive}
               >
                 <div
-                  className="w-[90px] h-[90px] md:w-[110px] md:h-[110px] rounded-full border-2 border-dashed border-gray-300 flex flex-col items-center justify-center bg-gray-50 transition-all duration-200"
+                  className={`${large ? 'w-full aspect-square rounded-2xl md:w-[180px] md:h-[180px] md:aspect-auto md:rounded-full' : 'w-[90px] h-[90px] md:w-[110px] md:h-[110px] rounded-full'} border-2 border-dashed border-gray-300 flex flex-col items-center justify-center bg-gray-50 transition-all duration-200`}
                   style={{
                     boxShadow: customActive
                       ? `0 0 0 4px white, 0 0 0 7px ${primaryColor}, 0 6px 20px ${primaryColor}44`
@@ -1332,10 +1356,12 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
     donation_plans?: { amount: number; label?: string; image_url?: string | null; payment_type?: 'one_time' | 'hok'; months?: number | null }[]
     primary_color?: string
     button_radius?: string
+    donation_button_size?: 'default' | 'large'
     whatsapp_phone?: string
     whatsapp_message?: string
     builder?: unknown
   }
+  const buttonSize = settings?.donation_button_size || 'default'
   // Page-builder config (super-admin). When absent the page renders exactly as
   // before; when present it drives theme + block visibility.
   const builderCfg = resolveBuilderConfig(settings?.builder)
@@ -1493,7 +1519,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
       )}
 
       {/* 3. Donation Plans */}
-      {isOn('amounts') && <DonationPlans plans={donationPlans} primaryColor={primaryColor} campaignSlug={campaign.slug} groups={groups} buttonRadius={buttonRadius} onDonate={openDonate} />}
+      {isOn('amounts') && <DonationPlans plans={donationPlans} primaryColor={primaryColor} campaignSlug={campaign.slug} groups={groups} buttonRadius={buttonRadius} buttonSize={buttonSize} onDonate={openDonate} />}
 
       {/* 4. Progress */}
       {isOn('goal') && <ProgressSection raised={raisedAmount} goal={campaign.goal_amount} donorsCount={donations.length} primaryColor={primaryColor} bricks={(campaign.settings as { bricks?: { total: number; price: number; label?: string } })?.bricks} />}
