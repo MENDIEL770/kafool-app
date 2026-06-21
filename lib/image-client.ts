@@ -1,12 +1,16 @@
 /**
  * Client-side image helpers for uploads.
  *
- * Vercel serverless functions reject request bodies over ~4.5MB with a plain
- * "Request Entity Too Large" response (not JSON) — which used to surface as the
- * cryptic `Unexpected token 'R'... is not valid JSON`. We avoid that by
- * downscaling large images in the browser before upload, and by handling
- * non-JSON / 413 responses with a clear Hebrew message.
+ * Files upload DIRECTLY to Supabase Storage via a signed upload URL, so they
+ * bypass the ~4.5MB request-body limit on Vercel functions (the old route
+ * returned a plain "Request Entity Too Large" that broke JSON parsing). This
+ * lets us accept large images up to MAX_UPLOAD_BYTES; anything bigger is
+ * downscaled in the browser, and if it's still too big we surface a clear error.
  */
+import { createClient } from '@/lib/supabase/client'
+
+const BUCKET = 'campaign-media'
+export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024 // 10MB per image
 
 /** Downscale an image to fit within maxDim and re-encode as JPEG. */
 export async function compressImage(file: File, maxDim = 1920, quality = 0.85): Promise<File> {
@@ -37,21 +41,39 @@ export async function compressImage(file: File, maxDim = 1920, quality = 0.85): 
   }
 }
 
-/** Compress + upload a single image, returning its public URL. Throws on error. */
+/**
+ * Upload a single image straight to Supabase Storage (via a signed URL).
+ * Files up to MAX_UPLOAD_BYTES are uploaded as-is to preserve quality; anything
+ * larger is downscaled first, and rejected only if it's still over the limit.
+ * Returns the public URL. Throws on error.
+ */
 export async function uploadImage(file: File, path: string): Promise<string> {
-  const toSend = await compressImage(file)
-  const fd = new FormData()
-  fd.append('file', toSend)
-  fd.append('path', path)
-  const res = await fetch('/api/upload', { method: 'POST', body: fd })
-  if (!res.ok) {
-    if (res.status === 413) throw new Error('הקובץ גדול מדי (מעל ~4.5MB). נסו תמונה קטנה יותר.')
-    let msg = 'העלאת הקובץ נכשלה'
-    const txt = await res.text().catch(() => '')
-    try { msg = JSON.parse(txt).error || msg } catch { /* non-JSON error body */ }
-    throw new Error(msg)
+  let toSend = file
+  if (toSend.size > MAX_UPLOAD_BYTES) {
+    toSend = await compressImage(file, 2560, 0.85)
+    if (toSend.size > MAX_UPLOAD_BYTES) {
+      throw new Error('הקובץ גדול מ-10MB גם אחרי כיווץ. נסו קובץ קטן יותר.')
+    }
   }
-  const data = await res.json().catch(() => ({}))
-  if (!data.url) throw new Error('העלאת הקובץ נכשלה')
-  return data.url as string
+
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase()
+  const signRes = await fetch('/api/upload/sign', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path, ext }),
+  })
+  if (!signRes.ok) {
+    const d = await signRes.json().catch(() => ({}))
+    throw new Error(d.error || 'יצירת הרשאת ההעלאה נכשלה')
+  }
+  const { path: fullPath, token } = await signRes.json()
+
+  const supabase = createClient()
+  const { error } = await supabase.storage
+    .from(BUCKET)
+    .uploadToSignedUrl(fullPath, token, toSend, { contentType: toSend.type || 'image/jpeg' })
+  if (error) throw new Error(error.message || 'העלאת הקובץ נכשלה')
+
+  const { data: { publicUrl } } = supabase.storage.from(BUCKET).getPublicUrl(fullPath)
+  return `${publicUrl}?t=${Date.now()}`
 }
