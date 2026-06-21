@@ -262,6 +262,18 @@ export default function KesherSettingsPage() {
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-mono outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition placeholder:text-gray-300"
               />
             </div>
+
+            {/* קישור ביט — אופציונלי, נפתח בקישור נפרד בדף הגיוס */}
+            <div className="space-y-1.5 pt-2 border-t border-gray-100">
+              <label className="text-sm font-semibold text-gray-700">קישור תשלום בביט <span className="text-gray-300 text-xs">(אופציונלי)</span></label>
+              <p className="text-[11px] text-gray-400">קישור לדף תשלום בביט. אם תזין — יופיע כפתור &quot;שלם בביט&quot; בתרומה חד&quot;פ שייפתח בקישור נפרד.</p>
+              <input
+                value={urls.kesher_url_bit}
+                onChange={e => setUrls(p => ({ ...p, kesher_url_bit: e.target.value }))}
+                dir="ltr" placeholder="https://..."
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition placeholder:text-gray-300"
+              />
+            </div>
           </div>
         </div>
         )}
