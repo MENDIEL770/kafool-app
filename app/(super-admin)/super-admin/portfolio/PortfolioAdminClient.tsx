@@ -4,7 +4,7 @@ import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Upload, Trash2, Eye, EyeOff, ArrowUp, ArrowDown, ImageIcon, ExternalLink, Loader2,
-  Pencil, Layers,
+  Pencil, Layers, Tags, Plus, X, Check,
 } from 'lucide-react'
 import ProjectEditorModal from './ProjectEditorModal'
 
@@ -21,20 +21,25 @@ export interface PortfolioItem {
   is_published: boolean
 }
 
+export interface PortfolioLabel {
+  id: string
+  name: string
+  sort_order: number
+}
+
 function isProject(it: PortfolioItem): boolean {
   return (it.project_images?.length ?? 0) > 0 || !!it.description || !!it.video_url
 }
 
-export default function PortfolioAdminClient({ items }: { items: PortfolioItem[] }) {
+export default function PortfolioAdminClient({ items, labels }: { items: PortfolioItem[]; labels: PortfolioLabel[] }) {
   const router = useRouter()
   const fileRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [editing, setEditing] = useState<PortfolioItem | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [labels, setLabels] = useState<Record<string, string>>(
-    Object.fromEntries(items.map(i => [i.id, i.label ?? '']))
-  )
+  const [managingLabels, setManagingLabels] = useState(false)
+  const labelNames = labels.map(l => l.name)
 
   // All writes go through /api/portfolio (service role + super-admin check) so
   // they don't silently fail on RLS, and real errors surface to the user.
@@ -82,9 +87,35 @@ export default function PortfolioAdminClient({ items }: { items: PortfolioItem[]
     router.refresh()
   }
 
-  async function saveLabel(id: string) {
-    await patchItem(id, { label: labels[id]?.trim() || null })
+  async function saveLabel(id: string, value: string) {
+    await patchItem(id, { label: value.trim() || null })
     router.refresh()
+  }
+
+  // ─── Manage the label list ───
+  async function labelApi(method: 'POST' | 'PATCH' | 'DELETE', body: Record<string, unknown>): Promise<boolean> {
+    const res = await fetch('/api/portfolio/labels', {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}))
+      setError(d.error || 'הפעולה נכשלה')
+      return false
+    }
+    return true
+  }
+  async function addLabel(name: string) {
+    if (!name.trim()) return
+    if (await labelApi('POST', { name: name.trim(), sort_order: labels.length })) router.refresh()
+  }
+  async function renameLabel(id: string, name: string) {
+    if (await labelApi('PATCH', { id, name })) router.refresh()
+  }
+  async function deleteLabel(id: string) {
+    if (!confirm('למחוק את התווית מהרשימה? (עבודות שכבר תויגו בה לא ישתנו)')) return
+    if (await labelApi('DELETE', { id })) router.refresh()
   }
 
   async function togglePublish(item: PortfolioItem) {
@@ -139,6 +170,13 @@ export default function PortfolioAdminClient({ items }: { items: PortfolioItem[]
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setManagingLabels(v => !v)}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-gray-700 border border-gray-200 bg-white hover:bg-gray-50 active:scale-95 transition-all"
+            >
+              <Tags className="w-4 h-4" />
+              ניהול תוויות
+            </button>
             <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={e => onFiles(e.target.files)} />
             <button
               onClick={() => fileRef.current?.click()}
@@ -151,6 +189,17 @@ export default function PortfolioAdminClient({ items }: { items: PortfolioItem[]
             </button>
           </div>
         </div>
+
+        {/* Label manager */}
+        {managingLabels && (
+          <LabelManager
+            labels={labels}
+            onAdd={addLabel}
+            onRename={renameLabel}
+            onDelete={deleteLabel}
+            onClose={() => setManagingLabels(false)}
+          />
+        )}
 
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3 flex items-center justify-between gap-3">
@@ -186,13 +235,20 @@ export default function PortfolioAdminClient({ items }: { items: PortfolioItem[]
 
                 {/* label */}
                 <div className="p-3 space-y-2">
-                  <input
-                    value={labels[item.id] ?? ''}
-                    onChange={e => setLabels(s => ({ ...s, [item.id]: e.target.value }))}
-                    onBlur={() => saveLabel(item.id)}
-                    placeholder="תווית / סגנון"
-                    className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition"
-                  />
+                  <select
+                    value={item.label ?? ''}
+                    onChange={e => saveLabel(item.id, e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition bg-white"
+                  >
+                    <option value="">— ללא תווית —</option>
+                    {/* keep a legacy free-text label visible even if it's not in the list */}
+                    {item.label && !labelNames.includes(item.label) && (
+                      <option value={item.label}>{item.label}</option>
+                    )}
+                    {labels.map(l => (
+                      <option key={l.id} value={l.name}>{l.name}</option>
+                    ))}
+                  </select>
                   <button
                     onClick={() => setEditing(item)}
                     className="w-full inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors"
@@ -224,9 +280,78 @@ export default function PortfolioAdminClient({ items }: { items: PortfolioItem[]
       {editing && (
         <ProjectEditorModal
           item={editing}
+          labels={labels}
           onClose={() => setEditing(null)}
           onSaved={() => router.refresh()}
         />
+      )}
+    </div>
+  )
+}
+
+function LabelManager({ labels, onAdd, onRename, onDelete, onClose }: {
+  labels: PortfolioLabel[]
+  onAdd: (name: string) => void
+  onRename: (id: string, name: string) => void
+  onDelete: (id: string) => void
+  onClose: () => void
+}) {
+  const [newName, setNewName] = useState('')
+  const [edits, setEdits] = useState<Record<string, string>>({})
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-bold text-gray-800 flex items-center gap-2"><Tags className="w-4 h-4" /> ניהול תוויות</h2>
+        <button onClick={onClose} className="text-gray-400 hover:text-gray-600" aria-label="סגור"><X className="w-4 h-4" /></button>
+      </div>
+
+      {/* Add new */}
+      <div className="flex items-center gap-2">
+        <input
+          value={newName}
+          onChange={e => setNewName(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') { onAdd(newName); setNewName('') } }}
+          placeholder="תווית חדשה (למשל: מיתוג)"
+          className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+        />
+        <button
+          onClick={() => { onAdd(newName); setNewName('') }}
+          disabled={!newName.trim()}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold text-white disabled:opacity-40"
+          style={{ background: '#2563eb' }}
+        >
+          <Plus className="w-4 h-4" /> הוסף
+        </button>
+      </div>
+
+      {/* Existing */}
+      {labels.length === 0 ? (
+        <p className="text-xs text-gray-400">אין עדיין תוויות. הוסיפו אחת למעלה.</p>
+      ) : (
+        <div className="space-y-1.5">
+          {labels.map(l => {
+            const draft = edits[l.id] ?? l.name
+            const dirty = draft.trim() !== l.name
+            return (
+              <div key={l.id} className="flex items-center gap-2">
+                <input
+                  value={draft}
+                  onChange={e => setEdits(s => ({ ...s, [l.id]: e.target.value }))}
+                  className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                />
+                {dirty && (
+                  <button onClick={() => onRename(l.id, draft)} title="שמור שם" className="w-8 h-8 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 flex items-center justify-center">
+                    <Check className="w-4 h-4" />
+                  </button>
+                )}
+                <button onClick={() => onDelete(l.id)} title="מחק" className="w-8 h-8 rounded-lg border border-gray-200 text-red-500 hover:bg-red-50 flex items-center justify-center">
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            )
+          })}
+        </div>
       )}
     </div>
   )

@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react'
 import { toSlug } from '@/lib/media'
 import { X, Upload, Trash2, Loader2, GripVertical } from 'lucide-react'
-import type { PortfolioItem } from './PortfolioAdminClient'
+import type { PortfolioItem, PortfolioLabel } from './PortfolioAdminClient'
 
 async function uploadFile(file: File, path: string): Promise<string | null> {
   const fd = new FormData()
@@ -15,9 +15,10 @@ async function uploadFile(file: File, path: string): Promise<string | null> {
 }
 
 export default function ProjectEditorModal({
-  item, onClose, onSaved,
+  item, labels, onClose, onSaved,
 }: {
   item: PortfolioItem
+  labels: PortfolioLabel[]
   onClose: () => void
   onSaved: () => void
 }) {
@@ -145,8 +146,12 @@ export default function ProjectEditorModal({
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
             </Field>
             <Field label="תווית / סגנון">
-              <input value={label} onChange={e => setLabel(e.target.value)} placeholder="למשל: מודעה, לוגו, באנר"
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+              <select value={label} onChange={e => setLabel(e.target.value)}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 bg-white">
+                <option value="">— ללא תווית —</option>
+                {label && !labels.some(l => l.name === label) && <option value={label}>{label}</option>}
+                {labels.map(l => <option key={l.id} value={l.name}>{l.name}</option>)}
+              </select>
             </Field>
           </div>
 
