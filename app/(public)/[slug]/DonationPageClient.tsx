@@ -1451,55 +1451,58 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
                 style={{ width: `${groupPct}%`, backgroundColor: primaryColor }}
               />
             </div>
-            <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
-              <div className="w-full sm:flex-1 min-w-0">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-3 min-w-0">
-                    {/* עיגול תמונת הקבוצה */}
-                    <div
-                      className="w-12 h-12 rounded-full overflow-hidden shrink-0 flex items-center justify-center text-lg font-black"
-                      style={{ backgroundColor: `${primaryColor}1A`, color: primaryColor }}
-                    >
-                      {activeGroup.image_url
-                        ? <img src={activeGroup.image_url} alt="" className="w-full h-full object-cover" />
-                        : (activeGroup.name || 'ק')[0]}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[11px] font-semibold text-gray-400 mb-0.5">דף התרומה של</p>
-                      <h2 className="text-xl font-black text-gray-900 break-words leading-tight">{activeGroup.name}</h2>
-                      {activeGroup.manager_name && (
-                        <p className="text-xs text-gray-400 mt-0.5">מגייס: {activeGroup.manager_name}</p>
-                      )}
-                    </div>
-                  </div>
-                  {/* חזרה לדף הקמפיין הראשי */}
-                  <a
-                    href={`/${campaign.slug}`}
-                    aria-label="חזרה לדף הקמפיין"
-                    title="חזרה לדף הקמפיין הראשי"
-                    className="shrink-0 -mt-1 w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
-                  >
-                    <X className="w-5 h-5" />
-                  </a>
+            {/* כותרת הקבוצה */}
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-center gap-3 min-w-0">
+                {/* עיגול תמונת הקבוצה */}
+                <div
+                  className="w-12 h-12 rounded-full overflow-hidden shrink-0 flex items-center justify-center text-lg font-black"
+                  style={{ backgroundColor: `${primaryColor}1A`, color: primaryColor }}
+                >
+                  {activeGroup.image_url
+                    ? <img src={activeGroup.image_url} alt="" className="w-full h-full object-cover" />
+                    : (activeGroup.name || 'ק')[0]}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold text-gray-400 mb-0.5">דף התרומה של</p>
+                  <h2 className="text-xl font-black text-gray-900 break-words leading-tight">{activeGroup.name}</h2>
+                  {activeGroup.manager_name && (
+                    <p className="text-xs text-gray-400 mt-0.5">מגייס: {activeGroup.manager_name}</p>
+                  )}
                 </div>
               </div>
-              <div className="text-center shrink-0">
-                <div className="text-2xl font-black tabular-nums" style={{ color: primaryColor }}>
+              {/* חזרה לדף הקמפיין הראשי */}
+              <a
+                href={`/${campaign.slug}`}
+                aria-label="חזרה לדף הקמפיין"
+                title="חזרה לדף הקמפיין הראשי"
+                className="shrink-0 -mt-1 w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </a>
+            </div>
+
+            {/* סכום (ימין) · תורמים + כפתור תרום (שמאל) */}
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-2xl font-black tabular-nums leading-none" style={{ color: primaryColor }}>
                   ₪{groupRaised.toLocaleString('he-IL')}
                 </div>
-                <div className="text-[11px] text-gray-400">{lang === 'en' ? 'of' : 'מתוך'} ₪{activeGroup.goal_amount.toLocaleString('he-IL')} {lang === 'en' ? 'goal' : 'יעד'}</div>
+                <div className="text-[11px] text-gray-400 mt-1">{lang === 'en' ? 'of' : 'מתוך'} ₪{activeGroup.goal_amount.toLocaleString('he-IL')} {lang === 'en' ? 'goal' : 'יעד'}</div>
               </div>
-              <div className="text-center shrink-0">
-                <div className="text-2xl font-black text-gray-700 tabular-nums">{groupDonors}</div>
-                <div className="text-[11px] text-gray-400">{lang === 'en' ? 'donors' : 'תורמים'}</div>
+              <div className="flex items-center gap-4 shrink-0">
+                <div className="text-center">
+                  <div className="text-xl font-black text-gray-700 tabular-nums leading-none">{groupDonors}</div>
+                  <div className="text-[11px] text-gray-400 mt-1">{lang === 'en' ? 'donors' : 'תורמים'}</div>
+                </div>
+                <button
+                  onClick={() => openDonate(undefined, activeGroup?.slug)}
+                  className="px-6 py-2.5 rounded-full text-white font-black text-sm shadow hover:opacity-90 active:scale-95 transition-all"
+                  style={{ backgroundColor: primaryColor }}
+                >
+                  {lang === 'en' ? 'Donate' : 'תרום'}
+                </button>
               </div>
-              <button
-                onClick={() => openDonate(undefined, activeGroup?.slug)}
-                className="shrink-0 px-6 py-2.5 rounded-full text-white font-black text-sm shadow hover:opacity-90 active:scale-95 transition-all"
-                style={{ backgroundColor: primaryColor }}
-              >
-                {lang === 'en' ? 'Donate' : 'תרום'}
-              </button>
             </div>
           </div>
         </div>
