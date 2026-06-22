@@ -10,6 +10,17 @@ import type { Group } from '@/types'
 
 interface CampaignInfo { slug: string; campaign_slug: string }
 
+// Turn any text into a URL-safe slug. Keeps Hebrew letters, latin and digits;
+// everything else (spaces, punctuation) collapses to a single dash. Keep in
+// sync with toSlug() in app/api/groups/create/route.ts.
+function cleanSlug(str: string): string {
+  return (str || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9֐-׿]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
 // Default welcome SMS sent to whoever opens a group via the public site.
 // Placeholders: {שם} = manager name, {קישור} = group link. Keep in sync with app/api/groups/create/route.ts
 const DEFAULT_WELCOME_SMS = `שלום {שם}!\nנפתחה קבוצת גיוס עבורך.\nהקישור שלך:\n{קישור}`
@@ -181,10 +192,7 @@ function EditModal({ group, onClose, onSaved }: { group: Group; onClose: () => v
     if (!(Number(form.goal_amount) > 0)) { setSlugError('יש להגדיר יעד גיוס לקבוצה'); return }
     setSlugError('')
     // clean the slug → url-safe (latin / numbers / Hebrew / dash)
-    const slug = form.slug.trim().toLowerCase()
-      .replace(/\s+/g, '-')
-      .replace(/[^a-z0-9֐-׿-]/g, '')
-      .replace(/^-+|-+$/g, '')
+    const slug = cleanSlug(form.slug)
     if (!slug) { setSlugError('יש להזין כתובת (slug) תקינה'); return }
 
     setSaving(true)
@@ -661,7 +669,7 @@ export default function GroupsPage() {
     setForm(prev => {
       const updated = { ...prev, [key]: value }
       if (key === 'name' && !prev.slug) {
-        updated.slug = value.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '')
+        updated.slug = cleanSlug(value)
       }
       return updated
     })
@@ -679,7 +687,7 @@ export default function GroupsPage() {
       campaign_id: campaignId,
       org_id: profile!.org_id,
       name: form.name,
-      slug: form.slug,
+      slug: cleanSlug(form.slug) || cleanSlug(form.name),
       goal_amount: Number(form.goal_amount) || 0,
       manager_name: form.manager_name || null,
       manager_phone: form.manager_phone || null,
