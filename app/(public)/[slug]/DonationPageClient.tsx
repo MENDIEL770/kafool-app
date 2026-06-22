@@ -839,16 +839,24 @@ function ProgressSection({ raised, goal, donorsCount, primaryColor, bricks }: { 
 type SortBy = 'recent' | 'amount_desc' | 'amount_asc'
 type CommunityTab = 'donors' | 'groups' | 'communities'
 
-function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCreateGroup, activeGroupName }: { donations: Donation[]; groups: Group[]; primaryColor: string; campaignSlug: string; onCreateGroup: () => void; activeGroupName?: string | null }) {
+function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCreateGroup, initialGroupId }: { donations: Donation[]; groups: Group[]; primaryColor: string; campaignSlug: string; onCreateGroup: () => void; initialGroupId?: string | null }) {
   const [tab, setTab] = useState<CommunityTab>('donors')
   const [search, setSearch] = useState('')
   const [sortBy, setSortBy] = useState<SortBy>('recent')
   const [liked, setLiked] = useState<Set<string>>(new Set())
   const [visible, setVisible] = useState(12)
+  // Group filter is client-side — switching groups just re-renders the donor
+  // list (like a category filter), no full page reload. Seeded from the group
+  // the visitor arrived through, if any.
+  const [groupFilter, setGroupFilter] = useState<string | null>(initialGroupId ?? null)
   const lang = useLang()
   const t = useT()
 
-  const filtered = donations
+  // reset the "load more" window whenever the filter or search changes
+  useEffect(() => { setVisible(12) }, [groupFilter, search])
+
+  const byGroup = groupFilter ? donations.filter(d => d.group_id === groupFilter) : donations
+  const filtered = byGroup
     .filter(d => !search || (d.donor_name ?? '').includes(search) || (d.dedication ?? '').includes(search))
     .sort((a, b) => {
       if (sortBy === 'amount_desc') return b.amount - a.amount
@@ -857,7 +865,7 @@ function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCre
     })
 
   const allTabs: { key: CommunityTab; label: string; count?: number; show: boolean }[] = [
-    { key: 'donors' as CommunityTab, label: t('donorsTab'), count: donations.length, show: true },
+    { key: 'donors' as CommunityTab, label: t('donorsTab'), count: byGroup.length, show: true },
     { key: 'groups' as CommunityTab, label: t('groups'), count: groups.length, show: groups.length > 0 },
     { key: 'communities' as CommunityTab, label: 'קהילות', show: false },
   ]
@@ -867,24 +875,6 @@ function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCre
     <div id="donors">
       <div>
         <h2 className="text-2xl font-black text-gray-900 mb-4">{t('donorsCommunity')}</h2>
-
-        {/* מחובר לקבוצה — מציג רק את התורמים שלה, עם אפשרות לראות את כולם */}
-        {activeGroupName && (
-          <div className="flex justify-center mb-6">
-            <div className="inline-flex items-center gap-2 rounded-full pr-3 pl-1.5 py-1.5 text-sm font-semibold"
-              style={{ backgroundColor: `${primaryColor}1A`, color: primaryColor }}>
-              <span>מחובר לקבוצת {activeGroupName}</span>
-              <a
-                href={`/${campaignSlug}`}
-                title="הצג את כל התורמים בקמפיין"
-                aria-label="הצג את כל התורמים בקמפיין"
-                className="w-6 h-6 rounded-full bg-white/70 hover:bg-white flex items-center justify-center text-gray-500 hover:text-gray-800 transition-colors"
-              >
-                <X className="w-3.5 h-3.5" />
-              </a>
-            </div>
-          </div>
-        )}
 
         {/* Tabs */}
         <div className="flex justify-center gap-1 mb-8">
@@ -913,6 +903,25 @@ function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCre
         {/* ── Donors Tab ── */}
         {tab === 'donors' && (
           <div className="space-y-4">
+            {/* פילטר קבוצות — מסנן את התצוגה בלבד, ללא טעינת דף */}
+            {groups.length > 0 && (
+              <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {[{ id: null as string | null, name: lang === 'en' ? 'All donors' : 'כל התורמים' }, ...groups].map(g => {
+                  const active = groupFilter === g.id
+                  return (
+                    <button
+                      key={g.id ?? 'all'}
+                      type="button"
+                      onClick={() => setGroupFilter(g.id)}
+                      className="shrink-0 px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all"
+                      style={active ? { backgroundColor: primaryColor, color: 'white' } : { backgroundColor: '#f3f4f6', color: '#6b7280' }}
+                    >
+                      {g.name}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
             <div className="flex gap-2">
               <div className="flex-1 relative">
                 <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden />
@@ -1548,7 +1557,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
             {/* תורמים — שמאל בעברית, ימין באנגלית */}
             {isOn('donors') && (
             <div className="flex-1 min-w-0">
-              <CommunitySection donations={activeGroup ? donations.filter(d => d.group_id === activeGroup.id) : donations} groups={groups} primaryColor={primaryColor} campaignSlug={campaign.slug} onCreateGroup={() => setCreateGroupOpen(true)} activeGroupName={activeGroup?.name} />
+              <CommunitySection donations={donations} groups={groups} primaryColor={primaryColor} campaignSlug={campaign.slug} onCreateGroup={() => setCreateGroupOpen(true)} initialGroupId={activeGroup?.id ?? null} />
             </div>
             )}
           </div>
