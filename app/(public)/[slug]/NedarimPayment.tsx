@@ -57,8 +57,19 @@ export default function NedarimPayment({
           String(v.Status ?? v.status ?? '').toLowerCase() === 'ok' ||
           !!(v.Confirmation || v.ConfirmationNumber || v.TransactionId)
         if (ok) {
-          // The server CallBack records the donation; just show the thank-you page.
-          window.location.href = `/${slug}/thanks`
+          // Record the donation from the client as a reliable backstop to the
+          // server CallBack (idempotent — both dedupe on the transaction id),
+          // then show the thank-you page.
+          const transactionId = String(v.TransactionId || v.Confirmation || v.ConfirmationNumber || v.Asmachta || `${campaignId}-${Date.now()}`)
+          ;(async () => {
+            try {
+              await fetch('/api/donations/nedarim-record', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ campaignId, groupSlug, amount, isHok, months: tashlumim, donor, comment, transactionId }),
+              })
+            } catch { /* webhook will still record if configured */ }
+            window.location.href = `/${slug}/thanks`
+          })()
         } else {
           setStatus('error')
           setError(v.Message || v.message || (en ? 'Payment was not completed — please try again' : 'התשלום לא הושלם — נסו שוב'))
