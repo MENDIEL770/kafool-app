@@ -100,7 +100,8 @@ export default function KesherSettingsPage() {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  const isConnected = provider === 'kesher' ? !!urls.kesher_page_url : (!!nedarim.mosad && !!nedarim.apiValid)
+  // Both providers are link-based now: connected once a one-time payment URL is set.
+  const isConnected = !!urls.kesher_page_url
   // Nedarim posts its CallBack from a server, so use www to avoid a redirect.
   const nedarimWebhookUrl = webhookUrl
     .replace('/api/webhooks/kesher', '/api/webhooks/nedarim')
@@ -194,12 +195,13 @@ export default function KesherSettingsPage() {
 
       {/* Payment form */}
       <form onSubmit={handleSave} className="space-y-5">
-        {/* ─── קשר: קישורי תשלום ─── */}
-        {provider === 'kesher' && (
+        {/* ─── קישורי דפי התשלום (לשני הספקים) ─── */}
         <div className="bg-white border border-gray-100 rounded-2xl p-6 space-y-5 shadow-sm">
           <div>
-            <h2 className="font-bold text-gray-800">קישורי תשלום</h2>
-            <p className="text-xs text-gray-400 mt-1">הדבק את הקישורים שקיבלת מקשר. תרומה חד&quot;פ הוא חובה, השאר מופיעים כאפשרויות נוספות בדף הגיוס.</p>
+            <h2 className="font-bold text-gray-800">קישורי דפי התשלום</h2>
+            <p className="text-xs text-gray-400 mt-1">
+              הדבק את הקישורים לדפי הסליקה שלך מ{provider === 'nedarim' ? 'נדרים פלוס' : 'קשר'}. תרומה חד&quot;פ הוא חובה, השאר מופיעים כאפשרויות נוספות בדף הגיוס.
+            </p>
           </div>
 
           <div className="space-y-4">
@@ -225,58 +227,13 @@ export default function KesherSettingsPage() {
                   onChange={e => setUrls(p => ({ ...p, [m.key]: e.target.value.trim() }))}
                   required={m.required}
                   dir="ltr"
-                  placeholder="https://kesherhk.info/PaymentPage/..."
+                  placeholder="https://..."
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-mono outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition placeholder:text-gray-300"
                 />
               </div>
             ))}
           </div>
         </div>
-        )}
-
-        {/* ─── נדרים פלוס: פרטי מוסד ─── */}
-        {provider === 'nedarim' && (
-        <div className="bg-white border border-gray-100 rounded-2xl p-6 space-y-5 shadow-sm">
-          <div>
-            <h2 className="font-bold text-gray-800">פרטי נדרים פלוס</h2>
-            <p className="text-xs text-gray-400 mt-1">הזן את מזהה המוסד וקוד האימות שקיבלת מנדרים פלוס. דף הסליקה ייטען מאובטח בתוך האתר.</p>
-          </div>
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-gray-700">מזהה מוסד (Mosad) <span className="text-red-400 text-xs">חובה</span></label>
-              <p className="text-[11px] text-gray-400">7 ספרות — מזהה המוסד שלך בנדרים פלוס</p>
-              <input
-                value={nedarim.mosad}
-                onChange={e => setNedarim(p => ({ ...p, mosad: e.target.value.replace(/\D/g, '').slice(0, 7) }))}
-                dir="ltr" placeholder="1234567"
-                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-mono outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition placeholder:text-gray-300"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-gray-700">קוד אימות (ApiValid) <span className="text-red-400 text-xs">חובה</span></label>
-              <p className="text-[11px] text-gray-400">קוד האימות שמקבלים מנדרים פלוס (בפנייה לשירות הלקוחות ממייל מורשה)</p>
-              <input
-                value={nedarim.apiValid}
-                onChange={e => setNedarim(p => ({ ...p, apiValid: e.target.value.trim() }))}
-                dir="ltr" placeholder="••••••••••"
-                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-mono outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition placeholder:text-gray-300"
-              />
-            </div>
-
-            {/* קישור ביט — אופציונלי, נפתח בקישור נפרד בדף הגיוס */}
-            <div className="space-y-1.5 pt-2 border-t border-gray-100">
-              <label className="text-sm font-semibold text-gray-700">קישור תשלום בביט <span className="text-gray-300 text-xs">(אופציונלי)</span></label>
-              <p className="text-[11px] text-gray-400">קישור לדף תשלום בביט. אם תזין — יופיע כפתור &quot;שלם בביט&quot; בתרומה חד&quot;פ שייפתח בקישור נפרד.</p>
-              <input
-                value={urls.kesher_url_bit}
-                onChange={e => setUrls(p => ({ ...p, kesher_url_bit: e.target.value }))}
-                dir="ltr" placeholder="https://..."
-                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition placeholder:text-gray-300"
-              />
-            </div>
-          </div>
-        </div>
-        )}
 
         {saveError && (
           <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-2.5">

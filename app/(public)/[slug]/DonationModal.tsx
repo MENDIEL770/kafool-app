@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { X, CreditCard, RefreshCw, Smartphone, Landmark } from 'lucide-react'
-import NedarimPayment from './NedarimPayment'
 
 interface Group { id: string; name: string; slug: string }
 interface PaymentUrls { one_time: string; hok: string; bit: string; bank: string; one_time_en?: string; hok_en?: string }
@@ -54,7 +53,6 @@ export default function DonationModal({
   donationUrl,
   paymentUrls,
   paymentProvider,
-  nedarim,
   campaign,
   primaryColor,
   buttonRadius,
@@ -90,7 +88,6 @@ export default function DonationModal({
     back: en ? '← Back' : '← חזרה',
     backToDetails: en ? '← Back to details' : '← חזרה לפרטים',
   }
-  const useNedarim = paymentProvider === 'nedarim' && !!nedarim?.active && !!nedarim?.mosad && !!nedarim?.apiValid
   const [step, setStep] = useState<'details' | 'payment'>('details')
   const [amount, setAmount] = useState(typeof presetAmount === 'number' ? presetAmount : 0)
   const [customAmount, setCustomAmount] = useState('')
@@ -433,33 +430,13 @@ export default function DonationModal({
               )}
 
               <p className="text-center text-xs text-gray-400 flex items-center justify-center gap-1">
-                <span></span> {T.securePay} — {useNedarim ? 'נדרים פלוס' : 'קשר'}
+                <span></span> {T.securePay} — {paymentProvider === 'nedarim' ? 'נדרים פלוס' : 'קשר'}
               </p>
             </div>
           )}
 
-          {/* Step: Payment — Nedarim Plus iframe (postMessage) */}
-          {step === 'payment' && useNedarim && (
-            <NedarimPayment
-              mosad={nedarim!.mosad}
-              apiValid={nedarim!.apiValid}
-              amount={finalAmount}
-              tashlumim={months}
-              isHok={paymentMethod === 'hok'}
-              donor={{ firstName: form.firstName, lastName: form.lastName, phone: form.phone, email: form.email }}
-              comment={form.dedication}
-              campaignId={campaign.id}
-              groupSlug={selectedGroupSlug || undefined}
-              slug={campaign.slug}
-              primaryColor={primaryColor}
-              buttonRadius={buttonRadius}
-              lang={lang}
-              onBack={() => setStep('details')}
-            />
-          )}
-
-          {/* Step: Payment iframe — Kesher (redirect page) */}
-          {step === 'payment' && !useNedarim && (() => {
+          {/* Step: Payment — the provider's payment page loads in an iframe */}
+          {step === 'payment' && (() => {
             const payUrl = buildPaymentUrl()
             const isValid = payUrl.startsWith('http://') || payUrl.startsWith('https://')
             if (!isValid) {
