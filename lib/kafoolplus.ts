@@ -40,10 +40,9 @@ export async function getKafoolPlusContext(supabase: SupabaseClient): Promise<Kp
   const ctx = await getContext(supabase)
   const admin = await createServiceClient()
 
-  // 0) platform admins / super admins are ALWAYS managers — never demoted by a
-  // stray coordinator/caller membership (e.g. if they used their own email).
-  if (ctx.isSuperAdmin || ctx.role === 'admin' || ctx.role === 'manager') {
-    return { role: 'manager', orgId: ctx.orgId, isSuperAdmin: ctx.isSuperAdmin, userId: user.id, member: null }
+  // 0) super admins are ALWAYS managers (god mode), regardless of membership.
+  if (ctx.isSuperAdmin) {
+    return { role: 'manager', orgId: ctx.orgId, isSuperAdmin: true, userId: user.id, member: null }
   }
 
   // 1) explicit membership by user_id
@@ -76,9 +75,11 @@ export async function getKafoolPlusContext(supabase: SupabaseClient): Promise<Kp
     }
   }
 
-  // 3) implicit manager: org admins / super admins (scoped to the org in context)
-  if (ctx.isSuperAdmin || ctx.role === 'admin' || ctx.role === 'manager') {
-    return { role: 'manager', orgId: ctx.orgId, isSuperAdmin: ctx.isSuperAdmin, userId: user.id, member: null }
+  // 3) implicit manager: a REAL org owner/admin (must actually belong to an org).
+  // A brand-new account (role 'admin' by the signup trigger, no org, not a
+  // member) is NOT a manager — it gets no Kafool+ access.
+  if ((ctx.role === 'admin' || ctx.role === 'manager') && ctx.ownOrgId) {
+    return { role: 'manager', orgId: ctx.orgId ?? ctx.ownOrgId, isSuperAdmin: false, userId: user.id, member: null }
   }
 
   return { role: null, orgId: ctx.orgId, isSuperAdmin: ctx.isSuperAdmin, userId: user.id, member: null }

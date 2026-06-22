@@ -20,16 +20,28 @@ export default async function DashboardLayout({ children }: { children: React.Re
   if (!profile) redirect('/login')
 
   const ctx = await getContext(supabase)
+  const pathname = (await headers()).get('x-pathname') || ''
+  const inKafoolPlus = pathname.startsWith('/kafool-plus')
+  const kp = await getKafoolPlusContext(supabase)
 
-  // If no org yet → send to onboarding
-  if (!ctx.isSuperAdmin && !profile.org_id) {
-    redirect('/onboarding')
+  // Coordinators/callers are Kafool+ users — confined to the module, with the
+  // regular dashboard gates skipped (they may not have an org of their own).
+  if (kp.role === 'coordinator' || kp.role === 'caller') {
+    if (!inKafoolPlus) redirect('/kafool-plus')
+    return (
+      <div className="flex min-h-screen bg-gray-50">
+        <Sidebar profile={profile} contextOrgName={null} viewingOtherOrg={false} lockToKafoolPlus />
+        <main className="flex-1 min-w-0 p-4 lg:p-6 pt-[4.5rem] lg:pt-6 overflow-x-hidden">{children}</main>
+      </div>
+    )
   }
 
-  // Super admin in global mode → the overview lives at /super-admin/orgs.
-  // To use the dashboard they must first "enter" an org.
-  if (ctx.isSuperAdmin && ctx.isGlobal) {
-    redirect('/super-admin/orgs')
+  // Regular-dashboard gates — skipped on /kafool-plus so that the Kafool+
+  // membership check decides access there (a non-member just sees "no access",
+  // and super-admins/managers see the manager view instead of being bounced).
+  if (!inKafoolPlus) {
+    if (!ctx.isSuperAdmin && !profile.org_id) redirect('/onboarding')
+    if (ctx.isSuperAdmin && ctx.isGlobal) redirect('/super-admin/orgs')
   }
 
   // Resolve the org currently in scope (own org, or the one a super admin entered)
@@ -41,12 +53,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
     contextOrgStatus = o?.status
   }
 
-  // Org must be active (or user is super_admin)
-  if (!ctx.isSuperAdmin && contextOrgStatus !== 'active') {
+  // Org must be active (super-admins and the Kafool+ pages are exempt)
+  if (!ctx.isSuperAdmin && !inKafoolPlus && contextOrgStatus !== 'active') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4 text-center">
         <div className="space-y-3">
-          <div className="text-4xl"></div>
           <h2 className="text-xl font-bold">הארגון שלך ממתין לאישור</h2>
           <p className="text-gray-500">נחזור אליך בקרוב.</p>
         </div>
@@ -54,20 +65,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
     )
   }
 
-  // Coordinators and callers are Kafool+ users — they only ever see the Kafool+
-  // module (no regular dashboard sidebar/pages), regardless of any org flag.
-  const kp = await getKafoolPlusContext(supabase)
-  const lockToKafoolPlus = kp.role === 'coordinator' || kp.role === 'caller'
-
-  // Hard lock (server-side): such a user may only be inside Kafool+.
-  if (lockToKafoolPlus) {
-    const pathname = (await headers()).get('x-pathname') || ''
-    if (!pathname.startsWith('/kafool-plus')) redirect('/kafool-plus')
-  }
-
   return (
     <div className="flex min-h-screen bg-gray-50">
-      <Sidebar profile={profile} contextOrgName={contextOrgName} viewingOtherOrg={ctx.isSuperAdmin && !!ctx.orgId} lockToKafoolPlus={lockToKafoolPlus} />
+      <Sidebar profile={profile} contextOrgName={contextOrgName} viewingOtherOrg={ctx.isSuperAdmin && !!ctx.orgId} lockToKafoolPlus={false} />
       <main className="flex-1 min-w-0 p-4 lg:p-6 pt-[4.5rem] lg:pt-6 overflow-x-hidden">{children}</main>
     </div>
   )
