@@ -1083,10 +1083,12 @@ function CampaignVideos({ campaign }: { campaign: Campaign }) {
 function AboutSection({ campaign, gallery }: { campaign: Campaign; gallery: GalleryItem[] }) {
   const lang = useLang()
   const t = useT()
-  const settings = campaign.settings as { about_text?: string | null; about_text_en?: string | null }
+  const settings = campaign.settings as { about_text?: string | null; about_text_en?: string | null; about_image?: string | null }
   // English visitors see the English about text when provided; otherwise fall back.
   const aboutText = (lang === 'en' && settings?.about_text_en?.trim()) ? settings.about_text_en : settings?.about_text
+  const aboutImage = settings?.about_image || null
   const [idx, setIdx] = useState(0)
+  const [zoom, setZoom] = useState(false)
 
   useEffect(() => {
     if (gallery.length <= 1) return
@@ -1094,11 +1096,32 @@ function AboutSection({ campaign, gallery }: { campaign: Campaign; gallery: Gall
     return () => clearInterval(t)
   }, [gallery.length])
 
-  if (!aboutText && gallery.length === 0) return null
+  if (!aboutText && gallery.length === 0 && !aboutImage) return null
 
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-black text-gray-900">{t('aboutCampaign')}</h2>
+
+        {/* תמונת אודות עומדת — לחיצה מרחיבה */}
+        {aboutImage && (
+          <button type="button" onClick={() => setZoom(true)}
+            className="block w-full max-w-xs mx-auto rounded-2xl overflow-hidden shadow-md group relative focus:outline-none">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={aboutImage} alt={t('aboutCampaign')} className="w-full h-auto object-contain" style={{ aspectRatio: '4 / 5' }} loading="lazy" />
+            <span className="absolute bottom-2 left-2 bg-black/50 text-white text-[10px] rounded-full px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              {lang === 'en' ? 'Tap to enlarge' : 'לחץ להגדלה'}
+            </span>
+          </button>
+        )}
+
+        {/* Lightbox */}
+        {zoom && aboutImage && (
+          <div className="fixed inset-0 z-[90] bg-black/85 flex items-center justify-center p-4" onClick={() => setZoom(false)}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={aboutImage} alt="" className="max-w-full max-h-full object-contain rounded-lg" onClick={e => e.stopPropagation()} />
+            <button onClick={() => setZoom(false)} className="absolute top-4 left-4 w-10 h-10 rounded-full bg-white/15 text-white flex items-center justify-center text-xl">✕</button>
+          </div>
+        )}
 
         {gallery.length > 0 && (
           <div className="relative rounded-3xl overflow-hidden aspect-video shadow-md cursor-pointer" onClick={() => {}}>

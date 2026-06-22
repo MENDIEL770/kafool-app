@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { uploadImage } from '@/lib/image-client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -26,6 +27,7 @@ export default function CampaignSettingsPage() {
     primary_color: '#2563eb',
     about_text: '',
     about_text_en: '',
+    about_image: '',
     button_radius: 'pill' as 'pill' | 'rounded' | 'square',
     donation_button_size: 'default' as 'default' | 'large',
     countdown_end: '',
@@ -50,6 +52,7 @@ export default function CampaignSettingsPage() {
           primary_color: data.settings?.primary_color || '#2563eb',
           about_text: data.settings?.about_text || '',
           about_text_en: data.settings?.about_text_en || '',
+          about_image: data.settings?.about_image || '',
           button_radius: data.settings?.button_radius || 'pill',
           donation_button_size: data.settings?.donation_button_size || 'default',
           countdown_end: data.settings?.countdown_end || '',
@@ -66,6 +69,17 @@ export default function CampaignSettingsPage() {
 
   function set(key: string, value: string) {
     setForm((prev) => ({ ...prev, [key]: value }))
+  }
+
+  const aboutImgRef = useRef<HTMLInputElement>(null)
+  const [uploadingAbout, setUploadingAbout] = useState(false)
+  async function onAboutImage(file: File | undefined) {
+    if (!file) return
+    setUploadingAbout(true)
+    try { set('about_image', await uploadImage(file, `campaigns/${id}/about-${crypto.randomUUID()}`)) }
+    catch (e) { alert(e instanceof Error ? e.message : 'העלאה נכשלה') }
+    setUploadingAbout(false)
+    if (aboutImgRef.current) aboutImgRef.current.value = ''
   }
 
   async function handleSave(e: React.FormEvent) {
@@ -87,6 +101,7 @@ export default function CampaignSettingsPage() {
         tagline: form.tagline || null,
         about_text: form.about_text || null,
         about_text_en: form.about_text_en || null,
+        about_image: form.about_image || null,
         button_radius: form.button_radius,
         donation_button_size: form.donation_button_size,
         countdown_end: form.countdown_end || null,
@@ -147,6 +162,31 @@ export default function CampaignSettingsPage() {
             <div className="space-y-1">
               <Label>טקסט אודות</Label>
               <RichTextEditor value={form.about_text} onChange={(html) => set('about_text', html)} placeholder="ספרו על הקמפיין... אפשר להדגיש, לצבוע, לשנות גודל, ליישר ולהוסיף קישורים" />
+            </div>
+
+            <div className="space-y-1">
+              <Label className="flex items-center gap-2">
+                תמונת אודות (עומדת)
+                <span className="text-[11px] font-normal text-gray-400">מומלץ 1080×1350 px · יחס 4:5</span>
+              </Label>
+              <div className="flex items-center gap-3">
+                {form.about_image ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={form.about_image} alt="" className="w-20 h-24 rounded-xl object-cover border border-gray-200" />
+                ) : (
+                  <div className="w-20 h-24 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50" />
+                )}
+                <input ref={aboutImgRef} type="file" accept="image/*" className="hidden" onChange={(e) => onAboutImage(e.target.files?.[0])} />
+                <div className="flex flex-col gap-1.5">
+                  <Button type="button" variant="outline" size="sm" onClick={() => aboutImgRef.current?.click()} disabled={uploadingAbout}>
+                    {uploadingAbout ? 'מעלה...' : form.about_image ? 'החלף תמונה' : 'העלה תמונה'}
+                  </Button>
+                  {form.about_image && (
+                    <button type="button" onClick={() => set('about_image', '')} className="text-xs text-red-500 hover:underline text-right">הסר תמונה</button>
+                  )}
+                </div>
+              </div>
+              <p className="text-[11px] text-gray-400">מוצגת בקטע &quot;אודות&quot; בדף הגיוס, לצד הטקסט. לחיצה עליה מרחיבה אותה.</p>
             </div>
 
             <div className="space-y-1">
