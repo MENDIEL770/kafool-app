@@ -1,10 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Phone, ChevronDown, ChevronLeft, MessageCircle, Copy, Check, Loader2,
-  CalendarClock, HandCoins, Target, ScrollText, Star,
+  CalendarClock, HandCoins, Target, ScrollText, Star, UserPlus,
 } from 'lucide-react'
 
 interface Group { id: string; display_name: string | null; public_slug: string; donation_link: string | null; personal_goal: number }
@@ -33,8 +33,10 @@ export default function CallerScreen({ group, leads, calls, reminders, callScrip
   group: Group | null; leads: Lead[]; calls: Call[]; reminders: Reminder[]; callScript: unknown
 }) {
   const router = useRouter()
+  const vcfRef = useRef<HTMLInputElement>(null)
   const [idx, setIdx] = useState(0)
   const [busy, setBusy] = useState(false)
+  const [importing, setImporting] = useState(false)
   const [showDetails, setShowDetails] = useState(false)
   const [showScript, setShowScript] = useState(false)
   const [panel, setPanel] = useState<null | 'promise' | 'callback'>(null)
@@ -83,6 +85,41 @@ export default function CallerScreen({ group, leads, calls, reminders, callScrip
     navigator.clipboard.writeText(group.donation_link); setCopied(true); setTimeout(() => setCopied(false), 1500)
   }
 
+  async function saveContacts(leads: { full_name: string; phone: string }[]) {
+    if (leads.length === 0) return
+    setImporting(true)
+    const res = await fetch('/api/kafoolplus/my-leads', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ leads }) })
+    const d = await res.json().catch(() => ({}))
+    setImporting(false)
+    if (!res.ok) { alert(d.error || 'הייבוא נכשל'); return }
+    alert(`נוספו ${d.inserted} אנשי קשר${d.skipped ? ` (${d.skipped} כפילויות דולגו)` : ''}`)
+    router.refresh()
+  }
+
+  // Native phone contact picker (Chrome on Android / PWA), else fall back to a .vcf file.
+  async function importContacts() {
+    const nav = navigator as Navigator & { contacts?: { select: (props: string[], opts: { multiple: boolean }) => Promise<{ name?: string[]; tel?: string[] }[]> } }
+    if (nav.contacts?.select) {
+      try {
+        const picked = await nav.contacts.select(['name', 'tel'], { multiple: true })
+        await saveContacts(picked.map(c => ({ full_name: (c.name?.[0] || '').trim(), phone: (c.tel?.[0] || '').trim() })))
+      } catch { /* user cancelled */ }
+    } else {
+      vcfRef.current?.click()
+    }
+  }
+  async function onVcf(file: File) {
+    const text = await file.text()
+    const cards = text.split(/BEGIN:VCARD/i).slice(1)
+    const leads = cards.map(card => {
+      const fn = card.match(/\nFN[^:]*:(.+)/i)?.[1]?.trim() || ''
+      const tel = card.match(/\nTEL[^:]*:(.+)/i)?.[1]?.trim() || ''
+      return { full_name: fn, phone: tel }
+    }).filter(l => l.full_name || l.phone)
+    await saveContacts(leads)
+    if (vcfRef.current) vcfRef.current.value = ''
+  }
+
   const leadCalls = lead ? calls.filter(c => c.lead_id === lead.id) : []
   const prevDonation = lead?.donation_history?.length ? Math.max(...lead.donation_history.map(d => d.amount)) : 0
 
@@ -94,10 +131,16 @@ export default function CallerScreen({ group, leads, calls, reminders, callScrip
           <h1 className="text-xl font-black text-gray-900">שלום, {group.display_name}</h1>
           <p className="text-xs text-gray-400">בתור: {queue.length} · חזרות: {pendingReminders} · הבטיחו: {promisedCount} · תרמו: {donatedCount}</p>
         </div>
-        {callScript != null && (
-          <button onClick={() => setShowScript(v => !v)} className="flex items-center gap-1.5 text-xs font-bold text-indigo-700 bg-indigo-50 rounded-lg px-3 py-2"><ScrollText className="w-4 h-4" /> תסריט</button>
-        )}
+        <div className="flex items-center gap-2">
+          <button onClick={importContacts} disabled={importing} className="flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 rounded-lg px-3 py-2 disabled:opacity-50">
+            {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />} ייבוא אנשי קשר
+          </button>
+          {callScript != null && (
+            <button onClick={() => setShowScript(v => !v)} className="flex items-center gap-1.5 text-xs font-bold text-indigo-700 bg-indigo-50 rounded-lg px-3 py-2"><ScrollText className="w-4 h-4" /> תסריט</button>
+          )}
+        </div>
       </div>
+      <input ref={vcfRef} type="file" accept=".vcf,text/vcard" className="hidden" onChange={e => e.target.files?.[0] && onVcf(e.target.files[0])} />
 
       {group.personal_goal > 0 && (
         <div className="bg-white border border-gray-200 rounded-xl p-3">

@@ -29,6 +29,7 @@ import {
   X,
   FlaskConical,
   Megaphone,
+  Inbox,
 } from 'lucide-react'
 
 interface Profile {
@@ -69,6 +70,7 @@ const settingsItems = [
 const superAdminItems = [
   { href: '/super-admin/agent', label: 'סוכן AI', icon: Bot },
   { href: '/super-admin/orgs', label: 'ניהול ארגונים', icon: Building2 },
+  { href: '/super-admin/kafool-requests', label: 'פניות Kafool+', icon: Inbox },
   { href: '/super-admin/cms', label: 'ניהול תוכן', icon: FileText },
   { href: '/super-admin/portfolio', label: 'עיצובים / תיק עבודות', icon: ImageIcon },
   { href: '/media-guide', label: 'מדריך מדיה', icon: ImageIcon },

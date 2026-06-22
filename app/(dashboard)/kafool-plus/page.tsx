@@ -3,6 +3,7 @@ import { getKafoolPlusContext } from '@/lib/kafoolplus'
 import ManagerHome from './ManagerHome'
 import CoordinatorHome from './CoordinatorHome'
 import CallerScreen from './CallerScreen'
+import RequestAccess from './RequestAccess'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,15 +21,10 @@ const SAMPLE_LEADS = [
 export default async function KafoolPlusPage({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
   const supabase = await createClient()
   const kp = await getKafoolPlusContext(supabase)
-  if (!kp.role) return (
-    <Notice>
-      <div className="space-y-2">
-        <p className="font-bold text-gray-700">חשבון Google זה אינו רשום במוקד Kafool+</p>
-        <p>פנה למנהל כדי שירשום את כתובת המייל שלך, ואז התחבר שוב.</p>
-        <a href="/kafool-plus-login" className="text-indigo-600 hover:underline text-sm">חזרה להתחברות</a>
-      </div>
-    </Notice>
-  )
+  if (!kp.role) {
+    const { data: { user } } = await supabase.auth.getUser()
+    return <RequestAccess email={user?.email ?? null} />
+  }
 
   // Manager/super-admin can preview the caller screen with sample data.
   const sp = await searchParams
