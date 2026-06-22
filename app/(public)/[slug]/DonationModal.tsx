@@ -95,11 +95,15 @@ export default function DonationModal({
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(presetMethod ?? 'one_time')
   const [months, setMonths] = useState<number>(presetMonths ?? 12)
 
+  // A donation button configured as a standing order locks the modal to הו"ק —
+  // the donor can't switch to Bit / bank / one-time, only choose the duration.
+  const lockedToHok = presetMethod === 'hok'
   // Available methods = only those with a URL configured.
   // Bit is NOT a top-level method — it's offered as a separate button under
   // one-time payment (opens its own link in a new tab).
   const availableMethods = PAYMENT_METHODS.filter(m =>
-    m.key === 'bit' ? false
+    lockedToHok ? m.key === 'hok'
+      : m.key === 'bit' ? false
       : m.key === 'one_time' ? !!donationUrl
       : !!(paymentUrls?.[m.key])
   )
@@ -157,20 +161,37 @@ export default function DonationModal({
   function buildPaymentUrl(baseUrl?: string) {
     const activeUrl = baseUrl ?? getActiveUrl()
     const params = new URLSearchParams()
-    if (finalAmount) params.set('total', String(finalAmount))
-    if (!form.anonymous) {
+    const isNedarim = paymentProvider === 'nedarim'
+    if (isNedarim) {
+      // Nedarim Plus hosted form uses capitalized param names — its amount field
+      // reads "Amount", NOT Kesher's "total" (which is why the amount used to
+      // arrive blank). Monthly amount + Tashlumim mirrors the Kesher hok flow.
+      if (finalAmount) params.set('Amount', String(finalAmount))
+      params.set('Currency', '1') // 1 = ILS
+      if (!form.anonymous) {
+        if (form.firstName) params.set('FirstName', form.firstName)
+        if (form.lastName) params.set('LastName', form.lastName)
+        if (form.phone) params.set('Phone', form.phone)
+        if (form.email) params.set('Mail', form.email)
+      }
+      if (form.dedication) params.set('Comment', form.dedication)
+      if (paymentMethod === 'hok' && months && months > 0) params.set('Tashlumim', String(months))
+    } else {
       // Kesher param names are lowercase (per Kesher docs)
-      if (form.firstName) params.set('firstname', form.firstName)
-      if (form.lastName) params.set('lastname', form.lastName)
-      if (form.phone) params.set('tel', form.phone)
-      if (form.email) params.set('mail', form.email)
-    }
-    if (form.dedication) params.set('comment', form.dedication)
-    if (selectedGroupSlug) params.set('group', selectedGroupSlug)
-    // standing order: number of payments (Kesher: numpayment) + credittype 4 = תשלומים בהו"ק
-    if (paymentMethod === 'hok' && months && months > 0) {
-      params.set('numpayment', String(months))
-      params.set('credittype', '4')
+      if (finalAmount) params.set('total', String(finalAmount))
+      if (!form.anonymous) {
+        if (form.firstName) params.set('firstname', form.firstName)
+        if (form.lastName) params.set('lastname', form.lastName)
+        if (form.phone) params.set('tel', form.phone)
+        if (form.email) params.set('mail', form.email)
+      }
+      if (form.dedication) params.set('comment', form.dedication)
+      if (selectedGroupSlug) params.set('group', selectedGroupSlug)
+      // standing order: number of payments (Kesher: numpayment) + credittype 4 = תשלומים בהו"ק
+      if (paymentMethod === 'hok' && months && months > 0) {
+        params.set('numpayment', String(months))
+        params.set('credittype', '4')
+      }
     }
     params.set('addactiondata', campaign.id)
     // Nedarim-hosted payment pages route their server CallBack by Param1/Param2,
