@@ -126,7 +126,7 @@ export default async function PublicDonationPage({ params }: { params: Promise<{
   let nedarim: { mosad: string; apiValid: string; active: boolean } | null = null
   const { data: pp } = await supabase
     .from('organizations')
-    .select('payment_provider, nedarim_mosad, nedarim_api_valid, nedarim_active, kesher_page_url_en, kesher_url_hok_en')
+    .select('payment_provider, nedarim_mosad, nedarim_api_valid, nedarim_active, kesher_page_url_en, kesher_url_hok_en, nedarim_page_url, nedarim_url_hok, nedarim_url_bit, nedarim_url_bank, nedarim_page_url_en, nedarim_url_hok_en')
     .eq('id', campaign.org_id)
     .maybeSingle()
   if (pp) {
@@ -137,8 +137,19 @@ export default async function PublicDonationPage({ params }: { params: Promise<{
       apiValid: (p.nedarim_api_valid as string) || '',
       active: !!p.nedarim_active,
     }
-    paymentUrls.one_time_en = (p.kesher_page_url_en as string) || ''
-    paymentUrls.hok_en = (p.kesher_url_hok_en as string) || ''
+    if (paymentProvider === 'nedarim') {
+      // Nedarim keeps its links in its own columns; fall back to the legacy
+      // kesher_* values if the migration hasn't moved them across yet.
+      paymentUrls.one_time = (p.nedarim_page_url as string) || paymentUrls.one_time
+      paymentUrls.hok      = (p.nedarim_url_hok  as string) || paymentUrls.hok
+      paymentUrls.bit      = (p.nedarim_url_bit  as string) || paymentUrls.bit
+      paymentUrls.bank     = (p.nedarim_url_bank as string) || paymentUrls.bank
+      paymentUrls.one_time_en = (p.nedarim_page_url_en as string) || ''
+      paymentUrls.hok_en      = (p.nedarim_url_hok_en  as string) || ''
+    } else {
+      paymentUrls.one_time_en = (p.kesher_page_url_en as string) || ''
+      paymentUrls.hok_en = (p.kesher_url_hok_en as string) || ''
+    }
   }
 
   return (

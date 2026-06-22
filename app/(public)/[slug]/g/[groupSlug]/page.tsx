@@ -80,6 +80,31 @@ export default async function GroupPage({ params }: { params: Promise<{ slug: st
     bank:     o.kesher_url_bank || '',
   }
 
+  // Payment provider + Nedarim links — guarded so the page still renders if the
+  // newer columns aren't present yet (falls back to Kesher / legacy links).
+  let paymentProvider = 'kesher'
+  let nedarim: { mosad: string; apiValid: string; active: boolean } | null = null
+  const { data: pp } = await supabase
+    .from('organizations')
+    .select('payment_provider, nedarim_mosad, nedarim_api_valid, nedarim_active, nedarim_page_url, nedarim_url_hok, nedarim_url_bit, nedarim_url_bank')
+    .eq('id', campaign.org_id)
+    .maybeSingle()
+  if (pp) {
+    const p = pp as Record<string, unknown>
+    paymentProvider = (p.payment_provider as string) || 'kesher'
+    nedarim = {
+      mosad: (p.nedarim_mosad as string) || '',
+      apiValid: (p.nedarim_api_valid as string) || '',
+      active: !!p.nedarim_active,
+    }
+    if (paymentProvider === 'nedarim') {
+      paymentUrls.one_time = (p.nedarim_page_url as string) || paymentUrls.one_time
+      paymentUrls.hok      = (p.nedarim_url_hok  as string) || paymentUrls.hok
+      paymentUrls.bit      = (p.nedarim_url_bit  as string) || paymentUrls.bit
+      paymentUrls.bank     = (p.nedarim_url_bank as string) || paymentUrls.bank
+    }
+  }
+
   return (
     <DonationPageClient
       org={org}
@@ -89,6 +114,8 @@ export default async function GroupPage({ params }: { params: Promise<{ slug: st
       gallery={gallery || []}
       donationUrl={paymentUrls.one_time}
       paymentUrls={paymentUrls}
+      paymentProvider={paymentProvider}
+      nedarim={nedarim}
       activeGroup={{
         id: group.id,
         name: group.name,

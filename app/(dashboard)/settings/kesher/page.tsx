@@ -5,16 +5,35 @@ import { createClient } from '@/lib/supabase/client'
 import { getClientOrgId } from '@/lib/tenancy-client'
 import { Check, Copy, Info, ExternalLink } from 'lucide-react'
 
+// Generic payment-link fields. Each provider keeps its own copy of these,
+// stored in provider-specific DB columns (see COLUMNS below).
 const PAYMENT_METHODS = [
-  { key: 'kesher_page_url', label: 'תרומה חד"פ',   icon: '', required: true,  hint: 'קישור לדף תשלום רגיל' },
-  { key: 'kesher_url_hok',  label: 'הוראת קבע',    icon: '', required: false, hint: 'קישור לדף הוראת קבע' },
-  { key: 'kesher_url_bit',  label: 'ביט',           icon: '', required: false, hint: 'קישור לדף תשלום ביט' },
-  { key: 'kesher_url_bank', label: 'העברה בנקאית', icon: '', required: false, hint: 'קישור לדף העברה בנקאית' },
-  { key: 'kesher_page_url_en', label: 'תרומה חד"פ — אנגלית', icon: '', required: false, hint: 'דף תשלום באנגלית לחד"פ — מוצג כשהתורם עובר לאנגלית' },
-  { key: 'kesher_url_hok_en',  label: 'הוראת קבע — אנגלית',  icon: '', required: false, hint: 'דף תשלום באנגלית להו"ק' },
+  { key: 'one_time',    label: 'תרומה חד"פ',   icon: '', required: true,  hint: 'קישור לדף תשלום רגיל' },
+  { key: 'hok',         label: 'הוראת קבע',    icon: '', required: false, hint: 'קישור לדף הוראת קבע' },
+  { key: 'bit',         label: 'ביט',           icon: '', required: false, hint: 'קישור לדף תשלום ביט' },
+  { key: 'bank',        label: 'העברה בנקאית', icon: '', required: false, hint: 'קישור לדף העברה בנקאית' },
+  { key: 'one_time_en', label: 'תרומה חד"פ — אנגלית', icon: '', required: false, hint: 'דף תשלום באנגלית לחד"פ — מוצג כשהתורם עובר לאנגלית' },
+  { key: 'hok_en',      label: 'הוראת קבע — אנגלית',  icon: '', required: false, hint: 'דף תשלום באנגלית להו"ק' },
 ] as const
 
 type PaymentKey = typeof PAYMENT_METHODS[number]['key']
+type Provider = 'kesher' | 'nedarim'
+
+// Maps the generic field key → the DB column for each provider.
+const COLUMNS: Record<Provider, Record<PaymentKey, string>> = {
+  kesher: {
+    one_time: 'kesher_page_url', hok: 'kesher_url_hok', bit: 'kesher_url_bit',
+    bank: 'kesher_url_bank', one_time_en: 'kesher_page_url_en', hok_en: 'kesher_url_hok_en',
+  },
+  nedarim: {
+    one_time: 'nedarim_page_url', hok: 'nedarim_url_hok', bit: 'nedarim_url_bit',
+    bank: 'nedarim_url_bank', one_time_en: 'nedarim_page_url_en', hok_en: 'nedarim_url_hok_en',
+  },
+}
+
+const emptyUrls = (): Record<PaymentKey, string> => ({
+  one_time: '', hok: '', bit: '', bank: '', one_time_en: '', hok_en: '',
+})
 
 export default function KesherSettingsPage() {
   const [loading, setLoading] = useState(false)
@@ -23,15 +42,13 @@ export default function KesherSettingsPage() {
   const [copied, setCopied] = useState(false)
   const [orgId, setOrgId] = useState<string | null>(null)
   const [webhookUrl, setWebhookUrl] = useState('')
-  const [provider, setProvider] = useState<'kesher' | 'nedarim'>('kesher')
+  // '' = no provider chosen yet → the form stays hidden until the user picks one.
+  const [provider, setProvider] = useState<Provider | ''>('')
   const [nedarim, setNedarim] = useState({ mosad: '', apiValid: '' })
-  const [urls, setUrls] = useState<Record<PaymentKey, string>>({
-    kesher_page_url: '',
-    kesher_url_hok: '',
-    kesher_url_bit: '',
-    kesher_url_bank: '',
-    kesher_page_url_en: '',
-    kesher_url_hok_en: '',
+  // Each provider keeps its own set of links, so switching tabs never mixes them up.
+  const [urls, setUrls] = useState<Record<Provider, Record<PaymentKey, string>>>({
+    kesher: emptyUrls(),
+    nedarim: emptyUrls(),
   })
 
   useEffect(() => {
@@ -49,22 +66,21 @@ export default function KesherSettingsPage() {
 
       const { data: org } = await supabase
         .from('organizations')
-        .select('kesher_page_url, kesher_url_hok, kesher_url_bit, kesher_url_bank, kesher_page_url_en, kesher_url_hok_en, payment_provider, nedarim_mosad, nedarim_api_valid')
+        .select('kesher_page_url, kesher_url_hok, kesher_url_bit, kesher_url_bank, kesher_page_url_en, kesher_url_hok_en, nedarim_page_url, nedarim_url_hok, nedarim_url_bit, nedarim_url_bank, nedarim_page_url_en, nedarim_url_hok_en, payment_provider, nedarim_mosad, nedarim_api_valid')
         .eq('id', ctxOrgId)
         .single()
 
       if (org) {
         const o = org as Record<string, string>
-        setProvider((o.payment_provider as 'kesher' | 'nedarim') || 'kesher')
+        const saved = o.payment_provider
+        setProvider(saved === 'kesher' || saved === 'nedarim' ? saved : '')
         setNedarim({ mosad: o.nedarim_mosad || '', apiValid: o.nedarim_api_valid || '' })
-        setUrls({
-          kesher_page_url: o.kesher_page_url || '',
-          kesher_url_hok:  o.kesher_url_hok  || '',
-          kesher_url_bit:  o.kesher_url_bit  || '',
-          kesher_url_bank: o.kesher_url_bank || '',
-          kesher_page_url_en: o.kesher_page_url_en || '',
-          kesher_url_hok_en:  o.kesher_url_hok_en  || '',
-        })
+        const fill = (p: Provider): Record<PaymentKey, string> => {
+          const out = emptyUrls()
+          for (const m of PAYMENT_METHODS) out[m.key] = o[COLUMNS[p][m.key]] || ''
+          return out
+        }
+        setUrls({ kesher: fill('kesher'), nedarim: fill('nedarim') })
       }
     }
     load()
@@ -72,21 +88,23 @@ export default function KesherSettingsPage() {
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
-    if (!orgId) return
+    if (!orgId || !provider) return
     setLoading(true)
     const supabase = createClient()
-    const { error } = await supabase.from('organizations').update({
-      payment_provider: provider,
-      kesher_page_url: urls.kesher_page_url || null,
-      kesher_url_hok:  urls.kesher_url_hok  || null,
-      kesher_url_bit:  urls.kesher_url_bit  || null,
-      kesher_url_bank: urls.kesher_url_bank || null,
-      kesher_page_url_en: urls.kesher_page_url_en || null,
-      kesher_url_hok_en:  urls.kesher_url_hok_en  || null,
+    // Persist both providers' columns so each tab keeps its own links.
+    const payload: Record<string, string | boolean | null> = {
+      payment_provider:  provider,
       nedarim_mosad:     nedarim.mosad.trim() || null,
       nedarim_api_valid: nedarim.apiValid.trim() || null,
       nedarim_active:    provider === 'nedarim',
-    }).eq('id', orgId)
+      kesher_active:     provider === 'kesher',
+    }
+    for (const p of ['kesher', 'nedarim'] as Provider[]) {
+      for (const m of PAYMENT_METHODS) {
+        payload[COLUMNS[p][m.key]] = urls[p][m.key] || null
+      }
+    }
+    const { error } = await supabase.from('organizations').update(payload).eq('id', orgId)
     setLoading(false)
     if (error) { setSaveError(error.message); return }
     setSaveError(null)
@@ -101,7 +119,7 @@ export default function KesherSettingsPage() {
   }
 
   // Both providers are link-based now: connected once a one-time payment URL is set.
-  const isConnected = !!urls.kesher_page_url
+  const isConnected = !!provider && !!urls[provider].one_time
   // Nedarim posts its CallBack from a server, so use www to avoid a redirect.
   const nedarimWebhookUrl = webhookUrl
     .replace('/api/webhooks/kesher', '/api/webhooks/nedarim')
@@ -134,6 +152,15 @@ export default function KesherSettingsPage() {
         </div>
       </div>
 
+      {/* Prompt to pick a provider before anything else shows */}
+      {!provider && (
+        <div className="bg-gray-50 border border-dashed border-gray-200 rounded-2xl p-6 text-center text-sm text-gray-500">
+          בחר ספק סליקה למעלה כדי להגדיר את קישורי התשלום שלך.
+        </div>
+      )}
+
+      {/* Everything below depends on a chosen provider */}
+      {provider && (<>
       {/* Status pill */}
       <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold border ${
         isConnected
@@ -214,8 +241,8 @@ export default function KesherSettingsPage() {
                     ? <span className="text-red-400 text-xs font-medium">חובה</span>
                     : <span className="text-gray-300 text-xs font-normal">אופציונלי</span>
                   }
-                  {urls[m.key] && (
-                    <a href={urls[m.key]} target="_blank" rel="noopener noreferrer" className="mr-auto text-blue-400 hover:text-blue-600 transition-colors">
+                  {urls[provider][m.key] && (
+                    <a href={urls[provider][m.key]} target="_blank" rel="noopener noreferrer" className="mr-auto text-blue-400 hover:text-blue-600 transition-colors">
                       <ExternalLink className="w-3.5 h-3.5" />
                     </a>
                   )}
@@ -223,8 +250,8 @@ export default function KesherSettingsPage() {
                 <p className="text-[11px] text-gray-400">{m.hint}</p>
                 <input
                   type="url"
-                  value={urls[m.key]}
-                  onChange={e => setUrls(p => ({ ...p, [m.key]: e.target.value.trim() }))}
+                  value={urls[provider][m.key]}
+                  onChange={e => setUrls(prev => ({ ...prev, [provider]: { ...prev[provider], [m.key]: e.target.value.trim() } }))}
                   required={m.required}
                   dir="ltr"
                   placeholder="https://..."
@@ -254,6 +281,7 @@ export default function KesherSettingsPage() {
           }
         </button>
       </form>
+      </>)}
     </div>
   )
 }
