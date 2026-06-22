@@ -176,6 +176,10 @@ export default function DonationModal({
       params.set('credittype', '4')
     }
     params.set('addactiondata', campaign.id)
+    // Nedarim-hosted payment pages route their server CallBack by Param1/Param2,
+    // so the webhook can attach the donation to the right campaign/group.
+    params.set('Param1', campaign.id)
+    if (selectedGroupSlug) params.set('Param2', selectedGroupSlug)
     const origin = typeof window !== 'undefined' ? window.location.origin : ''
     // Carry the donor details on the success URL so the thanks page can save them
     // server-side (the in-iframe localStorage/RLS update is unreliable on mobile).
