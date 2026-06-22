@@ -19,6 +19,9 @@ export async function POST(req: NextRequest) {
   if (!campaignId || !name || !managerPhone) {
     return NextResponse.json({ error: 'חסרים פרטים' }, { status: 400 })
   }
+  if (!(Number(goalAmount) > 0)) {
+    return NextResponse.json({ error: 'יש להגדיר יעד גיוס לקבוצה' }, { status: 400 })
+  }
 
   const adminClient = createAdmin(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

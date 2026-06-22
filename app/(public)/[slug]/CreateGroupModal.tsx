@@ -37,6 +37,7 @@ export default function CreateGroupModal({ isOpen, onClose, campaignId, primaryC
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (!(Number(form.goalAmount) > 0)) { setError('יש להגדיר יעד גיוס לקבוצה'); return }
     setSubmitting(true)
     setError('')
     try {
@@ -163,9 +164,9 @@ export default function CreateGroupModal({ isOpen, onClose, campaignId, primaryC
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-gray-600">יעד גיוס (₪) — אופציונלי</label>
+                <label className="text-xs font-semibold text-gray-600">יעד גיוס (₪) <span className="text-red-400">*</span></label>
                 <input type="number" value={form.goalAmount} onChange={e => set('goalAmount', e.target.value)}
-                  dir="ltr" placeholder="5000" min="0"
+                  required dir="ltr" placeholder="5000" min="1"
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-400" />
               </div>
 

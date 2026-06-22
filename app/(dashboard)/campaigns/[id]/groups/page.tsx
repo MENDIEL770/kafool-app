@@ -178,6 +178,7 @@ function EditModal({ group, onClose, onSaved }: { group: Group; onClose: () => v
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
+    if (!(Number(form.goal_amount) > 0)) { setSlugError('יש להגדיר יעד גיוס לקבוצה'); return }
     setSlugError('')
     // clean the slug → url-safe (latin / numbers / Hebrew / dash)
     const slug = form.slug.trim().toLowerCase()
@@ -264,8 +265,8 @@ function EditModal({ group, onClose, onSaved }: { group: Group; onClose: () => v
             <div className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{slugError}</div>
           )}
           <div className="space-y-1">
-            <Label>יעד גיוס (₪)</Label>
-            <Input type="number" value={form.goal_amount} onChange={e => set('goal_amount', e.target.value)} dir="ltr" />
+            <Label>יעד גיוס (₪) *</Label>
+            <Input type="number" value={form.goal_amount} onChange={e => set('goal_amount', e.target.value)} dir="ltr" required min="1" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
@@ -668,6 +669,7 @@ export default function GroupsPage() {
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
+    if (!(Number(form.goal_amount) > 0)) { alert('יש להגדיר יעד גיוס לקבוצה'); return }
     setLoading(true)
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -752,8 +754,8 @@ export default function GroupsPage() {
               </div>
             </div>
             <div className="space-y-1">
-              <Label>יעד גיוס (₪)</Label>
-              <Input type="number" value={form.goal_amount} onChange={e => set('goal_amount', e.target.value)} dir="ltr" />
+              <Label>יעד גיוס (₪) *</Label>
+              <Input type="number" value={form.goal_amount} onChange={e => set('goal_amount', e.target.value)} dir="ltr" required min="1" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
