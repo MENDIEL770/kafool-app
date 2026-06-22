@@ -280,6 +280,18 @@ export default function NotFound() {
         </div>
 
         <div className="fallback">
+          <a
+            href="/"
+            onClick={(e) => {
+              if (typeof window !== 'undefined' && window.history.length > 1) {
+                e.preventDefault()
+                window.history.back()
+              }
+            }}
+          >
+            ← חזרה לעמוד הקודם
+          </a>
+          <span style={{ margin: '0 10px', opacity: 0.4 }}>·</span>
           <a href="/" id="kf-skip">קח אותי הביתה</a>
         </div>
       </div>

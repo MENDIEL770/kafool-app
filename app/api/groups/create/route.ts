@@ -3,11 +3,13 @@ import { createClient as createAdmin } from '@supabase/supabase-js'
 import { sendYemotSms } from '@/lib/sms/yemot'
 
 function toSlug(str: string): string {
-  return str
+  // Keep Hebrew letters, latin and digits — so a group can have a Hebrew URL
+  // (e.g. /campaign/g/חנה). Everything else becomes a dash.
+  return (str || '')
+    .trim()
     .toLowerCase()
-    .replace(/[֐-׿]/g, '') // strip Hebrew
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
+    .replace(/[^a-z0-9֐-׿]+/g, '-')
+    .replace(/^-+|-+$/g, '')
 }
 
 export async function POST(req: NextRequest) {
