@@ -556,38 +556,40 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
   const [selectedGroup] = useState<string>('')
   const customInputRef = useRef<HTMLInputElement>(null)
 
-  const finalAmount = selected ?? (custom ? Number(custom) : null)
+  // selected holds the chosen plan INDEX (not the amount) so two plans with the
+  // same amount (e.g. 180 monthly vs 180 one-time) don't both highlight.
+  const finalAmount = selected != null ? (plans[selected]?.amount ?? null) : (custom ? Number(custom) : null)
   const lang = useLang()
   const t = useT()
 
   // Large mode: big 1:1 buttons (full-width-ish squares on mobile, large circles
-  // side by side on desktop) so the donor clearly sees what each choice funds.
+  // side by side on desktop). Buttons WRAP onto multiple rows so none get cut.
   const large = buttonSize === 'large'
   const gridCls = large
-    ? 'grid grid-cols-2 gap-4 md:flex md:gap-6 md:overflow-x-auto md:pb-6 md:pt-4 md:px-4 md:scrollbar-hide md:justify-center md:flex-nowrap'
-    : 'grid grid-cols-3 gap-4 pb-2 px-1 md:flex md:gap-5 md:overflow-x-auto md:pb-6 md:pt-4 md:px-4 md:scrollbar-hide md:snap-x md:justify-center md:flex-nowrap'
+    ? 'grid grid-cols-2 gap-4 md:flex md:flex-wrap md:gap-6 md:pt-4 md:px-4 md:justify-center'
+    : 'grid grid-cols-3 gap-4 pb-2 px-1 md:flex md:flex-wrap md:gap-5 md:pt-4 md:px-4 md:justify-center'
   const itemCls = large
-    ? 'snap-start flex flex-col items-center gap-2 cursor-pointer focus:outline-none w-full md:w-auto md:flex-none'
-    : 'flex-none snap-start flex flex-col items-center gap-2 cursor-pointer focus:outline-none'
+    ? 'flex flex-col items-center gap-2 cursor-pointer focus:outline-none w-full md:w-auto'
+    : 'flex flex-col items-center gap-2 cursor-pointer focus:outline-none'
   const shapeCls = large
     ? 'w-full aspect-square rounded-2xl md:w-[180px] md:h-[180px] md:aspect-auto md:rounded-full overflow-hidden transition-all duration-200 relative'
     : 'w-[90px] h-[90px] md:w-[110px] md:h-[110px] rounded-full overflow-hidden transition-all duration-200 relative'
   const amountTextCls = large ? 'text-white font-black text-3xl md:text-3xl' : 'text-white font-black text-lg md:text-xl'
 
   return (
-    <section className="bg-white border-b border-gray-100 py-8 px-4" aria-label="מסלולי תרומה">
+    <section id="donation-plans" className="bg-white border-b border-gray-100 py-8 px-4" aria-label="מסלולי תרומה">
       <div className="max-w-6xl mx-auto">
         <h2 className="text-lg font-bold text-gray-700 mb-6 text-center">{t('chooseAmount')}</h2>
 
         {/* Grid: 3 columns on mobile, scrollable row on md+ (or large 1:1 buttons) */}
         <div className={gridCls} style={{ overflowY: 'visible' }}>
-          {plans.map(({ amount, label, image_url, payment_type, months }) => {
-            const isActive = selected === amount
+          {plans.map(({ amount, label, image_url, payment_type, months }, i) => {
+            const isActive = selected === i
             return (
               <button
-                key={amount}
+                key={i}
                 onClick={() => {
-                  setSelected(isActive ? null : amount)
+                  setSelected(isActive ? null : i)
                   // a button's payment type/months drive the modal (one_time by default, hok if configured)
                   setSelectedMethod(payment_type ?? 'one_time')
                   setSelectedMonths(payment_type === 'hok' ? (months ?? undefined) : undefined)
@@ -1314,7 +1316,9 @@ function ScrollTopButton() {
   )
 }
 
-// Popup ad: appears for 5s once the visitor scrolls past the About section. Once per session.
+// Popup ad: appears for 5s once the visitor scrolls past the donation buttons.
+// Once per session. Anchored to the donation-plans section (early on the page)
+// so it fires for most visitors, with a scroll-distance fallback.
 function PopupAd({ ad, campaignId }: { ad?: { image_url?: string; link?: string | null }; campaignId: string }) {
   const [open, setOpen] = useState(false)
   const shownRef = useRef(false)
@@ -1323,10 +1327,10 @@ function PopupAd({ ad, campaignId }: { ad?: { image_url?: string; link?: string 
     if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(`kafool_popup_${campaignId}`)) return
     const onScroll = () => {
       if (shownRef.current) return
-      const about = document.getElementById('about')
-      if (!about) return
-      // fire once the top of the About section has scrolled above the viewport top
-      if (about.getBoundingClientRect().top < 0) {
+      const plans = document.getElementById('donation-plans')
+      // fire once the donation buttons have scrolled fully above the viewport
+      const passed = plans ? plans.getBoundingClientRect().bottom < 0 : window.scrollY > 700
+      if (passed) {
         shownRef.current = true
         try { sessionStorage.setItem(`kafool_popup_${campaignId}`, '1') } catch {}
         setOpen(true)
@@ -1335,6 +1339,7 @@ function PopupAd({ ad, campaignId }: { ad?: { image_url?: string; link?: string 
       }
     }
     window.addEventListener('scroll', onScroll, { passive: true })
+    onScroll() // in case the page is already scrolled past
     return () => window.removeEventListener('scroll', onScroll)
   }, [ad?.image_url, campaignId])
 
@@ -1570,13 +1575,11 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
           href={whatsappUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="fixed z-50 w-14 h-14 rounded-full flex items-center justify-center shadow-xl transition-opacity hover:opacity-90"
+          className="fixed z-[60] w-14 h-14 rounded-full flex items-center justify-center shadow-xl transition-opacity hover:opacity-90"
           style={{
             backgroundColor: '#25D366',
             left: '1rem',
-            bottom: '5rem',
-            transform: 'translateZ(0)',
-            willChange: 'opacity',
+            bottom: '10.5rem',
           }}
           dir="ltr"
           aria-label="שלח הודעה בWhatsApp"
