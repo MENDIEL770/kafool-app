@@ -1283,33 +1283,18 @@ function DonationToasts({ donations, groups, primaryColor }: { donations: Donati
 function ScrollTopButton() {
   const [visible, setVisible] = useState(false)
   useEffect(() => {
-    const fn = () => setVisible((window.scrollY || document.documentElement.scrollTop || document.body.scrollTop) > 200)
-    window.addEventListener('scroll', fn, { passive: true })
-    window.addEventListener('resize', fn)
-    fn()
-    return () => { window.removeEventListener('scroll', fn); window.removeEventListener('resize', fn) }
+    const onScroll = () => setVisible(window.scrollY > 300)
+    window.addEventListener('scroll', onScroll, { passive: true })
+    onScroll()
+    return () => window.removeEventListener('scroll', onScroll)
   }, [])
-  function scrollTop() {
-    // Use the browser's native smooth scroll — it reliably reaches the top and
-    // cancels mobile momentum (manual rAF fought the momentum and stalled).
-    // Scroll every candidate scroller so it works regardless of which one scrolls.
-    try {
-      window.scrollTo({ top: 0, left: 0, behavior: 'smooth' })
-      document.scrollingElement?.scrollTo?.({ top: 0, behavior: 'smooth' })
-      document.documentElement?.scrollTo?.({ top: 0, behavior: 'smooth' })
-    } catch {
-      window.scrollTo(0, 0)
-      if (document.documentElement) document.documentElement.scrollTop = 0
-      if (document.body) document.body.scrollTop = 0
-    }
-  }
   if (!visible) return null
   return (
     <button
-      onClick={scrollTop}
+      type="button"
+      onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
       aria-label="חזרה לראש הדף"
-      className="fixed right-4 z-[55] w-11 h-11 rounded-full bg-white border border-gray-200 shadow-lg flex items-center justify-center text-gray-600 active:scale-95 transition-transform"
-      style={{ bottom: '6rem' }}
+      className="fixed right-4 bottom-24 z-[60] w-11 h-11 rounded-full bg-white border border-gray-200 shadow-lg flex items-center justify-center text-gray-600 hover:bg-gray-50 active:scale-95 transition-transform"
     >
       <ChevronDown className="w-5 h-5 rotate-180" />
     </button>
@@ -1452,7 +1437,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
 
   return (
     <LangCtx.Provider value={lang}>
-    <div className="min-h-screen bg-gray-50 overflow-x-hidden" dir="rtl" style={pageBg ? { backgroundColor: pageBg } : undefined}>
+    <div className="min-h-screen bg-gray-50 overflow-x-clip" dir="rtl" style={pageBg ? { backgroundColor: pageBg } : undefined}>
       {/* 1. Sticky Header */}
       <StickyHeader org={org} campaign={campaign} primaryColor={primaryColor} onDonate={openDonate} lang={lang} onToggleLang={() => setLang(l => l === 'he' ? 'en' : 'he')} />
 

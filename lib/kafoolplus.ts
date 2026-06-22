@@ -75,11 +75,14 @@ export async function getKafoolPlusContext(supabase: SupabaseClient): Promise<Kp
     }
   }
 
-  // 3) implicit manager: a REAL org owner/admin (must actually belong to an org).
-  // A brand-new account (role 'admin' by the signup trigger, no org, not a
-  // member) is NOT a manager — it gets no Kafool+ access.
-  if ((ctx.role === 'admin' || ctx.role === 'manager') && ctx.ownOrgId) {
-    return { role: 'manager', orgId: ctx.orgId ?? ctx.ownOrgId, isSuperAdmin: false, userId: user.id, member: null }
+  // 3) implicit manager: ONLY the actual OWNER of an org. We check
+  // organizations.owner_id (not profiles.role), because the signup trigger makes
+  // every new account 'admin' — so a brand-new Google login that isn't an owner
+  // or a registered member gets NO access (it sees the request-access screen).
+  const { data: ownedOrg } = await admin
+    .from('organizations').select('id').eq('owner_id', user.id).maybeSingle()
+  if (ownedOrg) {
+    return { role: 'manager', orgId: ctx.orgId ?? ownedOrg.id, isSuperAdmin: false, userId: user.id, member: null }
   }
 
   return { role: null, orgId: ctx.orgId, isSuperAdmin: ctx.isSuperAdmin, userId: user.id, member: null }
