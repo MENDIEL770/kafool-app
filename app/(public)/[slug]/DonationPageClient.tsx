@@ -1302,24 +1302,6 @@ function DonationToasts({ donations, groups, primaryColor }: { donations: Donati
   )
 }
 
-// "Back to top" arrow. Appears and sits in sync with the donate bar (same
-// `show`/`bottom` source as the other floating controls) so it never moves on
-// its own — which previously made it jump and dodge clicks.
-function ScrollTopButton({ show, bottom }: { show: boolean; bottom: string }) {
-  if (!show) return null
-  return (
-    <button
-      type="button"
-      onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-      aria-label="חזרה לראש הדף"
-      style={{ right: '1rem', bottom }}
-      className="fixed z-[60] w-11 h-11 rounded-full bg-white border border-gray-200 shadow-lg flex items-center justify-center text-gray-600 hover:bg-gray-50 active:scale-95 transition-transform"
-    >
-      <ChevronDown className="w-5 h-5 rotate-180" />
-    </button>
-  )
-}
-
 // Popup ad: appears for 5s once the visitor scrolls past the donation buttons.
 // Once per session. Anchored to the donation-plans section (early on the page)
 // so it fires for most visitors, with a scroll-distance fallback.
@@ -1614,7 +1596,6 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
 
       <FloatingBar campaign={campaign} primaryColor={primaryColor} buttonRadius={buttonRadius} onDonate={() => openDonate()} />
 
-      <ScrollTopButton show={barVisible} bottom={floatBottom} />
 
       <DonationToasts donations={donations} groups={groups} primaryColor={primaryColor} />
 
