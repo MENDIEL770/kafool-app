@@ -21,6 +21,12 @@ function cleanSlug(str: string): string {
     .replace(/^-+|-+$/g, '')
 }
 
+// Default slug for a new group: a short random number, so a group always has a
+// valid URL even before the user types a custom one. They can overwrite it.
+function randomSlug(): string {
+  return String(Math.floor(100000 + Math.random() * 900000))
+}
+
 // Default welcome SMS sent to whoever opens a group via the public site.
 // Placeholders: {שם} = manager name, {קישור} = group link. Keep in sync with app/api/groups/create/route.ts
 const DEFAULT_WELCOME_SMS = `שלום {שם}!\nנפתחה קבוצת גיוס עבורך.\nהקישור שלך:\n{קישור}`
@@ -641,7 +647,7 @@ export default function GroupsPage() {
   const [bulkSms, setBulkSms] = useState(false)
   const [showWelcome, setShowWelcome] = useState(false)
   const [welcomeSms, setWelcomeSms] = useState('')
-  const [form, setForm] = useState({ name: '', slug: '', goal_amount: '', manager_name: '', manager_phone: '' })
+  const [form, setForm] = useState({ name: '', slug: randomSlug(), goal_amount: '', manager_name: '', manager_phone: '' })
 
   async function load() {
     const supabase = createClient()
@@ -666,12 +672,14 @@ export default function GroupsPage() {
   useEffect(() => { load() }, [campaignId])
 
   function set(key: string, value: string) {
-    setForm(prev => {
-      const updated = { ...prev, [key]: value }
-      if (key === 'name' && !prev.slug) {
-        updated.slug = cleanSlug(value)
-      }
-      return updated
+    setForm(prev => ({ ...prev, [key]: value }))
+  }
+
+  // Open the create form with a fresh random slug each time.
+  function toggleForm() {
+    setShowForm(v => {
+      if (!v) setForm(f => ({ ...f, slug: randomSlug() }))
+      return !v
     })
   }
 
@@ -687,13 +695,13 @@ export default function GroupsPage() {
       campaign_id: campaignId,
       org_id: profile!.org_id,
       name: form.name,
-      slug: cleanSlug(form.slug) || cleanSlug(form.name),
+      slug: cleanSlug(form.slug) || randomSlug(),
       goal_amount: Number(form.goal_amount) || 0,
       manager_name: form.manager_name || null,
       manager_phone: form.manager_phone || null,
     })
 
-    setForm({ name: '', slug: '', goal_amount: '', manager_name: '', manager_phone: '' })
+    setForm({ name: '', slug: randomSlug(), goal_amount: '', manager_name: '', manager_phone: '' })
     setShowForm(false)
     setLoading(false)
     load()
@@ -738,7 +746,7 @@ export default function GroupsPage() {
             </button>
           )}
           <button
-            onClick={() => setShowForm(v => !v)}
+            onClick={toggleForm}
             className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
           >
             + קבוצה חדשה
@@ -757,8 +765,9 @@ export default function GroupsPage() {
                 <Input value={form.name} onChange={e => set('name', e.target.value)} required />
               </div>
               <div className="space-y-1">
-                <Label>Slug</Label>
+                <Label>כתובת (slug)</Label>
                 <Input value={form.slug} onChange={e => set('slug', e.target.value)} dir="ltr" required />
+                <p className="text-[11px] text-gray-400">ברירת מחדל: מספר אקראי. אפשר לשנות לכתובת קריאה (עברית/אנגלית).</p>
               </div>
             </div>
             <div className="space-y-1">
