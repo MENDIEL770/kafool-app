@@ -150,20 +150,30 @@ interface NedarimConfig { mosad: string; apiValid: string; active: boolean }
 interface Props { org: Org; campaign: Campaign; donations: Donation[]; groups: Group[]; gallery: GalleryItem[]; activeGroup?: ActiveGroup; donationUrl?: string; paymentUrls?: PaymentUrls; paymentProvider?: string; nedarim?: NedarimConfig | null }
 
 /* ─── Helpers ─── */
+// Matches a YouTube video id across every common URL shape: watch?v=, youtu.be/,
+// shorts/, live/, embed/, /v/ (and m.youtube / with extra params).
+const YT_ID = /(?:youtube\.com\/(?:watch\?(?:[^&]*&)*v=|shorts\/|live\/|embed\/|v\/)|youtu\.be\/)([\w-]{6,})/
+// A directly-uploaded video file (Supabase storage / any URL ending in a video ext).
+const VIDEO_FILE = /\.(mp4|webm|ogg|ogv|mov|m4v)(\?|#|$)/i
+
 function getVideoEmbed(url: string): string | null {
-  const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/)
+  const u = (url || '').trim()
+  if (!u) return null
+  const yt = u.match(YT_ID)
   if (yt) return `https://www.youtube.com/embed/${yt[1]}?rel=0&autoplay=1&modestbranding=1&playsinline=1&disablekb=0`
-  const vi = url.match(/vimeo\.com\/(\d+)/)
+  const vi = u.match(/vimeo\.com\/(\d+)/)
   if (vi) return `https://player.vimeo.com/video/${vi[1]}?autoplay=1`
   // Google Drive share link → embeddable preview player
-  const gd = url.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?id=|.*[?&]id=)([\w-]+)/)
+  const gd = u.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?id=|.*[?&]id=)([\w-]+)/)
   if (gd) return `https://drive.google.com/file/d/${gd[1]}/preview`
+  // Direct video file (uploaded) — played in a <video> element by VideoModal
+  if (VIDEO_FILE.test(u)) return u
   return null
 }
 
 function getYoutubeThumbnail(url: string): string | null {
-  const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/)
-  if (yt) return `https://img.youtube.com/vi/${yt[1]}/maxresdefault.jpg`
+  const yt = (url || '').match(YT_ID)
+  if (yt) return `https://img.youtube.com/vi/${yt[1]}/hqdefault.jpg`
   return null
 }
 
@@ -367,13 +377,17 @@ function VideoModal({ embedUrl, onClose }: { embedUrl: string; onClose: () => vo
           סגור
         </button>
         <div className="aspect-video rounded-2xl overflow-hidden shadow-2xl bg-black">
-          <iframe
-            src={embedUrl}
-            className="w-full h-full"
-            allowFullScreen
-            allow="autoplay; accelerometer; clipboard-write; encrypted-media; gyroscope"
-            title="וידאו"
-          />
+          {VIDEO_FILE.test(embedUrl) ? (
+            <video src={embedUrl} className="w-full h-full" controls autoPlay playsInline />
+          ) : (
+            <iframe
+              src={embedUrl}
+              className="w-full h-full"
+              allowFullScreen
+              allow="autoplay; accelerometer; clipboard-write; encrypted-media; gyroscope"
+              title="וידאו"
+            />
+          )}
         </div>
       </div>
     </div>
