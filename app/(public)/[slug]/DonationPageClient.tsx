@@ -1288,8 +1288,9 @@ function DonationToasts({ donations, groups, primaryColor }: { donations: Donati
   )
 }
 
-// "Back to top" arrow, shown after a little scroll. Sits above the floating donate bar.
-function ScrollTopButton() {
+// "Back to top" arrow, shown after a little scroll. Shares the coordinated
+// floating-control offset so it lifts above the donate bar in sync with it.
+function ScrollTopButton({ bottom }: { bottom: string }) {
   const [visible, setVisible] = useState(false)
   useEffect(() => {
     const onScroll = () => setVisible(window.scrollY > 300)
@@ -1303,7 +1304,8 @@ function ScrollTopButton() {
       type="button"
       onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
       aria-label="חזרה לראש הדף"
-      className="fixed right-4 bottom-24 z-[60] w-11 h-11 rounded-full bg-white border border-gray-200 shadow-lg flex items-center justify-center text-gray-600 hover:bg-gray-50 active:scale-95 transition-transform"
+      style={{ right: '1rem', bottom }}
+      className="fixed z-[60] w-11 h-11 rounded-full bg-white border border-gray-200 shadow-lg flex items-center justify-center text-gray-600 hover:bg-gray-50 active:scale-95 transition-[bottom,transform] duration-300"
     >
       <ChevronDown className="w-5 h-5 rotate-180" />
     </button>
@@ -1422,6 +1424,19 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
     setModalMonths(months)
     setModalOpen(true)
   }
+
+  // Coordinated anchor for every floating control (WhatsApp, scroll-to-top,
+  // accessibility). When the bottom donate bar is showing they all lift above
+  // it; otherwise they tuck into the page corners. One source of truth so they
+  // never overlap each other or the bar.
+  const [barVisible, setBarVisible] = useState(false)
+  useEffect(() => {
+    const fn = () => setBarVisible(window.scrollY > 400)
+    window.addEventListener('scroll', fn, { passive: true })
+    fn()
+    return () => window.removeEventListener('scroll', fn)
+  }, [])
+  const floatBottom = barVisible ? '5.75rem' : '1.25rem'
 
   // For group view: track group raised amount + donor count in realtime
   const [groupRaised, setGroupRaised] = useState(activeGroup?.raised_amount ?? 0)
@@ -1571,11 +1586,12 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
         <button
           type="button"
           onClick={() => window.open(whatsappUrl, '_blank', 'noopener,noreferrer')}
-          className="fixed z-[70] w-14 h-14 rounded-full flex items-center justify-center shadow-xl"
+          className="fixed z-[70] w-14 h-14 rounded-full flex items-center justify-center shadow-xl transition-[bottom] duration-300 active:scale-95"
           style={{
             backgroundColor: '#25D366',
             left: '1rem',
-            bottom: '10.5rem',
+            // sits above the accessibility button (48px) in the left column
+            bottom: `calc(${floatBottom} + 4rem)`,
             touchAction: 'manipulation',
           }}
           dir="ltr"
@@ -1589,13 +1605,13 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
 
       <FloatingBar campaign={campaign} primaryColor={primaryColor} buttonRadius={buttonRadius} onDonate={() => openDonate()} />
 
-      <ScrollTopButton />
+      <ScrollTopButton bottom={floatBottom} />
 
       <DonationToasts donations={donations} groups={groups} primaryColor={primaryColor} />
 
       <PopupAd ad={(campaign.settings as { popup_ad?: { image_url?: string; link?: string | null } })?.popup_ad} campaignId={campaign.id} />
-      {/* מורם מעל פס התרומה הצף בתחתית */}
-      <AccessibilityWidget offsetBottom="6rem" />
+      {/* מורם בתיאום עם שאר הכפתורים הצפים */}
+      <AccessibilityWidget offsetBottom={floatBottom} />
 
       <CreateGroupModal
         isOpen={createGroupOpen}
