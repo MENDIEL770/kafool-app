@@ -1577,15 +1577,18 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
           href={whatsappUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="fixed z-[70] w-14 h-14 rounded-full flex items-center justify-center shadow-xl active:scale-95"
+          // No transform/scale here: an :active transform recomputed the fixed
+          // element's position in the RTL page and made it jump left on tap.
+          // left + right:auto pin it unambiguously to the left corner.
+          className="fixed z-[70] w-14 h-14 rounded-full flex items-center justify-center shadow-xl"
           style={{
             backgroundColor: '#25D366',
             left: '1rem',
+            right: 'auto',
             // sits above the accessibility button (48px) in the left column
             bottom: `calc(${floatBottom} + 4rem)`,
             touchAction: 'manipulation',
           }}
-          dir="ltr"
           aria-label="שלח הודעה בWhatsApp"
         >
           <svg viewBox="0 0 24 24" className="w-7 h-7 fill-white pointer-events-none">
