@@ -554,13 +554,14 @@ function HeroSection({ campaign, countdown }: {
   )
 }
 
-function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius, buttonSize = 'default', onDonate }: {
+function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius, buttonSize = 'default', otherAmountImage, onDonate }: {
   plans: { amount: number; label?: string; image_url?: string | null; payment_type?: 'one_time' | 'hok'; months?: number | null }[]
   primaryColor: string
   campaignSlug: string
   groups: Group[]
   buttonRadius: string
   buttonSize?: 'default' | 'large'
+  otherAmountImage?: string | null
   onDonate: (amount?: number, groupSlug?: string, method?: 'one_time' | 'hok', months?: number) => void
 }) {
   const [selected, setSelected] = useState<number | null>(null)
@@ -663,16 +664,23 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
                 aria-pressed={customActive}
               >
                 <div
-                  className={`${large ? 'w-full aspect-square rounded-2xl md:w-[180px] md:h-[180px] md:aspect-auto md:rounded-full' : 'w-[90px] h-[90px] md:w-[110px] md:h-[110px] rounded-full'} border-2 border-dashed border-gray-300 flex flex-col items-center justify-center bg-gray-50 transition-all duration-200`}
+                  className={otherAmountImage
+                    ? `${shapeCls} flex items-end justify-center`
+                    : `${large ? 'w-full aspect-square rounded-2xl md:w-[180px] md:h-[180px] md:aspect-auto md:rounded-full' : 'w-[90px] h-[90px] md:w-[110px] md:h-[110px] rounded-full'} border-2 border-dashed border-gray-300 flex flex-col items-center justify-center bg-gray-50 transition-all duration-200`}
                   style={{
                     boxShadow: customActive
                       ? `0 0 0 4px white, 0 0 0 7px ${primaryColor}, 0 6px 20px ${primaryColor}44`
-                      : undefined,
+                      : otherAmountImage ? '0 2px 10px rgba(0,0,0,0.08)' : undefined,
                     transform: customActive ? 'scale(1.08)' : 'scale(1)',
                   }}
                 >
-                  <span className="text-[10px] md:text-xs text-gray-400 mb-1">{t('otherAmount')}</span>
-                  <div className="flex items-center gap-0.5">
+                  {otherAmountImage && (
+                    <img src={otherAmountImage} alt={t('otherAmount')} className="absolute inset-0 w-full h-full object-cover" />
+                  )}
+                  {!otherAmountImage && (
+                    <span className="text-[10px] md:text-xs text-gray-400 mb-1">{t('otherAmount')}</span>
+                  )}
+                  <div className={`flex items-center gap-0.5 ${otherAmountImage ? 'relative z-10 mb-2 bg-white/90 rounded-full px-2 py-0.5 shadow-sm backdrop-blur-sm' : ''}`}>
                     <span className="text-sm font-bold text-gray-500">₪</span>
                     <input
                       ref={customInputRef}
@@ -1549,7 +1557,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
       )}
 
       {/* 3. Donation Plans */}
-      {isOn('amounts') && <DonationPlans plans={donationPlans} primaryColor={primaryColor} campaignSlug={campaign.slug} groups={groups} buttonRadius={buttonRadius} buttonSize={buttonSize} onDonate={openDonate} />}
+      {isOn('amounts') && <DonationPlans plans={donationPlans} primaryColor={primaryColor} campaignSlug={campaign.slug} groups={groups} buttonRadius={buttonRadius} buttonSize={buttonSize} otherAmountImage={(settings as { other_amount_design?: string })?.other_amount_design || null} onDonate={openDonate} />}
 
       {/* 4. Progress */}
       {isOn('goal') && <ProgressSection raised={raisedAmount} goal={campaign.goal_amount} donorsCount={donations.length} primaryColor={primaryColor} bricks={(campaign.settings as { bricks?: { total: number; price: number; label?: string } })?.bricks} />}

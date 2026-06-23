@@ -343,6 +343,8 @@ export default function CampaignMediaClient({
     (((initialSettings.donation_amounts as number[]) || [180, 360, 720, 1800, 3600]).map(amount => ({ amount })))
   const [plans, setPlans] = useState<DonationPlan[]>(initialPlans)
   const [uploadingPlan, setUploadingPlan] = useState<number | null>(null)
+  const [otherAmountImage, setOtherAmountImage] = useState<string | null>((initialSettings.other_amount_design as string) || null)
+  const [uploadingOther, setUploadingOther] = useState(false)
   const [savingAmounts, setSavingAmounts] = useState(false)
   const [savedAmounts, setSavedAmounts] = useState(false)
 
@@ -534,6 +536,13 @@ export default function CampaignMediaClient({
     setUploadingPlan(null)
   }
 
+  async function uploadOtherImage(file: File) {
+    setUploadingOther(true)
+    const url = await uploadFile(file, `${orgId}/${campaignId}/other-amount-${Date.now()}`)
+    if (url) setOtherAmountImage(url)
+    setUploadingOther(false)
+  }
+
   async function savePlans() {
     setSavingAmounts(true)
     const clean = plans.filter(p => p.amount > 0).map(p => ({
@@ -545,6 +554,7 @@ export default function CampaignMediaClient({
       ...(initialSettings as object),
       donation_plans: clean,
       donation_amounts: clean.map(p => p.amount), // keep in sync for backward-compat
+      other_amount_design: otherAmountImage || null,
       primary_color: primaryColor,
     }
     await supabase.from('campaigns').update({ settings }).eq('id', campaignId)
@@ -1030,6 +1040,28 @@ export default function CampaignMediaClient({
                 + הוסף כפתור תרומה ראשון
               </button>
             )}
+
+            {/* עיצוב לכפתור "סכום אחר" */}
+            <div className="flex items-center gap-3 border border-gray-100 rounded-2xl p-3 bg-gray-50/50">
+              <label className="w-16 h-16 rounded-full overflow-hidden shrink-0 cursor-pointer relative border-2 border-dashed border-gray-200 hover:border-blue-300 bg-white flex items-center justify-center group" title="עיצוב לכפתור סכום אחר">
+                {otherAmountImage ? (
+                  <>
+                    <img src={otherAmountImage} alt="" className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"><Upload className="w-4 h-4 text-white" /></div>
+                  </>
+                ) : uploadingOther ? (
+                  <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                ) : <Image className="w-5 h-5 text-gray-300" />}
+                <input type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) uploadOtherImage(f); e.target.value = '' }} />
+              </label>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-gray-800">כפתור &quot;סכום אחר&quot;</p>
+                <p className="text-[11px] text-gray-400">עיצוב אופציונלי לכפתור שבו התורם מקליד סכום חופשי. בלי עיצוב — יוצג העיגול המקווקו הרגיל.</p>
+              </div>
+              {otherAmountImage && (
+                <button onClick={() => setOtherAmountImage(null)} className="text-[10px] text-gray-400 hover:text-red-500 shrink-0" title="הסר עיצוב">הסר עיצוב</button>
+              )}
+            </div>
           </div>
 
           {/* Live preview — like the donation page */}
