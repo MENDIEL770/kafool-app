@@ -9,6 +9,7 @@ import {
   Image,
   Users,
   Group,
+  SlidersHorizontal,
   ChevronLeft,
 } from 'lucide-react'
 
@@ -33,6 +34,7 @@ export default function CampaignNav({ campaign }: Props) {
     { href: `${base}/media`, label: 'מדיה', icon: Image },
     { href: `${base}/donors`, label: 'תורמים', icon: Users },
     { href: `${base}/groups`, label: 'קבוצות', icon: Group },
+    { href: `${base}/custom-forms`, label: 'התאמות אישיות', icon: SlidersHorizontal },
   ]
 
   const statusLabel: Record<string, { label: string; color: string }> = {
