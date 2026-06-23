@@ -25,6 +25,15 @@ interface CustomForm {
   fields: CustomField[]
 }
 
+// An optional choice step shown BEFORE the donor-details form.
+interface PreStepOption { id: string; label: string }
+interface PreStep { enabled: boolean; title: string; options: PreStepOption[] }
+const emptyPreStep = (): PreStep => ({
+  enabled: false,
+  title: 'מה תרצה לעשות?',
+  options: [{ id: uid(), label: '' }, { id: uid(), label: '' }],
+})
+
 const FIELD_TYPES: { value: FieldType; label: string }[] = [
   { value: 'text',     label: 'טקסט קצר' },
   { value: 'textarea', label: 'טקסט ארוך' },
@@ -46,6 +55,7 @@ export default function CustomFormsPage() {
   const [saved, setSaved] = useState(false)
   const [forms, setForms] = useState<CustomForm[]>([])
   const [defaultFormId, setDefaultFormId] = useState<string>('')   // '' = the built-in form
+  const [preStep, setPreStep] = useState<PreStep>(emptyPreStep())
 
   useEffect(() => {
     async function load() {
@@ -54,6 +64,8 @@ export default function CustomFormsPage() {
       const s = (data?.settings as Record<string, unknown>) || {}
       setForms(Array.isArray(s.custom_forms) ? (s.custom_forms as CustomForm[]) : [])
       setDefaultFormId(typeof s.default_custom_form_id === 'string' ? s.default_custom_form_id : '')
+      const ps = s.pre_donation_step as PreStep | undefined
+      if (ps && Array.isArray(ps.options)) setPreStep({ enabled: !!ps.enabled, title: ps.title || 'מה תרצה לעשות?', options: ps.options.length ? ps.options : emptyPreStep().options })
       setLoading(false)
     }
     load()
@@ -68,11 +80,18 @@ export default function CustomFormsPage() {
       .map(f => ({ ...f, name: f.name.trim(), fields: f.fields.filter(fl => fl.label.trim()) }))
       .filter(f => f.name)
     const validDefault = cleanForms.some(f => f.id === defaultFormId) ? defaultFormId : ''
+    const cleanOptions = preStep.options.map(o => ({ ...o, label: o.label.trim() })).filter(o => o.label)
+    const cleanPreStep: PreStep = {
+      enabled: preStep.enabled && cleanOptions.length >= 2,
+      title: preStep.title.trim() || 'בחר אפשרות',
+      options: cleanOptions,
+    }
     await supabase.from('campaigns').update({
-      settings: { ...(existing?.settings as object), custom_forms: cleanForms, default_custom_form_id: validDefault || null },
+      settings: { ...(existing?.settings as object), custom_forms: cleanForms, default_custom_form_id: validDefault || null, pre_donation_step: cleanPreStep },
     }).eq('id', id)
     setForms(cleanForms)
     setDefaultFormId(validDefault)
+    setPreStep(prev => ({ ...cleanPreStep, options: cleanOptions.length ? cleanOptions : prev.options }))
     setSaving(false); setSaved(true)
     setTimeout(() => setSaved(false), 2500)
   }
@@ -112,6 +131,11 @@ export default function CustomFormsPage() {
     }))
   }
 
+  // ─── pre-step mutators ───
+  function addOption() { setPreStep(p => ({ ...p, options: [...p.options, { id: uid(), label: '' }] })) }
+  function removeOption(oid: string) { setPreStep(p => ({ ...p, options: p.options.filter(o => o.id !== oid) })) }
+  function setOption(oid: string, label: string) { setPreStep(p => ({ ...p, options: p.options.map(o => (o.id === oid ? { ...o, label } : o)) })) }
+
   if (loading) return <div className="max-w-2xl mx-auto p-6 text-gray-400 text-sm">טוען…</div>
 
   return (
@@ -138,6 +162,42 @@ export default function CustomFormsPage() {
             {forms.map(f => <option key={f.id} value={f.id}>{f.name || 'ללא שם'}</option>)}
           </select>
           <p className="text-[11px] text-gray-400">החלה לכפתור ספציפי תתווסף בהמשך — בינתיים הבחירה כאן חלה על כל התרומות בקמפיין.</p>
+        </CardContent>
+      </Card>
+
+      {/* Pre-step choice — shown before the donor form */}
+      <Card>
+        <CardHeader className="flex-row items-center justify-between gap-3 space-y-0">
+          <CardTitle className="text-base">שלב בחירה לפני הטופס</CardTitle>
+          <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+            <input type="checkbox" checked={preStep.enabled} onChange={e => setPreStep(p => ({ ...p, enabled: e.target.checked }))} className="w-4 h-4" />
+            פעיל
+          </label>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-xs text-gray-400">
+            מסך בחירה שמופיע מיד אחרי לחיצה על &quot;תרומה&quot;, לפני טופס פרטי-התורם. התורם בוחר אחת מהאפשרויות, והבחירה נשמרת אצל התורם.
+          </p>
+          <div className="space-y-1">
+            <Label>כותרת הבחירה</Label>
+            <Input value={preStep.title} onChange={e => setPreStep(p => ({ ...p, title: e.target.value }))} placeholder="מה תרצה לעשות?" />
+          </div>
+          <div className="space-y-2">
+            <Label>אפשרויות</Label>
+            {preStep.options.map((o, i) => (
+              <div key={o.id} className="flex items-center gap-2">
+                <span className="text-xs text-gray-400 w-5 shrink-0">{i + 1}.</span>
+                <Input value={o.label} onChange={e => setOption(o.id, e.target.value)} placeholder="לדוגמה: אני רוצה לקנות ערכה ולקבל במשלוח הביתה" className="flex-1" />
+                <button onClick={() => removeOption(o.id)} disabled={preStep.options.length <= 2} className="text-red-400 hover:text-red-600 disabled:opacity-30 transition-colors shrink-0" title="מחק אפשרות">
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+            <Button type="button" variant="outline" onClick={addOption} className="w-full">
+              <Plus className="w-4 h-4 ml-1" /> הוסף אפשרות
+            </Button>
+            <p className="text-[11px] text-gray-400">צריך לפחות 2 אפשרויות עם טקסט כדי שהשלב יופעל.</p>
+          </div>
         </CardContent>
       </Card>
 

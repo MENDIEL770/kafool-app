@@ -1441,6 +1441,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
   const activeCustomForm = cfSettings?.default_custom_form_id
     ? (cfSettings.custom_forms || []).find(f => f.id === cfSettings.default_custom_form_id) || null
     : null
+  const preStep = (campaign.settings as { pre_donation_step?: { enabled: boolean; title: string; options: { id: string; label: string }[] } })?.pre_donation_step || null
 
   // For group view: track group raised amount + donor count in realtime
   const [groupRaised, setGroupRaised] = useState(activeGroup?.raised_amount ?? 0)
@@ -1644,6 +1645,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
         groups={groups.map(g => ({ id: g.id, name: g.name, slug: g.slug }))}
         lang={lang}
         customForm={activeCustomForm}
+        preStep={preStep}
       />
 
       {/* Bottom padding for floating bar */}

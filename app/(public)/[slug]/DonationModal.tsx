@@ -8,6 +8,8 @@ interface PaymentUrls { one_time: string; hok: string; bit: string; bank: string
 interface NedarimConfig { mosad: string; apiValid: string; active: boolean }
 interface CustomFieldDef { id: string; label: string; type: string; required: boolean; options?: string[] }
 interface CustomFormDef { id: string; name: string; fields: CustomFieldDef[] }
+interface PreStepOption { id: string; label: string }
+interface PreStepDef { enabled: boolean; title: string; options: PreStepOption[] }
 
 type Lang = 'he' | 'en'
 
@@ -44,6 +46,7 @@ interface Props {
   groups: Group[]
   lang?: Lang
   customForm?: CustomFormDef | null
+  preStep?: PreStepDef | null
 }
 
 export default function DonationModal({
@@ -62,7 +65,9 @@ export default function DonationModal({
   groups,
   lang = 'he',
   customForm,
+  preStep,
 }: Props) {
+  const hasPreStep = !!(preStep?.enabled && preStep.options?.length)
   const en = lang === 'en'
   const T = {
     securePay: en ? 'Secure payment' : 'תשלום מאובטח',
@@ -92,7 +97,8 @@ export default function DonationModal({
     back: en ? '← Back' : '← חזרה',
     backToDetails: en ? '← Back to details' : '← חזרה לפרטים',
   }
-  const [step, setStep] = useState<'details' | 'payment'>('details')
+  const [step, setStep] = useState<'choice' | 'details' | 'payment'>('details')
+  const [choice, setChoice] = useState('')
   const [amount, setAmount] = useState(typeof presetAmount === 'number' ? presetAmount : 0)
   const [customAmount, setCustomAmount] = useState('')
   const [selectedGroupSlug, setSelectedGroupSlug] = useState(presetGroupSlug || '')
@@ -134,9 +140,10 @@ export default function DonationModal({
       setPaymentMethod(presetMethod ?? 'one_time')
       setMonths(presetMonths ?? 12)
       setCustomValues({})
-      setStep('details')
+      setChoice('')
+      setStep(hasPreStep ? 'choice' : 'details')
     }
-  }, [isOpen, presetAmount, presetGroupSlug, presetMethod, presetMonths])
+  }, [isOpen, presetAmount, presetGroupSlug, presetMethod, presetMonths, hasPreStep])
 
   // Prevent body scroll when open
   useEffect(() => {
@@ -166,12 +173,13 @@ export default function DonationModal({
     }))
     // Stash custom-form values (shipping etc.) keyed by label, so the payment
     // callback can re-attach them to the recorded donation by phone+amount.
-    if (customForm && customForm.fields.length) {
+    {
       const labeled: Record<string, string> = {}
-      for (const f of customForm.fields) {
+      if (customForm) for (const f of customForm.fields) {
         const v = (customValues[f.id] || '').trim()
         if (v) labeled[f.label] = v
       }
+      if (hasPreStep && choice) labeled[preStep!.title || 'בחירה'] = choice
       if (Object.keys(labeled).length) {
         fetch('/api/donations/intent', {
           method: 'POST',
@@ -274,7 +282,7 @@ export default function DonationModal({
         <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-gray-100 shrink-0">
           <div>
             <h2 className="font-black text-gray-900 text-lg">
-              {step === 'payment' ? T.securePay : T.donorDetails}
+              {step === 'payment' ? T.securePay : step === 'choice' ? (preStep?.title || T.donorDetails) : T.donorDetails}
             </h2>
             <p className="text-xs text-gray-400 mt-0.5">{campaign.title}</p>
           </div>
@@ -299,6 +307,26 @@ export default function DonationModal({
         {/* Content */}
         <div className="overflow-y-auto flex-1">
 
+          {/* Step: Choice (before the form) */}
+          {step === 'choice' && preStep && (
+            <div className="px-5 py-6 space-y-3">
+              <p className="text-center text-sm text-gray-500">{lang === 'en' ? 'Choose an option to continue' : 'בחר אפשרות כדי להמשיך'}</p>
+              {preStep.options.map(o => (
+                <button
+                  key={o.id}
+                  type="button"
+                  onClick={() => { setChoice(o.label); setStep('details') }}
+                  className="w-full text-right px-4 py-4 rounded-2xl border-2 border-gray-200 font-bold text-sm text-gray-700 transition-all hover:bg-gray-50"
+                  style={{ borderColor: choice === o.label ? primaryColor : undefined, color: choice === o.label ? primaryColor : undefined }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = primaryColor }}
+                  onMouseLeave={e => { if (choice !== o.label) e.currentTarget.style.borderColor = '' }}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Step: Amount (if no preset) */}
           {step === 'details' && !presetAmount && amount === 0 && (
             <div className="px-5 py-4 border-b border-gray-100">
@@ -319,6 +347,15 @@ export default function DonationModal({
           {/* Step: Details */}
           {step === 'details' && (
             <div className="px-5 py-4 space-y-4">
+
+              {/* בחירה שנעשתה בשלב הקודם — עם אפשרות לשנות */}
+              {hasPreStep && choice && (
+                <button type="button" onClick={() => setStep('choice')}
+                  className="w-full flex items-center justify-between gap-2 text-right px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-100 text-sm">
+                  <span className="font-semibold text-gray-700 truncate">{choice}</span>
+                  <span className="text-xs shrink-0" style={{ color: primaryColor }}>{lang === 'en' ? 'Change' : 'שנה'}</span>
+                </button>
+              )}
 
               {/* אמצעי תשלום — מתחת לשדה סכום התרומה */}
               {hasMultipleMethods && (
