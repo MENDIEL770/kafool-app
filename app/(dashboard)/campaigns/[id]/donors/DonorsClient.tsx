@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Pencil, Trash2, X, Check, Plus, Search, FileSpreadsheet, Upload } from 'lucide-react'
+import { Pencil, Trash2, X, Check, Plus, Search, FileSpreadsheet, Upload, Download } from 'lucide-react'
 
 // One parsed row from the uploaded spreadsheet
 interface ImportRow {
@@ -116,6 +116,32 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
   // Does the campaign's stored raised_amount drift from the real donations sum?
   const realRaised = donations.reduce((s, d) => s + (d.payment_status === 'completed' ? (d.amount || 0) : 0), 0)
   const totalsMismatch = !totalsFixed && Math.round(realRaised) !== Math.round(campaign.raised_amount || 0)
+
+  // ── Export all donors to an Excel file ──
+  async function exportExcel() {
+    const XLSX = await import('xlsx')
+    const groupName = (gid: string | null) => groups.find(g => g.id === gid)?.name || ''
+    const rows = donations.map(d => ({
+      'שם': d.donor_name || '',
+      'טלפון': d.donor_phone || '',
+      'אימייל': d.donor_email || '',
+      'סכום (₪)': d.amount || 0,
+      'סוג תשלום': d.payment_type === 'hok' ? 'הוראת קבע' : 'חד״פ',
+      'תשלומים': d.payment_type === 'hok' ? (d.installments ?? '') : '',
+      'סכום חודשי (₪)': d.payment_type === 'hok' ? (d.monthly_amount ?? '') : '',
+      'קבוצה': groupName(d.group_id),
+      'הקדשה': d.dedication || '',
+      'סטטוס': d.payment_status === 'completed' ? 'הושלם' : d.payment_status,
+      'מקור': d.kesher_transaction_id ? 'אונליין' : 'ידני',
+      'מזהה עסקה': d.kesher_transaction_id || '',
+      'תאריך': new Date(d.created_at).toLocaleString('he-IL'),
+    }))
+    const ws = XLSX.utils.json_to_sheet(rows)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'תורמים')
+    const safe = (campaign.title || 'תורמים').replace(/[\\/:*?"<>|]/g, '_')
+    XLSX.writeFile(wb, `תורמים - ${safe}.xlsx`)
+  }
 
   async function fixTotals() {
     setFixingTotals(true)
@@ -370,6 +396,10 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
           <p className="text-sm text-gray-500 mt-0.5">{campaign.title}</p>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={exportExcel} disabled={donations.length === 0} className="gap-2">
+            <Download className="w-4 h-4" />
+            ייצוא לאקסל
+          </Button>
           <Button variant="outline" onClick={() => { setShowImport(true); setShowAdd(false) }} className="gap-2">
             <FileSpreadsheet className="w-4 h-4" />
             ייבוא מאקסל
