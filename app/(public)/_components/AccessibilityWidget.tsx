@@ -77,7 +77,7 @@ export default function AccessibilityWidget({ offsetBottom = '1rem' }: { offsetB
         .a11y-font, .a11y-font * { font-family: Arial, sans-serif !important; }
       `}</style>
 
-      <div ref={panelRef} style={{ position: 'fixed', left: '1rem', bottom: offsetBottom, zIndex: 55, transition: 'bottom .3s' }} dir="rtl">
+      <div ref={panelRef} style={{ position: 'fixed', left: '1rem', bottom: offsetBottom, zIndex: 55 }} dir="rtl">
         {/* Panel */}
         {open && (
           <div
