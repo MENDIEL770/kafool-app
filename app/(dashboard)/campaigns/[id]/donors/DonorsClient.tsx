@@ -44,6 +44,7 @@ interface Donation {
   payment_type?: string | null
   installments?: number | null
   monthly_amount?: number | null
+  custom_data?: Record<string, string> | null
 }
 
 interface GroupOption { id: string; name: string }
@@ -135,6 +136,8 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
       'מקור': d.kesher_transaction_id ? 'אונליין' : 'ידני',
       'מזהה עסקה': d.kesher_transaction_id || '',
       'תאריך': new Date(d.created_at).toLocaleString('he-IL'),
+      // custom-form fields (shipping etc.) become their own columns, keyed by label
+      ...(d.custom_data && typeof d.custom_data === 'object' ? d.custom_data : {}),
     }))
     const ws = XLSX.utils.json_to_sheet(rows)
     const wb = XLSX.utils.book_new()

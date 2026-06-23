@@ -6,6 +6,8 @@ import { X, CreditCard, RefreshCw, Smartphone, Landmark } from 'lucide-react'
 interface Group { id: string; name: string; slug: string }
 interface PaymentUrls { one_time: string; hok: string; bit: string; bank: string; one_time_en?: string; hok_en?: string }
 interface NedarimConfig { mosad: string; apiValid: string; active: boolean }
+interface CustomFieldDef { id: string; label: string; type: string; required: boolean; options?: string[] }
+interface CustomFormDef { id: string; name: string; fields: CustomFieldDef[] }
 
 type Lang = 'he' | 'en'
 
@@ -41,6 +43,7 @@ interface Props {
   buttonRadius: string
   groups: Group[]
   lang?: Lang
+  customForm?: CustomFormDef | null
 }
 
 export default function DonationModal({
@@ -58,6 +61,7 @@ export default function DonationModal({
   buttonRadius,
   groups,
   lang = 'he',
+  customForm,
 }: Props) {
   const en = lang === 'en'
   const T = {
@@ -94,6 +98,7 @@ export default function DonationModal({
   const [selectedGroupSlug, setSelectedGroupSlug] = useState(presetGroupSlug || '')
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(presetMethod ?? 'one_time')
   const [months, setMonths] = useState<number>(presetMonths ?? 12)
+  const [customValues, setCustomValues] = useState<Record<string, string>>({})
 
   // A donation button configured as a standing order locks the modal to הו"ק —
   // the donor can't switch to Bit / bank / one-time, only choose the duration.
@@ -128,6 +133,7 @@ export default function DonationModal({
       setSelectedGroupSlug(presetGroupSlug || '')
       setPaymentMethod(presetMethod ?? 'one_time')
       setMonths(presetMonths ?? 12)
+      setCustomValues({})
       setStep('details')
     }
   }, [isOpen, presetAmount, presetGroupSlug, presetMethod, presetMonths])
@@ -141,7 +147,9 @@ export default function DonationModal({
   const finalAmount = amount || Number(customAmount) || 0
   // required donor details (unless anonymous): name, phone, email
   const detailsValid = form.anonymous || (!!form.firstName.trim() && !!form.phone.trim() && !!form.email.trim())
-  const canProceed = finalAmount > 0 && detailsValid
+  // required custom-form fields must be filled (regardless of anonymous)
+  const customValid = !customForm || customForm.fields.filter(f => f.required).every(f => (customValues[f.id] || '').trim())
+  const canProceed = finalAmount > 0 && detailsValid && customValid
 
   function setField(key: string, value: string | boolean) {
     setForm(p => ({ ...p, [key]: value }))
@@ -156,6 +164,29 @@ export default function DonationModal({
       dedication: form.dedication || null,
       anonymous: form.anonymous,
     }))
+    // Stash custom-form values (shipping etc.) keyed by label, so the payment
+    // callback can re-attach them to the recorded donation by phone+amount.
+    if (customForm && customForm.fields.length) {
+      const labeled: Record<string, string> = {}
+      for (const f of customForm.fields) {
+        const v = (customValues[f.id] || '').trim()
+        if (v) labeled[f.label] = v
+      }
+      if (Object.keys(labeled).length) {
+        fetch('/api/donations/intent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            campaignId: campaign.id,
+            phone: form.phone || null,
+            amount: finalAmount,
+            groupSlug: selectedGroupSlug || null,
+            customData: labeled,
+          }),
+          keepalive: true,
+        }).catch(() => {})
+      }
+    }
   }
 
   function buildPaymentUrl(baseUrl?: string) {
@@ -383,6 +414,35 @@ export default function DonationModal({
                   placeholder={T.dedicationPh} rows={2}
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-400 resize-none" />
               </div>
+
+              {/* שדות מותאמים אישית (משלוח וכו') — מוגדרים בקמפיין */}
+              {customForm && customForm.fields.map(f => {
+                const val = customValues[f.id] || ''
+                const onChange = (v: string) => setCustomValues(p => ({ ...p, [f.id]: v }))
+                return (
+                  <div key={f.id} className="space-y-1">
+                    <label className="text-xs font-medium text-gray-500">
+                      {f.label} {f.required ? <span className="text-red-400">*</span> : <span className="text-gray-300">{T.optional}</span>}
+                    </label>
+                    {f.type === 'select' ? (
+                      <select value={val} onChange={e => onChange(e.target.value)}
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white outline-none focus:ring-2 focus:ring-blue-400">
+                        <option value="">—</option>
+                        {(f.options || []).map(o => <option key={o} value={o}>{o}</option>)}
+                      </select>
+                    ) : (f.type === 'textarea' || f.type === 'note' || f.type === 'address') ? (
+                      <textarea value={val} onChange={e => onChange(e.target.value)} rows={2}
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-400 resize-none" />
+                    ) : (
+                      <input
+                        type={f.type === 'tel' ? 'tel' : f.type === 'email' ? 'email' : 'text'}
+                        value={val} onChange={e => onChange(e.target.value)}
+                        dir={f.type === 'tel' || f.type === 'email' ? 'ltr' : undefined}
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-400" />
+                    )}
+                  </div>
+                )
+              })}
 
               {groups.length > 0 && (
                 <div className="space-y-1">

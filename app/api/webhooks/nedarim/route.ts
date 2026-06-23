@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
-import { recomputeCampaignRaised } from '@/lib/donations'
+import { recomputeCampaignRaised, attachCustomData } from '@/lib/donations'
 
 /**
  * Nedarim Plus server callback (CallBack).
@@ -107,7 +107,7 @@ async function handle(body: Record<string, unknown>, ip: string): Promise<string
   const { data: existing } = await supabase
     .from('donations').select('id').eq('kesher_transaction_id', transactionId).maybeSingle()
   if (!existing) {
-    await supabase.from('donations').insert({
+    const { data: inserted } = await supabase.from('donations').insert({
       campaign_id: campaignId,
       org_id: campaign.org_id,
       amount: recordedAmount,
@@ -121,7 +121,11 @@ async function handle(body: Record<string, unknown>, ip: string): Promise<string
       installments: isHok && months > 0 ? months : null,
       monthly_amount: isHok ? monthly : null,
       kesher_raw: body,
-    })
+    }).select('id').single()
+    // re-attach custom-form values captured before payment (matched by phone+amount)
+    if (inserted) {
+      await attachCustomData(supabase, { donationId: inserted.id, campaignId, phone: donorPhone, amount: monthly })
+    }
   }
 
   // raised_amount = sum of completed donations (drift-free)

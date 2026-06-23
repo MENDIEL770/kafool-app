@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
-import { recomputeCampaignRaised } from '@/lib/donations'
+import { recomputeCampaignRaised, attachCustomData } from '@/lib/donations'
 
 /**
  * Record a Nedarim Plus donation from the client right after the iframe reports
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
 
   const { data: existing } = await supabase.from('donations').select('id').eq('kesher_transaction_id', transactionId).maybeSingle()
   if (!existing) {
-    await supabase.from('donations').insert({
+    const { data: inserted } = await supabase.from('donations').insert({
       campaign_id: campaignId,
       org_id: campaign.org_id,
       amount: recordedAmount,
@@ -50,7 +50,10 @@ export async function POST(req: NextRequest) {
       payment_type: isHok ? 'hok' : 'one_time',
       installments: isHok && months > 0 ? months : null,
       monthly_amount: isHok ? monthly : null,
-    })
+    }).select('id').single()
+    if (inserted) {
+      await attachCustomData(supabase, { donationId: inserted.id, campaignId, phone: donor.phone || null, amount: monthly })
+    }
   }
   await recomputeCampaignRaised(supabase, campaignId)
   return NextResponse.json({ ok: true })

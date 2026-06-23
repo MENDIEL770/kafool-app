@@ -1428,6 +1428,12 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
   }, [])
   const floatBottom = barVisible ? '5.75rem' : '1.25rem'
 
+  // Active custom donor-detail form (default applied to all buttons for now).
+  const cfSettings = campaign.settings as { custom_forms?: { id: string; name: string; fields: { id: string; label: string; type: string; required: boolean; options?: string[] }[] }[]; default_custom_form_id?: string }
+  const activeCustomForm = cfSettings?.default_custom_form_id
+    ? (cfSettings.custom_forms || []).find(f => f.id === cfSettings.default_custom_form_id) || null
+    : null
+
   // For group view: track group raised amount + donor count in realtime
   const [groupRaised, setGroupRaised] = useState(activeGroup?.raised_amount ?? 0)
   const [groupDonors, setGroupDonors] = useState(activeGroup?.donorCount ?? 0)
@@ -1629,6 +1635,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
         buttonRadius={buttonRadius}
         groups={groups.map(g => ({ id: g.id, name: g.name, slug: g.slug }))}
         lang={lang}
+        customForm={activeCustomForm}
       />
 
       {/* Bottom padding for floating bar */}
