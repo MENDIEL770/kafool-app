@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import RichTextEditor from '@/components/RichTextEditor'
+import CampaignStatusToggle from '../CampaignStatusToggle'
 
 export default function CampaignSettingsPage() {
   const router = useRouter()
@@ -18,6 +19,7 @@ export default function CampaignSettingsPage() {
 
   const [loading, setLoading] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [status, setStatus] = useState('')
   const [form, setForm] = useState({
     title: '',
     tagline: '',
@@ -43,6 +45,7 @@ export default function CampaignSettingsPage() {
       const supabase = createClient()
       const { data } = await supabase.from('campaigns').select('*').eq('id', id).single()
       if (data) {
+        setStatus(data.status || 'draft')
         setForm({
           title: data.title || '',
           tagline: data.settings?.tagline || '',
@@ -436,6 +439,21 @@ export default function CampaignSettingsPage() {
           <Button type="button" variant="outline" onClick={() => router.back()}>חזרה</Button>
         </div>
       </form>
+
+      {/* סטטוס קמפיין — הפעלה / עצירה */}
+      {status && (
+        <Card>
+          <CardHeader><CardTitle className="text-base">סטטוס הקמפיין</CardTitle></CardHeader>
+          <CardContent className="flex items-center justify-between gap-4">
+            <p className="text-sm text-gray-500">
+              {status === 'active'
+                ? 'הקמפיין פעיל ודף הגיוס פתוח לתרומות. עצירה תסתיר את הדף הציבורי.'
+                : 'הקמפיין אינו פעיל. הפעלה תפתח את דף הגיוס לתרומות.'}
+            </p>
+            <CampaignStatusToggle campaignId={id} currentStatus={status} />
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

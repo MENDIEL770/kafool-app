@@ -20,15 +20,9 @@ export default async function CampaignLayout({
 
   if (!campaign) notFound()
 
-  const { data: org } = await supabase
-    .from('organizations')
-    .select('slug')
-    .eq('id', campaign.org_id)
-    .single()
-
   return (
     <div className="space-y-0 -mx-4 -mb-4 lg:-m-6">
-      <CampaignNav campaign={campaign} orgSlug={org?.slug ?? null} />
+      <CampaignNav campaign={campaign} />
       <div className="p-4 lg:p-6 pt-8 lg:pt-10">
         {children}
       </div>

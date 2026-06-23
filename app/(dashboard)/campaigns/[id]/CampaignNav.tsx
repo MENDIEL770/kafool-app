@@ -9,11 +9,8 @@ import {
   Image,
   Users,
   Group,
-  MessageSquare,
-  Globe,
   ChevronLeft,
 } from 'lucide-react'
-import CampaignStatusToggle from './CampaignStatusToggle'
 
 interface Campaign {
   id: string
@@ -24,10 +21,9 @@ interface Campaign {
 
 interface Props {
   campaign: Campaign
-  orgSlug: string | null
 }
 
-export default function CampaignNav({ campaign, orgSlug }: Props) {
+export default function CampaignNav({ campaign }: Props) {
   const pathname = usePathname()
   const base = `/campaigns/${campaign.id}`
 
@@ -66,20 +62,6 @@ export default function CampaignNav({ campaign, orgSlug }: Props) {
             </div>
             <div className="text-xs text-gray-400 mt-0.5">kafool.com/{campaign.slug}</div>
           </div>
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0">
-          <CampaignStatusToggle campaignId={campaign.id} currentStatus={campaign.status} />
-          {orgSlug && (
-            <Link
-              href={`/${orgSlug}`}
-              target="_blank"
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 border border-gray-200 hover:border-gray-300 rounded-xl px-3 py-2 transition-all"
-            >
-              <Globe className="w-3.5 h-3.5" />
-              פתח דף גיוס
-            </Link>
-          )}
         </div>
       </div>
 
