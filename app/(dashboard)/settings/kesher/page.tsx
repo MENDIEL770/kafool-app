@@ -217,6 +217,23 @@ export default function KesherSettingsPage() {
             {copied ? 'הועתק!' : 'העתק'}
           </button>
         </div>
+
+        {/* מספר מוסד — דרוש כדי לשייך תרומות נכנסות (ה-CallBack) לארגון */}
+        <div className="space-y-1.5 pt-1">
+          <label className="text-xs font-bold text-blue-800">מספר מוסד (Mosad)</label>
+          <p className="text-[11px] text-blue-600 leading-relaxed">
+            המספר שמופיע בחשבון נדרים פלוס שלך. חובה — בלעדיו תרומות נכנסות לא ישויכו לארגון.
+          </p>
+          <input
+            type="text"
+            inputMode="numeric"
+            value={nedarim.mosad}
+            onChange={e => setNedarim(p => ({ ...p, mosad: e.target.value.trim() }))}
+            dir="ltr"
+            placeholder="7010401"
+            className="w-full bg-white border border-blue-200 rounded-xl px-4 py-2.5 text-sm font-mono outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition placeholder:text-gray-300"
+          />
+        </div>
       </div>
       )}
 

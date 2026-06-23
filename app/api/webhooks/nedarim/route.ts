@@ -40,13 +40,42 @@ async function handle(body: Record<string, unknown>, ip: string): Promise<string
     return `ignored: no confirmed transaction (TransactionId=${transactionId || '∅'}, Confirmation=${confirmation || '∅'})`
   }
 
-  const campaignId = pick(body, 'Param1', 'param1') || null
+  const supabase = await createServiceClient()
+
+  // Resolve the campaign. Nedarim's hosted "online" link does NOT echo the
+  // Param1 we append (it always comes back empty), so we route by the mosad
+  // number → org → its campaign. Param1 is still honoured first for the iframe
+  // flow, which does forward it.
+  let campaignId = pick(body, 'Param1', 'param1') || null
   if (!campaignId) {
-    console.warn('Nedarim webhook: no campaign id in Param1 — ignoring')
-    return 'ignored: no campaign id in Param1'
+    const mosad = pick(body, 'MosadNumber', 'Mosad', 'MosadId')
+    if (!mosad) {
+      console.warn('Nedarim webhook: no Param1 and no MosadNumber — ignoring')
+      return 'ignored: no Param1 and no MosadNumber'
+    }
+    const { data: org } = await supabase
+      .from('organizations').select('id').eq('nedarim_mosad', mosad).maybeSingle()
+    if (!org) {
+      console.warn('Nedarim webhook: no org for mosad', mosad)
+      return `ignored: no org for mosad ${mosad} — set "מספר מוסד" in payment settings`
+    }
+    const { data: camps } = await supabase
+      .from('campaigns').select('id, title')
+      .eq('org_id', org.id).eq('status', 'active')
+      .order('created_at', { ascending: false })
+    if (!camps || camps.length === 0) {
+      return `ignored: org ${org.id} (mosad ${mosad}) has no active campaign`
+    }
+    // Prefer a campaign whose title matches the Nedarim "Groupe" field; otherwise
+    // fall back to the org's (most recent) active campaign.
+    const groupe = pick(body, 'Groupe', 'Group')
+    const norm = (s: string) => (s || '').replace(/['"]/g, '').replace(/\s+/g, '')
+    const match = groupe ? camps.find(c => norm(c.title || '') === norm(groupe)) : null
+    campaignId = match?.id || camps[0].id
   }
 
-  const supabase = await createServiceClient()
+  if (!campaignId) return 'ignored: could not resolve campaign'
+
   const { data: campaign } = await supabase
     .from('campaigns').select('org_id').eq('id', campaignId).maybeSingle()
   if (!campaign) {
