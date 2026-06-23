@@ -27,7 +27,9 @@ function pick(body: Record<string, unknown>, ...keys: string[]): string {
   return ''
 }
 
-async function handle(body: Record<string, unknown>, ip: string): Promise<void> {
+// Returns a short note describing what happened (recorded / why ignored), which
+// is also stored on the webhook_logs row for diagnostics.
+async function handle(body: Record<string, unknown>, ip: string): Promise<string> {
   console.log('Nedarim webhook from', ip, '·', JSON.stringify(body).slice(0, 1000))
 
   const transactionId = pick(body, 'TransactionId', 'TransactionID', 'Id')
@@ -35,13 +37,13 @@ async function handle(body: Record<string, unknown>, ip: string): Promise<void> 
   // a transaction with a confirmation/approval number is an approved payment
   if (!transactionId || !confirmation) {
     console.log('Nedarim webhook: no confirmed transaction — ignoring')
-    return
+    return `ignored: no confirmed transaction (TransactionId=${transactionId || '∅'}, Confirmation=${confirmation || '∅'})`
   }
 
   const campaignId = pick(body, 'Param1', 'param1') || null
   if (!campaignId) {
     console.warn('Nedarim webhook: no campaign id in Param1 — ignoring')
-    return
+    return 'ignored: no campaign id in Param1'
   }
 
   const supabase = await createServiceClient()
@@ -49,7 +51,7 @@ async function handle(body: Record<string, unknown>, ip: string): Promise<void> 
     .from('campaigns').select('org_id').eq('id', campaignId).maybeSingle()
   if (!campaign) {
     console.warn('Nedarim webhook: campaign not found:', campaignId)
-    return
+    return `ignored: campaign not found (${campaignId})`
   }
 
   // Standing order? TransactionType is HK/HostHK for הוראת קבע, Ragil for one-time.
@@ -96,6 +98,9 @@ async function handle(body: Record<string, unknown>, ip: string): Promise<void> 
   // raised_amount = sum of completed donations (drift-free)
   await recomputeCampaignRaised(supabase, campaignId)
   console.log(`Nedarim webhook: ₪${recordedAmount} (${isHok ? `hok ${months}m` : 'one-time'}) for campaign ${campaignId}`)
+  return existing
+    ? `duplicate: transaction ${transactionId} already recorded`
+    : `recorded: ₪${recordedAmount} (${isHok ? `hok ${months}m` : 'one-time'}) for campaign ${campaignId}`
 }
 
 export async function POST(req: NextRequest) {
@@ -116,11 +121,36 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true })
   }
 
+  // Capture every incoming call (even ones we end up ignoring) so we can see
+  // exactly what Nedarim sends. Best-effort — never blocks the response.
+  let logId: string | null = null
   try {
-    await handle(body, ip)
+    const supabase = await createServiceClient()
+    const { data } = await supabase
+      .from('webhook_logs')
+      .insert({ source: 'nedarim', ip, body })
+      .select('id')
+      .single()
+    logId = data?.id ?? null
+  } catch (e) {
+    console.error('Nedarim webhook log error:', e)
+  }
+
+  let note = 'error'
+  try {
+    note = await handle(body, ip)
   } catch (err) {
     console.error('Nedarim webhook error:', err)
+    note = `error: ${err instanceof Error ? err.message : String(err)}`
   }
+
+  if (logId) {
+    try {
+      const supabase = await createServiceClient()
+      await supabase.from('webhook_logs').update({ note }).eq('id', logId)
+    } catch { /* ignore */ }
+  }
+
   // always 200 so Nedarim doesn't retry endlessly
   return NextResponse.json({ ok: true })
 }
