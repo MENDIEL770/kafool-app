@@ -1722,6 +1722,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
         customForms={cfSettings?.custom_forms || []}
         defaultFormId={cfSettings?.default_custom_form_id || ''}
         presetFormMode={modalFormMode}
+        defaultPaymentNote={(campaign.settings as { payment_note?: string })?.payment_note || ''}
         preStep={preStep}
       />
 

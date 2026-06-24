@@ -29,6 +29,7 @@ interface CustomForm {
   name: string
   headerTitle?: string   // shown at the top of the donor modal when this form is active
   email?: EmailTpl       // per-form thank-you email (overrides the campaign default)
+  paymentNote?: string   // optional note shown above the payment button
   fields: CustomField[]
 }
 
@@ -76,6 +77,7 @@ export default function CustomFormsPage() {
     enabled: false, subject: '', body: '', image: '',
   })
   const [uploadingEmailImg, setUploadingEmailImg] = useState(false)
+  const [paymentNote, setPaymentNote] = useState('')   // campaign default note above the payment button
 
   useEffect(() => {
     async function load() {
@@ -88,6 +90,7 @@ export default function CustomFormsPage() {
       if (ps && Array.isArray(ps.options)) setPreStep({ enabled: !!ps.enabled, title: ps.title || 'מה תרצה לעשות?', options: ps.options.length ? ps.options : emptyPreStep().options })
       const te = s.thank_you_email as { enabled?: boolean; subject?: string; body?: string; image?: string } | undefined
       if (te) setEmail({ enabled: !!te.enabled, subject: te.subject || '', body: te.body || '', image: te.image || '' })
+      if (typeof s.payment_note === 'string') setPaymentNote(s.payment_note)
       setLoading(false)
     }
     load()
@@ -111,7 +114,7 @@ export default function CustomFormsPage() {
     }
     const cleanEmail = { enabled: email.enabled, subject: email.subject.trim(), body: email.body.trim(), image: email.image || '' }
     await supabase.from('campaigns').update({
-      settings: { ...(existing?.settings as object), custom_forms: cleanForms, default_custom_form_id: validDefault || null, pre_donation_step: cleanPreStep, thank_you_email: cleanEmail },
+      settings: { ...(existing?.settings as object), custom_forms: cleanForms, default_custom_form_id: validDefault || null, pre_donation_step: cleanPreStep, thank_you_email: cleanEmail, payment_note: paymentNote.trim() || null },
     }).eq('id', id)
     setForms(cleanForms)
     setDefaultFormId(validDefault)
@@ -291,6 +294,17 @@ export default function CustomFormsPage() {
         </CardContent>
       </Card>
 
+      {/* Default note above the payment button */}
+      <Card>
+        <CardHeader><CardTitle className="text-base">הערה מעל כפתור התשלום (ברירת מחדל)</CardTitle></CardHeader>
+        <CardContent className="space-y-1">
+          <p className="text-xs text-gray-400">מוצגת מעל כפתור התשלום בכל התרומות (אלא אם לטופס מסוים מוגדרת הערה משלו).</p>
+          <textarea value={paymentNote} onChange={e => setPaymentNote(e.target.value)} rows={2}
+            placeholder="לדוגמה: הערכות כרגע בשלב הייצור ויישלחו במהלך החודש הקרוב…"
+            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-400 resize-y" />
+        </CardContent>
+      </Card>
+
       {/* Custom forms */}
       {forms.map(form => (
         <Card key={form.id}>
@@ -335,6 +349,13 @@ export default function CustomFormsPage() {
                 </div>
               </div>
             </details>
+
+            <div className="space-y-1">
+              <Label>הערה מעל כפתור התשלום (אופציונלי)</Label>
+              <textarea value={form.paymentNote || ''} onChange={e => setForms(fs => fs.map(x => (x.id === form.id ? { ...x, paymentNote: e.target.value } : x)))}
+                rows={2} placeholder="לדוגמה: הערכות כרגע בשלב הייצור ויישלחו במהלך החודש הקרוב…"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400 resize-y" />
+            </div>
             {form.fields.length === 0 && (
               <p className="text-sm text-gray-400 text-center py-3">אין שדות עדיין — הוסף שדה ראשון.</p>
             )}

@@ -17,7 +17,7 @@ function unitPriceForQty(base: number, tiers: { minQty: number; discountPercent:
   for (const t of sorted) { if (qty >= t.minQty) discount = Number(t.discountPercent) || 0 }
   return { unit: Math.round(base * (1 - discount / 100)), discount }
 }
-interface CustomFormDef { id: string; name: string; headerTitle?: string; email?: { subject?: string; body?: string; image?: string }; fields: CustomFieldDef[] }
+interface CustomFormDef { id: string; name: string; headerTitle?: string; email?: { subject?: string; body?: string; image?: string }; paymentNote?: string; fields: CustomFieldDef[] }
 interface PreStepOption { id: string; label: string; formId?: string }
 interface PreStepDef { enabled: boolean; title: string; options: PreStepOption[] }
 
@@ -58,6 +58,7 @@ interface Props {
   customForms?: CustomFormDef[]
   defaultFormId?: string
   presetFormMode?: string   // per-button: '' | 'regular' | 'choice' | <formId>
+  defaultPaymentNote?: string
   preStep?: PreStepDef | null
 }
 
@@ -79,6 +80,7 @@ export default function DonationModal({
   customForms,
   defaultFormId,
   presetFormMode,
+  defaultPaymentNote,
   preStep,
 }: Props) {
   // The choice step is available when it has 2+ options. It is NEVER applied
@@ -562,6 +564,14 @@ export default function DonationModal({
               {paymentMethod === 'hok' && (
                 <p className="text-sm font-bold text-center text-gray-800">{T.noCreditHold}</p>
               )}
+
+              {/* הערה אופציונלית מעל כפתור התשלום (לכל טופס או ברירת מחדל) */}
+              {(() => {
+                const note = (activeForm?.paymentNote || defaultPaymentNote || '').trim()
+                return note ? (
+                  <p className="text-xs text-gray-600 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2.5 text-center whitespace-pre-line leading-relaxed">{note}</p>
+                ) : null
+              })()}
 
               <button
                 onClick={() => {
