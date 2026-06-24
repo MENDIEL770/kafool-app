@@ -69,7 +69,7 @@ function DonorCard({ d, donorGroup, primaryColor, campaignSlug, liked, onToggleL
 
   return (
     <article
-      className="bg-white rounded-2xl p-3 border border-gray-100 shadow-sm hover:shadow-md transition-shadow flex flex-col"
+      className={`bg-white rounded-2xl p-3 border border-gray-100 shadow-sm hover:shadow-md transition-shadow flex flex-col ${expanded ? '' : 'h-[150px] overflow-hidden'}`}
     >
       <div className="flex items-start gap-3">
         <div
@@ -109,18 +109,16 @@ function DonorCard({ d, donorGroup, primaryColor, campaignSlug, liked, onToggleL
       </div>
 
       {ded && (
-        <div className="mt-2">
-          <p className={`text-xs text-gray-500 leading-snug whitespace-pre-line ${expanded ? '' : 'line-clamp-3'}`}>{ded}</p>
-          {isLong && (
-            <button
-              onClick={() => setExpanded(v => !v)}
-              className="text-xs font-bold mt-0.5"
-              style={{ color: primaryColor }}
-            >
-              {expanded ? t('readLess') : t('readMore')}
-            </button>
-          )}
-        </div>
+        <p className={`mt-2 text-xs text-gray-500 leading-snug whitespace-pre-line flex-1 min-h-0 overflow-hidden ${expanded ? '' : 'line-clamp-3'}`}>{ded}</p>
+      )}
+      {ded && isLong && (
+        <button
+          onClick={() => setExpanded(v => !v)}
+          className="text-xs font-bold mt-1 self-start shrink-0"
+          style={{ color: primaryColor }}
+        >
+          {expanded ? t('readLess') : t('readMore')}
+        </button>
       )}
     </article>
   )
@@ -971,7 +969,7 @@ function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCre
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-stretch">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
                   {filtered.slice(0, visible).map(d => (
                     <DonorCard
                       key={d.id}
