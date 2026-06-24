@@ -1162,9 +1162,9 @@ function AboutSection({ campaign, gallery }: { campaign: Campaign; gallery: Gall
         {/* תמונת אודות עומדת — לחיצה מרחיבה */}
         {aboutImage && (
           <button type="button" onClick={() => setLightbox(0)}
-            className="block w-full max-w-xs mx-auto rounded-2xl overflow-hidden shadow-md group relative focus:outline-none">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={aboutImage} alt={t('aboutCampaign')} className="w-full h-auto object-contain" style={{ aspectRatio: '4 / 5' }} loading="lazy" />
+            className="block w-full rounded-3xl overflow-hidden shadow-md bg-gray-50 group relative focus:outline-none cursor-zoom-in">
+            {/* full width to match the gallery; natural ratio, capped height */}
+            <img src={aboutImage} alt={t('aboutCampaign')} className="w-full h-auto max-h-[70vh] object-contain" loading="lazy" />
             <span className="absolute bottom-2 left-2 bg-black/50 text-white text-[10px] rounded-full px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity">
               {lang === 'en' ? 'Tap to enlarge' : 'לחץ להגדלה'}
             </span>
