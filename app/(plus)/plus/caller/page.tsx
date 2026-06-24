@@ -33,6 +33,7 @@ export default function CallerPage() {
   const addPromise = useStore((s) => s.addPromise);
   const addReminder = useStore((s) => s.addReminder);
   const updateCallerGroup = useStore((s) => s.updateCallerGroup);
+  const updateLead = useStore((s) => s.updateLead);
 
   // resolve the caller group: explicit on the session, else the one matching
   // this user's email within their campaign (coordinator-as-caller path).
@@ -91,6 +92,30 @@ export default function CallerPage() {
 
   const saveLink = () => {
     updateCallerGroup(group.id, { donation_link: linkDraft.trim() });
+  };
+
+  // Reconcile Charidy donations to the leads I called — match by name (Charidy
+  // hides phone), mark them donated and record how much they gave.
+  const normName = (s: string) =>
+    (s || "").replace(/משפחת|משפ['׳]|מר |גב['׳] |הרב |ר['׳] /g, "").replace(/[^א-תa-zA-Z0-9]/g, "").toLowerCase();
+  const syncDonations = () => {
+    const ds = charidy?.donations ?? [];
+    if (!ds.length) { alert("אין תרומות לסנכרון. רענן/י קודם את התרומות."); return; }
+    let matched = 0;
+    for (const d of ds) {
+      if (d.anonymous) continue;
+      const dn = normName(d.donor);
+      if (dn.length < 3) continue;
+      const lead = myLeads.find((l) => {
+        const ln = normName(l.full_name);
+        return ln.length >= 3 && (ln === dn || ln.includes(dn) || dn.includes(ln));
+      });
+      if (lead && lead.status !== "donated") {
+        updateLead(lead.id, { status: "donated", custom_fields: { ...(lead.custom_fields || {}), charidy_amount: d.amount } });
+        matched++;
+      }
+    }
+    alert(matched > 0 ? `✅ התאמתי ${matched} תרומות ללידים שחייגת אליהם — סומנו כ"תרם" עם הסכום.` : "לא נמצאו התאמות חדשות לפי שם.");
   };
 
   const myReminders = reminders
@@ -419,9 +444,12 @@ export default function CallerPage() {
                     </div>
                     <div className="text-xs text-muted">סה״כ שגויס בצוות שלי · יעד {((charidy?.goal || group.personal_goal) || 0).toLocaleString("he-IL")} ₪</div>
                   </div>
-                  <button onClick={refreshDonations} disabled={loadingDon} className="btn-primary px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-1">
-                    <span className={loadingDon ? "animate-spin inline-block" : ""}>🔄</span> רענון
-                  </button>
+                  <div className="flex flex-col gap-1.5">
+                    <button onClick={refreshDonations} disabled={loadingDon} className="btn-primary px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-1">
+                      <span className={loadingDon ? "animate-spin inline-block" : ""}>🔄</span> רענון
+                    </button>
+                    <button onClick={syncDonations} className="btn-accent px-3 py-2 rounded-lg text-sm font-semibold">🔗 התאם ללידים</button>
+                  </div>
                 </div>
                 <Progress value={charidy?.total ?? 0} goal={(charidy?.goal || group.personal_goal) || 0} />
                 <div className="flex items-center justify-between mt-2 text-xs text-muted">

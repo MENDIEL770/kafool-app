@@ -62,6 +62,10 @@ export default function CoordinatorPage() {
   const branchPromised = promises
     .filter((p) => myCallers.some((c) => c.id === p.caller_group_id))
     .reduce((s, p) => s + p.amount, 0);
+  // actually raised — from Charidy donations matched to leads (reconciliation)
+  const branchRaised = myLeads
+    .filter((l) => l.status === "donated")
+    .reduce((s, l) => s + Number((l.custom_fields as { charidy_amount?: number } | undefined)?.charidy_amount || 0), 0);
 
   const ranking = myCallers
     .map((cg) => {
@@ -110,11 +114,12 @@ export default function CoordinatorPage() {
           <Progress value={branchPromised} goal={campaign.goal_amount} />
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-4">
           <StatCard label="טלפנים" value={myCallers.length} />
           <StatCard label="לידים בסניף" value={myLeads.length} />
-          <StatCard label="לא משויכים" value={unassigned} accent />
+          <StatCard label="לא משויכים" value={unassigned} />
           <StatCard label="הובטח" value={`${branchPromised.toLocaleString("he-IL")} ₪`} />
+          <StatCard label="גויס בפועל" value={`${branchRaised.toLocaleString("he-IL")} ₪`} accent />
         </div>
 
         {pendingRequests.length > 0 && (

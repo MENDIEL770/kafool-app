@@ -81,8 +81,11 @@ export default function ManagerDashboard() {
   const allPromised = promises.reduce((s, p) => s + p.amount, 0);
   const totalLeads = leads.filter((l) => treeIds.includes(l.campaign_id)).length;
   const totalCalls = calls.length;
-  const totalDonated = leads.filter((l) => treeIds.includes(l.campaign_id) && l.status === "donated").length;
-  const vipCount = leads.filter((l) => treeIds.includes(l.campaign_id) && l.is_vip).length;
+  const treeLeads = leads.filter((l) => treeIds.includes(l.campaign_id));
+  const totalDonated = treeLeads.filter((l) => l.status === "donated").length;
+  const vipCount = treeLeads.filter((l) => l.is_vip).length;
+  // actually raised — from Charidy donations matched to leads (reconciliation)
+  const actualRaised = treeLeads.reduce((s, l) => s + Number((l.custom_fields as { charidy_amount?: number } | undefined)?.charidy_amount || 0), 0);
 
   const branchRanking = subCampaigns
     .map((sc) => {
@@ -107,8 +110,8 @@ export default function ManagerDashboard() {
           <StatCard label="טלפנים" value={callerGroups.length} />
           <StatCard label="לידים" value={totalLeads} />
           <StatCard label="שיחות" value={totalCalls} />
-          <StatCard label="תרמו" value={totalDonated} accent />
-          <StatCard label="VIP" value={vipCount} />
+          <StatCard label="תרמו" value={totalDonated} />
+          <StatCard label="גויס בפועל" value={`${actualRaised.toLocaleString("he-IL")} ₪`} accent />
         </div>
 
         {/* campaign style + switcher */}
