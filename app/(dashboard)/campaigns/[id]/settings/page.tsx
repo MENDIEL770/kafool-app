@@ -38,6 +38,7 @@ export default function CampaignSettingsPage() {
     thanks_title: '',
     thanks_message: '',
     logo_url: '',
+    nedarim_category: '',
   })
 
   useEffect(() => {
@@ -64,6 +65,7 @@ export default function CampaignSettingsPage() {
           thanks_title: data.settings?.thanks?.title || '',
           thanks_message: data.settings?.thanks?.message || '',
           logo_url: data.logo_url || '',
+          nedarim_category: data.settings?.nedarim_category || '',
         })
       }
     }
@@ -114,6 +116,7 @@ export default function CampaignSettingsPage() {
           title: form.thanks_title.trim() || null,
           message: form.thanks_message.trim() || null,
         },
+        nedarim_category: form.nedarim_category.trim() || null,
       },
     }).eq('id', id)
     setLoading(false)
@@ -255,6 +258,25 @@ export default function CampaignSettingsPage() {
                 הסר ספירה לאחור
               </button>
             )}
+          </CardContent>
+        </Card>
+
+        {/* ── נדרים פלוס ── */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">קטגוריית נדרים פלוס</CardTitle>
+            <p className="text-xs text-gray-400 mt-1">
+              שם הקטגוריה (Groupe) במערכת נדרים פלוס שתרומותיה יירשמו לקמפיין זה. רק תרומות שנכנסות בקטגוריה הזו יירשמו — תרומות מקטגוריות אחרות באותו מוסד יתעלמו.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-1">
+            <Label>שם הקטגוריה במערכת נדרים</Label>
+            <Input
+              value={form.nedarim_category}
+              onChange={(e) => set('nedarim_category', e.target.value)}
+              placeholder="לדוג׳ — אור בשקט"
+            />
+            <p className="text-[11px] text-gray-400">השאר ריק כדי להתאים לפי שם הקמפיין.</p>
           </CardContent>
         </Card>
 
