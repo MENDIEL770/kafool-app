@@ -12,6 +12,7 @@ import {
   SlidersHorizontal,
   Mail,
   ChevronLeft,
+  ExternalLink,
 } from 'lucide-react'
 
 interface Campaign {
@@ -67,6 +68,16 @@ export default function CampaignNav({ campaign }: Props) {
             <div className="text-xs text-gray-400 mt-0.5">kafool.com/{campaign.slug}</div>
           </div>
         </div>
+
+        <a
+          href={`/${campaign.slug}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 shrink-0 px-3 py-1.5 rounded-lg text-sm font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors"
+        >
+          <ExternalLink className="w-4 h-4" />
+          <span className="hidden sm:inline">צפה בדף הגיוס</span>
+        </a>
       </div>
 
       {/* Tab row */}
