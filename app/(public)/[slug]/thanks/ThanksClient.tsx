@@ -22,6 +22,14 @@ export default function ThanksClient({ slug, orgName, campaignTitle, primaryColo
   const [donorName, setDonorName] = useState<string | null>(null)
   const [receipt, setReceipt] = useState<string | null>(receiptUrl)
 
+  // אם הגענו ל-/thanks בתוך ה-iframe של דף התשלום — נשתלט על כל הטאב כדי
+  // שהתורם יראה את מסך התודה במסך מלא (ואז הספירה למטה מחזירה לדף הקמפיין).
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.self !== window.top) {
+      try { window.top!.location.href = window.location.href } catch { /* cross-origin — נשאר ב-iframe */ }
+    }
+  }, [])
+
   useEffect(() => {
     // קרא פרטי תורם מ-localStorage ועדכן ב-DB
     const raw = localStorage.getItem('kafool_donor')
