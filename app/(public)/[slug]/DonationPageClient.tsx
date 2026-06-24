@@ -1211,20 +1211,19 @@ function AboutSection({ campaign, gallery }: { campaign: Campaign; gallery: Gall
               className="absolute z-20 top-4 left-4 w-10 h-10 rounded-full bg-white/90 hover:bg-white text-gray-800 shadow-lg flex items-center justify-center transition active:scale-90">
               <X className="w-5 h-5" />
             </button>
+            {/* stable bottom control bar — prev · counter · next */}
             {lbImages.length > 1 && (
-              <>
+              <div className="absolute z-20 bottom-5 inset-x-0 flex items-center justify-center gap-3">
                 <button type="button" aria-label="הקודם" onClick={lbPrev}
-                  className="absolute z-20 right-2 sm:right-5 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/90 hover:bg-white text-gray-800 shadow-lg flex items-center justify-center transition active:scale-90">
-                  <ChevronRight className="w-7 h-7" />
+                  className="w-11 h-11 rounded-full bg-white/90 hover:bg-white text-gray-800 shadow-lg flex items-center justify-center transition active:scale-90">
+                  <ChevronRight className="w-6 h-6" />
                 </button>
+                <span className="bg-black/50 text-white text-sm font-medium rounded-full px-3 py-1.5 min-w-[3.5rem] text-center">{lbIdx + 1} / {lbImages.length}</span>
                 <button type="button" aria-label="הבא" onClick={lbNext}
-                  className="absolute z-20 left-2 sm:left-5 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/90 hover:bg-white text-gray-800 shadow-lg flex items-center justify-center transition active:scale-90">
-                  <ChevronLeft className="w-7 h-7" />
+                  className="w-11 h-11 rounded-full bg-white/90 hover:bg-white text-gray-800 shadow-lg flex items-center justify-center transition active:scale-90">
+                  <ChevronLeft className="w-6 h-6" />
                 </button>
-                <div className="absolute z-20 bottom-5 inset-x-0 flex justify-center pointer-events-none">
-                  <span className="bg-black/50 text-white text-xs font-medium rounded-full px-3 py-1">{lbIdx + 1} / {lbImages.length}</span>
-                </div>
-              </>
+              </div>
             )}
           </div>
         )}
