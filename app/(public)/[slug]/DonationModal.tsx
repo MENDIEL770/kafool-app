@@ -23,7 +23,7 @@ const PAYMENT_METHODS = [
 type PaymentMethod = typeof PAYMENT_METHODS[number]['key']
 
 const METHOD_LABEL: Record<PaymentMethod, [string, string]> = {
-  one_time: ['תרומה חד"פ', 'One-time'],
+  one_time: ['חיוב חד-פעמי', 'One-time'],
   hok:      ['הוראת קבע', 'Monthly'],
   bit:      ['ביט', 'Bit'],
   bank:     ['העברה בנקאית', 'Bank transfer'],
@@ -123,12 +123,10 @@ export default function DonationModal({
   // A donation button configured as a standing order locks the modal to הו"ק —
   // the donor can't switch to Bit / bank / one-time, only choose the duration.
   const lockedToHok = presetMethod === 'hok'
-  // Available methods = only those with a URL configured.
-  // Bit is NOT a top-level method — it's offered as a separate button under
-  // one-time payment (opens its own link in a new tab).
+  // Available methods = only those with a URL configured. Bit shows alongside the
+  // others when a Bit link is set (it opens in a new tab rather than the iframe).
   const availableMethods = PAYMENT_METHODS.filter(m =>
     lockedToHok ? m.key === 'hok'
-      : m.key === 'bit' ? false
       : m.key === 'one_time' ? !!donationUrl
       : !!(paymentUrls?.[m.key])
   )
@@ -397,7 +395,7 @@ export default function DonationModal({
                         }`}
                         style={paymentMethod === m.key ? { borderColor: primaryColor, color: primaryColor, backgroundColor: `${primaryColor}10` } : {}}
                       >
-                        <m.Icon className="w-4 h-4 shrink-0" />
+                        {m.key === 'bit' ? <BitLogo className="w-5 h-5 rounded shrink-0" /> : <m.Icon className="w-4 h-4 shrink-0" />}
                         {METHOD_LABEL[m.key][en ? 1 : 0]}
                       </button>
                     ))}
@@ -523,10 +521,15 @@ export default function DonationModal({
               )}
 
               <button
-                onClick={() => { persistDonor(); setStep('payment') }}
+                onClick={() => {
+                  persistDonor()
+                  // Bit opens its own hosted page in a new tab; the rest use the iframe step.
+                  if (paymentMethod === 'bit' && bitUrl) window.open(buildPaymentUrl(bitUrl), '_blank', 'noopener')
+                  else setStep('payment')
+                }}
                 disabled={!canProceed}
                 className={`w-full py-4 font-black text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all ${buttonRadius}`}
-                style={{ backgroundColor: primaryColor }}
+                style={{ backgroundColor: paymentMethod === 'bit' ? '#0A2E36' : primaryColor, color: paymentMethod === 'bit' ? '#37E5E0' : '#fff' }}
               >
                 {(() => {
                   const total = paymentMethod === 'hok' ? finalAmount * months : finalAmount
@@ -538,31 +541,6 @@ export default function DonationModal({
                   )
                 })()}
               </button>
-
-              {/* תשלום בביט — נפתח בקישור נפרד (טאב חדש), זמין בתרומה חד"פ */}
-              {paymentMethod === 'one_time' && bitUrl && (
-                <>
-                  <div className="flex items-center gap-2 text-[11px] text-gray-300">
-                    <span className="flex-1 h-px bg-gray-200" />
-                    {en ? 'or' : 'או'}
-                    <span className="flex-1 h-px bg-gray-200" />
-                  </div>
-                  <button
-                    type="button"
-                    disabled={!canProceed}
-                    onClick={() => {
-                      if (!canProceed) return
-                      persistDonor()
-                      window.open(buildPaymentUrl(bitUrl), '_blank', 'noopener')
-                    }}
-                    className={`w-full py-3.5 font-black flex items-center justify-center gap-2.5 disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:opacity-90 ${buttonRadius}`}
-                    style={{ backgroundColor: '#0A2E36', color: '#37E5E0' }}
-                  >
-                    <BitLogo className="w-6 h-6 rounded-md" />
-                    {en ? 'Pay with Bit' : 'שלם בביט'}
-                  </button>
-                </>
-              )}
 
               {!form.anonymous && finalAmount > 0 && !detailsValid && (
                 <p className="text-center text-xs text-amber-600 -mt-1">
