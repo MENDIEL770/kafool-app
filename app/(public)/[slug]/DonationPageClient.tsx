@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef, useCallback, useMemo, createContext, useContext } from 'react'
+import { createPortal } from 'react-dom'
 import { createClient } from '@/lib/supabase/client'
 import { sanitizeHtml } from '@/lib/sanitize'
 import type { Campaign, Group } from '@/types'
@@ -1192,7 +1193,7 @@ function AboutSection({ campaign, gallery }: { campaign: Campaign; gallery: Gall
         {/* Fullscreen lightbox for the current set (about OR gallery). The backdrop
             is its own layer; image + controls sit above it via z-index, so a click on
             a control can never reach the backdrop's close handler. */}
-        {lbIdx !== null && lbImages[lbIdx] && (
+        {lbIdx !== null && lbImages[lbIdx] && typeof document !== 'undefined' && createPortal(
           <div
             className="fixed inset-0 z-[90] flex items-center justify-center p-4 sm:p-8"
             onTouchStart={e => { touchX.current = e.touches[0]?.clientX ?? null }}
@@ -1225,7 +1226,8 @@ function AboutSection({ campaign, gallery }: { campaign: Campaign; gallery: Gall
                 </button>
               </div>
             )}
-          </div>
+          </div>,
+          document.body,
         )}
 
         {aboutText && (
