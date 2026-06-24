@@ -10,7 +10,11 @@ export interface EmailTemplate {
 const BRAND = '#2563eb'
 
 function renderHtml(tpl: EmailTemplate, campaignTitle: string): string {
-  const safeBody = (tpl.body || '').replace(/\n/g, '<br/>')
+  const raw = tpl.body || ''
+  // Body from the rich-text editor is already HTML; older plain bodies keep their
+  // line breaks. Detect HTML by the presence of a tag.
+  const isHtml = /<[a-z!/][\s\S]*>/i.test(raw)
+  const bodyHtml = isHtml ? raw : raw.replace(/\n/g, '<br/>')
   const img = tpl.image
     ? `<img src="${tpl.image}" alt="" style="display:block;width:100%;max-width:560px;border-radius:16px;margin:0 auto 20px;" />`
     : ''
@@ -18,7 +22,7 @@ function renderHtml(tpl: EmailTemplate, campaignTitle: string): string {
     <div style="max-width:600px;margin:0 auto;padding:24px;">
       <div style="background:#fff;border-radius:20px;padding:28px;box-shadow:0 2px 12px rgba(0,0,0,.05);">
         ${img}
-        <div style="font-size:16px;line-height:1.7;white-space:pre-line;text-align:right;">${safeBody}</div>
+        <div style="font-size:16px;line-height:1.7;${isHtml ? '' : 'white-space:pre-line;'}text-align:right;" dir="rtl">${bodyHtml}</div>
       </div>
       <p style="text-align:center;color:#9ca3af;font-size:12px;margin-top:18px;">${campaignTitle} · נשלח דרך Kafool</p>
       <div style="height:3px;width:60px;background:${BRAND};border-radius:3px;margin:10px auto 0;"></div>

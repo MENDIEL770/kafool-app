@@ -8,9 +8,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import RichTextEditor from '@/components/RichTextEditor'
 import { Check } from 'lucide-react'
 
-interface EmailTpl { subject?: string; body?: string; image?: string }
+interface EmailTpl { subject?: string; body?: string; image?: string; enabled?: boolean }
 interface FormRef { id: string; name: string; email?: EmailTpl }
 interface ButtonRef { amount: number; label?: string | null }
 
@@ -85,7 +86,7 @@ export default function CampaignEmailPage() {
       const out: Record<string, EmailTpl> = {}
       for (const [k, e] of Object.entries(m)) {
         const subject = e.subject?.trim() || '', body = e.body?.trim() || '', image = e.image || ''
-        if (subject || body || image) out[k] = { subject, body, image }
+        if (subject || body || image) out[k] = { subject, body, image, enabled: e.enabled !== false }
       }
       return out
     }
@@ -127,9 +128,8 @@ export default function CampaignEmailPage() {
           <div className="space-y-1"><Label>נושא</Label><Input value={def.subject} onChange={e => setDef(p => ({ ...p, subject: e.target.value }))} placeholder="תודה על תרומתך 💞" /></div>
           <div className="space-y-1">
             <Label>תוכן</Label>
-            <textarea value={def.body} onChange={e => setDef(p => ({ ...p, body: e.target.value }))} rows={7} placeholder={EXAMPLE_EMAIL}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-400 resize-y leading-relaxed" />
-            {!def.body && <button type="button" onClick={() => setDef(p => ({ ...p, body: EXAMPLE_EMAIL }))} className="text-[11px] text-blue-600 hover:underline">השתמש בטקסט הדוגמה</button>}
+            <RichTextEditor value={def.body} onChange={html => setDef(p => ({ ...p, body: html }))} placeholder={EXAMPLE_EMAIL} />
+            {!def.body && <button type="button" onClick={() => setDef(p => ({ ...p, body: EXAMPLE_EMAIL.replace(/\n/g, '<br>') }))} className="text-[11px] text-blue-600 hover:underline">השתמש בטקסט הדוגמה</button>}
           </div>
           <div className="space-y-1">
             <Label>תמונת כותרת (אופציונלי)</Label>
@@ -157,9 +157,12 @@ export default function CampaignEmailPage() {
                 <details key={f.id} className="rounded-xl border border-gray-100 bg-gray-50/50 px-3 py-2">
                   <summary className="text-sm font-semibold text-gray-700 cursor-pointer">{f.name || 'טופס ללא שם'}</summary>
                   <div className="space-y-2 pt-2">
+                    <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
+                      <input type="checkbox" checked={e.enabled !== false} onChange={ev => setFE(f.id, { enabled: ev.target.checked })} className="w-4 h-4" />
+                      פעיל
+                    </label>
                     <Input value={e.subject || ''} onChange={ev => setFE(f.id, { subject: ev.target.value })} placeholder="נושא המייל" />
-                    <textarea value={e.body || ''} onChange={ev => setFE(f.id, { body: ev.target.value })} rows={4}
-                      placeholder="תוכן המייל לטופס זה" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400 resize-y" />
+                    <RichTextEditor value={e.body || ''} onChange={html => setFE(f.id, { body: html })} placeholder="תוכן המייל לטופס זה" />
                     <div className="flex items-center gap-3">
                       {e.image && <img src={e.image} alt="" className="h-12 rounded object-cover" />}
                       <label className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 cursor-pointer">
@@ -189,9 +192,12 @@ export default function CampaignEmailPage() {
                 <details key={k} className="rounded-xl border border-gray-100 bg-gray-50/50 px-3 py-2">
                   <summary className="text-sm font-semibold text-gray-700 cursor-pointer">כפתור ₪{b.amount.toLocaleString()}{b.label ? ` — ${b.label}` : ''}</summary>
                   <div className="space-y-2 pt-2">
+                    <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
+                      <input type="checkbox" checked={e.enabled !== false} onChange={ev => setBE(k, { enabled: ev.target.checked })} className="w-4 h-4" />
+                      פעיל
+                    </label>
                     <Input value={e.subject || ''} onChange={ev => setBE(k, { subject: ev.target.value })} placeholder="נושא המייל" />
-                    <textarea value={e.body || ''} onChange={ev => setBE(k, { body: ev.target.value })} rows={4}
-                      placeholder="תוכן המייל לכפתור זה" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400 resize-y" />
+                    <RichTextEditor value={e.body || ''} onChange={html => setBE(k, { body: html })} placeholder="תוכן המייל לכפתור זה" />
                     <div className="flex items-center gap-3">
                       {e.image && <img src={e.image} alt="" className="h-12 rounded object-cover" />}
                       <label className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 cursor-pointer">

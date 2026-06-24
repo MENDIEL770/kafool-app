@@ -59,8 +59,8 @@ interface Props {
   defaultFormId?: string
   presetFormMode?: string   // per-button: '' | 'regular' | 'choice' | <formId>
   defaultPaymentNote?: string
-  formEmails?: Record<string, { subject?: string; body?: string; image?: string }>
-  buttonEmails?: Record<string, { subject?: string; body?: string; image?: string }>
+  formEmails?: Record<string, { subject?: string; body?: string; image?: string; enabled?: boolean }>
+  buttonEmails?: Record<string, { subject?: string; body?: string; image?: string; enabled?: boolean }>
   preStep?: PreStepDef | null
 }
 
@@ -228,7 +228,7 @@ export default function DonationModal({
       if (hasPreStep && choice) labeled[preStep!.title || 'בחירה'] = choice
       if (hasPreStep && preStepType === 'consent' && consented) labeled[preStep!.consentLabel || 'אישור'] = 'כן'
       // thank-you email override: per-button (by amount) → per-form → default (server-side)
-      const hasTpl = (t?: { subject?: string; body?: string; image?: string }) => !!(t && (t.subject || t.body || t.image))
+      const hasTpl = (t?: { subject?: string; body?: string; image?: string; enabled?: boolean }) => !!(t && t.enabled !== false && (t.subject || t.body || t.image))
       const btnE = typeof presetAmount === 'number' ? buttonEmails?.[String(presetAmount)] : undefined
       const formE = activeFormId ? formEmails?.[activeFormId] : undefined
       const emailTemplate = hasTpl(btnE) ? btnE : hasTpl(formE) ? formE : null
