@@ -8,7 +8,7 @@ interface PaymentUrls { one_time: string; hok: string; bit: string; bank: string
 interface NedarimConfig { mosad: string; apiValid: string; active: boolean }
 interface CustomFieldDef { id: string; label: string; type: string; required: boolean; options?: string[] }
 interface CustomFormDef { id: string; name: string; fields: CustomFieldDef[] }
-interface PreStepOption { id: string; label: string }
+interface PreStepOption { id: string; label: string; formId?: string }
 interface PreStepDef { enabled: boolean; title: string; options: PreStepOption[] }
 
 type Lang = 'he' | 'en'
@@ -45,7 +45,9 @@ interface Props {
   buttonRadius: string
   groups: Group[]
   lang?: Lang
-  customForm?: CustomFormDef | null
+  customForms?: CustomFormDef[]
+  defaultFormId?: string
+  presetFormMode?: string   // per-button: '' | 'regular' | 'choice' | <formId>
   preStep?: PreStepDef | null
 }
 
@@ -64,10 +66,19 @@ export default function DonationModal({
   buttonRadius,
   groups,
   lang = 'he',
-  customForm,
+  customForms,
+  defaultFormId,
+  presetFormMode,
   preStep,
 }: Props) {
   const hasPreStep = !!(preStep?.enabled && preStep.options?.length)
+  const allForms = customForms || []
+  // Which flow this open uses: explicit per-button setting → campaign default.
+  const resolveMode = (): string => {
+    if (presetFormMode) return presetFormMode
+    if (hasPreStep) return 'choice'
+    return defaultFormId || 'regular'
+  }
   const en = lang === 'en'
   const T = {
     securePay: en ? 'Secure payment' : 'תשלום מאובטח',
@@ -99,6 +110,8 @@ export default function DonationModal({
   }
   const [step, setStep] = useState<'choice' | 'details' | 'payment'>('details')
   const [choice, setChoice] = useState('')
+  const [activeFormId, setActiveFormId] = useState('')   // '' = regular form
+  const activeForm = allForms.find(f => f.id === activeFormId) || null
   const [amount, setAmount] = useState(typeof presetAmount === 'number' ? presetAmount : 0)
   const [customAmount, setCustomAmount] = useState('')
   const [selectedGroupSlug, setSelectedGroupSlug] = useState(presetGroupSlug || '')
@@ -141,9 +154,14 @@ export default function DonationModal({
       setMonths(presetMonths ?? 12)
       setCustomValues({})
       setChoice('')
-      setStep(hasPreStep ? 'choice' : 'details')
+      const mode = resolveMode()
+      if (mode === 'choice' && hasPreStep) {
+        setStep('choice'); setActiveFormId('')
+      } else {
+        setStep('details'); setActiveFormId(mode === 'regular' || mode === 'choice' ? '' : mode)
+      }
     }
-  }, [isOpen, presetAmount, presetGroupSlug, presetMethod, presetMonths, hasPreStep])
+  }, [isOpen, presetAmount, presetGroupSlug, presetMethod, presetMonths, hasPreStep, presetFormMode, defaultFormId])
 
   // Prevent body scroll when open
   useEffect(() => {
@@ -155,7 +173,7 @@ export default function DonationModal({
   // required donor details (unless anonymous): name, phone, email
   const detailsValid = form.anonymous || (!!form.firstName.trim() && !!form.phone.trim() && !!form.email.trim())
   // required custom-form fields must be filled (regardless of anonymous)
-  const customValid = !customForm || customForm.fields.filter(f => f.required).every(f => (customValues[f.id] || '').trim())
+  const customValid = !activeForm || activeForm.fields.filter(f => f.required).every(f => (customValues[f.id] || '').trim())
   const canProceed = finalAmount > 0 && detailsValid && customValid
 
   function setField(key: string, value: string | boolean) {
@@ -175,7 +193,7 @@ export default function DonationModal({
     // callback can re-attach them to the recorded donation by phone+amount.
     {
       const labeled: Record<string, string> = {}
-      if (customForm) for (const f of customForm.fields) {
+      if (activeForm) for (const f of activeForm.fields) {
         const v = (customValues[f.id] || '').trim()
         if (v) labeled[f.label] = v
       }
@@ -315,7 +333,7 @@ export default function DonationModal({
                 <button
                   key={o.id}
                   type="button"
-                  onClick={() => { setChoice(o.label); setStep('details') }}
+                  onClick={() => { setChoice(o.label); setActiveFormId(!o.formId || o.formId === 'regular' ? '' : o.formId); setStep('details') }}
                   className="w-full text-right px-4 py-4 rounded-2xl border-2 border-gray-200 font-bold text-sm text-gray-700 transition-all hover:bg-gray-50"
                   style={{ borderColor: choice === o.label ? primaryColor : undefined, color: choice === o.label ? primaryColor : undefined }}
                   onMouseEnter={e => { e.currentTarget.style.borderColor = primaryColor }}
@@ -453,7 +471,7 @@ export default function DonationModal({
               </div>
 
               {/* שדות מותאמים אישית (משלוח וכו') — מוגדרים בקמפיין */}
-              {customForm && customForm.fields.map(f => {
+              {activeForm && activeForm.fields.map(f => {
                 const val = customValues[f.id] || ''
                 const onChange = (v: string) => setCustomValues(p => ({ ...p, [f.id]: v }))
                 return (

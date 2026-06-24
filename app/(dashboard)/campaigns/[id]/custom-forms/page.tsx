@@ -25,13 +25,14 @@ interface CustomForm {
   fields: CustomField[]
 }
 
-// An optional choice step shown BEFORE the donor-details form.
-interface PreStepOption { id: string; label: string }
+// An optional choice step shown BEFORE the donor-details form. Each option
+// routes to a form: '' = the regular donor form, or a custom form id.
+interface PreStepOption { id: string; label: string; formId?: string }
 interface PreStep { enabled: boolean; title: string; options: PreStepOption[] }
 const emptyPreStep = (): PreStep => ({
   enabled: false,
   title: 'מה תרצה לעשות?',
-  options: [{ id: uid(), label: '' }, { id: uid(), label: '' }],
+  options: [{ id: uid(), label: '', formId: '' }, { id: uid(), label: '', formId: '' }],
 })
 
 const FIELD_TYPES: { value: FieldType; label: string }[] = [
@@ -132,9 +133,9 @@ export default function CustomFormsPage() {
   }
 
   // ─── pre-step mutators ───
-  function addOption() { setPreStep(p => ({ ...p, options: [...p.options, { id: uid(), label: '' }] })) }
+  function addOption() { setPreStep(p => ({ ...p, options: [...p.options, { id: uid(), label: '', formId: '' }] })) }
   function removeOption(oid: string) { setPreStep(p => ({ ...p, options: p.options.filter(o => o.id !== oid) })) }
-  function setOption(oid: string, label: string) { setPreStep(p => ({ ...p, options: p.options.map(o => (o.id === oid ? { ...o, label } : o)) })) }
+  function updateOption(oid: string, patch: Partial<PreStepOption>) { setPreStep(p => ({ ...p, options: p.options.map(o => (o.id === oid ? { ...o, ...patch } : o)) })) }
 
   if (loading) return <div className="max-w-2xl mx-auto p-6 text-gray-400 text-sm">טוען…</div>
 
@@ -185,10 +186,23 @@ export default function CustomFormsPage() {
           <div className="space-y-2">
             <Label>אפשרויות</Label>
             {preStep.options.map((o, i) => (
-              <div key={o.id} className="flex items-center gap-2">
-                <span className="text-xs text-gray-400 w-5 shrink-0">{i + 1}.</span>
-                <Input value={o.label} onChange={e => setOption(o.id, e.target.value)} placeholder="לדוגמה: אני רוצה לקנות ערכה ולקבל במשלוח הביתה" className="flex-1" />
-                <button onClick={() => removeOption(o.id)} disabled={preStep.options.length <= 2} className="text-red-400 hover:text-red-600 disabled:opacity-30 transition-colors shrink-0" title="מחק אפשרות">
+              <div key={o.id} className="flex items-start gap-2">
+                <span className="text-xs text-gray-400 w-5 shrink-0 pt-2.5">{i + 1}.</span>
+                <div className="flex-1 space-y-1.5">
+                  <Input value={o.label} onChange={e => updateOption(o.id, { label: e.target.value })} placeholder="לדוגמה: אני רוצה לקנות ערכה ולקבל במשלוח הביתה" />
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] text-gray-400 shrink-0">פותח טופס:</span>
+                    <select
+                      value={o.formId || ''}
+                      onChange={e => updateOption(o.id, { formId: e.target.value })}
+                      className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-sm bg-white outline-none focus:ring-2 focus:ring-blue-400"
+                    >
+                      <option value="">טופס רגיל (פרטי-תורם)</option>
+                      {forms.map(f => <option key={f.id} value={f.id}>{f.name || 'ללא שם'}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <button onClick={() => removeOption(o.id)} disabled={preStep.options.length <= 2} className="text-red-400 hover:text-red-600 disabled:opacity-30 transition-colors shrink-0 pt-2.5" title="מחק אפשרות">
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>

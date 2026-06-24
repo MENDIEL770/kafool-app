@@ -13,7 +13,8 @@ import {
 
 /* ─── Types ─── */
 interface GalleryItem { id: string; image_url: string; caption: string | null; sort_order: number }
-interface DonationPlan { amount: number; label?: string | null; image_url?: string | null; payment_type?: 'one_time' | 'hok'; months?: number | null }
+interface DonationPlan { amount: number; label?: string | null; image_url?: string | null; payment_type?: 'one_time' | 'hok'; months?: number | null; form?: string | null }
+interface FormOption { id: string; name: string }
 
 interface Props {
   campaignId: string
@@ -190,11 +191,13 @@ function UploadZone({
 }
 
 /* ─── Donation button (plan) editor row ─── */
-function PlanEditor({ plan, uploading, isFirst, isLast, onChange, onUpload, onRemove, onMoveUp, onMoveDown }: {
+function PlanEditor({ plan, uploading, isFirst, isLast, customForms, preStepEnabled, onChange, onUpload, onRemove, onMoveUp, onMoveDown }: {
   plan: DonationPlan
   uploading: boolean
   isFirst: boolean
   isLast: boolean
+  customForms: FormOption[]
+  preStepEnabled: boolean
   onChange: (patch: Partial<DonationPlan>) => void
   onUpload: (file: File) => void
   onRemove: () => void
@@ -271,6 +274,18 @@ function PlanEditor({ plan, uploading, isFirst, isLast, onChange, onUpload, onRe
             </div>
           )}
         </div>
+        {(customForms.length > 0 || preStepEnabled) && (
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] text-gray-400 shrink-0">טופס שנפתח:</span>
+            <select value={plan.form || ''} onChange={e => onChange({ form: e.target.value || null })}
+              className="flex-1 border border-gray-200 rounded-lg px-2 py-1 text-xs bg-white outline-none focus:ring-2 focus:ring-blue-400">
+              <option value="">ברירת מחדל</option>
+              <option value="regular">טופס רגיל (פרטי-תורם)</option>
+              {preStepEnabled && <option value="choice">שלב בחירה</option>}
+              {customForms.map(f => <option key={f.id} value={f.id}>{f.name || 'ללא שם'}</option>)}
+            </select>
+          </div>
+        )}
       </div>
 
       <div className="flex flex-col items-center gap-1 shrink-0">
@@ -345,6 +360,12 @@ export default function CampaignMediaClient({
   const [uploadingPlan, setUploadingPlan] = useState<number | null>(null)
   const [otherAmountImage, setOtherAmountImage] = useState<string | null>((initialSettings.other_amount_design as string) || null)
   const [uploadingOther, setUploadingOther] = useState(false)
+  // Custom forms + pre-step (defined in the "התאמות אישיות" tab) — for the
+  // per-button "which form opens" selector.
+  const campaignCustomForms: FormOption[] = Array.isArray(initialSettings.custom_forms)
+    ? (initialSettings.custom_forms as { id: string; name: string }[]).map(f => ({ id: f.id, name: f.name }))
+    : []
+  const campaignPreStepEnabled = !!(initialSettings.pre_donation_step as { enabled?: boolean } | undefined)?.enabled
   const [savingAmounts, setSavingAmounts] = useState(false)
   const [savedAmounts, setSavedAmounts] = useState(false)
 
@@ -549,6 +570,7 @@ export default function CampaignMediaClient({
       amount: p.amount, label: p.label?.trim() || null, image_url: p.image_url || null,
       payment_type: p.payment_type || 'one_time',
       months: p.payment_type === 'hok' ? (Number(p.months) || null) : null,
+      form: p.form || null,
     }))
     const settings = {
       ...(initialSettings as object),
@@ -1029,6 +1051,8 @@ export default function CampaignMediaClient({
               <PlanEditor key={i} plan={plan}
                 uploading={uploadingPlan === i}
                 isFirst={i === 0} isLast={i === plans.length - 1}
+                customForms={campaignCustomForms}
+                preStepEnabled={campaignPreStepEnabled}
                 onChange={patch => updatePlan(i, patch)}
                 onUpload={file => uploadPlanImage(i, file)}
                 onRemove={() => removePlan(i)}

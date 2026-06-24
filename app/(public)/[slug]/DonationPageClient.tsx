@@ -555,14 +555,14 @@ function HeroSection({ campaign, countdown }: {
 }
 
 function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius, buttonSize = 'default', otherAmountImage, onDonate }: {
-  plans: { amount: number; label?: string; image_url?: string | null; payment_type?: 'one_time' | 'hok'; months?: number | null }[]
+  plans: { amount: number; label?: string; image_url?: string | null; payment_type?: 'one_time' | 'hok'; months?: number | null; form?: string | null }[]
   primaryColor: string
   campaignSlug: string
   groups: Group[]
   buttonRadius: string
   buttonSize?: 'default' | 'large'
   otherAmountImage?: string | null
-  onDonate: (amount?: number, groupSlug?: string, method?: 'one_time' | 'hok', months?: number) => void
+  onDonate: (amount?: number, groupSlug?: string, method?: 'one_time' | 'hok', months?: number, formMode?: string) => void
 }) {
   const [selected, setSelected] = useState<number | null>(null)
   const [selectedMethod, setSelectedMethod] = useState<'one_time' | 'hok'>('one_time')
@@ -706,7 +706,7 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
         {/* Payment actions */}
         <div className="flex flex-row justify-center gap-2 sm:gap-3 mt-6 max-w-md mx-auto">
           <button
-            onClick={() => onDonate(finalAmount ?? undefined, selectedGroup || undefined, selectedMethod, selectedMethod === 'hok' ? selectedMonths : undefined)}
+            onClick={() => onDonate(finalAmount ?? undefined, selectedGroup || undefined, selectedMethod, selectedMethod === 'hok' ? selectedMonths : undefined, selected != null ? (plans[selected]?.form ?? undefined) : undefined)}
             className={`flex-1 py-2.5 sm:py-3.5 text-white font-black text-sm sm:text-base text-center shadow-lg hover:opacity-90 active:scale-95 transition-all ${buttonRadius}`}
             style={{ backgroundColor: primaryColor }}
           >
@@ -1363,13 +1363,14 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
   const [modalGroupSlug, setModalGroupSlug] = useState<string | undefined>()
   const [modalMethod, setModalMethod] = useState<'one_time' | 'hok' | undefined>()
   const [modalMonths, setModalMonths] = useState<number | undefined>()
+  const [modalFormMode, setModalFormMode] = useState<string | undefined>()
   const [createGroupOpen, setCreateGroupOpen] = useState(false)
   const countdownEnd = (campaign.settings as { countdown_end?: string })?.countdown_end || campaign.end_at
   const countdown = useCountdown(countdownEnd)
 
   const settings = campaign.settings as {
     donation_amounts?: number[]
-    donation_plans?: { amount: number; label?: string; image_url?: string | null; payment_type?: 'one_time' | 'hok'; months?: number | null }[]
+    donation_plans?: { amount: number; label?: string; image_url?: string | null; payment_type?: 'one_time' | 'hok'; months?: number | null; form?: string | null }[]
     primary_color?: string
     button_radius?: string
     donation_button_size?: 'default' | 'large'
@@ -1415,11 +1416,12 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
     ? `/${campaign.slug}/donate?group=${activeGroup.id}`
     : `/${campaign.slug}/donate`
 
-  function openDonate(amount?: number, groupSlug?: string, method?: 'one_time' | 'hok', months?: number) {
+  function openDonate(amount?: number, groupSlug?: string, method?: 'one_time' | 'hok', months?: number, formMode?: string) {
     setModalAmount(amount)
     setModalGroupSlug(groupSlug || (activeGroup ? activeGroup.slug : undefined))
     setModalMethod(method)
     setModalMonths(months)
+    setModalFormMode(formMode)
     setModalOpen(true)
   }
 
@@ -1438,10 +1440,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
 
   // Active custom donor-detail form (default applied to all buttons for now).
   const cfSettings = campaign.settings as { custom_forms?: { id: string; name: string; fields: { id: string; label: string; type: string; required: boolean; options?: string[] }[] }[]; default_custom_form_id?: string }
-  const activeCustomForm = cfSettings?.default_custom_form_id
-    ? (cfSettings.custom_forms || []).find(f => f.id === cfSettings.default_custom_form_id) || null
-    : null
-  const preStep = (campaign.settings as { pre_donation_step?: { enabled: boolean; title: string; options: { id: string; label: string }[] } })?.pre_donation_step || null
+  const preStep = (campaign.settings as { pre_donation_step?: { enabled: boolean; title: string; options: { id: string; label: string; formId?: string }[] } })?.pre_donation_step || null
 
   // For group view: track group raised amount + donor count in realtime
   const [groupRaised, setGroupRaised] = useState(activeGroup?.raised_amount ?? 0)
@@ -1644,7 +1643,9 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
         buttonRadius={buttonRadius}
         groups={groups.map(g => ({ id: g.id, name: g.name, slug: g.slug }))}
         lang={lang}
-        customForm={activeCustomForm}
+        customForms={cfSettings?.custom_forms || []}
+        defaultFormId={cfSettings?.default_custom_form_id || ''}
+        presetFormMode={modalFormMode}
         preStep={preStep}
       />
 
