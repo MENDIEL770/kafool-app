@@ -199,7 +199,11 @@ export default function NotFound() {
         requestAnimationFrame(() => r.classList.add('go'))
       }
       burst.classList.add('go')
-      setTimeout(() => { window.location.href = HOME }, 1700)
+      // After the coin drops, return to the previous page (or home as a fallback).
+      setTimeout(() => {
+        if (typeof window !== 'undefined' && window.history.length > 1) window.history.back()
+        else window.location.href = HOME
+      }, 1700)
     }
 
     const onKey = (e: KeyboardEvent) => {
