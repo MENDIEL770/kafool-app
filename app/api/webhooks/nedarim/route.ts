@@ -60,18 +60,28 @@ async function handle(body: Record<string, unknown>, ip: string): Promise<string
       return `ignored: no org for mosad ${mosad} — set "מספר מוסד" in payment settings`
     }
     const { data: camps } = await supabase
-      .from('campaigns').select('id, title')
+      .from('campaigns').select('id, title, settings')
       .eq('org_id', org.id).eq('status', 'active')
       .order('created_at', { ascending: false })
     if (!camps || camps.length === 0) {
       return `ignored: org ${org.id} (mosad ${mosad}) has no active campaign`
     }
-    // Prefer a campaign whose title matches the Nedarim "Groupe" field; otherwise
-    // fall back to the org's (most recent) active campaign.
+    // A mosad is shared across many Nedarim categories ("Groupe"). Record ONLY
+    // donations whose category matches a campaign — by the campaign's configured
+    // nedarim_category, else its title. No fallback: an unmatched category (a
+    // different campaign on the same mosad) is intentionally ignored.
     const groupe = pick(body, 'Groupe', 'Group')
-    const norm = (s: string) => (s || '').replace(/['"]/g, '').replace(/\s+/g, '')
-    const match = groupe ? camps.find(c => norm(c.title || '') === norm(groupe)) : null
-    campaignId = match?.id || camps[0].id
+    const norm = (s: string) => (s || '').replace(/['"׳״]/g, '').replace(/\s+/g, '').trim()
+    const g = norm(groupe)
+    const match = g ? camps.find(c => {
+      const cat = ((c.settings as { nedarim_category?: string } | null)?.nedarim_category || '').trim() || c.title || ''
+      return norm(cat) === g
+    }) : null
+    if (!match) {
+      console.warn('Nedarim webhook: category not for this org —', groupe)
+      return `ignored: Nedarim category "${groupe}" does not match any campaign on mosad ${mosad}`
+    }
+    campaignId = match.id
   }
 
   if (!campaignId) return 'ignored: could not resolve campaign'
