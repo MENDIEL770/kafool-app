@@ -9,13 +9,15 @@ import { createServiceClient } from '@/lib/supabase/server'
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}))
   const campaignId = String(body.campaignId || '')
-  const customData = body.customData
-  if (!campaignId || !customData || typeof customData !== 'object') {
+  const customData = (body.customData && typeof body.customData === 'object') ? body.customData : {}
+  if (!campaignId) {
     return NextResponse.json({ ok: false }, { status: 400 })
   }
   const phone = body.phone ? String(body.phone) : null
   const amount = Number(body.amount) || null
   const groupSlug = body.groupSlug ? String(body.groupSlug) : null
+  const donorEmail = body.donorEmail ? String(body.donorEmail) : null
+  const emailTemplate = body.emailTemplate && typeof body.emailTemplate === 'object' ? body.emailTemplate : null
 
   try {
     const supabase = await createServiceClient()
@@ -25,6 +27,8 @@ export async function POST(req: NextRequest) {
       phone,
       amount,
       custom_data: customData,
+      donor_email: donorEmail,
+      email_template: emailTemplate,
     })
   } catch (e) {
     console.error('donation intent error:', e)

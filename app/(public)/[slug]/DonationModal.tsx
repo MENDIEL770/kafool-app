@@ -17,7 +17,7 @@ function unitPriceForQty(base: number, tiers: { minQty: number; discountPercent:
   for (const t of sorted) { if (qty >= t.minQty) discount = Number(t.discountPercent) || 0 }
   return { unit: Math.round(base * (1 - discount / 100)), discount }
 }
-interface CustomFormDef { id: string; name: string; headerTitle?: string; fields: CustomFieldDef[] }
+interface CustomFormDef { id: string; name: string; headerTitle?: string; email?: { subject?: string; body?: string; image?: string }; fields: CustomFieldDef[] }
 interface PreStepOption { id: string; label: string; formId?: string }
 interface PreStepDef { enabled: boolean; title: string; options: PreStepOption[] }
 
@@ -217,7 +217,10 @@ export default function DonationModal({
         if (v) labeled[f.label] = v
       }
       if (hasPreStep && choice) labeled[preStep!.title || 'בחירה'] = choice
-      if (Object.keys(labeled).length) {
+      // per-form thank-you email override (default email is sent server-side)
+      const e = activeForm?.email
+      const emailTemplate = e && (e.subject || e.body || e.image) ? e : null
+      if (Object.keys(labeled).length || emailTemplate) {
         fetch('/api/donations/intent', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -227,6 +230,8 @@ export default function DonationModal({
             amount: finalAmount,
             groupSlug: selectedGroupSlug || null,
             customData: labeled,
+            donorEmail: form.email || null,
+            emailTemplate,
           }),
           keepalive: true,
         }).catch(() => {})

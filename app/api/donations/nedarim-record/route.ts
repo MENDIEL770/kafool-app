@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
       monthly_amount: isHok ? monthly : null,
     }).select('id').single()
     if (inserted) {
-      await attachCustomData(supabase, { donationId: inserted.id, campaignId, phone: donor.phone || null, amount: monthly })
+      await attachCustomData(supabase, { donationId: inserted.id, campaignId, phone: donor.phone || null, amount: monthly, donorEmail: donor.email || null })
     }
   }
   await recomputeCampaignRaised(supabase, campaignId)

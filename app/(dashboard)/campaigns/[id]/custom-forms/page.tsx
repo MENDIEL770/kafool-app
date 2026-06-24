@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { uploadImage } from '@/lib/image-client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -22,10 +23,12 @@ interface CustomField {
   unitPrice?: number    // for type 'quantity' — base price per unit
   tiers?: PriceTier[]   // for type 'quantity' — % discount from a minimum quantity
 }
+interface EmailTpl { subject?: string; body?: string; image?: string }
 interface CustomForm {
   id: string
   name: string
   headerTitle?: string   // shown at the top of the donor modal when this form is active
+  email?: EmailTpl       // per-form thank-you email (overrides the campaign default)
   fields: CustomField[]
 }
 
@@ -52,6 +55,13 @@ const FIELD_TYPES: { value: FieldType; label: string }[] = [
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
+const EXAMPLE_EMAIL = `תודה מכל הלב ששלחת חיבוק של אור! 💞
+כדי להעניק לך את הטוב ביותר, הערכות והיומנים שלנו נמצאים כעת בייצור מדוייק ומושקע.
+הם ייארזו באהבה ויישלחו בעוד מספר שבועות.
+נעדכן אותך ברגע שהחבילה תצא לדרך. תודה רבה על האמון והסבלנות
+
+'אור בשקט'✨`
+
 export default function CustomFormsPage() {
   const params = useParams()
   const id = params.id as string
@@ -62,6 +72,10 @@ export default function CustomFormsPage() {
   const [forms, setForms] = useState<CustomForm[]>([])
   const [defaultFormId, setDefaultFormId] = useState<string>('')   // '' = the built-in form
   const [preStep, setPreStep] = useState<PreStep>(emptyPreStep())
+  const [email, setEmail] = useState<{ enabled: boolean; subject: string; body: string; image: string }>({
+    enabled: false, subject: '', body: '', image: '',
+  })
+  const [uploadingEmailImg, setUploadingEmailImg] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -72,6 +86,8 @@ export default function CustomFormsPage() {
       setDefaultFormId(typeof s.default_custom_form_id === 'string' ? s.default_custom_form_id : '')
       const ps = s.pre_donation_step as PreStep | undefined
       if (ps && Array.isArray(ps.options)) setPreStep({ enabled: !!ps.enabled, title: ps.title || 'מה תרצה לעשות?', options: ps.options.length ? ps.options : emptyPreStep().options })
+      const te = s.thank_you_email as { enabled?: boolean; subject?: string; body?: string; image?: string } | undefined
+      if (te) setEmail({ enabled: !!te.enabled, subject: te.subject || '', body: te.body || '', image: te.image || '' })
       setLoading(false)
     }
     load()
@@ -93,14 +109,28 @@ export default function CustomFormsPage() {
       title: preStep.title.trim() || 'בחר אפשרות',
       options: cleanOptions,
     }
+    const cleanEmail = { enabled: email.enabled, subject: email.subject.trim(), body: email.body.trim(), image: email.image || '' }
     await supabase.from('campaigns').update({
-      settings: { ...(existing?.settings as object), custom_forms: cleanForms, default_custom_form_id: validDefault || null, pre_donation_step: cleanPreStep },
+      settings: { ...(existing?.settings as object), custom_forms: cleanForms, default_custom_form_id: validDefault || null, pre_donation_step: cleanPreStep, thank_you_email: cleanEmail },
     }).eq('id', id)
     setForms(cleanForms)
     setDefaultFormId(validDefault)
     setPreStep(prev => ({ ...cleanPreStep, options: cleanOptions.length ? cleanOptions : prev.options }))
     setSaving(false); setSaved(true)
     setTimeout(() => setSaved(false), 2500)
+  }
+
+  async function uploadEmailImage(file: File, formId?: string) {
+    setUploadingEmailImg(true)
+    try {
+      const url = await uploadImage(file, `campaigns/${id}/email-${Date.now()}`)
+      if (formId) setForms(fs => fs.map(x => (x.id === formId ? { ...x, email: { ...(x.email || {}), image: url } } : x)))
+      else setEmail(p => ({ ...p, image: url }))
+    } catch (e) { alert(e instanceof Error ? e.message : 'ההעלאה נכשלה') }
+    setUploadingEmailImg(false)
+  }
+  function setFormEmail(fid: string, patch: EmailTpl) {
+    setForms(fs => fs.map(x => (x.id === fid ? { ...x, email: { ...(x.email || {}), ...patch } } : x)))
   }
 
   // ─── form/field mutators ───
@@ -229,6 +259,38 @@ export default function CustomFormsPage() {
         </CardContent>
       </Card>
 
+      {/* Default thank-you email after a transaction */}
+      <Card>
+        <CardHeader className="flex-row items-center justify-between gap-3 space-y-0">
+          <CardTitle className="text-base">מייל תודה אחרי עסקה (ברירת מחדל)</CardTitle>
+          <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+            <input type="checkbox" checked={email.enabled} onChange={e => setEmail(p => ({ ...p, enabled: e.target.checked }))} className="w-4 h-4" />
+            פעיל
+          </label>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-xs text-gray-400">נשלח לתורם אחרי תרומה לכל הכפתורים (אלא אם לטופס מסוים מוגדר מייל משלו). דורש הגדרת ספק מייל (Resend) — RESEND_API_KEY + EMAIL_FROM ב-env.</p>
+          <div className="space-y-1"><Label>נושא</Label><Input value={email.subject} onChange={e => setEmail(p => ({ ...p, subject: e.target.value }))} placeholder="תודה על תרומתך 💞" /></div>
+          <div className="space-y-1">
+            <Label>תוכן</Label>
+            <textarea value={email.body} onChange={e => setEmail(p => ({ ...p, body: e.target.value }))} rows={7} placeholder={EXAMPLE_EMAIL}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-400 resize-y leading-relaxed" />
+            {!email.body && <button type="button" onClick={() => setEmail(p => ({ ...p, body: EXAMPLE_EMAIL }))} className="text-[11px] text-blue-600 hover:underline">השתמש בטקסט הדוגמה</button>}
+          </div>
+          <div className="space-y-1">
+            <Label>תמונת כותרת (אופציונלי)</Label>
+            <div className="flex items-center gap-3">
+              {email.image && <img src={email.image} alt="" className="h-16 rounded-lg object-cover" />}
+              <label className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 cursor-pointer">
+                {uploadingEmailImg ? 'מעלה…' : email.image ? 'החלף תמונה' : 'העלה תמונה'}
+                <input type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) uploadEmailImage(f); e.target.value = '' }} />
+              </label>
+              {email.image && <button type="button" onClick={() => setEmail(p => ({ ...p, image: '' }))} className="text-xs text-red-400 hover:text-red-600">הסר</button>}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Custom forms */}
       {forms.map(form => (
         <Card key={form.id}>
@@ -255,6 +317,24 @@ export default function CustomFormsPage() {
                 placeholder='לדוגמה: "פרטי תשלום" / "פרטי תרומה"'
               />
             </div>
+
+            {/* per-form thank-you email (overrides the default) */}
+            <details className="rounded-xl border border-gray-100 bg-gray-50/50 px-3 py-2">
+              <summary className="text-xs font-semibold text-gray-600 cursor-pointer">מייל תודה לטופס זה (אופציונלי — דורס את ברירת המחדל)</summary>
+              <div className="space-y-2 pt-2">
+                <Input value={form.email?.subject || ''} onChange={e => setFormEmail(form.id, { subject: e.target.value })} placeholder="נושא המייל" />
+                <textarea value={form.email?.body || ''} onChange={e => setFormEmail(form.id, { body: e.target.value })} rows={4}
+                  placeholder="תוכן המייל לטופס זה" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400 resize-y" />
+                <div className="flex items-center gap-3">
+                  {form.email?.image && <img src={form.email.image} alt="" className="h-12 rounded object-cover" />}
+                  <label className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 cursor-pointer">
+                    {form.email?.image ? 'החלף תמונה' : 'העלה תמונה'}
+                    <input type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) uploadEmailImage(f, form.id); e.target.value = '' }} />
+                  </label>
+                  {form.email?.image && <button type="button" onClick={() => setFormEmail(form.id, { image: '' })} className="text-xs text-red-400 hover:text-red-600">הסר</button>}
+                </div>
+              </div>
+            </details>
             {form.fields.length === 0 && (
               <p className="text-sm text-gray-400 text-center py-3">אין שדות עדיין — הוסף שדה ראשון.</p>
             )}

@@ -124,7 +124,7 @@ async function handle(body: Record<string, unknown>, ip: string): Promise<string
     }).select('id').single()
     // re-attach custom-form values captured before payment (matched by phone+amount)
     if (inserted) {
-      await attachCustomData(supabase, { donationId: inserted.id, campaignId, phone: donorPhone, amount: monthly })
+      await attachCustomData(supabase, { donationId: inserted.id, campaignId, phone: donorPhone, amount: monthly, donorEmail })
     }
   }
 

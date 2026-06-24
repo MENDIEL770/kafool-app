@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { sendThankYouEmail } from './email'
 
 // A campaign's raised_amount is always defined as the sum of its COMPLETED
 // donations — never an incremental add/subtract. This keeps the total drift-free
@@ -21,37 +22,51 @@ function normPhone(p: string | null | undefined): string {
 
 /**
  * Re-attach the custom-form values a donor filled before payment (stored in
- * donation_intents) to the donation the callback just recorded. Matches on
- * campaign + phone + amount within a recent window, then consumes the intent.
- * No-op if the table/columns aren't present yet.
+ * donation_intents) to the donation the callback just recorded, and send the
+ * thank-you email (per-form override from the intent, else the campaign default).
+ * Matches on campaign + phone + amount within a recent window. No-op if the
+ * table/columns aren't present yet.
  */
 export async function attachCustomData(
   supabase: SupabaseClient,
-  args: { donationId: string; campaignId: string; phone: string | null; amount: number },
+  args: { donationId: string; campaignId: string; phone: string | null; amount: number; donorEmail?: string | null },
 ): Promise<void> {
+  let intentTemplate: { subject?: string; body?: string; image?: string } | null = null
   try {
     const sinceIso = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString() // last 6h
     const { data: intents } = await supabase
       .from('donation_intents')
-      .select('id, phone, amount, custom_data')
+      .select('id, phone, amount, custom_data, email_template')
       .eq('campaign_id', args.campaignId)
       .gte('created_at', sinceIso)
       .order('created_at', { ascending: false })
       .limit(50)
-    if (!intents || intents.length === 0) return
 
     const wantPhone = normPhone(args.phone)
-    const match = intents.find(i => {
+    const match = (intents || []).find(i => {
       const phoneOk = wantPhone && normPhone(i.phone as string) === wantPhone
       const amountOk = Math.round(Number(i.amount) || 0) === Math.round(args.amount)
       return phoneOk && amountOk
-    }) || intents.find(i => Math.round(Number(i.amount) || 0) === Math.round(args.amount))
-    if (!match) return
+    }) || (intents || []).find(i => Math.round(Number(i.amount) || 0) === Math.round(args.amount))
 
-    await supabase.from('donations').update({ custom_data: match.custom_data }).eq('id', args.donationId)
-    await supabase.from('donation_intents').delete().eq('id', match.id)
+    if (match) {
+      if (match.custom_data) await supabase.from('donations').update({ custom_data: match.custom_data }).eq('id', args.donationId)
+      intentTemplate = (match.email_template as typeof intentTemplate) || null
+      await supabase.from('donation_intents').delete().eq('id', match.id)
+    }
   } catch (e) {
     console.error('attachCustomData error:', e)
+  }
+
+  // Thank-you email: per-form override (from the intent) → campaign default.
+  try {
+    if (!args.donorEmail) return
+    const { data: c } = await supabase.from('campaigns').select('settings, title').eq('id', args.campaignId).single()
+    const def = ((c?.settings as { thank_you_email?: { enabled?: boolean; subject?: string; body?: string; image?: string } } | null)?.thank_you_email) || {}
+    const tpl = intentTemplate || (def.enabled ? def : null)
+    if (tpl) await sendThankYouEmail(args.donorEmail, tpl, c?.title || '')
+  } catch (e) {
+    console.error('thank-you email error:', e)
   }
 }
 
