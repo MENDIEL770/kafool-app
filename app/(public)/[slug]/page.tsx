@@ -89,7 +89,7 @@ export default async function PublicDonationPage({ params }: { params: Promise<{
       .single(),
     supabase
       .from('donations')
-      .select('id, donor_name, amount, dedication, created_at, group_id')
+      .select('id, donor_name, amount, dedication, created_at, group_id, payment_type, monthly_amount, installments')
       .eq('campaign_id', campaign.id)
       .eq('payment_status', 'completed')
       .order('created_at', { ascending: false })

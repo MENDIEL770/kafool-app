@@ -85,7 +85,12 @@ function DonorCard({ d, donorGroup, primaryColor, campaignSlug, liked, onToggleL
           <div className="flex items-center justify-between gap-2 mt-1">
             <span className="text-xs text-gray-400" suppressHydrationWarning>{relativeTime(d.created_at, lang)}</span>
             <div className="flex items-center gap-1.5 shrink-0">
-              <span className="text-lg font-black leading-none" style={{ color: primaryColor }}>₪{d.amount.toLocaleString()}</span>
+              <div className="flex flex-col items-end leading-none">
+                <span className="text-lg font-black leading-none" style={{ color: primaryColor }}>₪{d.amount.toLocaleString()}</span>
+                {d.payment_type === 'hok' && d.monthly_amount && d.installments ? (
+                  <span className="text-[10px] font-semibold text-gray-400 mt-0.5" dir="ltr">₪{d.monthly_amount.toLocaleString()}×{d.installments}</span>
+                ) : null}
+              </div>
               <button
                 onClick={onToggleLike}
                 aria-label={liked ? 'הסר לייק' : 'תן לייק'}
@@ -136,7 +141,7 @@ import Footer from '../_components/Footer'
 
 /* ─── Types ─── */
 interface Org { id: string; name: string; slug: string; logo_url: string | null }
-interface Donation { id: string; donor_name: string | null; amount: number; dedication: string | null; created_at: string; group_id?: string | null }
+interface Donation { id: string; donor_name: string | null; amount: number; dedication: string | null; created_at: string; group_id?: string | null; payment_type?: 'one_time' | 'hok' | null; monthly_amount?: number | null; installments?: number | null }
 interface GalleryItem { id: string; image_url: string; caption: string | null }
 interface ActiveGroup { id: string; name: string; slug: string; goal_amount: number; raised_amount: number; manager_name: string | null; image_url?: string | null; donorCount?: number }
 interface PaymentUrls { one_time: string; hok: string; bit: string; bank: string; one_time_en?: string; hok_en?: string }
@@ -1372,7 +1377,12 @@ function DonationToasts({ donations, groups, primaryColor }: { donations: Donati
               {donorInitials(d.donor_name || t('anonymous'))}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-base font-black leading-tight" style={{ color: primaryColor }}>₪{d.amount.toLocaleString()}</p>
+              <p className="text-base font-black leading-tight" style={{ color: primaryColor }}>
+                ₪{d.amount.toLocaleString()}
+                {d.payment_type === 'hok' && d.monthly_amount && d.installments ? (
+                  <span className="text-[10px] font-semibold text-gray-400" dir="ltr"> ₪{d.monthly_amount.toLocaleString()}×{d.installments}</span>
+                ) : null}
+              </p>
               <p className="text-sm font-bold text-gray-900 truncate leading-tight">{d.donor_name || t('anonymous')}</p>
               <p className="text-[11px] text-gray-400 mt-0.5 truncate">
                 {via ? <>{t('via')} {via} · </> : null}

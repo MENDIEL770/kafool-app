@@ -227,11 +227,15 @@ export default function DonationModal({
       }
       if (hasPreStep && choice) labeled[preStep!.title || 'בחירה'] = choice
       if (hasPreStep && preStepType === 'consent' && consented) labeled[preStep!.consentLabel || 'אישור'] = 'כן'
-      // thank-you email override: per-button (by amount) → per-form → default (server-side)
-      const hasTpl = (t?: { subject?: string; body?: string; image?: string; enabled?: boolean }) => !!(t && t.enabled !== false && (t.subject || t.body || t.image))
+      // thank-you email content override stored on the intent: per-button (opted-in
+      // via its checkbox) → per-form → none. Whether an email is sent at all (incl.
+      // the master default + button opt-in with no custom content) is decided server-side.
+      const hasContent = (t?: { subject?: string; body?: string; image?: string }) => !!(t && (t.subject || t.body || t.image))
       const btnE = typeof presetAmount === 'number' ? buttonEmails?.[String(presetAmount)] : undefined
       const formE = activeFormId ? formEmails?.[activeFormId] : undefined
-      const emailTemplate = hasTpl(btnE) ? btnE : hasTpl(formE) ? formE : null
+      const emailTemplate = (btnE?.enabled === true && hasContent(btnE)) ? btnE
+        : (formE && formE.enabled !== false && hasContent(formE)) ? formE
+        : null
       if (Object.keys(labeled).length || emailTemplate) {
         fetch('/api/donations/intent', {
           method: 'POST',
@@ -438,7 +442,7 @@ export default function DonationModal({
                 <button type="button" onClick={() => setStep('choice')}
                   className="w-full flex items-center justify-between gap-2 text-right px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-100 text-sm">
                   <span className="font-semibold text-gray-700 truncate">{choice}</span>
-                  <span className="text-xs shrink-0" style={{ color: primaryColor }}>{lang === 'en' ? 'Change' : 'שנה'}</span>
+                  <span className="text-xs shrink-0" style={{ color: primaryColor }}>{lang === 'en' ? 'Change selection' : 'שנה בחירה'}</span>
                 </button>
               )}
 

@@ -6,7 +6,7 @@ import { Heart, ArrowRight, Share2 } from 'lucide-react'
 import type { Campaign, Group } from '@/types'
 
 interface Org { id: string; name: string; slug: string; logo_url: string | null }
-interface Donation { id: string; donor_name: string | null; amount: number; dedication: string | null; created_at: string }
+interface Donation { id: string; donor_name: string | null; amount: number; dedication: string | null; created_at: string; payment_type?: 'one_time' | 'hok' | null; monthly_amount?: number | null; installments?: number | null }
 
 function useAnimPct(pct: number) {
   const [anim, setAnim] = useState(0)
@@ -192,8 +192,11 @@ export default function GroupPageClient({ org, campaign, group, donations: initi
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
                       <span className="font-bold text-sm text-gray-800 break-words">{d.donor_name || 'אנונימי'}</span>
-                      <span className="font-black text-sm shrink-0" style={{ color: primaryColor }}>
+                      <span className="font-black text-sm shrink-0 flex flex-col items-end leading-none" style={{ color: primaryColor }}>
                         ₪{d.amount.toLocaleString()}
+                        {d.payment_type === 'hok' && d.monthly_amount && d.installments ? (
+                          <span className="text-[10px] font-semibold text-gray-400 mt-0.5" dir="ltr">₪{d.monthly_amount.toLocaleString()}×{d.installments}</span>
+                        ) : null}
                       </span>
                     </div>
                     {d.dedication && (

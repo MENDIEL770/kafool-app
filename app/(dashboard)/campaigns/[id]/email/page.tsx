@@ -82,6 +82,7 @@ export default function CampaignEmailPage() {
     setSaving(true)
     const supabase = createClient()
     const { data: existing } = await supabase.from('campaigns').select('settings').eq('id', id).single()
+    // forms: default ON (enabled !== false), kept only when they have content.
     const clean = (m: Record<string, EmailTpl>) => {
       const out: Record<string, EmailTpl> = {}
       for (const [k, e] of Object.entries(m)) {
@@ -90,12 +91,23 @@ export default function CampaignEmailPage() {
       }
       return out
     }
+    // buttons: default OFF — the opt-in checkbox decides if the mail is sent to this
+    // button's donors, so persist a row whenever it's enabled OR has content.
+    const cleanButtons = (m: Record<string, EmailTpl>) => {
+      const out: Record<string, EmailTpl> = {}
+      for (const [k, e] of Object.entries(m)) {
+        const subject = e.subject?.trim() || '', body = e.body?.trim() || '', image = e.image || ''
+        const enabled = e.enabled === true
+        if (enabled || subject || body || image) out[k] = { subject, body, image, enabled }
+      }
+      return out
+    }
     await supabase.from('campaigns').update({
       settings: {
         ...(existing?.settings as object),
         thank_you_email: { enabled: def.enabled, subject: def.subject.trim(), body: def.body.trim(), image: def.image || '' },
         form_emails: clean(formEmails),
-        button_emails: clean(buttonEmails),
+        button_emails: cleanButtons(buttonEmails),
       },
     }).eq('id', id)
     setSaving(false); setSaved(true)
@@ -184,18 +196,20 @@ export default function CampaignEmailPage() {
         <Card>
           <CardHeader><CardTitle className="text-base">מייל לכפתור תרומה ספציפי</CardTitle></CardHeader>
           <CardContent className="space-y-3">
-            <p className="text-xs text-gray-400">מייל שונה לתרומות שנעשו דרך כפתור מסוים (לפי הסכום). דורס את ברירת המחדל. השאר ריק לשימוש בברירת המחדל.</p>
+            <p className="text-xs text-gray-400">סמן ✓ ליד כפתור כדי שתורמיו יקבלו מייל תודה. כבוי כברירת מחדל — אך אם הפעלת את מייל ברירת המחדל למעלה, הוא נשלח לכולם. ניתן גם להתאים נושא/תוכן ייעודי לכפתור.</p>
             {buttons.map(b => {
               const k = String(b.amount)
               const e = buttonEmails[k] || {}
               return (
                 <details key={k} className="rounded-xl border border-gray-100 bg-gray-50/50 px-3 py-2">
-                  <summary className="text-sm font-semibold text-gray-700 cursor-pointer">כפתור ₪{b.amount.toLocaleString()}{b.label ? ` — ${b.label}` : ''}</summary>
-                  <div className="space-y-2 pt-2">
-                    <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
-                      <input type="checkbox" checked={e.enabled !== false} onChange={ev => setBE(k, { enabled: ev.target.checked })} className="w-4 h-4" />
-                      פעיל
+                  <summary className="text-sm font-semibold text-gray-700 cursor-pointer flex items-center justify-between gap-2">
+                    <span className="truncate">כפתור ₪{b.amount.toLocaleString()}{b.label ? ` — ${b.label}` : ''}</span>
+                    <label className="flex items-center gap-1.5 text-xs font-normal text-gray-600 cursor-pointer shrink-0" onClick={ev => ev.stopPropagation()}>
+                      <input type="checkbox" checked={e.enabled === true} onChange={ev => setBE(k, { enabled: ev.target.checked })} className="w-4 h-4" />
+                      שלח מייל
                     </label>
+                  </summary>
+                  <div className="space-y-2 pt-2">
                     <Input value={e.subject || ''} onChange={ev => setBE(k, { subject: ev.target.value })} placeholder="נושא המייל" />
                     <RichTextEditor value={e.body || ''} onChange={html => setBE(k, { body: html })} placeholder="תוכן המייל לכפתור זה" />
                     <div className="flex items-center gap-3">

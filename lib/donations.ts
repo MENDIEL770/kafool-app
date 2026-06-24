@@ -58,12 +58,22 @@ export async function attachCustomData(
     console.error('attachCustomData error:', e)
   }
 
-  // Thank-you email: per-form override (from the intent) → campaign default.
+  // Thank-you email. Send when: the intent carried a content override (per-form /
+  // per-button content) → use it; else this button opted-in via its checkbox → use
+  // its content, or the default content; else the master default email is enabled.
   try {
     if (!args.donorEmail) return
     const { data: c } = await supabase.from('campaigns').select('settings, title').eq('id', args.campaignId).single()
-    const def = ((c?.settings as { thank_you_email?: { enabled?: boolean; subject?: string; body?: string; image?: string } } | null)?.thank_you_email) || {}
-    const tpl = intentTemplate || (def.enabled ? def : null)
+    type Tpl = { enabled?: boolean; subject?: string; body?: string; image?: string }
+    const s = (c?.settings as { thank_you_email?: Tpl; button_emails?: Record<string, Tpl> } | null) || {}
+    const def = s.thank_you_email || {}
+    const hasContent = (t?: Tpl) => !!(t && (t.subject || t.body || t.image))
+    let tpl: Tpl | null = intentTemplate
+    if (!tpl) {
+      const btnE = s.button_emails?.[String(Math.round(args.amount))]
+      if (btnE?.enabled === true) tpl = hasContent(btnE) ? btnE : (hasContent(def) ? def : {})
+      else if (def.enabled) tpl = def
+    }
     if (tpl) await sendThankYouEmail(args.donorEmail, tpl, c?.title || '')
   } catch (e) {
     console.error('thank-you email error:', e)
