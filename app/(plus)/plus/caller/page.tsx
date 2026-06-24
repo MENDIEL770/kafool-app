@@ -172,16 +172,16 @@ export default function CallerPage() {
             <p className="text-sm text-muted mt-1">כל הכבוד. אפשר לחזור ל"חזור אליהם" בהמשך.</p>
           </div>
         ) : (
-          <div className="card overflow-hidden">
+          <div className="card overflow-hidden kp-fade">
             {/* card head */}
-            <div className="p-4 text-white" style={{ background: "var(--primary)" }}>
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-xl font-bold">{current.full_name}</h2>
-                    {current.is_vip && <span className="bg-yellow-400 text-black text-xs px-2 py-0.5 rounded-full font-bold">VIP</span>}
+            <div className="p-5 text-white" style={{ background: "linear-gradient(150deg, #16223f 0%, #21376a 60%, #2a4a8c 100%)" }}>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {current.is_vip && <span className="inline-flex items-center gap-1 bg-[var(--accent)] text-[#1c1606] text-[11px] px-2 py-0.5 rounded-full font-extrabold">★ VIP</span>}
+                    <h2 className="text-xl font-extrabold truncate">{current.full_name}</h2>
                   </div>
-                  <a href={`tel:${current.phone}`} className="text-white/90 text-lg" dir="ltr">{current.phone}</a>
+                  <a href={`tel:${current.phone}`} className="inline-block mt-1 text-lg font-semibold" style={{ color: "#cdd8ef" }} dir="ltr">{current.phone}</a>
                 </div>
                 <StatusBadge status={current.status} />
               </div>
@@ -480,9 +480,9 @@ export default function CallerPage() {
 
 function Mini({ label, v }: { label: string; v: number }) {
   return (
-    <div className="rounded-lg py-2" style={{ background: "var(--bg)" }}>
-      <div className="text-lg font-bold">{v}</div>
-      <div className="text-xs text-muted">{label}</div>
+    <div className="rounded-xl py-2.5" style={{ background: "var(--bg)" }}>
+      <div className="text-xl font-extrabold tracking-tight">{v}</div>
+      <div className="text-[11px] text-muted mt-0.5">{label}</div>
     </div>
   );
 }

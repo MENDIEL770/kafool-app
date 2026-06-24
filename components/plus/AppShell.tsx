@@ -30,39 +30,38 @@ export default function AppShell({
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "var(--bg)", color: "var(--text)" }}>
-      <header
-        className="sticky top-0 z-30 flex items-center justify-between gap-3 px-4 py-3 border-b border-themed surface"
-        style={{ borderColor: "var(--border)" }}
-      >
-        <div className="flex items-center gap-3 min-w-0">
-          <Logo url={branding?.logo_url} name={branding?.campaign_name ?? "Kafool+"} size={40} />
-          <div className="min-w-0">
-            <div className="font-bold truncate">{branding?.campaign_name ?? "Kafool+"}</div>
-            {subtitle && <div className="text-xs text-muted truncate">{subtitle}</div>}
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          {right}
-          {session && (
-            <div className="hidden sm:flex flex-col items-end leading-tight">
-              <span className="text-sm font-medium">{session.display_name}</span>
-              <span className="text-xs text-muted">{ROLE_LABEL[session.role]}</span>
+      <div className="w-full max-w-3xl mx-auto p-3 sm:p-4">
+        <header className="kp-header flex items-center justify-between gap-3 px-4 py-3.5 mb-4 kp-fade">
+          <div className="flex items-center gap-3 min-w-0">
+            <Logo url={branding?.logo_url} name={branding?.campaign_name ?? "Kafool+"} size={42} />
+            <div className="min-w-0">
+              <div className="font-extrabold truncate leading-tight">{branding?.campaign_name ?? "Kafool+"}</div>
+              {subtitle && <div className="text-xs truncate" style={{ color: "#aebbd6" }}>{subtitle}</div>}
             </div>
-          )}
-          <button
-            onClick={async () => {
-              logout();
-              await createClient().auth.signOut();
-              router.push("/kafool-plus-login");
-            }}
-            className="btn-ghost text-sm px-3 py-1.5 rounded-lg"
-            style={{ borderColor: "var(--border)" }}
-          >
-            יציאה
-          </button>
-        </div>
-      </header>
-      <main className="flex-1 w-full max-w-6xl mx-auto p-4">{children}</main>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {right}
+            {session && (
+              <div className="hidden sm:flex flex-col items-end leading-tight">
+                <span className="text-sm font-semibold">{session.display_name}</span>
+                <span className="text-[11px]" style={{ color: "#aebbd6" }}>{ROLE_LABEL[session.role]}</span>
+              </div>
+            )}
+            <button
+              onClick={async () => {
+                logout();
+                await createClient().auth.signOut();
+                router.push("/kafool-plus-login");
+              }}
+              className="text-sm px-3 py-1.5 rounded-lg font-semibold transition-colors"
+              style={{ background: "rgba(255,255,255,.12)", color: "#fff" }}
+            >
+              יציאה
+            </button>
+          </div>
+        </header>
+        <main className="flex-1 w-full">{children}</main>
+      </div>
     </div>
   );
 }

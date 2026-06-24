@@ -211,25 +211,87 @@
   }
 }
 
-/* ─── Kafool+ telephony module (scoped) ──────────────────────────────────
-   Ported from the standalone Kafool+ project. Branding is injected as CSS
-   vars by ThemeRoot; these utilities reference them. Scoped to .kafool-plus
-   so they never clash with the main app. */
+/* ─── Kafool+ telephony module — design system (scoped) ───────────────────
+   Modern, mobile-first. Branding colours are injected as CSS vars by ThemeRoot;
+   structure/elevation live here. Scoped to .kafool-plus so nothing leaks. */
 .kafool-plus {
-  --primary: #1e3a8a; --secondary: #3b82f6; --accent: #f59e0b;
-  --bg: #f8fafc; --surface: #ffffff; --text: #0f172a;
-  --muted: #64748b; --border: #e2e8f0;
+  --primary: #1e3a8a; --secondary: #2563eb; --accent: #c2a14e;
+  --bg: #f4f6fb; --surface: #ffffff; --text: #16203a;
+  --muted: #7c879c; --border: #e7eaf2;
+  /* derived */
+  --shadow-sm: 0 1px 2px rgba(16,24,40,.05), 0 1px 3px rgba(16,24,40,.06);
+  --shadow-md: 0 6px 18px -6px rgba(16,24,40,.18), 0 2px 6px rgba(16,24,40,.06);
+  --radius: 1.25rem;
   background: var(--bg); color: var(--text);
+  font-feature-settings: "tnum" 1;
 }
-.kafool-plus .card { background: var(--surface); border: 1px solid var(--border); border-radius: 1rem; }
-.kafool-plus .btn-primary { background: var(--primary); color: #fff; }
-.kafool-plus .btn-secondary { background: var(--secondary); color: #fff; }
-.kafool-plus .btn-accent { background: var(--accent); color: #1a1a1a; }
-.kafool-plus .btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
-.kafool-plus .text-muted { color: var(--muted); }
+
+/* surfaces */
+.kafool-plus .card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow-sm);
+}
 .kafool-plus .surface { background: var(--surface); }
 .kafool-plus .border-themed { border-color: var(--border); }
+.kafool-plus .text-muted { color: var(--muted); }
+
+/* dark navy hero/header card (logo + stats live on it) */
+.kafool-plus .kp-header {
+  background: linear-gradient(155deg, #16223f 0%, #20335f 55%, #294a86 100%);
+  color: #fff; border-radius: var(--radius);
+  box-shadow: 0 12px 30px -12px rgba(22,34,63,.55);
+}
+.kafool-plus .kp-header .text-muted { color: #aebbd6; }
+
+/* stat block (number over label) */
+.kafool-plus .kp-stat { text-align: center; }
+.kafool-plus .kp-stat-num { font-size: 1.5rem; font-weight: 800; line-height: 1.1; letter-spacing: -.02em; }
+.kafool-plus .kp-stat-label { font-size: .7rem; opacity: .8; margin-top: .15rem; }
+
+/* action tile (icon stacked over label) */
+.kafool-plus .kp-tile {
+  display: flex; flex-direction: column; align-items: center; gap: .35rem;
+  padding: .85rem .5rem; border-radius: 1rem; background: var(--surface);
+  border: 1px solid var(--border); font-weight: 600; font-size: .8rem;
+  transition: transform .12s ease, box-shadow .15s ease, background .15s ease;
+}
+.kafool-plus .kp-tile:active { transform: scale(.97); }
+.kafool-plus .kp-tile:hover { box-shadow: var(--shadow-md); }
+
+/* quick-status chip */
+.kafool-plus .kp-chip {
+  display: inline-flex; align-items: center; gap: .4rem; white-space: nowrap;
+  padding: .5rem .8rem; border-radius: 999px; font-size: .8rem; font-weight: 600;
+  background: var(--surface); border: 1px solid var(--border); color: var(--text);
+  transition: transform .1s ease, border-color .15s ease, background .15s ease;
+}
+.kafool-plus .kp-chip:active { transform: scale(.96); }
+.kafool-plus .kp-chip:hover { border-color: var(--secondary); }
+
+/* progress (gold accent, thicker) */
+.kafool-plus .kp-track { height: .65rem; border-radius: 999px; background: rgba(124,135,156,.2); overflow: hidden; }
+.kafool-plus .kp-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--accent), #d9bd72); transition: width .5s cubic-bezier(.2,.8,.2,1); }
+
+/* buttons */
+.kafool-plus .btn-primary {
+  background: var(--primary); color: #fff; font-weight: 700;
+  box-shadow: 0 6px 14px -6px color-mix(in srgb, var(--primary) 70%, transparent);
+  transition: transform .12s ease, filter .15s ease;
+}
+.kafool-plus .btn-primary:hover { filter: brightness(1.06); }
+.kafool-plus .btn-primary:active { transform: scale(.98); }
+.kafool-plus .btn-secondary { background: var(--secondary); color: #fff; font-weight: 700; transition: filter .15s ease, transform .12s ease; }
+.kafool-plus .btn-secondary:active { transform: scale(.98); }
+.kafool-plus .btn-accent { background: var(--accent); color: #1c1606; font-weight: 700; transition: filter .15s ease, transform .12s ease; }
+.kafool-plus .btn-accent:active { transform: scale(.98); }
+.kafool-plus .btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border); font-weight: 600; transition: background .15s ease; }
+.kafool-plus .btn-ghost:hover { background: color-mix(in srgb, var(--text) 5%, transparent); }
+
 .kafool-plus .themed-transition,
 .kafool-plus .themed-transition * { transition: background-color .25s ease, color .25s ease, border-color .25s ease; }
 .kafool-plus .no-scrollbar::-webkit-scrollbar { display: none; }
 .kafool-plus .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* fade-in for cards */
+@keyframes kpFade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.kafool-plus .kp-fade { animation: kpFade .3s ease both; }
