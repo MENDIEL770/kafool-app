@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/server'
 export async function GET(request: Request) {
   const url = new URL(request.url)
   const code = url.searchParams.get('code')
-  const next = url.searchParams.get('next') || '/kafool-plus'
+  const next = url.searchParams.get('next') || '/plus'
 
   if (code) {
     const supabase = await createClient()

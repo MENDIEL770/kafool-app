@@ -32,11 +32,17 @@ export default async function PlusLayout({ children }: { children: React.ReactNo
   } else if (ctx.role === 'manager' || ctx.role === 'super_admin') displayName = 'מנהל ראשי'
   else if (ctx.role === 'coordinator') displayName = 'רכז'
 
+  // Managers/super-admins without an explicit campaign scope default to the org's
+  // first top-level (master) campaign, so every manager screen has a root.
+  const fallbackCampaign = (ctx.role === 'manager' && !ctx.member?.campaign_id)
+    ? (data.campaigns.find(c => c.parent_campaign_id === null)?.id ?? null)
+    : null
+
   const session: SessionUser = {
     email: ctx.email ?? '',
     role: ctx.role,
     organization_id: ctx.orgId ?? '',
-    campaign_id: ctx.member?.campaign_id ?? null,
+    campaign_id: ctx.member?.campaign_id ?? fallbackCampaign,
     caller_group_id: ctx.member?.caller_group_id ?? null,
     display_name: displayName,
   }

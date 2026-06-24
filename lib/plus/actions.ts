@@ -103,6 +103,16 @@ export async function assignFromPool(id: string, memberId: string, branchCampaig
 }
 
 // ─── campaigns ───
+/** Create a top-level (master) campaign for the org. */
+export async function addMasterCampaign(id: string, name: string, goal: number): Promise<string> {
+  const c = await ctx(); assertManagerial(c.role)
+  const admin = await createServiceClient()
+  await admin.from('kp_campaigns').insert({
+    id, organization_id: c.orgId!, parent_campaign_id: null, name, goal_amount: goal,
+  })
+  return id
+}
+
 export async function addSubCampaign(id: string, parentId: string, name: string, coordEmail: string, goal: number): Promise<string> {
   const c = await ctx(); assertManagerial(c.role)
   const admin = await createServiceClient()

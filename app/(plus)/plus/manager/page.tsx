@@ -10,7 +10,6 @@ import { StatCard, Progress, Modal, Field, Input } from "@/components/plus/ui";
 
 export default function ManagerDashboard() {
   const session = useRequireRole(["manager"]);
-  const rootId = session?.campaign_id ?? null;
 
   const campaigns = useStore((s) => s.campaigns);
   const callerGroups = useStore((s) => s.callerGroups);
@@ -19,7 +18,11 @@ export default function ManagerDashboard() {
   const calls = useStore((s) => s.calls);
   const branding = useStore((s) => s.branding);
   const addSubCampaign = useStore((s) => s.addSubCampaign);
+  const addMasterCampaign = useStore((s) => s.addMasterCampaign);
 
+  // root = the manager's campaign, else the org's first master campaign
+  const topLevel = useMemo(() => campaigns.filter((c) => c.parent_campaign_id === null), [campaigns]);
+  const rootId = session?.campaign_id ?? topLevel[0]?.id ?? null;
   const root = campaigns.find((c) => c.id === rootId);
   const brand = branding.find((b) => b.campaign_id === rootId) ?? branding[0];
   const subCampaigns = useMemo(() => campaigns.filter((c) => c.parent_campaign_id === rootId), [campaigns, rootId]);
@@ -27,8 +30,35 @@ export default function ManagerDashboard() {
 
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", goal: "300000" });
+  const [firstForm, setFirstForm] = useState({ name: "", goal: "1000000" });
 
-  if (!session || !root) return null;
+  if (!session) return null;
+
+  // No master campaign yet → onboarding: create the first one.
+  if (!root) {
+    return (
+      <ThemeRoot>
+        <AppShell subtitle="מנהל ראשי">
+          <div className="card p-8 max-w-md mx-auto mt-8 text-center">
+            <div className="text-4xl mb-2">🚀</div>
+            <h2 className="font-bold text-lg mb-1">בוא נתחיל</h2>
+            <p className="text-sm text-muted mb-4">עדיין אין קמפיין מוקד לארגון. צור קמפיין-על ראשון כדי לפתוח את לוח הבקרה.</p>
+            <div className="text-right">
+              <Field label="שם הקמפיין"><Input value={firstForm.name} onChange={(e) => setFirstForm({ ...firstForm, name: e.target.value })} placeholder="לדוג׳ — גיוס שנתי" /></Field>
+              <Field label="יעד (₪)"><Input type="number" value={firstForm.goal} onChange={(e) => setFirstForm({ ...firstForm, goal: e.target.value })} dir="ltr" /></Field>
+              <button
+                disabled={!firstForm.name.trim()}
+                onClick={() => addMasterCampaign(firstForm.name.trim(), Number(firstForm.goal) || 0)}
+                className="btn-primary w-full py-2.5 rounded-lg font-semibold disabled:opacity-50"
+              >
+                צור קמפיין
+              </button>
+            </div>
+          </div>
+        </AppShell>
+      </ThemeRoot>
+    );
+  }
 
   const allPromised = promises.reduce((s, p) => s + p.amount, 0);
   const totalLeads = leads.filter((l) => treeIds.includes(l.campaign_id)).length;

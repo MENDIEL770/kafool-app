@@ -50,6 +50,7 @@ interface State extends PlusData {
   assignFromPool: (memberId: string, branchCampaignId: string, displayName: string, link: string, goal: number, phone?: string) => string
 
   // campaigns
+  addMasterCampaign: (name: string, goal: number) => string
   addSubCampaign: (parentId: string, name: string, coordEmail: string, goal: number) => string
   addManagerAccount: (orgName: string, managerEmail: string, campaignName: string, goal: number) => string
 
@@ -152,6 +153,14 @@ export const useStore = create<State>()((set, get) => ({
       members: s.members.map((m) => m.id === memberId ? { ...m, campaign_id: branchCampaignId, caller_group_id: id, role: 'caller', status: 'active', is_active: true, updated_at: nowIso() } : m),
     }))
     api.assignFromPool(id, memberId, branchCampaignId, displayName, link, goal, phone).catch(swallow)
+    return id
+  },
+
+  addMasterCampaign: (name, goal) => {
+    const id = uuid()
+    const org = get().session?.organization_id ?? ''
+    set((s) => ({ campaigns: [...s.campaigns, { id, organization_id: org, parent_campaign_id: null, name, description: '', goal_amount: goal, is_standalone: true, linked_kafool_campaign_id: null, coordinator_email: null, coordinator_user_id: null, created_at: nowIso(), updated_at: nowIso() }] }))
+    api.addMasterCampaign(id, name, goal).catch(swallow)
     return id
   },
 
