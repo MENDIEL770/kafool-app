@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { LogIn, Send, ChevronDown, KeyRound, Target, Megaphone } from 'lucide-react'
+import { LogIn, Send, ChevronDown, KeyRound, Target, Megaphone, SlidersHorizontal, X, Check, Snowflake, Lock } from 'lucide-react'
 
 export default function OrgActions({ orgId, status, slug, ownerEmail, hasFundraising = true, hasKafoolPlus = false }: {
   orgId: string
@@ -17,6 +17,7 @@ export default function OrgActions({ orgId, status, slug, ownerEmail, hasFundrai
   const [loading, setLoading] = useState(false)
   const [sending, setSending] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   async function updateStatus(newStatus: 'active' | 'suspended') {
     setLoading(true)
@@ -106,6 +107,17 @@ export default function OrgActions({ orgId, status, slug, ownerEmail, hasFundrai
       >
         <LogIn className="w-3.5 h-3.5" />
         כניסה
+      </button>
+
+      {/* Manage / permissions */}
+      <button
+        onClick={() => setSettingsOpen(true)}
+        disabled={busy}
+        title="ניהול הרשאות ומנוי"
+        className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-violet-50 text-violet-700 border border-violet-100 hover:bg-violet-100 transition-colors font-semibold disabled:opacity-40"
+      >
+        <SlidersHorizontal className="w-3.5 h-3.5" />
+        ניהול
       </button>
 
       {/* More actions dropdown */}
@@ -204,6 +216,86 @@ export default function OrgActions({ orgId, status, slug, ownerEmail, hasFundrai
           </>
         )}
       </div>
+
+      {/* ── Manage / permissions modal ── */}
+      {settingsOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" onClick={() => setSettingsOpen(false)}>
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-auto" onClick={e => e.stopPropagation()} dir="rtl">
+            <div className="flex items-center justify-between p-5 border-b border-gray-100 sticky top-0 bg-white">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-violet-50 flex items-center justify-center"><SlidersHorizontal className="w-4.5 h-4.5 text-violet-600" /></div>
+                <div>
+                  <h2 className="font-black text-gray-900">ניהול מנהל / ארגון</h2>
+                  {ownerEmail && <p className="text-[11px] text-gray-400" dir="ltr">{ownerEmail}</p>}
+                </div>
+              </div>
+              <button onClick={() => setSettingsOpen(false)} className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center"><X className="w-4 h-4 text-gray-400" /></button>
+            </div>
+
+            <div className="p-5 space-y-5">
+              {/* Modules / subscription */}
+              <div>
+                <p className="text-xs font-bold text-gray-500 mb-2">מנוי / מודולים</p>
+                <div className="space-y-2">
+                  <button onClick={() => toggleModule('has_fundraising')} disabled={loading}
+                    className={`w-full flex items-center justify-between gap-3 rounded-xl border px-3.5 py-3 transition-colors ${hasFundraising ? 'border-blue-300 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                    <span className="flex items-center gap-2.5 text-sm font-semibold text-gray-700"><Target className="w-4 h-4 text-blue-600" /> מערכת גיוס תרומות</span>
+                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${hasFundraising ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-400'}`}>{hasFundraising ? 'פעיל' : 'כבוי'}</span>
+                  </button>
+                  <button onClick={() => toggleModule('has_kafool_plus')} disabled={loading}
+                    className={`w-full flex items-center justify-between gap-3 rounded-xl border px-3.5 py-3 transition-colors ${hasKafoolPlus ? 'border-violet-300 bg-violet-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                    <span className="flex items-center gap-2.5 text-sm font-semibold text-gray-700"><Megaphone className="w-4 h-4 text-violet-600" /> Kafool+ (טלפניה)</span>
+                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${hasKafoolPlus ? 'bg-violet-600 text-white' : 'bg-gray-100 text-gray-400'}`}>{hasKafoolPlus ? 'פעיל' : 'כבוי'}</span>
+                  </button>
+                </div>
+                <p className="text-[11px] text-gray-400 mt-1.5">התפריט של המנהל נבנה לפי המודולים שמופעלים.</p>
+              </div>
+
+              {/* Account status / freeze */}
+              <div>
+                <p className="text-xs font-bold text-gray-500 mb-2">סטטוס חשבון</p>
+                <div className="flex items-center gap-2">
+                  {status === 'active' ? (
+                    <button onClick={() => updateStatus('suspended')} disabled={loading}
+                      className="flex items-center gap-1.5 text-sm px-3.5 py-2 rounded-xl bg-amber-50 text-amber-700 border border-amber-100 hover:bg-amber-100 font-semibold disabled:opacity-40">
+                      <Snowflake className="w-4 h-4" /> הקפא חשבון
+                    </button>
+                  ) : (
+                    <button onClick={() => updateStatus('active')} disabled={loading}
+                      className="flex items-center gap-1.5 text-sm px-3.5 py-2 rounded-xl bg-green-50 text-green-700 border border-green-100 hover:bg-green-100 font-semibold disabled:opacity-40">
+                      <Check className="w-4 h-4" /> {status === 'pending' ? 'אשר והפעל' : 'הפעל מחדש'}
+                    </button>
+                  )}
+                  <span className="text-xs text-gray-400">
+                    {status === 'active' ? 'פעיל' : status === 'pending' ? 'ממתין לאישור' : 'מוקפא'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Access */}
+              <div>
+                <p className="text-xs font-bold text-gray-500 mb-2">גישה</p>
+                <div className="flex flex-wrap gap-2">
+                  <button onClick={resetPassword} disabled={loading}
+                    className="flex items-center gap-1.5 text-sm px-3.5 py-2 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 font-medium disabled:opacity-40">
+                    <Lock className="w-4 h-4" /> הגדר/אפס סיסמה
+                  </button>
+                  <button onClick={sendLoginLink} disabled={sending || !['active', 'pending'].includes(status)}
+                    className="flex items-center gap-1.5 text-sm px-3.5 py-2 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 font-medium disabled:opacity-40">
+                    <Send className="w-4 h-4" /> {sending ? 'יוצר...' : 'העתק קישור כניסה'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Future paid add-ons */}
+              <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50/60 p-3.5">
+                <p className="text-xs font-bold text-gray-400 mb-1">תוספים בתשלום</p>
+                <p className="text-[11px] text-gray-400">פיצ׳רים מתקדמים (יתווספו בהמשך) ינוהלו מכאן — הפעלה/כיבוי וחיוב לכל מנהל.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
