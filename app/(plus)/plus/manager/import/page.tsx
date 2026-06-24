@@ -36,6 +36,52 @@ function parseHistory(raw: string): { date: string; amount: number }[] {
     .filter((x): x is { date: string; amount: number } => !!x);
 }
 
+// ── smart auto-detection: maps columns by header aliases AND by content ──
+const ALIASES: Record<string, string[]> = {
+  full_name: ["שם מלא", "שם התורם", "שם פרטי", "שם", "תורם", "איש קשר", "full name", "name", "donor", "contact"],
+  phone: ["טלפון נייד", "טלפון", "נייד", "פלאפון", "פלאפ", "סלולרי", "מספר טלפון", "מס טלפון", "tel", "phone", "mobile", "cell", "whatsapp", "וואטסאפ"],
+  email: ["אימייל", "דואל", "דואר אלקטרוני", "מייל", "email", "e-mail", "mail"],
+  address: ["כתובת", "עיר", "ישוב", "יישוב", "רחוב", "address", "city", "street"],
+  birthday: ["תאריך לידה", "יום הולדת", "לידה", "birthday", "dob"],
+  notes: ["הערות", "הערה", "comment", "comments", "note", "notes"],
+  branch: ["סניף", "קבוצה", "צוות", "קהילה", "branch", "team", "group"],
+  coord_email: ["מייל רכז", "אימייל רכז", "רכז", "אחראי", "קפטן", "captain", "coordinator", "leader"],
+};
+const norm = (s: string) => s.toLowerCase().replace(/["'`׳״.\-_/]/g, "").replace(/\s+/g, " ").trim();
+
+function autoDetect(headers: string[], rows: Record<string, unknown>[]): { mapping: Record<string, string>; historyCols: string[] } {
+  const sample = rows.slice(0, 25);
+  const vals = (h: string) => sample.map((r) => String(r[h] ?? "").trim()).filter(Boolean);
+  const frac = (arr: string[], f: (v: string) => boolean) => (arr.length ? arr.filter(f).length / arr.length : 0);
+  const isPhone = (v: string) => { const d = v.replace(/\D/g, ""); return d.length >= 9 && d.length <= 11 && /^[\d\-+()\s]+$/.test(v); };
+  const isEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+  const isAmount = (v: string) => { const n = Number(v.replace(/[₪$,\s]/g, "")); return /^[₪$\s]*[\d,]+(\.\d+)?[₪$\s]*$/.test(v) && n > 0; };
+  const isName = (v: string) => /(?:[א-ת]{2,}\s+[א-ת]{2,})|(?:[A-Za-z]{2,}\s+[A-Za-z]{2,})/.test(v);
+  const isYearHeader = (h: string) => /(^|[^\d])(19|20)\d{2}([^\d]|$)/.test(h) || /תש[״"׳']?[עפסקרת]/.test(h) || /תרומ|סכום|donation|amount|pledge/i.test(h);
+
+  const used = new Set<string>();
+  const mapping: Record<string, string> = {};
+  // 1) header-alias scoring
+  for (const key of Object.keys(ALIASES)) {
+    let best: string | null = null, bestScore = 0;
+    for (const h of headers) {
+      if (used.has(h)) continue;
+      const nh = norm(h);
+      let score = 0;
+      for (const a of ALIASES[key]) { const na = norm(a); if (nh === na) score = Math.max(score, 3); else if (nh.includes(na) || na.includes(nh)) score = Math.max(score, 2); }
+      if (score > bestScore) { bestScore = score; best = h; }
+    }
+    if (best && bestScore >= 2) { mapping[key] = best; used.add(best); }
+  }
+  // 2) content sniffing for essentials still missing
+  if (!mapping.phone) { const h = headers.find((x) => !used.has(x) && frac(vals(x), isPhone) > 0.6); if (h) { mapping.phone = h; used.add(h); } }
+  if (!mapping.email) { const h = headers.find((x) => !used.has(x) && frac(vals(x), isEmail) > 0.5); if (h) { mapping.email = h; used.add(h); } }
+  if (!mapping.full_name) { const h = headers.find((x) => !used.has(x) && frac(vals(x), isName) > 0.4); if (h) { mapping.full_name = h; used.add(h); } }
+  // 3) donation-history columns: year/amount-like headers OR numeric columns left over
+  const historyCols = headers.filter((h) => !used.has(h) && (isYearHeader(h) || frac(vals(h), isAmount) > 0.6));
+  return { mapping, historyCols };
+}
+
 export default function ImportPage() {
   const session = useRequireRole(["manager"]);
   const campaigns = useStore((s) => s.campaigns);
@@ -46,6 +92,7 @@ export default function ImportPage() {
   const [headers, setHeaders] = useState<string[]>([]);
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
   const [mapping, setMapping] = useState<Record<string, string>>({});
+  const [historyCols, setHistoryCols] = useState<string[]>([]);
   const [result, setResult] = useState<{ added: number; duplicates: number; review: number } | null>(null);
   const [branchResult, setBranchResult] = useState<{ branches: number; coordinators: number; leads: number; duplicates: number } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -62,19 +109,10 @@ export default function ImportPage() {
       const hdrs = Object.keys(json[0]);
       setHeaders(hdrs);
       setRows(json);
-      // auto-guess mapping by Hebrew header names
-      const guess: Record<string, string> = {};
-      for (const t of TARGETS) {
-        const hit = hdrs.find((h) => h.includes(t.label) || h.toLowerCase().includes(t.key));
-        if (hit) guess[t.key] = hit;
-      }
-      // common Hebrew aliases
-      hdrs.forEach((h) => {
-        if (/שם/.test(h) && !guess.full_name) guess.full_name = h;
-        if (/טלפו|נייד|פלאפו/.test(h) && !guess.phone) guess.phone = h;
-        if (/מייל|דוא/.test(h) && !guess.email) guess.email = h;
-      });
+      // smart auto-detection (header aliases + content sniffing)
+      const { mapping: guess, historyCols: hist } = autoDetect(hdrs, json);
       setMapping(guess);
+      setHistoryCols(hist);
     };
     reader.readAsBinaryString(file);
   };
@@ -83,7 +121,15 @@ export default function ImportPage() {
 
   const doImport = async () => {
     setResult(null); setBranchResult(null);
-    const history = (r: Record<string, unknown>) => mapping.history ? parseHistory(String(r[mapping.history] ?? "")) : [];
+    const history = (r: Record<string, unknown>) => {
+      const out: { date: string; amount: number }[] = [];
+      if (mapping.history) out.push(...parseHistory(String(r[mapping.history] ?? "")));
+      for (const h of historyCols) {
+        const n = Number(String(r[h] ?? "").replace(/[^\d.]/g, ""));
+        if (n > 0) out.push({ date: h, amount: n });
+      }
+      return out;
+    };
 
     if (byBranch) {
       // multi-branch import → creates branches + coordinators + leads server-side
@@ -141,7 +187,28 @@ export default function ImportPage() {
 
           {headers.length > 0 && (
             <>
-              <div className="text-sm font-medium mb-2">מיפוי עמודות ({rows.length} שורות)</div>
+              {/* auto-detection summary */}
+              <div className="rounded-xl border p-3 mb-4" style={{ borderColor: "var(--border)", background: "var(--bg)" }}>
+                <div className="text-sm font-semibold mb-2">🪄 זוהה אוטומטית ({rows.length} שורות)</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {TARGETS.filter((t) => mapping[t.key]).map((t) => (
+                    <span key={t.key} className="text-[11px] px-2 py-1 rounded-full" style={{ background: "color-mix(in srgb, var(--secondary) 14%, transparent)", color: "var(--secondary)" }}>
+                      {t.label.replace(/ \(.*\)$/, "")}: <b>{mapping[t.key]}</b>
+                    </span>
+                  ))}
+                  {historyCols.map((h) => (
+                    <span key={h} className="text-[11px] px-2 py-1 rounded-full" style={{ background: "color-mix(in srgb, var(--accent) 18%, transparent)", color: "#7a5b12" }}>
+                      תרומה: <b>{h}</b>
+                    </span>
+                  ))}
+                </div>
+                {historyCols.length > 0 && <div className="text-[11px] text-muted mt-2">{historyCols.length} עמודות זוהו כהיסטוריית תרומות וימוזגו לכל ליד.</div>}
+                {(!mapping.full_name || !mapping.phone) && <div className="text-[11px] text-red-500 mt-2">לא זוהו שם/טלפון — בחר ידנית למטה.</div>}
+              </div>
+
+              <details className="mb-4">
+                <summary className="text-sm font-medium cursor-pointer text-muted">תיקון ידני של המיפוי</summary>
+                <div className="text-sm font-medium mb-2 mt-3">מיפוי עמודות</div>
               <div className="grid sm:grid-cols-2 gap-3 mb-4">
                 {TARGETS.map((t) => (
                   <Field key={t.key} label={`${t.label}${t.required ? " *" : ""}`}>
@@ -159,6 +226,7 @@ export default function ImportPage() {
                   </Field>
                 ))}
               </div>
+              </details>
 
               {/* preview */}
               <div className="overflow-x-auto mb-4 rounded-lg border" style={{ borderColor: "var(--border)" }}>
