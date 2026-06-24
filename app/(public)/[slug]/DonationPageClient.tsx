@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useCallback, useMemo, createContext, useCo
 import { createClient } from '@/lib/supabase/client'
 import { sanitizeHtml } from '@/lib/sanitize'
 import type { Campaign, Group } from '@/types'
-import { Search, Share2, Heart, Menu, X, ChevronDown, Globe } from 'lucide-react'
+import { Search, Share2, Heart, Menu, X, ChevronDown, ChevronLeft, ChevronRight, Globe } from 'lucide-react'
 import { resolveBuilderConfig, activeBlockMap, radiusToButtonClass } from '@/lib/builder-config'
 
 /* ─── i18n ─── */
@@ -1120,38 +1120,36 @@ function AboutSection({ campaign, gallery }: { campaign: Campaign; gallery: Gall
   const aboutText = (lang === 'en' && settings?.about_text_en?.trim()) ? settings.about_text_en : settings?.about_text
   const aboutImage = settings?.about_image || null
   const [idx, setIdx] = useState(0)               // inline carousel position
-  const [lightbox, setLightbox] = useState<number | null>(null)  // index into allImages, null = closed
+  // The lightbox shows ONE set at a time — either just the about image, or the
+  // gallery — so the two aren't mixed into a single navigation.
+  const [lbImages, setLbImages] = useState<{ url: string; caption?: string | null }[]>([])
+  const [lbIdx, setLbIdx] = useState<number | null>(null)
   const touchX = useRef<number | null>(null)
 
-  // One unified image set for the fullscreen viewer: the about image first, then the gallery.
-  const allImages = useMemo(() => {
-    const arr: { url: string; caption?: string | null }[] = []
-    if (aboutImage) arr.push({ url: aboutImage })
-    for (const g of gallery) arr.push({ url: g.image_url, caption: g.caption })
-    return arr
-  }, [aboutImage, gallery])
-  const galleryStart = aboutImage ? 1 : 0          // where gallery images begin in allImages
-
-  const lbPrev = () => setLightbox(i => (i === null ? i : (i - 1 + allImages.length) % allImages.length))
-  const lbNext = () => setLightbox(i => (i === null ? i : (i + 1) % allImages.length))
+  const galleryImages = useMemo(() => gallery.map(g => ({ url: g.image_url, caption: g.caption })), [gallery])
+  const openAbout = () => { if (aboutImage) { setLbImages([{ url: aboutImage }]); setLbIdx(0) } }
+  const openGallery = (i: number) => { setLbImages(galleryImages); setLbIdx(i) }
+  const closeLb = () => setLbIdx(null)
+  const lbPrev = () => setLbIdx(i => (i === null ? i : (i - 1 + lbImages.length) % lbImages.length))
+  const lbNext = () => setLbIdx(i => (i === null ? i : (i + 1) % lbImages.length))
 
   useEffect(() => {
-    if (gallery.length <= 1 || lightbox !== null) return
+    if (gallery.length <= 1 || lbIdx !== null) return
     const t = setInterval(() => setIdx(i => (i + 1) % gallery.length), 4000)
     return () => clearInterval(t)
-  }, [gallery.length, lightbox])
+  }, [gallery.length, lbIdx])
 
   // arrow-key navigation in the lightbox
   useEffect(() => {
-    if (lightbox === null) return
+    if (lbIdx === null) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setLightbox(null)
+      if (e.key === 'Escape') closeLb()
       else if (e.key === 'ArrowLeft') lbNext()
       else if (e.key === 'ArrowRight') lbPrev()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [lightbox, allImages.length])
+  }, [lbIdx, lbImages.length])
 
   if (!aboutText && gallery.length === 0 && !aboutImage) return null
 
@@ -1161,7 +1159,7 @@ function AboutSection({ campaign, gallery }: { campaign: Campaign; gallery: Gall
 
         {/* תמונת אודות עומדת — לחיצה מרחיבה */}
         {aboutImage && (
-          <button type="button" onClick={() => setLightbox(0)}
+          <button type="button" onClick={openAbout}
             className="block w-full rounded-3xl overflow-hidden shadow-md bg-gray-50 group relative focus:outline-none cursor-zoom-in">
             {/* full width to match the gallery; natural ratio, capped height */}
             <img src={aboutImage} alt={t('aboutCampaign')} className="w-full h-auto max-h-[70vh] object-contain" loading="lazy" />
@@ -1172,7 +1170,7 @@ function AboutSection({ campaign, gallery }: { campaign: Campaign; gallery: Gall
         )}
 
         {gallery.length > 0 && (
-          <div className="relative rounded-3xl overflow-hidden shadow-md bg-gray-50 cursor-zoom-in" onClick={() => setLightbox(galleryStart + idx)}>
+          <div className="relative rounded-3xl overflow-hidden shadow-md bg-gray-50 cursor-zoom-in" onClick={() => openGallery(idx)}>
             {/* object-contain so the whole image shows — nothing gets cropped */}
             <img src={gallery[idx].image_url} alt={gallery[idx].caption || ''} className="w-full h-auto max-h-[70vh] object-contain" loading="lazy" />
             {gallery[idx].caption && (
@@ -1191,37 +1189,41 @@ function AboutSection({ campaign, gallery }: { campaign: Campaign; gallery: Gall
           </div>
         )}
 
-        {/* Unified fullscreen lightbox — about image + gallery, with arrows, swipe and keys.
-            The backdrop is its own layer; image + controls sit above it, so clicking a
-            control can never reach the backdrop's close handler. */}
-        {lightbox !== null && allImages[lightbox] && (
+        {/* Fullscreen lightbox for the current set (about OR gallery). The backdrop
+            is its own layer; image + controls sit above it via z-index, so a click on
+            a control can never reach the backdrop's close handler. */}
+        {lbIdx !== null && lbImages[lbIdx] && (
           <div
-            className="fixed inset-0 z-[90] flex items-center justify-center p-4"
+            className="fixed inset-0 z-[90] flex items-center justify-center p-4 sm:p-8"
             onTouchStart={e => { touchX.current = e.touches[0]?.clientX ?? null }}
             onTouchEnd={e => {
               const start = touchX.current; touchX.current = null
-              if (start === null || allImages.length <= 1) return
+              if (start === null || lbImages.length <= 1) return
               const dx = (e.changedTouches[0]?.clientX ?? start) - start
               if (Math.abs(dx) > 40) { if (dx < 0) lbNext(); else lbPrev() }
             }}
           >
             {/* backdrop — only this closes */}
-            <div className="absolute inset-0 bg-black/90" onClick={() => setLightbox(null)} />
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={allImages[lightbox].url} alt={allImages[lightbox].caption || ''} draggable={false}
-              className="relative z-10 max-w-full max-h-full object-contain rounded-lg select-none pointer-events-none" />
-            <button onClick={() => setLightbox(null)} aria-label="סגור" className="absolute z-20 top-4 left-4 w-10 h-10 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center text-xl">✕</button>
-            {allImages.length > 1 && (
+            <div className="absolute inset-0 bg-black/90 backdrop-blur-sm" onClick={closeLb} />
+            <img src={lbImages[lbIdx].url} alt={lbImages[lbIdx].caption || ''} draggable={false}
+              className="relative z-10 max-w-full max-h-full object-contain rounded-lg select-none pointer-events-none shadow-2xl" />
+            <button onClick={closeLb} aria-label="סגור"
+              className="absolute z-20 top-4 left-4 w-10 h-10 rounded-full bg-white/90 hover:bg-white text-gray-800 shadow-lg flex items-center justify-center transition active:scale-90">
+              <X className="w-5 h-5" />
+            </button>
+            {lbImages.length > 1 && (
               <>
                 <button type="button" aria-label="הקודם" onClick={lbPrev}
-                  className="absolute z-20 right-3 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center">
-                  <ChevronDown className="w-6 h-6 -rotate-90" />
+                  className="absolute z-20 right-2 sm:right-5 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/90 hover:bg-white text-gray-800 shadow-lg flex items-center justify-center transition active:scale-90">
+                  <ChevronRight className="w-7 h-7" />
                 </button>
                 <button type="button" aria-label="הבא" onClick={lbNext}
-                  className="absolute z-20 left-3 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center">
-                  <ChevronDown className="w-6 h-6 rotate-90" />
+                  className="absolute z-20 left-2 sm:left-5 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/90 hover:bg-white text-gray-800 shadow-lg flex items-center justify-center transition active:scale-90">
+                  <ChevronLeft className="w-7 h-7" />
                 </button>
-                <div className="absolute z-20 bottom-4 inset-x-0 text-center text-white/70 text-sm pointer-events-none">{lightbox + 1} / {allImages.length}</div>
+                <div className="absolute z-20 bottom-5 inset-x-0 flex justify-center pointer-events-none">
+                  <span className="bg-black/50 text-white text-xs font-medium rounded-full px-3 py-1">{lbIdx + 1} / {lbImages.length}</span>
+                </div>
               </>
             )}
           </div>
