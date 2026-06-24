@@ -1,12 +1,12 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { Fragment, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Pencil, Trash2, X, Check, Plus, Search, FileSpreadsheet, Upload, Download } from 'lucide-react'
+import { Pencil, Trash2, X, Check, Plus, Search, FileSpreadsheet, Upload, Download, ChevronDown, Copy, ClipboardList } from 'lucide-react'
 
 // One parsed row from the uploaded spreadsheet
 interface ImportRow {
@@ -67,6 +67,21 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
   const [sortBy, setSortBy] = useState<'recent' | 'name_asc' | 'name_desc' | 'amount_desc' | 'amount_asc'>('recent')
   const [editId, setEditId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<Partial<Donation>>({})
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+
+  function toggleExpand(id: string) {
+    setExpanded(prev => {
+      const n = new Set(prev)
+      if (n.has(id)) n.delete(id); else n.add(id)
+      return n
+    })
+  }
+  // custom-form values captured at donation time (quantity, shipping, note…), as label→value
+  const customEntries = (d: Donation): [string, string][] =>
+    Object.entries(d.custom_data && typeof d.custom_data === 'object' ? d.custom_data : {})
+      .map(([k, v]) => [k, String(v ?? '')] as [string, string])
+      .filter(([, v]) => v.trim() !== '')
+  function copyText(text: string) { navigator.clipboard?.writeText(text).catch(() => {}) }
   const [showAdd, setShowAdd] = useState(false)
   const [addForm, setAddForm] = useState({ amount: '', donor_name: '', donor_phone: '', donor_email: '', dedication: '', group_id: '', payment_type: 'one_time', installments: '' })
   const [saving, setSaving] = useState(false)
@@ -724,7 +739,8 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
             </thead>
             <tbody className="divide-y divide-gray-50">
               {sorted.map(d => (
-                <tr key={d.id} className={`transition-colors ${selected.has(d.id) ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
+                <Fragment key={d.id}>
+                <tr className={`transition-colors ${selected.has(d.id) ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
                   {editId === d.id ? (
                     // ── שורת עריכה ──
                     <>
@@ -806,6 +822,16 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
                         {groupName(d.group_id) && (
                           <span className="block text-[11px] text-gray-400 font-normal mt-0.5">{groupName(d.group_id)}</span>
                         )}
+                        {customEntries(d).length > 0 && (
+                          <button
+                            onClick={() => toggleExpand(d.id)}
+                            className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-full px-2 py-0.5 transition-colors"
+                          >
+                            <ClipboardList className="w-3 h-3" />
+                            פרטי הזמנה ({customEntries(d).length})
+                            <ChevronDown className={`w-3 h-3 transition-transform ${expanded.has(d.id) ? 'rotate-180' : ''}`} />
+                          </button>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-gray-500 text-xs" dir="ltr">{d.donor_phone || '—'}</td>
                       <td className="px-4 py-3 font-bold text-gray-900">₪{(d.amount || 0).toLocaleString()}</td>
@@ -841,6 +867,43 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
                     </>
                   )}
                 </tr>
+
+                {editId !== d.id && expanded.has(d.id) && customEntries(d).length > 0 && (
+                  <tr className="bg-blue-50/30">
+                    <td colSpan={10} className="px-6 pb-4 pt-0">
+                      <div className="rounded-xl border border-blue-100 bg-white p-4 shadow-sm">
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="text-sm font-bold text-gray-700 flex items-center gap-1.5">
+                            <ClipboardList className="w-4 h-4 text-blue-500" /> פרטי הזמנה מהטופס
+                          </h4>
+                          <button
+                            onClick={() => copyText(customEntries(d).map(([k, v]) => `${k}: ${v}`).join('\n'))}
+                            className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-blue-600 transition-colors"
+                          >
+                            <Copy className="w-3.5 h-3.5" /> העתק הכל
+                          </button>
+                        </div>
+                        <dl className="grid sm:grid-cols-2 gap-x-6 gap-y-2.5">
+                          {customEntries(d).map(([k, v]) => (
+                            <div key={k} className="flex flex-col gap-0.5">
+                              <dt className="text-[11px] font-semibold text-gray-400">{k}</dt>
+                              <dd className="text-sm text-gray-800 whitespace-pre-line flex items-start gap-1.5 group">
+                                <span className="flex-1 break-words">{v}</span>
+                                <button
+                                  onClick={() => copyText(v)} title="העתק"
+                                  className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-blue-500 transition-opacity shrink-0 mt-0.5"
+                                >
+                                  <Copy className="w-3 h-3" />
+                                </button>
+                              </dd>
+                            </div>
+                          ))}
+                        </dl>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
               ))}
             </tbody>
           </table>
