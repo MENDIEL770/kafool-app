@@ -563,6 +563,21 @@ export default function DonationModal({
                             ₪{qtyUnit.toLocaleString()} {en ? 'each' : 'ליחידה'} × {quantity} = <strong className="text-gray-900">₪{qtyTotal.toLocaleString()}</strong>
                           </p>
                         )}
+                        {/* upsell — the next quantity tier that improves the discount */}
+                        {(() => {
+                          const next = [...(f.tiers || [])].sort((a, b) => a.minQty - b.minQty)
+                            .find(t => t.minQty > quantity && (Number(t.discountPercent) || 0) > qtyPrice.discount)
+                          if (!next) return null
+                          const save = Math.round(qtyBase * next.minQty * (Number(next.discountPercent) || 0) / 100)
+                          return (
+                            <button type="button" onClick={() => onChange(String(next.minQty))}
+                              className="w-full text-center text-xs rounded-lg px-3 py-2 bg-green-50 border border-green-200 text-green-700 hover:bg-green-100 transition">
+                              {en
+                                ? <>Buy {next.minQty} and get {next.discountPercent}% off — save ₪{save.toLocaleString()}</>
+                                : <>בחר <strong>{next.minQty} יחידות</strong> וקבל <strong>{next.discountPercent}% הנחה</strong> — תחסוך <strong>₪{save.toLocaleString()}</strong></>}
+                            </button>
+                          )
+                        })()}
                       </div>
                     ) : f.type === 'select' ? (
                       <select value={val} onChange={e => onChange(e.target.value)}
