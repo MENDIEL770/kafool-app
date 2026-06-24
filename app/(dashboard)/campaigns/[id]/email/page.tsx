@@ -123,10 +123,6 @@ export default function CampaignEmailPage() {
         <p className="text-sm text-gray-500 mt-1">מייל התודה שנשלח לתורם אחרי עסקה — ברירת מחדל לכל הכפתורים, ומייל מותאם לכל טופס.</p>
       </div>
 
-      <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
-        לשליחה בפועל צריך להגדיר ספק מייל (Resend): <code>RESEND_API_KEY</code> + <code>EMAIL_FROM</code> ב-env. עד אז ההגדרות נשמרות אבל מייל לא נשלח.
-      </p>
-
       {/* Default email */}
       <Card>
         <CardHeader className="flex-row items-center justify-between gap-3 space-y-0">
