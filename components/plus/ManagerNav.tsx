@@ -4,13 +4,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const TABS = [
-  { href: "/manager", label: "לוח בקרה" },
-  { href: "/manager/import", label: "1. ייבוא אקסל" },
-  { href: "/manager/callers", label: "2. טלפנים" },
-  { href: "/manager/filter", label: "3. סינון" },
-  { href: "/manager/assign", label: "4. שיוך" },
-  { href: "/manager/branding", label: "🎨 מיתוג" },
-  { href: "/manager/members", label: "הרשאות" },
+  { href: "/plus/manager", label: "לוח בקרה" },
+  { href: "/plus/manager/import", label: "1. ייבוא אקסל" },
+  { href: "/plus/manager/callers", label: "2. טלפנים" },
+  { href: "/plus/manager/filter", label: "3. סינון" },
+  { href: "/plus/manager/assign", label: "4. שיוך" },
+  { href: "/plus/manager/branding", label: "🎨 מיתוג" },
+  { href: "/plus/manager/members", label: "הרשאות" },
 ];
 
 export default function ManagerNav() {

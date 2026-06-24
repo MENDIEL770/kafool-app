@@ -1,0 +1,226 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useStore } from "@/lib/plus/store";
+import { useRequireRole } from "@/lib/plus/useAuth";
+import AppShell from "@/components/plus/AppShell";
+import ThemeRoot from "@/components/plus/ThemeRoot";
+import { StatCard, Progress, Modal, Field, Input } from "@/components/plus/ui";
+import { callbackMessage, smsLink, whatsappLink, openLink } from "@/lib/plus/notify";
+import { hebrewDateShort } from "@/lib/plus/hebrewDate";
+
+export default function CoordinatorPage() {
+  const router = useRouter();
+  const session = useRequireRole(["coordinator", "manager"]);
+  const campId = session?.campaign_id ?? null;
+
+  const campaigns = useStore((s) => s.campaigns);
+  const callerGroups = useStore((s) => s.callerGroups);
+  const leads = useStore((s) => s.leads);
+  const promises = useStore((s) => s.promises);
+  const calls = useStore((s) => s.calls);
+  const reminders = useStore((s) => s.reminders);
+  const branding = useStore((s) => s.branding);
+  const addCallerGroup = useStore((s) => s.addCallerGroup);
+  const ensureCallerGroupFor = useStore((s) => s.ensureCallerGroupFor);
+  const assignFromPool = useStore((s) => s.assignFromPool);
+  const loginAsMember = useStore((s) => s.loginAsMember);
+  const members = useStore((s) => s.members);
+  const assignLeadsEvenly = useStore((s) => s.assignLeadsEvenly);
+  const updateCallerGroup = useStore((s) => s.updateCallerGroup);
+
+  const campaign = campaigns.find((c) => c.id === campId);
+  const brand =
+    branding.find((b) => b.campaign_id === campId) ??
+    branding.find((b) => b.campaign_id === campaign?.parent_campaign_id) ??
+    branding[0];
+
+  const myCallers = useMemo(() => callerGroups.filter((c) => c.campaign_id === campId), [callerGroups, campId]);
+  const myLeads = useMemo(() => leads.filter((l) => l.campaign_id === campId), [leads, campId]);
+
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState({ name: "", email: "", phone: "", link: "", goal: "50000" });
+  const [poolMemberId, setPoolMemberId] = useState(""); // when assigning from the manager's pool
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editLink, setEditLink] = useState("");
+
+  if (!session || !campaign) return null;
+
+  const branchPromised = promises
+    .filter((p) => myCallers.some((c) => c.id === p.caller_group_id))
+    .reduce((s, p) => s + p.amount, 0);
+
+  const ranking = myCallers
+    .map((cg) => {
+      const cgLeads = myLeads.filter((l) => l.assigned_caller_group_id === cg.id);
+      const promised = promises.filter((p) => p.caller_group_id === cg.id).reduce((s, p) => s + p.amount, 0);
+      const called = calls.filter((c) => c.caller_group_id === cg.id).length;
+      const donated = cgLeads.filter((l) => l.status === "donated").length;
+      return { cg, promised, called, donated, leads: cgLeads.length };
+    })
+    .sort((a, b) => b.promised - a.promised);
+
+  const unassigned = myLeads.filter((l) => l.assigned_caller_group_id === null && l.call_decision !== "no").length;
+
+  // email pool from the manager: active callers without a branch, in this
+  // campaign or its parent. The coordinator assigns them to their branch.
+  const poolMembers = members.filter(
+    (m) =>
+      m.role === "caller" &&
+      m.status === "active" &&
+      !m.caller_group_id &&
+      (m.campaign_id === campId || m.campaign_id === campaign.parent_campaign_id)
+  );
+
+  // scheduled callbacks across the whole branch
+  const branchReminders = reminders
+    .filter((r) => myCallers.some((c) => c.id === r.caller_group_id) && r.status === "pending")
+    .sort((a, b) => a.due_at.localeCompare(b.due_at));
+
+  const workAsCaller = () => {
+    // give the coordinator a personal caller group, then open the caller UI
+    ensureCallerGroupFor(campId!, session!.email, session!.display_name);
+    // refresh the session so caller_group_id resolves (re-login as same member)
+    const me = members.find((m) => m.id && m.email.toLowerCase() === session!.email.toLowerCase() && m.campaign_id === campId);
+    if (me) loginAsMember(me.id);
+    router.push("/plus/caller");
+  };
+
+  return (
+    <ThemeRoot campaignId={campId}>
+      <AppShell branding={brand} subtitle={`רכז · ${campaign.name}`}>
+        <div className="card p-4 mb-4">
+          <div className="text-sm font-medium mb-2">יעד הסניף</div>
+          <Progress value={branchPromised} goal={campaign.goal_amount} />
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+          <StatCard label="טלפנים" value={myCallers.length} />
+          <StatCard label="לידים בסניף" value={myLeads.length} />
+          <StatCard label="לא משויכים" value={unassigned} accent />
+          <StatCard label="הובטח" value={`${branchPromised.toLocaleString("he-IL")} ₪`} />
+        </div>
+
+        <div className="flex flex-wrap gap-2 mb-4">
+          <button onClick={() => setShowAdd(true)} className="btn-primary px-4 py-2.5 rounded-xl font-semibold">+ הוסף טלפן</button>
+          <button
+            onClick={() => assignLeadsEvenly(campId!, myCallers.map((c) => c.id))}
+            disabled={myCallers.length === 0 || unassigned === 0}
+            className="btn-secondary px-4 py-2.5 rounded-xl font-semibold disabled:opacity-50"
+          >
+            ⚖️ חלוקה שווה ({unassigned})
+          </button>
+          <button onClick={workAsCaller} className="btn-accent px-4 py-2.5 rounded-xl font-semibold">
+            📞 עבוד כטלפן
+          </button>
+        </div>
+
+        {/* scheduled callbacks — remind callers to call back */}
+        {branchReminders.length > 0 && (
+          <div className="card p-4 mb-4">
+            <div className="font-bold mb-2">🔔 חזרות מתוזמנות בסניף ({branchReminders.length})</div>
+            <div className="divide-y" style={{ borderColor: "var(--border)" }}>
+              {branchReminders.map((r) => {
+                const lead = leads.find((l) => l.id === r.lead_id);
+                const cg = callerGroups.find((c) => c.id === r.caller_group_id);
+                if (!lead || !cg) return null;
+                const when = hebrewDateShort(new Date(r.due_at));
+                const msg = callbackMessage(lead, when, cg.display_name);
+                return (
+                  <div key={r.id} className="py-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="font-semibold truncate">{lead.full_name} <span className="text-xs text-muted">· {cg.display_name}</span></div>
+                        <div className="text-xs" style={{ color: "var(--accent)" }}>🗓️ {when}</div>
+                      </div>
+                      <div className="flex gap-1 shrink-0">
+                        <button onClick={() => openLink(whatsappLink(msg, cg.phone))} className="text-xs px-2 py-1.5 rounded-lg text-white" style={{ background: "#25D366" }}>וואטסאפ לטלפן</button>
+                        <button onClick={() => openLink(smsLink(msg, cg.phone))} className="text-xs px-2 py-1.5 rounded-lg btn-secondary">SMS</button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ranking / caller table */}
+        <div className="card overflow-hidden">
+          <div className="p-4 border-b font-bold" style={{ borderColor: "var(--border)" }}>דירוג הטלפנים</div>
+          {ranking.length === 0 ? (
+            <div className="p-6 text-center text-muted">אין עדיין טלפנים. הוסף את הראשון.</div>
+          ) : (
+            <div className="divide-y" style={{ borderColor: "var(--border)" }}>
+              {ranking.map((r, i) => (
+                <div key={r.cg.id} className="p-4 flex items-center gap-3">
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-sm font-bold" style={{ background: i === 0 ? "var(--accent)" : "var(--secondary)" }}>
+                    {i + 1}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold truncate">{r.cg.display_name}</div>
+                    <div className="text-xs text-muted truncate">{r.cg.caller_email} · {r.leads} לידים · {r.called} שיחות</div>
+                  </div>
+                  <div className="text-left">
+                    <div className="font-bold">{r.promised.toLocaleString("he-IL")} ₪</div>
+                    <button onClick={() => { setEditId(r.cg.id); setEditLink(r.cg.donation_link); }} className="text-xs" style={{ color: "var(--secondary)" }}>
+                      ערוך קישור
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <Modal open={showAdd} onClose={() => { setShowAdd(false); setPoolMemberId(""); }} title="הוספת טלפן לסניף">
+          {poolMembers.length > 0 && (
+            <Field label="בחר ממאגר המיילים של המנהל">
+              <select
+                value={poolMemberId}
+                onChange={(e) => {
+                  const id = e.target.value;
+                  setPoolMemberId(id);
+                  const m = poolMembers.find((x) => x.id === id);
+                  setForm((f) => ({ ...f, email: m?.email ?? f.email, name: f.name }));
+                }}
+                className="w-full px-3 py-2 rounded-lg border bg-transparent"
+                style={{ borderColor: "var(--border)" }}
+              >
+                <option value="">— הזנה ידנית —</option>
+                {poolMembers.map((m) => <option key={m.id} value={m.id}>{m.email}</option>)}
+              </select>
+            </Field>
+          )}
+          <Field label="שם הטלפן"><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
+          <Field label="אימייל (Google)"><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} dir="ltr" disabled={!!poolMemberId} /></Field>
+          <Field label="טלפן נייד (לתזכורות SMS)"><Input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} dir="ltr" /></Field>
+          <Field label="קישור תרומה (Charidy)"><Input value={form.link} onChange={(e) => setForm({ ...form, link: e.target.value })} dir="ltr" /></Field>
+          <Field label="יעד אישי (₪)"><Input type="number" value={form.goal} onChange={(e) => setForm({ ...form, goal: e.target.value })} /></Field>
+          <button
+            disabled={!form.name || !form.email}
+            onClick={() => {
+              if (poolMemberId) {
+                assignFromPool(poolMemberId, campId!, form.name, form.link, Number(form.goal), form.phone || undefined);
+              } else {
+                addCallerGroup(campId!, form.email, form.name, form.link, Number(form.goal), form.phone || undefined);
+              }
+              setShowAdd(false);
+              setPoolMemberId("");
+              setForm({ name: "", email: "", phone: "", link: "", goal: "50000" });
+            }}
+            className="btn-primary w-full py-2.5 rounded-lg font-semibold disabled:opacity-50"
+          >
+            {poolMemberId ? "שייך טלפן מהמאגר לסניף" : "צור קבוצת גיוס לטלפן"}
+          </button>
+        </Modal>
+
+        <Modal open={!!editId} onClose={() => setEditId(null)} title="עריכת קישור תרומה">
+          <Field label="קישור"><Input value={editLink} onChange={(e) => setEditLink(e.target.value)} dir="ltr" /></Field>
+          <button onClick={() => { if (editId) updateCallerGroup(editId, { donation_link: editLink }); setEditId(null); }} className="btn-primary w-full py-2.5 rounded-lg font-semibold">שמור</button>
+        </Modal>
+      </AppShell>
+    </ThemeRoot>
+  );
+}
