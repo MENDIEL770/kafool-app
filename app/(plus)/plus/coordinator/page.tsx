@@ -29,6 +29,8 @@ export default function CoordinatorPage() {
   const members = useStore((s) => s.members);
   const assignLeadsEvenly = useStore((s) => s.assignLeadsEvenly);
   const updateCallerGroup = useStore((s) => s.updateCallerGroup);
+  const approveToPool = useStore((s) => s.approveToPool);
+  const rejectMember = useStore((s) => s.rejectMember);
 
   const campaign = campaigns.find((c) => c.id === campId);
   const brand =
@@ -73,6 +75,9 @@ export default function CoordinatorPage() {
       (m.campaign_id === campId || m.campaign_id === campaign.parent_campaign_id)
   );
 
+  // join requests waiting for this branch (caller asked to join, not yet approved)
+  const pendingRequests = members.filter((m) => m.campaign_id === campId && m.status === "pending");
+
   // scheduled callbacks across the whole branch
   const branchReminders = reminders
     .filter((r) => myCallers.some((c) => c.id === r.caller_group_id) && r.status === "pending")
@@ -101,6 +106,24 @@ export default function CoordinatorPage() {
           <StatCard label="לא משויכים" value={unassigned} accent />
           <StatCard label="הובטח" value={`${branchPromised.toLocaleString("he-IL")} ₪`} />
         </div>
+
+        {pendingRequests.length > 0 && (
+          <div className="card p-4 mb-4">
+            <div className="font-bold mb-2">⏳ בקשות הצטרפות לסניף ({pendingRequests.length})</div>
+            <div className="space-y-2">
+              {pendingRequests.map((m) => (
+                <div key={m.id} className="flex items-center justify-between gap-2 rounded-xl border p-2.5" style={{ borderColor: "var(--border)" }}>
+                  <span className="text-sm truncate" dir="ltr">{m.email}</span>
+                  <div className="flex gap-2 shrink-0">
+                    <button onClick={() => approveToPool(m.id)} className="btn-primary text-sm px-3 py-1.5 rounded-lg">אשר</button>
+                    <button onClick={() => rejectMember(m.id)} className="text-sm text-red-500 px-2">דחה</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="text-[11px] text-muted mt-2">לאחר אישור — שייך אותם לקבוצת גיוס דרך "מאגר המיילים".</p>
+          </div>
+        )}
 
         <div className="flex flex-wrap gap-2 mb-4">
           <button onClick={() => setShowAdd(true)} className="btn-primary px-4 py-2.5 rounded-xl font-semibold">+ הוסף טלפן</button>

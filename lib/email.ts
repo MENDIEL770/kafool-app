@@ -30,6 +30,25 @@ function renderHtml(tpl: EmailTemplate, campaignTitle: string): string {
   </body></html>`
 }
 
+/** Generic transactional email (e.g. Kafool+ notifications). Returns true if sent. */
+export async function sendPlusEmail(to: string, subject: string, bodyHtml: string): Promise<boolean> {
+  const key = process.env.RESEND_API_KEY
+  const from = process.env.EMAIL_FROM
+  if (!key || !from || !to || !/.+@.+\..+/.test(to)) return false
+  const html = `<!doctype html><html dir="rtl"><body style="margin:0;background:#f6f7f9;font-family:Arial,sans-serif;color:#1f2937;">
+    <div style="max-width:600px;margin:0 auto;padding:24px;">
+      <div style="background:#fff;border-radius:20px;padding:28px;box-shadow:0 2px 12px rgba(0,0,0,.05);font-size:15px;line-height:1.7;" dir="rtl">${bodyHtml}</div>
+      <p style="text-align:center;color:#9ca3af;font-size:12px;margin-top:18px;">Kafool+ · מוקד גיוס</p>
+    </div></body></html>`
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from, to, subject, html }),
+    })
+    return res.ok
+  } catch { return false }
+}
+
 /**
  * Send a thank-you email. Returns true if actually sent.
  */

@@ -3,7 +3,78 @@
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { getPlusContext, makePlusSlug } from './context'
 import { loadPlusData } from './data'
+import { sendPlusEmail } from '@/lib/email'
 import type { Lead, LeadStatus, CallerGroup, CampaignBranding, Role, Reminder } from './types'
+
+// ─── join requests (for logged-in users who aren't members yet) ───
+export interface JoinableCampaign { id: string; name: string; orgId: string; branches: { id: string; name: string }[] }
+
+/** Campaigns (+ their branches) a new user can request to join — orgs subscribed to Kafool+. */
+export async function listJoinable(): Promise<JoinableCampaign[]> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+  const admin = await createServiceClient()
+  const { data: orgs } = await admin.from('organizations').select('id').eq('has_kafool_plus', true)
+  const orgIds = (orgs ?? []).map(o => o.id)
+  if (!orgIds.length) return []
+  const { data: camps } = await admin.from('kp_campaigns').select('id, name, organization_id, parent_campaign_id').in('organization_id', orgIds)
+  const all = camps ?? []
+  return all.filter(c => !c.parent_campaign_id).map(m => ({
+    id: m.id as string, name: m.name as string, orgId: m.organization_id as string,
+    branches: all.filter(c => c.parent_campaign_id === m.id).map(b => ({ id: b.id as string, name: b.name as string })),
+  }))
+}
+
+/** Is there a pending join request for the current user? */
+export async function myPendingRequest(): Promise<{ campaignName: string } | null> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user?.email) return null
+  const admin = await createServiceClient()
+  const { data } = await admin.from('kp_members').select('campaign_id').ilike('email', user.email).eq('status', 'pending').maybeSingle()
+  if (!data) return null
+  const { data: c } = await admin.from('kp_campaigns').select('name').eq('id', data.campaign_id).maybeSingle()
+  return { campaignName: (c?.name as string) ?? '' }
+}
+
+/** Submit a join request to a branch → pending member + notify the manager & coordinator. */
+export async function requestJoinBranch(branchId: string): Promise<{ ok: boolean; already?: boolean }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user?.email) throw new Error('יש להתחבר')
+  const admin = await createServiceClient()
+  const { data: branch } = await admin.from('kp_campaigns')
+    .select('id, name, organization_id, parent_campaign_id, coordinator_email').eq('id', branchId).maybeSingle()
+  if (!branch) throw new Error('סניף לא נמצא')
+
+  const { data: existing } = await admin.from('kp_members').select('id').ilike('email', user.email).eq('campaign_id', branchId).maybeSingle()
+  if (existing) return { ok: true, already: true }
+
+  await admin.from('kp_members').insert({
+    organization_id: branch.organization_id, email: user.email.toLowerCase(), user_id: user.id,
+    role: 'caller', campaign_id: branchId, status: 'pending', is_active: false,
+  })
+
+  // collect recipients: branch coordinator(s) + master-campaign manager(s) + org owner
+  const to = new Set<string>()
+  if (branch.coordinator_email) to.add(branch.coordinator_email as string)
+  const { data: coords } = await admin.from('kp_members').select('email').eq('campaign_id', branchId).eq('role', 'coordinator')
+  for (const c of coords ?? []) if (c.email) to.add((c.email as string))
+  if (branch.parent_campaign_id) {
+    const { data: mgrs } = await admin.from('kp_members').select('email').eq('campaign_id', branch.parent_campaign_id).eq('role', 'manager')
+    for (const m of mgrs ?? []) if (m.email) to.add((m.email as string))
+  }
+  try {
+    const { data: org } = await admin.from('organizations').select('owner_id').eq('id', branch.organization_id).maybeSingle()
+    if (org?.owner_id) { const { data: p } = await admin.from('profiles').select('email').eq('id', org.owner_id).maybeSingle(); if (p?.email) to.add(p.email as string) }
+  } catch { /* profiles.email optional */ }
+
+  const subject = `בקשת הצטרפות חדשה — ${branch.name}`
+  const html = `המשתמש <b>${user.email}</b> ביקש להצטרף כטלפן לסניף <b>${branch.name}</b>.<br/>היכנס ל-Kafool+ ואשר/דחה את הבקשה במסך "הרשאות" (מנהל) או אצל הרכז.`
+  for (const addr of to) { try { await sendPlusEmail(addr, subject, html) } catch { /* best-effort */ } }
+  return { ok: true }
+}
 
 // All telephony mutations. Same signatures as the old zustand store so the
 // ported screens call them almost unchanged. Each guards on the caller's

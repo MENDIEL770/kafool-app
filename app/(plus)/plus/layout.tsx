@@ -2,7 +2,9 @@ import { redirect } from 'next/navigation'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { getPlusContext } from '@/lib/plus/context'
 import { loadPlusData } from '@/lib/plus/data'
+import { listJoinable, myPendingRequest } from '@/lib/plus/actions'
 import PlusProvider from './PlusProvider'
+import JoinRequest from './JoinRequest'
 import type { SessionUser } from '@/lib/plus/store'
 
 export const dynamic = 'force-dynamic'
@@ -13,7 +15,15 @@ export default async function PlusLayout({ children }: { children: React.ReactNo
   if (!user) redirect('/kafool-plus-login')
 
   const ctx = await getPlusContext(supabase)
-  if (!ctx.role) redirect('/kafool-plus-login')
+  // Logged in but not a member yet → join-request flow (pick campaign + branch).
+  if (!ctx.role) {
+    const [joinable, pending] = await Promise.all([listJoinable(), myPendingRequest()])
+    return (
+      <div className="kafool-plus min-h-screen" dir="rtl">
+        <JoinRequest joinable={joinable} pending={pending} email={ctx.email} />
+      </div>
+    )
+  }
 
   // Entitlement gate: the in-scope org must be subscribed to Kafool+ (super-admin exempt).
   if (!ctx.isSuperAdmin && ctx.orgId) {
