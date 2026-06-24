@@ -46,6 +46,16 @@ export async function approveMember(memberId: string, role: Role, campaignId: st
   }).eq('id', memberId).eq('organization_id', c.orgId!)
 }
 
+export async function addMember(id: string, m: { email: string; role: Role; campaign_id?: string | null; caller_group_id?: string | null; status?: string; is_active?: boolean }) {
+  const c = await ctx(); assertManagerial(c.role)
+  const admin = await createServiceClient()
+  await admin.from('kp_members').insert({
+    id, organization_id: c.orgId!, email: m.email.trim().toLowerCase(), role: m.role,
+    campaign_id: m.campaign_id ?? null, caller_group_id: m.caller_group_id ?? null,
+    status: m.status ?? 'active', is_active: m.is_active ?? true,
+  })
+}
+
 export async function rejectMember(memberId: string) {
   const c = await ctx(); assertManagerial(c.role)
   const admin = await createServiceClient()
@@ -77,59 +87,73 @@ export async function approveToPool(memberId: string) {
 }
 
 /** Coordinator pulls a pool member into THEIR branch as a caller (creates a group). */
-export async function assignFromPool(memberId: string, branchCampaignId: string, displayName: string, link: string, goal: number, phone?: string): Promise<string> {
+export async function assignFromPool(id: string, memberId: string, branchCampaignId: string, displayName: string, link: string, goal: number, phone?: string): Promise<string> {
   const c = await ctx(); assertManagerial(c.role)
   const admin = await createServiceClient()
   const { data: member } = await admin.from('kp_members').select('email').eq('id', memberId).maybeSingle()
-  const { data: cg } = await admin.from('kp_caller_groups').insert({
-    organization_id: c.orgId!, campaign_id: branchCampaignId,
+  await admin.from('kp_caller_groups').insert({
+    id, organization_id: c.orgId!, campaign_id: branchCampaignId,
     caller_email: member?.email ?? '', display_name: displayName || (member?.email as string) || 'טלפן',
     public_slug: makePlusSlug(displayName || 'caller'), donation_link: link, personal_goal: goal, phone: phone ?? null,
-  }).select('id').single()
+  })
   await admin.from('kp_members').update({
-    campaign_id: branchCampaignId, caller_group_id: cg!.id, role: 'caller', status: 'active', is_active: true, updated_at: now(),
+    campaign_id: branchCampaignId, caller_group_id: id, role: 'caller', status: 'active', is_active: true, updated_at: now(),
   }).eq('id', memberId).eq('organization_id', c.orgId!)
-  return cg!.id
+  return id
 }
 
 // ─── campaigns ───
-export async function addSubCampaign(parentId: string, name: string, coordEmail: string, goal: number): Promise<string> {
+export async function addSubCampaign(id: string, parentId: string, name: string, coordEmail: string, goal: number): Promise<string> {
   const c = await ctx(); assertManagerial(c.role)
   const admin = await createServiceClient()
-  const { data: camp } = await admin.from('kp_campaigns').insert({
-    organization_id: c.orgId!, parent_campaign_id: parentId, name, goal_amount: goal,
+  await admin.from('kp_campaigns').insert({
+    id, organization_id: c.orgId!, parent_campaign_id: parentId, name, goal_amount: goal,
     coordinator_email: coordEmail || null,
-  }).select('id').single()
+  })
   if (coordEmail) {
     await admin.from('kp_members').insert({
       organization_id: c.orgId!, email: coordEmail.trim().toLowerCase(), role: 'coordinator',
-      campaign_id: camp!.id, status: 'active', is_active: true,
+      campaign_id: id, status: 'active', is_active: true,
     })
   }
-  return camp!.id
+  return id
 }
 
 // ─── caller groups ───
-export async function addCallerGroup(campaignId: string, email: string, name: string, link: string, goal: number, phone?: string): Promise<string> {
+export async function addCallerGroup(id: string, campaignId: string, email: string, name: string, link: string, goal: number, phone?: string): Promise<string> {
   const c = await ctx(); assertManagerial(c.role)
   const admin = await createServiceClient()
-  const { data: cg } = await admin.from('kp_caller_groups').insert({
-    organization_id: c.orgId!, campaign_id: campaignId, caller_email: email,
+  await admin.from('kp_caller_groups').insert({
+    id, organization_id: c.orgId!, campaign_id: campaignId, caller_email: email,
     display_name: name, public_slug: makePlusSlug(name), donation_link: link, personal_goal: goal, phone: phone ?? null,
-  }).select('id').single()
+  })
   if (email) {
     const { data: existing } = await admin.from('kp_members').select('id')
       .ilike('email', email).eq('campaign_id', campaignId).maybeSingle()
     if (existing) {
-      await admin.from('kp_members').update({ caller_group_id: cg!.id, updated_at: now() }).eq('id', existing.id)
+      await admin.from('kp_members').update({ caller_group_id: id, updated_at: now() }).eq('id', existing.id)
     } else {
       await admin.from('kp_members').insert({
         organization_id: c.orgId!, email: email.trim().toLowerCase(), role: 'caller',
-        campaign_id: campaignId, caller_group_id: cg!.id, status: 'active', is_active: true,
+        campaign_id: campaignId, caller_group_id: id, status: 'active', is_active: true,
       })
     }
   }
-  return cg!.id
+  return id
+}
+
+/** Ensure a coordinator has a personal caller group so they can work as a caller. */
+export async function ensureCallerGroupFor(id: string, campaignId: string, email: string, name: string): Promise<string> {
+  const c = await ctx()
+  const admin = await createServiceClient()
+  const { data: existing } = await admin.from('kp_caller_groups').select('id')
+    .eq('campaign_id', campaignId).ilike('caller_email', email).maybeSingle()
+  if (existing) return existing.id as string
+  await admin.from('kp_caller_groups').insert({
+    id, organization_id: c.orgId!, campaign_id: campaignId, caller_email: email,
+    display_name: name, public_slug: makePlusSlug(name || 'coord-caller'), donation_link: '', personal_goal: 0, is_coordinator: true,
+  })
+  return id
 }
 
 export async function updateCallerGroup(id: string, patch: Partial<CallerGroup>) {
