@@ -1724,6 +1724,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
         presetFormMode={modalFormMode}
         defaultPaymentNote={(campaign.settings as { payment_note?: string })?.payment_note || ''}
         formEmails={(campaign.settings as { form_emails?: Record<string, { subject?: string; body?: string; image?: string }> })?.form_emails || {}}
+        buttonEmails={(campaign.settings as { button_emails?: Record<string, { subject?: string; body?: string; image?: string }> })?.button_emails || {}}
         preStep={preStep}
       />
 

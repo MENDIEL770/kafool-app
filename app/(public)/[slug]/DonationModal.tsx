@@ -60,6 +60,7 @@ interface Props {
   presetFormMode?: string   // per-button: '' | 'regular' | 'choice' | <formId>
   defaultPaymentNote?: string
   formEmails?: Record<string, { subject?: string; body?: string; image?: string }>
+  buttonEmails?: Record<string, { subject?: string; body?: string; image?: string }>
   preStep?: PreStepDef | null
 }
 
@@ -83,6 +84,7 @@ export default function DonationModal({
   presetFormMode,
   defaultPaymentNote,
   formEmails,
+  buttonEmails,
   preStep,
 }: Props) {
   // The pre-step is available once configured (choice/info/consent). It is NEVER
@@ -225,9 +227,11 @@ export default function DonationModal({
       }
       if (hasPreStep && choice) labeled[preStep!.title || 'בחירה'] = choice
       if (hasPreStep && preStepType === 'consent' && consented) labeled[preStep!.consentLabel || 'אישור'] = 'כן'
-      // per-form thank-you email override (default email is sent server-side)
-      const e = activeFormId ? formEmails?.[activeFormId] : undefined
-      const emailTemplate = e && (e.subject || e.body || e.image) ? e : null
+      // thank-you email override: per-button (by amount) → per-form → default (server-side)
+      const hasTpl = (t?: { subject?: string; body?: string; image?: string }) => !!(t && (t.subject || t.body || t.image))
+      const btnE = typeof presetAmount === 'number' ? buttonEmails?.[String(presetAmount)] : undefined
+      const formE = activeFormId ? formEmails?.[activeFormId] : undefined
+      const emailTemplate = hasTpl(btnE) ? btnE : hasTpl(formE) ? formE : null
       if (Object.keys(labeled).length || emailTemplate) {
         fetch('/api/donations/intent', {
           method: 'POST',

@@ -12,6 +12,7 @@ import { Check } from 'lucide-react'
 
 interface EmailTpl { subject?: string; body?: string; image?: string }
 interface FormRef { id: string; name: string; email?: EmailTpl }
+interface ButtonRef { amount: number; label?: string | null }
 
 const EXAMPLE_EMAIL = `תודה מכל הלב ששלחת חיבוק של אור! 💞
 כדי להעניק לך את הטוב ביותר, הערכות והיומנים שלנו נמצאים כעת בייצור מדוייק ומושקע.
@@ -33,6 +34,8 @@ export default function CampaignEmailPage() {
     enabled: false, subject: '', body: '', image: '',
   })
   const [formEmails, setFormEmails] = useState<Record<string, EmailTpl>>({})
+  const [buttons, setButtons] = useState<ButtonRef[]>([])
+  const [buttonEmails, setButtonEmails] = useState<Record<string, EmailTpl>>({})   // keyed by button amount
 
   useEffect(() => {
     async function load() {
@@ -48,6 +51,9 @@ export default function CampaignEmailPage() {
       const seeded: Record<string, EmailTpl> = { ...fe }
       for (const f of cf) if (!seeded[f.id] && f.email) seeded[f.id] = f.email
       setFormEmails(seeded)
+      const plans = (Array.isArray(s.donation_plans) ? s.donation_plans : []) as ButtonRef[]
+      setButtons(plans.filter(p => Number(p.amount) > 0).map(p => ({ amount: Number(p.amount), label: p.label })))
+      setButtonEmails((s.button_emails as Record<string, EmailTpl>) || {})
       setLoading(false)
     }
     load()
@@ -58,6 +64,7 @@ export default function CampaignEmailPage() {
     try {
       const url = await uploadImage(file, `campaigns/${id}/email-${Date.now()}`)
       if (key === 'default') setDef(p => ({ ...p, image: url }))
+      else if (key.startsWith('btn:')) { const amt = key.slice(4); setButtonEmails(p => ({ ...p, [amt]: { ...(p[amt] || {}), image: url } })) }
       else setFormEmails(p => ({ ...p, [key]: { ...(p[key] || {}), image: url } }))
     } catch (e) { alert(e instanceof Error ? e.message : 'ההעלאה נכשלה') }
     setUploading(null)
@@ -66,23 +73,28 @@ export default function CampaignEmailPage() {
   function setFE(fid: string, patch: EmailTpl) {
     setFormEmails(p => ({ ...p, [fid]: { ...(p[fid] || {}), ...patch } }))
   }
+  function setBE(amt: string, patch: EmailTpl) {
+    setButtonEmails(p => ({ ...p, [amt]: { ...(p[amt] || {}), ...patch } }))
+  }
 
   async function save() {
     setSaving(true)
     const supabase = createClient()
     const { data: existing } = await supabase.from('campaigns').select('settings').eq('id', id).single()
-    const cleanFormEmails: Record<string, EmailTpl> = {}
-    for (const [fid, e] of Object.entries(formEmails)) {
-      const subject = e.subject?.trim() || ''
-      const body = e.body?.trim() || ''
-      const image = e.image || ''
-      if (subject || body || image) cleanFormEmails[fid] = { subject, body, image }
+    const clean = (m: Record<string, EmailTpl>) => {
+      const out: Record<string, EmailTpl> = {}
+      for (const [k, e] of Object.entries(m)) {
+        const subject = e.subject?.trim() || '', body = e.body?.trim() || '', image = e.image || ''
+        if (subject || body || image) out[k] = { subject, body, image }
+      }
+      return out
     }
     await supabase.from('campaigns').update({
       settings: {
         ...(existing?.settings as object),
         thank_you_email: { enabled: def.enabled, subject: def.subject.trim(), body: def.body.trim(), image: def.image || '' },
-        form_emails: cleanFormEmails,
+        form_emails: clean(formEmails),
+        button_emails: clean(buttonEmails),
       },
     }).eq('id', id)
     setSaving(false); setSaved(true)
@@ -155,6 +167,38 @@ export default function CampaignEmailPage() {
                         <input type="file" accept="image/*" className="hidden" onChange={ev => { const file = ev.target.files?.[0]; if (file) uploadImg(file, f.id); ev.target.value = '' }} />
                       </label>
                       {e.image && <button type="button" onClick={() => setFE(f.id, { image: '' })} className="text-xs text-red-400 hover:text-red-600">הסר</button>}
+                    </div>
+                  </div>
+                </details>
+              )
+            })}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Per-button emails */}
+      {buttons.length > 0 && (
+        <Card>
+          <CardHeader><CardTitle className="text-base">מייל לכפתור תרומה ספציפי</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-xs text-gray-400">מייל שונה לתרומות שנעשו דרך כפתור מסוים (לפי הסכום). דורס את ברירת המחדל. השאר ריק לשימוש בברירת המחדל.</p>
+            {buttons.map(b => {
+              const k = String(b.amount)
+              const e = buttonEmails[k] || {}
+              return (
+                <details key={k} className="rounded-xl border border-gray-100 bg-gray-50/50 px-3 py-2">
+                  <summary className="text-sm font-semibold text-gray-700 cursor-pointer">כפתור ₪{b.amount.toLocaleString()}{b.label ? ` — ${b.label}` : ''}</summary>
+                  <div className="space-y-2 pt-2">
+                    <Input value={e.subject || ''} onChange={ev => setBE(k, { subject: ev.target.value })} placeholder="נושא המייל" />
+                    <textarea value={e.body || ''} onChange={ev => setBE(k, { body: ev.target.value })} rows={4}
+                      placeholder="תוכן המייל לכפתור זה" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400 resize-y" />
+                    <div className="flex items-center gap-3">
+                      {e.image && <img src={e.image} alt="" className="h-12 rounded object-cover" />}
+                      <label className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 cursor-pointer">
+                        {uploading === `btn:${k}` ? 'מעלה…' : e.image ? 'החלף תמונה' : 'העלה תמונה'}
+                        <input type="file" accept="image/*" className="hidden" onChange={ev => { const file = ev.target.files?.[0]; if (file) uploadImg(file, `btn:${k}`); ev.target.value = '' }} />
+                      </label>
+                      {e.image && <button type="button" onClick={() => setBE(k, { image: '' })} className="text-xs text-red-400 hover:text-red-600">הסר</button>}
                     </div>
                   </div>
                 </details>
