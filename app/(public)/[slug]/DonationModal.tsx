@@ -6,14 +6,16 @@ import { X, CreditCard, RefreshCw, Smartphone, Landmark } from 'lucide-react'
 interface Group { id: string; name: string; slug: string }
 interface PaymentUrls { one_time: string; hok: string; bit: string; bank: string; one_time_en?: string; hok_en?: string }
 interface NedarimConfig { mosad: string; apiValid: string; active: boolean }
-interface CustomFieldDef { id: string; label: string; type: string; required: boolean; options?: string[]; tiers?: { minQty: number; unitPrice: number }[] }
+interface CustomFieldDef { id: string; label: string; type: string; required: boolean; options?: string[]; unitPrice?: number; tiers?: { minQty: number; discountPercent: number }[] }
 
-// Unit price for a quantity = the highest tier whose minQty the quantity reaches.
-function unitPriceForQty(tiers: { minQty: number; unitPrice: number }[] | undefined, qty: number): number {
-  const sorted = [...(tiers || [])].sort((a, b) => a.minQty - b.minQty)
-  let price = sorted[0]?.unitPrice ?? 0
-  for (const t of sorted) { if (qty >= t.minQty) price = t.unitPrice }
-  return Number(price) || 0
+// Effective unit price = base price minus the highest quantity-discount the
+// quantity qualifies for.
+function unitPriceForQty(field: CustomFieldDef, qty: number): { unit: number; discount: number } {
+  const base = Number(field.unitPrice) || 0
+  const sorted = [...(field.tiers || [])].sort((a, b) => a.minQty - b.minQty)
+  let discount = 0
+  for (const t of sorted) { if (qty >= t.minQty) discount = Number(t.discountPercent) || 0 }
+  return { unit: Math.round(base * (1 - discount / 100)), discount }
 }
 interface CustomFormDef { id: string; name: string; headerTitle?: string; fields: CustomFieldDef[] }
 interface PreStepOption { id: string; label: string; formId?: string }
@@ -180,7 +182,8 @@ export default function DonationModal({
   // the unit price for the chosen quantity (tiered). Otherwise use the preset/custom amount.
   const qtyField = activeForm?.fields.find(f => f.type === 'quantity') || null
   const quantity = qtyField ? Math.max(1, Math.floor(Number(customValues[qtyField.id]) || 1)) : 0
-  const qtyUnit = qtyField ? unitPriceForQty(qtyField.tiers, quantity) : 0
+  const qtyPrice = qtyField ? unitPriceForQty(qtyField, quantity) : { unit: 0, discount: 0 }
+  const qtyUnit = qtyPrice.unit
   const qtyTotal = qtyField ? quantity * qtyUnit : 0
   const finalAmount = qtyField ? qtyTotal : (amount || Number(customAmount) || 0)
   // required donor details (unless anonymous): name, phone, email
@@ -510,6 +513,7 @@ export default function DonationModal({
                         </div>
                         {qtyTotal > 0 && (
                           <p className="text-xs text-gray-600 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2 text-center">
+                            {qtyPrice.discount > 0 && <span className="text-green-600 font-bold">{qtyPrice.discount}% {en ? 'off' : 'הנחה'} · </span>}
                             ₪{qtyUnit.toLocaleString()} {en ? 'each' : 'ליחידה'} × {quantity} = <strong className="text-gray-900">₪{qtyTotal.toLocaleString()}</strong>
                           </p>
                         )}

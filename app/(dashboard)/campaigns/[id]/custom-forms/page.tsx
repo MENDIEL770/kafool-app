@@ -12,14 +12,15 @@ import { Check, Plus, Trash2, ChevronUp, ChevronDown, GripVertical } from 'lucid
 // ─── Types (stored in campaign.settings) ───────────────────────────────
 type FieldType = 'text' | 'tel' | 'email' | 'textarea' | 'address' | 'select' | 'note' | 'quantity'
 
-interface PriceTier { minQty: number; unitPrice: number }
+interface PriceTier { minQty: number; discountPercent: number }
 interface CustomField {
   id: string
   label: string
   type: FieldType
   required: boolean
   options?: string[]    // for type 'select'
-  tiers?: PriceTier[]   // for type 'quantity' — unit price by minimum quantity
+  unitPrice?: number    // for type 'quantity' — base price per unit
+  tiers?: PriceTier[]   // for type 'quantity' — % discount from a minimum quantity
 }
 interface CustomForm {
   id: string
@@ -285,11 +286,18 @@ export default function CustomFormsPage() {
                   )}
                 </div>
                 {field.type === 'quantity' && (() => {
-                  const tiers = field.tiers && field.tiers.length ? field.tiers : [{ minQty: 1, unitPrice: 0 }]
+                  const tiers = field.tiers || []
                   const setTiers = (next: PriceTier[]) => updateField(form.id, field.id, { tiers: next })
                   return (
-                    <div className="pr-12 space-y-2">
-                      <p className="text-[11px] text-gray-400">מחיר ליחידה לפי כמות (המדרגה הגבוהה ביותר שמתאימה לכמות נבחרת — לדוגמה: מ-1 יח׳ ₪230, מ-10 יח׳ ₪200):</p>
+                    <div className="pr-12 space-y-2.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] text-gray-500 shrink-0 font-medium">מחיר ליחידה (₪):</span>
+                        <input type="number" min="0" value={field.unitPrice ?? ''} dir="ltr"
+                          onChange={e => updateField(form.id, field.id, { unitPrice: Number(e.target.value) || 0 })}
+                          placeholder="230"
+                          className="w-24 border border-gray-200 rounded-lg px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-blue-400" />
+                      </div>
+                      <p className="text-[11px] text-gray-400">הנחות לפי כמות — אחוז הנחה שמופעל מכמות מינימלית (אופציונלי. לדוגמה: מ-10 יח׳ — 13% הנחה):</p>
                       {tiers.map((tier, ti) => (
                         <div key={ti} className="flex items-center gap-2">
                           <span className="text-[11px] text-gray-400 shrink-0">מ-</span>
@@ -297,16 +305,16 @@ export default function CustomFormsPage() {
                             onChange={e => setTiers(tiers.map((tt, j) => (j === ti ? { ...tt, minQty: Number(e.target.value) || 1 } : tt)))}
                             className="w-16 border border-gray-200 rounded-lg px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-blue-400" />
                           <span className="text-[11px] text-gray-400 shrink-0">יח׳ —</span>
-                          <input type="number" min="0" value={tier.unitPrice} dir="ltr"
-                            onChange={e => setTiers(tiers.map((tt, j) => (j === ti ? { ...tt, unitPrice: Number(e.target.value) || 0 } : tt)))}
-                            className="w-20 border border-gray-200 rounded-lg px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-blue-400" />
-                          <span className="text-[11px] text-gray-400 shrink-0">₪ ליחידה</span>
-                          <button type="button" disabled={tiers.length <= 1} onClick={() => setTiers(tiers.filter((_, j) => j !== ti))}
-                            className="text-red-400 hover:text-red-600 disabled:opacity-30 shrink-0" title="מחק מדרגה"><Trash2 className="w-4 h-4" /></button>
+                          <input type="number" min="0" max="100" value={tier.discountPercent} dir="ltr"
+                            onChange={e => setTiers(tiers.map((tt, j) => (j === ti ? { ...tt, discountPercent: Number(e.target.value) || 0 } : tt)))}
+                            className="w-16 border border-gray-200 rounded-lg px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-blue-400" />
+                          <span className="text-[11px] text-gray-400 shrink-0">% הנחה</span>
+                          <button type="button" onClick={() => setTiers(tiers.filter((_, j) => j !== ti))}
+                            className="text-red-400 hover:text-red-600 shrink-0" title="מחק מדרגה"><Trash2 className="w-4 h-4" /></button>
                         </div>
                       ))}
-                      <Button type="button" variant="outline" onClick={() => setTiers([...tiers, { minQty: 1, unitPrice: 0 }])} className="text-xs">
-                        <Plus className="w-3.5 h-3.5 ml-1" /> הוסף מדרגת מחיר
+                      <Button type="button" variant="outline" onClick={() => setTiers([...tiers, { minQty: 1, discountPercent: 0 }])} className="text-xs">
+                        <Plus className="w-3.5 h-3.5 ml-1" /> הוסף הנחת כמות
                       </Button>
                     </div>
                   )
