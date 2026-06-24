@@ -625,7 +625,7 @@ export default function DonationModal({
               {(() => {
                 const note = (activeForm?.paymentNote || defaultPaymentNote || '').trim()
                 return note ? (
-                  <p className="text-xs text-gray-600 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2.5 text-center whitespace-pre-line leading-relaxed">{note}</p>
+                  <p className="text-base text-gray-700 font-medium bg-amber-50 border border-amber-100 rounded-xl px-3 py-3 text-center whitespace-pre-line leading-relaxed">{note}</p>
                 ) : null
               })()}
 
