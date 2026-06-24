@@ -22,6 +22,7 @@ interface CustomField {
 interface CustomForm {
   id: string
   name: string
+  headerTitle?: string   // shown at the top of the donor modal when this form is active
   fields: CustomField[]
 }
 
@@ -78,7 +79,7 @@ export default function CustomFormsPage() {
     // re-fetch so we never clobber edits from another tab
     const { data: existing } = await supabase.from('campaigns').select('settings').eq('id', id).single()
     const cleanForms = forms
-      .map(f => ({ ...f, name: f.name.trim(), fields: f.fields.filter(fl => fl.label.trim()) }))
+      .map(f => ({ ...f, name: f.name.trim(), headerTitle: f.headerTitle?.trim() || '', fields: f.fields.filter(fl => fl.label.trim()) }))
       .filter(f => f.name)
     const validDefault = cleanForms.some(f => f.id === defaultFormId) ? defaultFormId : ''
     const cleanOptions = preStep.options.map(o => ({ ...o, label: o.label.trim() })).filter(o => o.label)
@@ -225,6 +226,14 @@ export default function CustomFormsPage() {
             </button>
           </CardHeader>
           <CardContent className="space-y-3">
+            <div className="space-y-1">
+              <Label>כותרת בראש הטופס (אופציונלי)</Label>
+              <Input
+                value={form.headerTitle || ''}
+                onChange={e => setForms(fs => fs.map(x => (x.id === form.id ? { ...x, headerTitle: e.target.value } : x)))}
+                placeholder='לדוגמה: "פרטי תשלום" / "פרטי תרומה"'
+              />
+            </div>
             {form.fields.length === 0 && (
               <p className="text-sm text-gray-400 text-center py-3">אין שדות עדיין — הוסף שדה ראשון.</p>
             )}

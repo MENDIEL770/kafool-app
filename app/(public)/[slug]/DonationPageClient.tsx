@@ -547,14 +547,15 @@ function HeroSection({ campaign, countdown }: {
   )
 }
 
-function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius, buttonSize = 'default', otherAmountImage, onDonate }: {
-  plans: { amount: number; label?: string; image_url?: string | null; payment_type?: 'one_time' | 'hok'; months?: number | null; form?: string | null }[]
+function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius, buttonSize = 'default', otherAmountImage, defaultCta, onDonate }: {
+  plans: { amount: number; label?: string; image_url?: string | null; payment_type?: 'one_time' | 'hok'; months?: number | null; form?: string | null; cta?: string | null }[]
   primaryColor: string
   campaignSlug: string
   groups: Group[]
   buttonRadius: string
   buttonSize?: 'default' | 'large'
   otherAmountImage?: string | null
+  defaultCta?: string
   onDonate: (amount?: number, groupSlug?: string, method?: 'one_time' | 'hok', months?: number, formMode?: string) => void
 }) {
   const [selected, setSelected] = useState<number | null>(null)
@@ -703,13 +704,18 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
             className={`flex-1 py-2.5 sm:py-3.5 text-white font-black text-sm sm:text-base text-center shadow-lg hover:opacity-90 active:scale-95 transition-all ${buttonRadius}`}
             style={{ backgroundColor: primaryColor }}
           >
-            {finalAmount
-              ? (selectedMethod === 'hok' && selectedMonths
-                  ? (lang === 'en'
-                      ? `Donate ₪${finalAmount.toLocaleString()} × ${selectedMonths} months (₪${(finalAmount * selectedMonths).toLocaleString()})`
-                      : `תרום ₪${finalAmount.toLocaleString()} × ${selectedMonths} חודשים (₪${(finalAmount * selectedMonths).toLocaleString()})`)
-                  : `${t('donate')} ₪${finalAmount.toLocaleString()}`)
-              : t('donate')}
+            {(() => {
+              // Per-button CTA override → campaign default → the amount-based label.
+              const override = ((selected != null ? plans[selected]?.cta : null) || defaultCta || '').trim()
+              if (override) return override
+              return finalAmount
+                ? (selectedMethod === 'hok' && selectedMonths
+                    ? (lang === 'en'
+                        ? `Donate ₪${finalAmount.toLocaleString()} × ${selectedMonths} months (₪${(finalAmount * selectedMonths).toLocaleString()})`
+                        : `תרום ₪${finalAmount.toLocaleString()} × ${selectedMonths} חודשים (₪${(finalAmount * selectedMonths).toLocaleString()})`)
+                    : `${t('donate')} ₪${finalAmount.toLocaleString()}`)
+                : t('donate')
+            })()}
           </button>
           <button
             onClick={() => navigator.share?.({ title: lang === 'en' ? 'Share the campaign' : 'שתף את הקמפיין', url: window.location.href }) ?? navigator.clipboard.writeText(window.location.href)}
@@ -1387,7 +1393,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
 
   const settings = campaign.settings as {
     donation_amounts?: number[]
-    donation_plans?: { amount: number; label?: string; image_url?: string | null; payment_type?: 'one_time' | 'hok'; months?: number | null; form?: string | null }[]
+    donation_plans?: { amount: number; label?: string; image_url?: string | null; payment_type?: 'one_time' | 'hok'; months?: number | null; form?: string | null; cta?: string | null }[]
     primary_color?: string
     button_radius?: string
     donation_button_size?: 'default' | 'large'
@@ -1574,7 +1580,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
       )}
 
       {/* 3. Donation Plans */}
-      {isOn('amounts') && <DonationPlans plans={donationPlans} primaryColor={primaryColor} campaignSlug={campaign.slug} groups={groups} buttonRadius={buttonRadius} buttonSize={buttonSize} otherAmountImage={(settings as { other_amount_design?: string })?.other_amount_design || null} onDonate={openDonate} />}
+      {isOn('amounts') && <DonationPlans plans={donationPlans} primaryColor={primaryColor} campaignSlug={campaign.slug} groups={groups} buttonRadius={buttonRadius} buttonSize={buttonSize} otherAmountImage={(settings as { other_amount_design?: string })?.other_amount_design || null} defaultCta={(settings as { donate_cta?: string })?.donate_cta || ''} onDonate={openDonate} />}
 
       {/* 4. Progress */}
       {isOn('goal') && <ProgressSection raised={raisedAmount} goal={campaign.goal_amount} donorsCount={donations.length} primaryColor={primaryColor} bricks={(campaign.settings as { bricks?: { total: number; price: number; label?: string } })?.bricks} />}

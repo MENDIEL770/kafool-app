@@ -13,7 +13,7 @@ import {
 
 /* ─── Types ─── */
 interface GalleryItem { id: string; image_url: string; caption: string | null; sort_order: number }
-interface DonationPlan { amount: number; label?: string | null; image_url?: string | null; payment_type?: 'one_time' | 'hok'; months?: number | null; form?: string | null }
+interface DonationPlan { amount: number; label?: string | null; image_url?: string | null; payment_type?: 'one_time' | 'hok'; months?: number | null; form?: string | null; cta?: string | null }
 interface FormOption { id: string; name: string }
 
 interface Props {
@@ -286,6 +286,12 @@ function PlanEditor({ plan, uploading, isFirst, isLast, customForms, preStepEnab
             </select>
           </div>
         )}
+        <div className="flex items-center gap-1.5">
+          <span className="text-[11px] text-gray-400 shrink-0">טקסט כפתור:</span>
+          <input value={plan.cta ?? ''} onChange={e => onChange({ cta: e.target.value })}
+            placeholder='ברירת מחדל (למשל "המשך")'
+            className="flex-1 border border-gray-200 rounded-lg px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-blue-400" />
+        </div>
       </div>
 
       <div className="flex flex-col items-center gap-1 shrink-0">
@@ -360,6 +366,7 @@ export default function CampaignMediaClient({
   const [uploadingPlan, setUploadingPlan] = useState<number | null>(null)
   const [otherAmountImage, setOtherAmountImage] = useState<string | null>((initialSettings.other_amount_design as string) || null)
   const [uploadingOther, setUploadingOther] = useState(false)
+  const [donateCta, setDonateCta] = useState<string>((initialSettings.donate_cta as string) || '')
   // Custom forms + pre-step (defined in the "התאמות אישיות" tab) — for the
   // per-button "which form opens" selector.
   const campaignCustomForms: FormOption[] = Array.isArray(initialSettings.custom_forms)
@@ -573,12 +580,14 @@ export default function CampaignMediaClient({
       payment_type: p.payment_type || 'one_time',
       months: p.payment_type === 'hok' ? (Number(p.months) || null) : null,
       form: p.form || null,
+      cta: p.cta?.trim() || null,
     }))
     const settings = {
       ...(initialSettings as object),
       donation_plans: clean,
       donation_amounts: clean.map(p => p.amount), // keep in sync for backward-compat
       other_amount_design: otherAmountImage || null,
+      donate_cta: donateCta.trim() || null,
       primary_color: primaryColor,
     }
     await supabase.from('campaigns').update({ settings }).eq('id', campaignId)
@@ -1046,6 +1055,13 @@ export default function CampaignMediaClient({
           <p className="text-xs text-gray-400">
             לכל כפתור אפשר להעלות <strong>עיצוב (תמונה)</strong> שיופיע במקום הסכום הגדול, ולכתוב <strong>טקסט שיופיע מתחת לכפתור</strong>.
           </p>
+
+          <div className="flex items-center gap-2 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2">
+            <span className="text-xs text-gray-500 shrink-0 font-medium">טקסט כפתור התרומה (ברירת מחדל):</span>
+            <input value={donateCta} onChange={e => setDonateCta(e.target.value)}
+              placeholder='"תרומה" (ברירת מחדל). אפשר לדרוס לכל כפתור.'
+              className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm bg-white outline-none focus:ring-2 focus:ring-blue-400" />
+          </div>
 
           {/* Plan editors */}
           <div className="space-y-3">

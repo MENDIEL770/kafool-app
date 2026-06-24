@@ -7,7 +7,7 @@ interface Group { id: string; name: string; slug: string }
 interface PaymentUrls { one_time: string; hok: string; bit: string; bank: string; one_time_en?: string; hok_en?: string }
 interface NedarimConfig { mosad: string; apiValid: string; active: boolean }
 interface CustomFieldDef { id: string; label: string; type: string; required: boolean; options?: string[] }
-interface CustomFormDef { id: string; name: string; fields: CustomFieldDef[] }
+interface CustomFormDef { id: string; name: string; headerTitle?: string; fields: CustomFieldDef[] }
 interface PreStepOption { id: string; label: string; formId?: string }
 interface PreStepDef { enabled: boolean; title: string; options: PreStepOption[] }
 
@@ -301,7 +301,11 @@ export default function DonationModal({
         <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-gray-100 shrink-0">
           <div>
             <h2 className="font-black text-gray-900 text-lg">
-              {step === 'payment' ? T.securePay : step === 'choice' ? (preStep?.title || T.donorDetails) : T.donorDetails}
+              {step === 'payment'
+                ? T.securePay
+                : step === 'choice'
+                  ? (preStep?.title || T.donorDetails)
+                  : (activeForm?.headerTitle?.trim() || T.donorDetails)}
             </h2>
             <p className="text-xs text-gray-400 mt-0.5">{campaign.title}</p>
           </div>
