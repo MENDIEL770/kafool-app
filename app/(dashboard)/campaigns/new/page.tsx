@@ -29,10 +29,11 @@ export default function NewCampaignPage() {
     setForm((prev) => {
       const updated = { ...prev, [key]: value }
       if (key === 'title' && !prev.slug) {
+        // keep Hebrew letters too, so a campaign can have a Hebrew URL
         updated.slug = value
           .toLowerCase()
-          .replace(/\s+/g, '-')
-          .replace(/[^\w-]/g, '')
+          .replace(/[^a-z0-9֐-׿]+/g, '-')
+          .replace(/^-+|-+$/g, '')
       }
       return updated
     })
@@ -81,8 +82,7 @@ export default function NewCampaignPage() {
                 <span className="text-sm text-gray-400 shrink-0">kafool.com/</span>
                 <Input
                   value={form.slug}
-                  onChange={(e) => set('slug', e.target.value.toLowerCase().replace(/[^\w-]/g, ''))}
-                  dir="ltr"
+                  onChange={(e) => set('slug', e.target.value.toLowerCase().replace(/[^a-z0-9֐-׿-]/g, ''))}
                   required
                 />
               </div>

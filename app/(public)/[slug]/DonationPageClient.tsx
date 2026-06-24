@@ -1178,7 +1178,7 @@ function AboutSection({ campaign, gallery }: { campaign: Campaign; gallery: Gall
 
         {/* Gallery fullscreen lightbox with prev/next arrows */}
         {galleryZoom && gallery.length > 0 && (
-          <div className="fixed inset-0 z-[90] bg-black/90 flex items-center justify-center p-4" onClick={() => setGalleryZoom(false)}>
+          <div className="fixed inset-0 z-[90] bg-black/90 flex items-center justify-center p-4" onClick={(e) => { if (e.target === e.currentTarget) setGalleryZoom(false) }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={gallery[idx].image_url} alt={gallery[idx].caption || ''} className="max-w-full max-h-full object-contain rounded-lg" onClick={e => e.stopPropagation()} />
             <button onClick={() => setGalleryZoom(false)} className="absolute top-4 left-4 w-10 h-10 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center text-xl">✕</button>
