@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Check, Plus, Trash2, ChevronUp, ChevronDown, GripVertical } from 'lucide-react'
+import { Check, Plus, Trash2, ChevronUp, ChevronDown, GripVertical, Copy } from 'lucide-react'
 
 // ─── Types (stored in campaign.settings) ───────────────────────────────
 type FieldType = 'text' | 'tel' | 'email' | 'textarea' | 'address' | 'select' | 'note' | 'quantity'
@@ -110,6 +110,20 @@ export default function CustomFormsPage() {
   function removeForm(fid: string) {
     setForms(f => f.filter(x => x.id !== fid))
     if (defaultFormId === fid) setDefaultFormId('')
+  }
+  function duplicateForm(fid: string) {
+    setForms(fs => {
+      const i = fs.findIndex(f => f.id === fid)
+      if (i < 0) return fs
+      const src = fs[i]
+      const copy: CustomForm = {
+        ...src,
+        id: uid(),
+        name: `${src.name || 'טופס'} (עותק)`,
+        fields: src.fields.map(fl => ({ ...fl, id: uid() })),
+      }
+      return [...fs.slice(0, i + 1), copy, ...fs.slice(i + 1)]
+    })
   }
   function setFormName(fid: string, name: string) {
     setForms(f => f.map(x => (x.id === fid ? { ...x, name } : x)))
@@ -225,6 +239,9 @@ export default function CustomFormsPage() {
               placeholder="שם הטופס"
               className="max-w-xs font-bold"
             />
+            <button onClick={() => duplicateForm(form.id)} className="text-gray-400 hover:text-blue-600 transition-colors shrink-0" title="שכפל טופס">
+              <Copy className="w-4 h-4" />
+            </button>
             <button onClick={() => removeForm(form.id)} className="text-red-400 hover:text-red-600 transition-colors shrink-0" title="מחק טופס">
               <Trash2 className="w-4 h-4" />
             </button>
@@ -291,13 +308,13 @@ export default function CustomFormsPage() {
                   return (
                     <div className="pr-12 space-y-2.5">
                       <div className="flex items-center gap-2">
-                        <span className="text-[11px] text-gray-500 shrink-0 font-medium">מחיר ליחידה (₪):</span>
+                        <span className="text-[11px] text-gray-500 shrink-0 font-medium">מחיר ליחידה — גיבוי (₪):</span>
                         <input type="number" min="0" value={field.unitPrice ?? ''} dir="ltr"
                           onChange={e => updateField(form.id, field.id, { unitPrice: Number(e.target.value) || 0 })}
                           placeholder="230"
                           className="w-24 border border-gray-200 rounded-lg px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-blue-400" />
                       </div>
-                      <p className="text-[11px] text-gray-400">הנחות לפי כמות — אחוז הנחה שמופעל מכמות מינימלית (אופציונלי. לדוגמה: מ-10 יח׳ — 13% הנחה):</p>
+                      <p className="text-[11px] text-gray-400">מחיר היחידה נלקח מהסכום שהוגדר בכפתור התרומה; השדה למעלה משמש רק כגיבוי אם אין סכום. ההנחות מופעלות מכמות מינימלית (אופציונלי — לדוגמה: מ-10 יח׳ — 13% הנחה):</p>
                       {tiers.map((tier, ti) => (
                         <div key={ti} className="flex items-center gap-2">
                           <span className="text-[11px] text-gray-400 shrink-0">מ-</span>

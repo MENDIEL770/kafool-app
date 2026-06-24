@@ -9,10 +9,10 @@ interface NedarimConfig { mosad: string; apiValid: string; active: boolean }
 interface CustomFieldDef { id: string; label: string; type: string; required: boolean; options?: string[]; unitPrice?: number; tiers?: { minQty: number; discountPercent: number }[] }
 
 // Effective unit price = base price minus the highest quantity-discount the
-// quantity qualifies for.
-function unitPriceForQty(field: CustomFieldDef, qty: number): { unit: number; discount: number } {
-  const base = Number(field.unitPrice) || 0
-  const sorted = [...(field.tiers || [])].sort((a, b) => a.minQty - b.minQty)
+// quantity qualifies for. The base comes from the donation button's amount
+// (falling back to the field's own unit price).
+function unitPriceForQty(base: number, tiers: { minQty: number; discountPercent: number }[] | undefined, qty: number): { unit: number; discount: number } {
+  const sorted = [...(tiers || [])].sort((a, b) => a.minQty - b.minQty)
   let discount = 0
   for (const t of sorted) { if (qty >= t.minQty) discount = Number(t.discountPercent) || 0 }
   return { unit: Math.round(base * (1 - discount / 100)), discount }
@@ -182,7 +182,9 @@ export default function DonationModal({
   // the unit price for the chosen quantity (tiered). Otherwise use the preset/custom amount.
   const qtyField = activeForm?.fields.find(f => f.type === 'quantity') || null
   const quantity = qtyField ? Math.max(1, Math.floor(Number(customValues[qtyField.id]) || 1)) : 0
-  const qtyPrice = qtyField ? unitPriceForQty(qtyField, quantity) : { unit: 0, discount: 0 }
+  // base unit price = the button's amount, falling back to the field's own price
+  const qtyBase = qtyField ? (amount || Number(qtyField.unitPrice) || 0) : 0
+  const qtyPrice = qtyField ? unitPriceForQty(qtyBase, qtyField.tiers, quantity) : { unit: 0, discount: 0 }
   const qtyUnit = qtyPrice.unit
   const qtyTotal = qtyField ? quantity * qtyUnit : 0
   const finalAmount = qtyField ? qtyTotal : (amount || Number(customAmount) || 0)

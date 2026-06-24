@@ -63,6 +63,7 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
   const router = useRouter()
   const [donations, setDonations] = useState(initial)
   const [search, setSearch] = useState('')
+  const [groupFilter, setGroupFilter] = useState('')   // '' = all groups
   const [sortBy, setSortBy] = useState<'recent' | 'name_asc' | 'name_desc' | 'amount_desc' | 'amount_asc'>('recent')
   const [editId, setEditId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<Partial<Donation>>({})
@@ -92,11 +93,12 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
   const groupName = (id: string | null) => groups.find(g => g.id === id)?.name || null
 
   const filtered = donations.filter(d =>
-    !search ||
-    d.donor_name?.includes(search) ||
-    d.donor_phone?.includes(search) ||
-    d.donor_email?.includes(search) ||
-    String(d.amount).includes(search)
+    (!groupFilter || (groupFilter === '__none__' ? !d.group_id : d.group_id === groupFilter)) &&
+    (!search ||
+      d.donor_name?.includes(search) ||
+      d.donor_phone?.includes(search) ||
+      d.donor_email?.includes(search) ||
+      String(d.amount).includes(search))
   )
 
   const sorted = [...filtered].sort((a, b) => {
@@ -122,7 +124,7 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
   async function exportExcel() {
     const XLSX = await import('xlsx')
     const groupName = (gid: string | null) => groups.find(g => g.id === gid)?.name || ''
-    const rows = donations.map(d => ({
+    const rows = sorted.map(d => ({
       'שם': d.donor_name || '',
       'טלפון': d.donor_phone || '',
       'אימייל': d.donor_email || '',
@@ -399,7 +401,7 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
           <p className="text-sm text-gray-500 mt-0.5">{campaign.title}</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={exportExcel} disabled={donations.length === 0} className="gap-2">
+          <Button variant="outline" onClick={exportExcel} disabled={sorted.length === 0} title="מייצא לפי הסינון הנוכחי" className="gap-2">
             <Download className="w-4 h-4" />
             ייצוא לאקסל
           </Button>
@@ -442,9 +444,9 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
         ))}
       </div>
 
-      {/* Search + sort */}
-      <div className="flex gap-2">
-        <div className="relative flex-1">
+      {/* Search + group filter + sort */}
+      <div className="flex gap-2 flex-wrap">
+        <div className="relative flex-1 min-w-[12rem]">
           <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <Input
             value={search}
@@ -453,6 +455,18 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
             className="pr-9"
           />
         </div>
+        {groups.length > 0 && (
+          <select
+            value={groupFilter}
+            onChange={e => setGroupFilter(e.target.value)}
+            aria-label="סינון לפי קבוצה"
+            className="shrink-0 h-10 border border-gray-200 rounded-md px-3 text-sm bg-white outline-none cursor-pointer focus:ring-2 focus:ring-blue-400"
+          >
+            <option value="">כל הקבוצות</option>
+            <option value="__none__">ללא קבוצה</option>
+            {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+          </select>
+        )}
         <select
           value={sortBy}
           onChange={e => setSortBy(e.target.value as typeof sortBy)}
