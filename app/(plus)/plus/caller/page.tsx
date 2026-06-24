@@ -429,8 +429,8 @@ export default function CallerPage() {
 
               {charidy?.error && <p className="text-red-500 text-sm mb-2">{charidy.error}</p>}
 
-              <div className="text-xs font-semibold text-muted mb-1.5">תרומות אחרונות בקמפיין (לייב)</div>
-              {/* donor list — campaign-wide live feed (Charidy's public API isn't team-tagged) */}
+              <div className="text-xs font-semibold text-muted mb-1.5">התרומות האחרונות שלי (לייב)</div>
+              {/* donor list — filtered to this caller's team via team_id_list */}
               <div className="space-y-1 max-h-64 overflow-y-auto">
                 {(charidy?.donations ?? []).map((d) => (
                   <div key={d.id} className="flex items-center justify-between px-3 py-2 rounded-lg" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>

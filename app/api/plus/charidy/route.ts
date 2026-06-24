@@ -57,12 +57,13 @@ export async function GET(req: NextRequest) {
       } catch { /* team optional */ }
     }
 
-    // 3) recent donations — the public feed isn't team-tagged, so when a team is
-    // given we still show the campaign's live feed (the headline total is the team's).
-    const dRes = await j(`${API}/campaign/${campaignId}/donations?sortBy=-time&limit=50&extend=team`)
+    // 3) recent donations — the public feed tags each donation with team_id_list,
+    // so we can filter to the team without auth (team_id itself is always 0).
+    const dRes = await j(`${API}/campaign/${campaignId}/donations?sortBy=-time&limit=100&extend=team`)
     const rows: { id: string; attributes: Record<string, unknown> }[] = dRes.data ?? []
-    const teamRows = teamId ? rows.filter(r => Number(r.attributes?.team_id) === teamId) : []
-    const feed = teamRows.length ? teamRows : rows
+    const feed = teamId
+      ? rows.filter(r => Array.isArray(r.attributes?.team_id_list) && (r.attributes.team_id_list as number[]).includes(teamId))
+      : rows
 
     const donations: DonationOut[] = feed.map(r => {
       const a = r.attributes || {}
