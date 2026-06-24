@@ -6,7 +6,15 @@ import { X, CreditCard, RefreshCw, Smartphone, Landmark } from 'lucide-react'
 interface Group { id: string; name: string; slug: string }
 interface PaymentUrls { one_time: string; hok: string; bit: string; bank: string; one_time_en?: string; hok_en?: string }
 interface NedarimConfig { mosad: string; apiValid: string; active: boolean }
-interface CustomFieldDef { id: string; label: string; type: string; required: boolean; options?: string[] }
+interface CustomFieldDef { id: string; label: string; type: string; required: boolean; options?: string[]; tiers?: { minQty: number; unitPrice: number }[] }
+
+// Unit price for a quantity = the highest tier whose minQty the quantity reaches.
+function unitPriceForQty(tiers: { minQty: number; unitPrice: number }[] | undefined, qty: number): number {
+  const sorted = [...(tiers || [])].sort((a, b) => a.minQty - b.minQty)
+  let price = sorted[0]?.unitPrice ?? 0
+  for (const t of sorted) { if (qty >= t.minQty) price = t.unitPrice }
+  return Number(price) || 0
+}
 interface CustomFormDef { id: string; name: string; headerTitle?: string; fields: CustomFieldDef[] }
 interface PreStepOption { id: string; label: string; formId?: string }
 interface PreStepDef { enabled: boolean; title: string; options: PreStepOption[] }
@@ -168,11 +176,17 @@ export default function DonationModal({
     return () => { document.body.style.overflow = '' }
   }, [isOpen])
 
-  const finalAmount = amount || Number(customAmount) || 0
+  // A quantity field (if the active form has one) drives the amount: quantity ×
+  // the unit price for the chosen quantity (tiered). Otherwise use the preset/custom amount.
+  const qtyField = activeForm?.fields.find(f => f.type === 'quantity') || null
+  const quantity = qtyField ? Math.max(1, Math.floor(Number(customValues[qtyField.id]) || 1)) : 0
+  const qtyUnit = qtyField ? unitPriceForQty(qtyField.tiers, quantity) : 0
+  const qtyTotal = qtyField ? quantity * qtyUnit : 0
+  const finalAmount = qtyField ? qtyTotal : (amount || Number(customAmount) || 0)
   // required donor details (unless anonymous): name, phone, email
   const detailsValid = form.anonymous || (!!form.firstName.trim() && !!form.phone.trim() && !!form.email.trim())
   // required custom-form fields must be filled (regardless of anonymous)
-  const customValid = !activeForm || activeForm.fields.filter(f => f.required).every(f => (customValues[f.id] || '').trim())
+  const customValid = !activeForm || activeForm.fields.filter(f => f.required && f.type !== 'quantity').every(f => (customValues[f.id] || '').trim())
   const canProceed = finalAmount > 0 && detailsValid && customValid
 
   function setField(key: string, value: string | boolean) {
@@ -193,6 +207,7 @@ export default function DonationModal({
     {
       const labeled: Record<string, string> = {}
       if (activeForm) for (const f of activeForm.fields) {
+        if (f.type === 'quantity') { labeled[f.label] = String(quantity); continue }
         const v = (customValues[f.id] || '').trim()
         if (v) labeled[f.label] = v
       }
@@ -349,7 +364,7 @@ export default function DonationModal({
           )}
 
           {/* Step: Amount (if no preset) */}
-          {step === 'details' && !presetAmount && amount === 0 && (
+          {step === 'details' && !presetAmount && amount === 0 && !qtyField && (
             <div className="px-5 py-4 border-b border-gray-100">
               <label className="text-xs font-medium text-gray-500 block mb-2">{T.amountLabel}</label>
               <input
@@ -482,7 +497,24 @@ export default function DonationModal({
                     <label className="text-xs font-medium text-gray-500">
                       {f.label} {f.required ? <span className="text-red-400">*</span> : <span className="text-gray-300">{T.optional}</span>}
                     </label>
-                    {f.type === 'select' ? (
+                    {f.type === 'quantity' ? (
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-3">
+                          <button type="button" onClick={() => onChange(String(Math.max(1, quantity - 1)))}
+                            className="w-9 h-9 rounded-full border border-gray-200 text-lg font-bold text-gray-600 hover:bg-gray-50 active:scale-95 transition">−</button>
+                          <input type="number" min="1" value={customValues[f.id] || '1'}
+                            onChange={e => onChange(e.target.value)} dir="ltr"
+                            className="w-16 text-center border border-gray-200 rounded-xl px-2 py-2 text-base font-bold outline-none focus:ring-2 focus:ring-blue-400" />
+                          <button type="button" onClick={() => onChange(String(quantity + 1))}
+                            className="w-9 h-9 rounded-full border border-gray-200 text-lg font-bold text-gray-600 hover:bg-gray-50 active:scale-95 transition">+</button>
+                        </div>
+                        {qtyTotal > 0 && (
+                          <p className="text-xs text-gray-600 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2 text-center">
+                            ₪{qtyUnit.toLocaleString()} {en ? 'each' : 'ליחידה'} × {quantity} = <strong className="text-gray-900">₪{qtyTotal.toLocaleString()}</strong>
+                          </p>
+                        )}
+                      </div>
+                    ) : f.type === 'select' ? (
                       <select value={val} onChange={e => onChange(e.target.value)}
                         className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white outline-none focus:ring-2 focus:ring-blue-400">
                         <option value="">—</option>
