@@ -259,21 +259,25 @@ function PlanEditor({ plan, uploading, isFirst, isLast, customForms, preStepEnab
           {([['one_time', 'תרומה חד-פעמית'], ['hok', 'הוראת קבע']] as const).map(([val, lbl]) => {
             const active = (plan.payment_type ?? 'one_time') === val
             return (
-              <button key={val} type="button" onClick={() => onChange({ payment_type: val })}
+              <button key={val} type="button"
+                onClick={() => onChange(val === 'hok' ? { payment_type: val, months: plan.months || 12 } : { payment_type: val })}
                 className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-colors ${active ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-500 border-gray-200 hover:border-blue-300'}`}>
                 {lbl}
               </button>
             )
           })}
-          {plan.payment_type === 'hok' && (
-            <div className="flex items-center gap-1 mr-1">
-              <span className="text-[11px] text-gray-400">למשך</span>
-              <input type="number" min="1" value={plan.months ?? ''} onChange={e => onChange({ months: Number(e.target.value) || null })}
-                placeholder="12" dir="ltr"
-                className="w-14 border border-gray-200 rounded-lg px-2 py-1 text-xs text-center outline-none focus:ring-2 focus:ring-blue-400" />
-              <span className="text-[11px] text-gray-400">חודשים</span>
-            </div>
-          )}
+          {plan.payment_type === 'hok' && (() => {
+            const missingMonths = !(Number(plan.months) >= 1)
+            return (
+              <div className="flex items-center gap-1 mr-1">
+                <span className="text-[11px] text-gray-400">למשך</span>
+                <input type="number" min="1" value={plan.months ?? ''} onChange={e => onChange({ months: Number(e.target.value) || null })}
+                  placeholder="12" dir="ltr" required aria-invalid={missingMonths}
+                  className={`w-14 border rounded-lg px-2 py-1 text-xs text-center outline-none focus:ring-2 focus:ring-blue-400 ${missingMonths ? 'border-red-300 bg-red-50' : 'border-gray-200'}`} />
+                <span className="text-[11px] text-gray-400">חודשים <span className="text-red-400">*</span></span>
+              </div>
+            )
+          })()}
         </div>
         {(customForms.length > 0 || preStepEnabled) && (
           <div className="flex items-center gap-1.5">
@@ -613,6 +617,12 @@ export default function CampaignMediaClient({
   }
 
   async function savePlans() {
+    // הוראת קבע מחייבת מספר חודשי תרומה — חוסם שמירה אם חסר
+    const missingMonths = plans.some(p => p.amount > 0 && p.payment_type === 'hok' && !(Number(p.months) >= 1))
+    if (missingMonths) {
+      alert('יש להגדיר מספר חודשי תרומה לכל כפתור של הוראת קבע.')
+      return
+    }
     setSavingAmounts(true)
     const clean = plans.filter(p => p.amount > 0).map(p => ({
       amount: p.amount, label: p.label?.trim() || null, image_url: p.image_url || null,
