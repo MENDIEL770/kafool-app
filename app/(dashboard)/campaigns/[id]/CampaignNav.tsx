@@ -10,6 +10,7 @@ import {
   Users,
   Group,
   SlidersHorizontal,
+  Mail,
   ChevronLeft,
 } from 'lucide-react'
 
@@ -35,6 +36,7 @@ export default function CampaignNav({ campaign }: Props) {
     { href: `${base}/donors`, label: 'תורמים', icon: Users },
     { href: `${base}/groups`, label: 'קבוצות', icon: Group },
     { href: `${base}/custom-forms`, label: 'התאמות אישיות', icon: SlidersHorizontal },
+    { href: `${base}/email`, label: 'אימייל', icon: Mail },
   ]
 
   const statusLabel: Record<string, { label: string; color: string }> = {

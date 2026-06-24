@@ -1723,6 +1723,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
         defaultFormId={cfSettings?.default_custom_form_id || ''}
         presetFormMode={modalFormMode}
         defaultPaymentNote={(campaign.settings as { payment_note?: string })?.payment_note || ''}
+        formEmails={(campaign.settings as { form_emails?: Record<string, { subject?: string; body?: string; image?: string }> })?.form_emails || {}}
         preStep={preStep}
       />
 

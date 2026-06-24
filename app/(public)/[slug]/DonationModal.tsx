@@ -59,6 +59,7 @@ interface Props {
   defaultFormId?: string
   presetFormMode?: string   // per-button: '' | 'regular' | 'choice' | <formId>
   defaultPaymentNote?: string
+  formEmails?: Record<string, { subject?: string; body?: string; image?: string }>
   preStep?: PreStepDef | null
 }
 
@@ -81,6 +82,7 @@ export default function DonationModal({
   defaultFormId,
   presetFormMode,
   defaultPaymentNote,
+  formEmails,
   preStep,
 }: Props) {
   // The pre-step is available once configured (choice/info/consent). It is NEVER
@@ -224,7 +226,7 @@ export default function DonationModal({
       if (hasPreStep && choice) labeled[preStep!.title || 'בחירה'] = choice
       if (hasPreStep && preStepType === 'consent' && consented) labeled[preStep!.consentLabel || 'אישור'] = 'כן'
       // per-form thank-you email override (default email is sent server-side)
-      const e = activeForm?.email
+      const e = activeFormId ? formEmails?.[activeFormId] : undefined
       const emailTemplate = e && (e.subject || e.body || e.image) ? e : null
       if (Object.keys(labeled).length || emailTemplate) {
         fetch('/api/donations/intent', {
