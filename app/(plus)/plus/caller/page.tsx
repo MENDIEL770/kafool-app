@@ -410,13 +410,13 @@ export default function CallerPage() {
                     <div className="text-2xl font-bold" style={{ color: "var(--accent)" }}>
                       {(charidy?.total ?? 0).toLocaleString("he-IL")} ₪
                     </div>
-                    <div className="text-xs text-muted">{charidy?.count ?? 0} תורמים · יעד {group.personal_goal.toLocaleString("he-IL")} ₪</div>
+                    <div className="text-xs text-muted">סה״כ שגויס בצוות שלי · יעד {((charidy?.goal || group.personal_goal) || 0).toLocaleString("he-IL")} ₪</div>
                   </div>
                   <button onClick={refreshDonations} disabled={loadingDon} className="btn-primary px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-1">
                     <span className={loadingDon ? "animate-spin inline-block" : ""}>🔄</span> רענון
                   </button>
                 </div>
-                <Progress value={charidy?.total ?? 0} goal={group.personal_goal} />
+                <Progress value={charidy?.total ?? 0} goal={(charidy?.goal || group.personal_goal) || 0} />
                 <div className="flex items-center justify-between mt-2 text-xs text-muted">
                   <label className="flex items-center gap-1 cursor-pointer">
                     <input type="checkbox" checked={live} onChange={(e) => setLive(e.target.checked)} />
@@ -429,7 +429,8 @@ export default function CallerPage() {
 
               {charidy?.error && <p className="text-red-500 text-sm mb-2">{charidy.error}</p>}
 
-              {/* donor list */}
+              <div className="text-xs font-semibold text-muted mb-1.5">תרומות אחרונות בקמפיין (לייב)</div>
+              {/* donor list — campaign-wide live feed (Charidy's public API isn't team-tagged) */}
               <div className="space-y-1 max-h-64 overflow-y-auto">
                 {(charidy?.donations ?? []).map((d) => (
                   <div key={d.id} className="flex items-center justify-between px-3 py-2 rounded-lg" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
