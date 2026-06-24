@@ -50,7 +50,8 @@ interface State extends PlusData {
   assignFromPool: (memberId: string, branchCampaignId: string, displayName: string, link: string, goal: number, phone?: string) => string
 
   // campaigns
-  addMasterCampaign: (name: string, goal: number) => string
+  addMasterCampaign: (name: string, goal: number, style?: 'hierarchical' | 'flat') => string
+  updateCampaignStyle: (campaignId: string, style: 'hierarchical' | 'flat') => void
   addSubCampaign: (parentId: string, name: string, coordEmail: string, goal: number) => string
   addManagerAccount: (orgName: string, managerEmail: string, campaignName: string, goal: number) => string
 
@@ -156,19 +157,24 @@ export const useStore = create<State>()((set, get) => ({
     return id
   },
 
-  addMasterCampaign: (name, goal) => {
+  addMasterCampaign: (name, goal, style = 'hierarchical') => {
     const id = uuid()
     const org = get().session?.organization_id ?? ''
-    set((s) => ({ campaigns: [...s.campaigns, { id, organization_id: org, parent_campaign_id: null, name, description: '', goal_amount: goal, is_standalone: true, linked_kafool_campaign_id: null, coordinator_email: null, coordinator_user_id: null, created_at: nowIso(), updated_at: nowIso() }] }))
-    api.addMasterCampaign(id, name, goal).catch(swallow)
+    set((s) => ({ campaigns: [...s.campaigns, { id, organization_id: org, parent_campaign_id: null, style, name, description: '', goal_amount: goal, is_standalone: true, linked_kafool_campaign_id: null, coordinator_email: null, coordinator_user_id: null, created_at: nowIso(), updated_at: nowIso() }] }))
+    api.addMasterCampaign(id, name, goal, style).catch(swallow)
     return id
+  },
+
+  updateCampaignStyle: (campaignId, style) => {
+    set((s) => ({ campaigns: s.campaigns.map((c) => c.id === campaignId ? { ...c, style } : c) }))
+    api.updateCampaignStyle(campaignId, style).catch(swallow)
   },
 
   addSubCampaign: (parentId, name, coordEmail, goal) => {
     const id = uuid()
     const org = get().session?.organization_id ?? ''
     set((s) => ({
-      campaigns: [...s.campaigns, { id, organization_id: org, parent_campaign_id: parentId, name, description: '', goal_amount: goal, is_standalone: true, linked_kafool_campaign_id: null, coordinator_email: coordEmail, coordinator_user_id: null, created_at: nowIso(), updated_at: nowIso() }],
+      campaigns: [...s.campaigns, { id, organization_id: org, parent_campaign_id: parentId, style: 'hierarchical', name, description: '', goal_amount: goal, is_standalone: true, linked_kafool_campaign_id: null, coordinator_email: coordEmail, coordinator_user_id: null, created_at: nowIso(), updated_at: nowIso() }],
       members: coordEmail ? [...s.members, { id: uuid(), organization_id: org, email: coordEmail, user_id: null, role: 'coordinator', campaign_id: id, caller_group_id: null, status: 'active', auth_provider: 'google', is_active: true, created_at: nowIso(), updated_at: nowIso() }] : s.members,
     }))
     api.addSubCampaign(id, parentId, name, coordEmail, goal).catch(swallow)

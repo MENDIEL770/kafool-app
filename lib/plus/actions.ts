@@ -103,21 +103,28 @@ export async function assignFromPool(id: string, memberId: string, branchCampaig
 }
 
 // ─── campaigns ───
-/** Create a top-level (master) campaign for the org. */
-export async function addMasterCampaign(id: string, name: string, goal: number): Promise<string> {
+/** Create a top-level (master) campaign for the org, with its style. */
+export async function addMasterCampaign(id: string, name: string, goal: number, style: 'hierarchical' | 'flat' = 'hierarchical'): Promise<string> {
   const c = await ctx(); assertManagerial(c.role)
   const admin = await createServiceClient()
   await admin.from('kp_campaigns').insert({
-    id, organization_id: c.orgId!, parent_campaign_id: null, name, goal_amount: goal,
+    id, organization_id: c.orgId!, parent_campaign_id: null, name, goal_amount: goal, style,
   })
   return id
+}
+
+/** Change a campaign's style (manager / super-admin). */
+export async function updateCampaignStyle(campaignId: string, style: 'hierarchical' | 'flat') {
+  const c = await ctx(); assertManagerial(c.role)
+  const admin = await createServiceClient()
+  await admin.from('kp_campaigns').update({ style, updated_at: now() }).eq('id', campaignId).eq('organization_id', c.orgId!)
 }
 
 export async function addSubCampaign(id: string, parentId: string, name: string, coordEmail: string, goal: number): Promise<string> {
   const c = await ctx(); assertManagerial(c.role)
   const admin = await createServiceClient()
   await admin.from('kp_campaigns').insert({
-    id, organization_id: c.orgId!, parent_campaign_id: parentId, name, goal_amount: goal,
+    id, organization_id: c.orgId!, parent_campaign_id: parentId, name, goal_amount: goal, style: 'hierarchical',
     coordinator_email: coordEmail || null,
   })
   if (coordEmail) {

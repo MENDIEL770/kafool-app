@@ -34,10 +34,13 @@ export interface Organization {
   updated_at: string;
 }
 
+export type CampaignStyle = "hierarchical" | "flat";
+
 export interface Campaign {
   id: string;
   organization_id: string;
   parent_campaign_id: string | null; // self-reference for hierarchy
+  style: CampaignStyle; // 'hierarchical' = master+branches+coordinators; 'flat' = single, manager does all
   name: string;
   description?: string;
   goal_amount: number;

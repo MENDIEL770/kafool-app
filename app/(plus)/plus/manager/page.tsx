@@ -19,6 +19,7 @@ export default function ManagerDashboard() {
   const branding = useStore((s) => s.branding);
   const addSubCampaign = useStore((s) => s.addSubCampaign);
   const addMasterCampaign = useStore((s) => s.addMasterCampaign);
+  const updateCampaignStyle = useStore((s) => s.updateCampaignStyle);
 
   // root = the manager's campaign, else the org's first master campaign
   const topLevel = useMemo(() => campaigns.filter((c) => c.parent_campaign_id === null), [campaigns]);
@@ -30,7 +31,7 @@ export default function ManagerDashboard() {
 
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", goal: "300000" });
-  const [firstForm, setFirstForm] = useState({ name: "", goal: "1000000" });
+  const [firstForm, setFirstForm] = useState<{ name: string; goal: string; style: "hierarchical" | "flat" }>({ name: "", goal: "1000000", style: "hierarchical" });
 
   if (!session) return null;
 
@@ -46,9 +47,26 @@ export default function ManagerDashboard() {
             <div className="text-right">
               <Field label="שם הקמפיין"><Input value={firstForm.name} onChange={(e) => setFirstForm({ ...firstForm, name: e.target.value })} placeholder="לדוג׳ — גיוס שנתי" /></Field>
               <Field label="יעד (₪)"><Input type="number" value={firstForm.goal} onChange={(e) => setFirstForm({ ...firstForm, goal: e.target.value })} dir="ltr" /></Field>
+              <div className="mb-3">
+                <span className="block text-sm font-medium mb-1">סגנון הקמפיין</span>
+                <div className="grid grid-cols-2 gap-2">
+                  <button type="button" onClick={() => setFirstForm({ ...firstForm, style: "hierarchical" })}
+                    className={`rounded-xl border p-2.5 text-right transition-colors ${firstForm.style === "hierarchical" ? "border-2" : ""}`}
+                    style={{ borderColor: firstForm.style === "hierarchical" ? "var(--primary)" : "var(--border)", background: firstForm.style === "hierarchical" ? "var(--bg)" : "transparent" }}>
+                    <span className="block text-sm font-bold">היררכי</span>
+                    <span className="block text-[11px] text-muted">סניפים + רכזים</span>
+                  </button>
+                  <button type="button" onClick={() => setFirstForm({ ...firstForm, style: "flat" })}
+                    className={`rounded-xl border p-2.5 text-right transition-colors ${firstForm.style === "flat" ? "border-2" : ""}`}
+                    style={{ borderColor: firstForm.style === "flat" ? "var(--primary)" : "var(--border)", background: firstForm.style === "flat" ? "var(--bg)" : "transparent" }}>
+                    <span className="block text-sm font-bold">שטוח</span>
+                    <span className="block text-[11px] text-muted">קמפיין בודד</span>
+                  </button>
+                </div>
+              </div>
               <button
                 disabled={!firstForm.name.trim()}
-                onClick={() => addMasterCampaign(firstForm.name.trim(), Number(firstForm.goal) || 0)}
+                onClick={() => addMasterCampaign(firstForm.name.trim(), Number(firstForm.goal) || 0, firstForm.style)}
                 className="btn-primary w-full py-2.5 rounded-lg font-semibold disabled:opacity-50"
               >
                 צור קמפיין
@@ -93,6 +111,26 @@ export default function ManagerDashboard() {
           <StatCard label="VIP" value={vipCount} />
         </div>
 
+        {/* campaign style + switcher */}
+        <div className="card p-3 mb-4 flex items-center justify-between gap-2">
+          <div className="text-sm">
+            <span className="text-muted">סגנון קמפיין: </span>
+            <span className="font-bold">{root.style === "flat" ? "שטוח (קמפיין בודד)" : "היררכי (סניפים + רכזים)"}</span>
+          </div>
+          <button
+            onClick={() => { if (confirm(root.style === "flat" ? "להפוך לקמפיין היררכי (עם סניפים ורכזים)?" : "להפוך לקמפיין שטוח? הניהול יעבור למנהל ישירות.")) updateCampaignStyle(root.id, root.style === "flat" ? "hierarchical" : "flat"); }}
+            className="btn-ghost text-xs px-3 py-1.5 rounded-lg font-medium" style={{ borderColor: "var(--border)" }}
+          >
+            שנה לסגנון {root.style === "flat" ? "היררכי" : "שטוח"}
+          </button>
+        </div>
+
+        {root.style === "flat" ? (
+          <div className="card p-6 text-center text-muted">
+            קמפיין שטוח — ניהול הטלפנים, הסינון והשיוך מתבצע ישירות מהלשוניות למעלה.
+          </div>
+        ) : (
+        <>
         <div className="flex justify-between items-center mb-3">
           <h2 className="font-bold text-lg">דירוג סניפים</h2>
           <button onClick={() => setShowAdd(true)} className="btn-primary px-4 py-2 rounded-xl text-sm font-semibold">+ סניף חדש</button>
@@ -134,6 +172,8 @@ export default function ManagerDashboard() {
             צור סניף + הזמן רכז
           </button>
         </Modal>
+        </>
+        )}
       </AppShell>
     </ThemeRoot>
   );
