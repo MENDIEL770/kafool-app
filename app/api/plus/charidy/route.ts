@@ -39,32 +39,38 @@ export async function GET(req: NextRequest) {
     const sign = camp?.attributes?.currency_sign || '₪'
     const title = camp?.attributes?.title || 'Charidy'
 
-    // 2) optional team
+    // 2) optional team — its donated/goal are the reliable, real numbers
+    // (amounts are in MAJOR units here, e.g. CHF/₪ — NOT cents).
     let teamId: number | null = null
     let teamTotal: number | null = null
     let goal: number | undefined
+    let teamName: string | undefined
     if (teamSlug) {
       try {
         const tRes = await j(`${API}/campaign/${campaignId}/team/${encodeURIComponent(teamSlug)}`)
         const team = Array.isArray(tRes.data) ? tRes.data[0] : tRes.data
+        const ta = team?.attributes || {}
         teamId = Number(team?.id) || null
-        teamTotal = team?.attributes?.amount != null ? Number(team.attributes.amount) / 100 : null
-        goal = team?.attributes?.goal != null ? Number(team.attributes.goal) : undefined
+        teamTotal = (Number(ta.donated) || 0) + (Number(ta.donated_children) || 0)
+        goal = ta.goal != null ? Number(ta.goal) : undefined
+        teamName = ta.name
       } catch { /* team optional */ }
     }
 
-    // 3) recent donations
+    // 3) recent donations — the public feed isn't team-tagged, so when a team is
+    // given we still show the campaign's live feed (the headline total is the team's).
     const dRes = await j(`${API}/campaign/${campaignId}/donations?sortBy=-time&limit=50&extend=team`)
-    let rows: { id: string; attributes: Record<string, unknown> }[] = dRes.data ?? []
-    if (teamId) rows = rows.filter(r => Number(r.attributes?.team_id) === teamId)
+    const rows: { id: string; attributes: Record<string, unknown> }[] = dRes.data ?? []
+    const teamRows = teamId ? rows.filter(r => Number(r.attributes?.team_id) === teamId) : []
+    const feed = teamRows.length ? teamRows : rows
 
-    const donations: DonationOut[] = rows.map(r => {
+    const donations: DonationOut[] = feed.map(r => {
       const a = r.attributes || {}
       const anon = !!a.hide_donation_amount || !a.name
       return {
         id: String(r.id),
         donor: anon ? 'תורם אנונימי' : String(a.name),
-        amount: Number(a.total || 0) / 100,
+        amount: Number(a.total || 0),
         at: new Date(Number(a.created_at || 0) * 1000).toISOString(),
         anonymous: anon,
       }
@@ -72,7 +78,7 @@ export async function GET(req: NextRequest) {
 
     const total = teamTotal != null ? teamTotal : donations.reduce((s, d) => s + d.amount, 0)
     return NextResponse.json({
-      ok: true, campaignTitle: title, currencySign: sign,
+      ok: true, campaignTitle: teamName || title, currencySign: sign,
       total, count: donations.length, goal, donations, fetchedAt: new Date().toISOString(),
     })
   } catch (e) {
