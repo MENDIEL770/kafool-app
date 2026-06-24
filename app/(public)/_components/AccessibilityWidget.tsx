@@ -77,11 +77,11 @@ export default function AccessibilityWidget({ offsetBottom = '1rem' }: { offsetB
         .a11y-font, .a11y-font * { font-family: Arial, sans-serif !important; }
       `}</style>
 
-      <div ref={panelRef} style={{ position: 'fixed', left: '1rem', bottom: offsetBottom, zIndex: 55 }} dir="rtl">
-        {/* Panel */}
+      <div ref={panelRef} style={{ position: 'fixed', left: '1rem', bottom: offsetBottom, zIndex: 55, width: '3rem' }} dir="rtl">
+        {/* Panel — absolute so it never widens the container and shifts the button */}
         {open && (
           <div
-            className="mb-3 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden"
+            className="absolute bottom-full left-0 mb-3 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden"
             style={{ width: '260px' }}
           >
             {/* Header */}

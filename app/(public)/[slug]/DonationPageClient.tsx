@@ -69,7 +69,7 @@ function DonorCard({ d, donorGroup, primaryColor, campaignSlug, liked, onToggleL
 
   return (
     <article
-      className={`bg-white rounded-2xl p-3.5 border border-gray-100 shadow-sm hover:shadow-md transition-shadow flex flex-col ${expanded ? 'h-auto' : 'h-[176px] overflow-hidden'}`}
+      className="bg-white rounded-2xl p-3 border border-gray-100 shadow-sm hover:shadow-md transition-shadow flex flex-col"
     >
       <div className="flex items-start gap-3">
         <div
@@ -110,7 +110,7 @@ function DonorCard({ d, donorGroup, primaryColor, campaignSlug, liked, onToggleL
 
       {ded && (
         <div className="mt-2 relative">
-          <p className={`text-sm text-gray-600 leading-snug whitespace-pre-line ${!expanded ? 'line-clamp-3' : ''}`}>{ded}</p>
+          <p className={`text-xs text-gray-500 leading-snug whitespace-pre-line ${!expanded ? 'line-clamp-3' : ''}`}>{ded}</p>
           {isLong && !expanded && (
             <button
               onClick={() => setExpanded(true)}
@@ -1018,7 +1018,7 @@ function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCre
               <span>פתח קבוצת גיוס משלך</span>
             </button>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               {groups.map(g => {
                 const pct = g.goal_amount > 0 ? Math.min(100, Math.round((g.raised_amount / g.goal_amount) * 100)) : 0
                 const initials = (g.manager_name || g.name || 'א')[0]
@@ -1122,12 +1122,13 @@ function AboutSection({ campaign, gallery }: { campaign: Campaign; gallery: Gall
   const aboutImage = settings?.about_image || null
   const [idx, setIdx] = useState(0)
   const [zoom, setZoom] = useState(false)
+  const [galleryZoom, setGalleryZoom] = useState(false)
 
   useEffect(() => {
-    if (gallery.length <= 1) return
+    if (gallery.length <= 1 || galleryZoom) return
     const t = setInterval(() => setIdx(i => (i + 1) % gallery.length), 4000)
     return () => clearInterval(t)
-  }, [gallery.length])
+  }, [gallery.length, galleryZoom])
 
   if (!aboutText && gallery.length === 0 && !aboutImage) return null
 
@@ -1157,10 +1158,11 @@ function AboutSection({ campaign, gallery }: { campaign: Campaign; gallery: Gall
         )}
 
         {gallery.length > 0 && (
-          <div className="relative rounded-3xl overflow-hidden aspect-video shadow-md cursor-pointer" onClick={() => {}}>
-            <img src={gallery[idx].image_url} alt={gallery[idx].caption || ''} className="w-full h-full object-cover" loading="lazy" />
+          <div className="relative rounded-3xl overflow-hidden shadow-md bg-gray-50 cursor-zoom-in" onClick={() => setGalleryZoom(true)}>
+            {/* object-contain so the whole image shows — nothing gets cropped */}
+            <img src={gallery[idx].image_url} alt={gallery[idx].caption || ''} className="w-full h-auto max-h-[70vh] object-contain" loading="lazy" />
             {gallery[idx].caption && (
-              <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 px-5 py-4">
+              <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 px-5 py-4 pointer-events-none">
                 <p className="text-white text-sm">{gallery[idx].caption}</p>
               </div>
             )}
@@ -1171,6 +1173,28 @@ function AboutSection({ campaign, gallery }: { campaign: Campaign; gallery: Gall
                     className={`w-1.5 h-1.5 rounded-full transition-all ${i === idx ? 'bg-white scale-125' : 'bg-white/50'}`} />
                 ))}
               </div>
+            )}
+          </div>
+        )}
+
+        {/* Gallery fullscreen lightbox with prev/next arrows */}
+        {galleryZoom && gallery.length > 0 && (
+          <div className="fixed inset-0 z-[90] bg-black/90 flex items-center justify-center p-4" onClick={() => setGalleryZoom(false)}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={gallery[idx].image_url} alt={gallery[idx].caption || ''} className="max-w-full max-h-full object-contain rounded-lg" onClick={e => e.stopPropagation()} />
+            <button onClick={() => setGalleryZoom(false)} className="absolute top-4 left-4 w-10 h-10 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center text-xl">✕</button>
+            {gallery.length > 1 && (
+              <>
+                <button aria-label="הקודם" onClick={e => { e.stopPropagation(); setIdx(i => (i - 1 + gallery.length) % gallery.length) }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center">
+                  <ChevronDown className="w-6 h-6 -rotate-90" />
+                </button>
+                <button aria-label="הבא" onClick={e => { e.stopPropagation(); setIdx(i => (i + 1) % gallery.length) }}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center">
+                  <ChevronDown className="w-6 h-6 rotate-90" />
+                </button>
+                <div className="absolute bottom-4 inset-x-0 text-center text-white/70 text-sm">{idx + 1} / {gallery.length}</div>
+              </>
             )}
           </div>
         )}
