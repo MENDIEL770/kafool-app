@@ -1191,11 +1191,12 @@ function AboutSection({ campaign, gallery }: { campaign: Campaign; gallery: Gall
           </div>
         )}
 
-        {/* Unified fullscreen lightbox — about image + gallery, with arrows, swipe and keys */}
+        {/* Unified fullscreen lightbox — about image + gallery, with arrows, swipe and keys.
+            The backdrop is its own layer; image + controls sit above it, so clicking a
+            control can never reach the backdrop's close handler. */}
         {lightbox !== null && allImages[lightbox] && (
           <div
-            className="fixed inset-0 z-[90] bg-black/90 flex items-center justify-center p-4"
-            onClick={(e) => { if (e.target === e.currentTarget) setLightbox(null) }}
+            className="fixed inset-0 z-[90] flex items-center justify-center p-4"
             onTouchStart={e => { touchX.current = e.touches[0]?.clientX ?? null }}
             onTouchEnd={e => {
               const start = touchX.current; touchX.current = null
@@ -1204,21 +1205,23 @@ function AboutSection({ campaign, gallery }: { campaign: Campaign; gallery: Gall
               if (Math.abs(dx) > 40) { if (dx < 0) lbNext(); else lbPrev() }
             }}
           >
+            {/* backdrop — only this closes */}
+            <div className="absolute inset-0 bg-black/90" onClick={() => setLightbox(null)} />
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={allImages[lightbox].url} alt={allImages[lightbox].caption || ''} draggable={false}
-              className="max-w-full max-h-full object-contain rounded-lg select-none" onClick={e => e.stopPropagation()} />
-            <button onClick={() => setLightbox(null)} aria-label="סגור" className="absolute top-4 left-4 w-10 h-10 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center text-xl">✕</button>
+              className="relative z-10 max-w-full max-h-full object-contain rounded-lg select-none pointer-events-none" />
+            <button onClick={() => setLightbox(null)} aria-label="סגור" className="absolute z-20 top-4 left-4 w-10 h-10 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center text-xl">✕</button>
             {allImages.length > 1 && (
               <>
-                <button aria-label="הקודם" onClick={e => { e.stopPropagation(); lbPrev() }}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center">
+                <button type="button" aria-label="הקודם" onClick={lbPrev}
+                  className="absolute z-20 right-3 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center">
                   <ChevronDown className="w-6 h-6 -rotate-90" />
                 </button>
-                <button aria-label="הבא" onClick={e => { e.stopPropagation(); lbNext() }}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center">
+                <button type="button" aria-label="הבא" onClick={lbNext}
+                  className="absolute z-20 left-3 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center">
                   <ChevronDown className="w-6 h-6 rotate-90" />
                 </button>
-                <div className="absolute bottom-4 inset-x-0 text-center text-white/70 text-sm pointer-events-none">{lightbox + 1} / {allImages.length}</div>
+                <div className="absolute z-20 bottom-4 inset-x-0 text-center text-white/70 text-sm pointer-events-none">{lightbox + 1} / {allImages.length}</div>
               </>
             )}
           </div>
