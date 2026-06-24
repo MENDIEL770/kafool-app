@@ -365,7 +365,9 @@ export default function CampaignMediaClient({
   const campaignCustomForms: FormOption[] = Array.isArray(initialSettings.custom_forms)
     ? (initialSettings.custom_forms as { id: string; name: string }[]).map(f => ({ id: f.id, name: f.name }))
     : []
-  const campaignPreStepEnabled = !!(initialSettings.pre_donation_step as { enabled?: boolean } | undefined)?.enabled
+  // The "choice step" button option is offered whenever a pre-step with 2+
+  // options exists — activation is per-button, not a global flag.
+  const campaignPreStepEnabled = ((initialSettings.pre_donation_step as { options?: unknown[] } | undefined)?.options?.length ?? 0) >= 2
   const [savingAmounts, setSavingAmounts] = useState(false)
   const [savedAmounts, setSavedAmounts] = useState(false)
 

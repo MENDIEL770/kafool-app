@@ -71,12 +71,13 @@ export default function DonationModal({
   presetFormMode,
   preStep,
 }: Props) {
-  const hasPreStep = !!(preStep?.enabled && preStep.options?.length)
+  // The choice step is available when it has 2+ options. It is NEVER applied
+  // globally — only when a button's form setting is explicitly 'choice'.
+  const hasPreStep = !!(preStep && (preStep.options?.length ?? 0) >= 2)
   const allForms = customForms || []
-  // Which flow this open uses: explicit per-button setting → campaign default.
+  // Which flow this open uses: explicit per-button setting → campaign default form.
   const resolveMode = (): string => {
     if (presetFormMode) return presetFormMode
-    if (hasPreStep) return 'choice'
     return defaultFormId || 'regular'
   }
   const en = lang === 'en'

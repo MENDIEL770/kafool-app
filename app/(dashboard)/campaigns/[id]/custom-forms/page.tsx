@@ -83,7 +83,8 @@ export default function CustomFormsPage() {
     const validDefault = cleanForms.some(f => f.id === defaultFormId) ? defaultFormId : ''
     const cleanOptions = preStep.options.map(o => ({ ...o, label: o.label.trim() })).filter(o => o.label)
     const cleanPreStep: PreStep = {
-      enabled: preStep.enabled && cleanOptions.length >= 2,
+      // "available" = has 2+ options. Whether it actually shows is decided per-button.
+      enabled: cleanOptions.length >= 2,
       title: preStep.title.trim() || 'בחר אפשרות',
       options: cleanOptions,
     }
@@ -166,18 +167,12 @@ export default function CustomFormsPage() {
         </CardContent>
       </Card>
 
-      {/* Pre-step choice — shown before the donor form */}
+      {/* Pre-step choice — built here, activated per-button in the buttons settings */}
       <Card>
-        <CardHeader className="flex-row items-center justify-between gap-3 space-y-0">
-          <CardTitle className="text-base">שלב בחירה לפני הטופס</CardTitle>
-          <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
-            <input type="checkbox" checked={preStep.enabled} onChange={e => setPreStep(p => ({ ...p, enabled: e.target.checked }))} className="w-4 h-4" />
-            פעיל
-          </label>
-        </CardHeader>
+        <CardHeader><CardTitle className="text-base">שלב בחירה לפני הטופס</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <p className="text-xs text-gray-400">
-            מסך בחירה שמופיע מיד אחרי לחיצה על &quot;תרומה&quot;, לפני טופס פרטי-התורם. התורם בוחר אחת מהאפשרויות, והבחירה נשמרת אצל התורם.
+            מסך בחירה שמופיע מיד אחרי לחיצה על &quot;תרומה&quot;, לפני טופס פרטי-התורם. בנה אותו כאן, ו<strong>הפעל אותו לכל כפתור בנפרד</strong> דרך &quot;מדיה ← כפתורי תרומה ← טופס שנפתח: שלב בחירה&quot;. כל אפשרות פותחת את הטופס שתגדיר לה.
           </p>
           <div className="space-y-1">
             <Label>כותרת הבחירה</Label>
@@ -210,7 +205,7 @@ export default function CustomFormsPage() {
             <Button type="button" variant="outline" onClick={addOption} className="w-full">
               <Plus className="w-4 h-4 ml-1" /> הוסף אפשרות
             </Button>
-            <p className="text-[11px] text-gray-400">צריך לפחות 2 אפשרויות עם טקסט כדי שהשלב יופעל.</p>
+            <p className="text-[11px] text-gray-400">צריך לפחות 2 אפשרויות עם טקסט. ההפעלה היא לכל כפתור בנפרד (במסך כפתורי התרומה).</p>
           </div>
         </CardContent>
       </Card>
