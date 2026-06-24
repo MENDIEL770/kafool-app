@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { uploadImage } from '@/lib/image-client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { buttonVariants } from '@/components/ui/button'
@@ -352,11 +353,36 @@ export default function CampaignMediaClient({
   )
   const [savingBanner, setSavingBanner] = useState(false)
   const [savedBanner, setSavedBanner] = useState(false)
+  const [bannerVideoButton, setBannerVideoButton] = useState<boolean>((initialSettings.banner_video_button as boolean) ?? true)
 
   // Gallery state
   const [gallery, setGallery] = useState<GalleryItem[]>(initialGallery)
   const [uploadingGallery, setUploadingGallery] = useState(false)
   const galleryRef = useRef<HTMLInputElement>(null)
+  const [galleryMode, setGalleryMode] = useState<'carousel' | 'stacked'>(
+    (initialSettings.gallery_mode as 'carousel' | 'stacked') || 'carousel'
+  )
+
+  async function saveGalleryMode(mode: 'carousel' | 'stacked') {
+    setGalleryMode(mode)
+    const { data: existing } = await supabase.from('campaigns').select('settings').eq('id', campaignId).single()
+    await supabase.from('campaigns').update({ settings: { ...(existing?.settings as object), gallery_mode: mode } }).eq('id', campaignId)
+    router.refresh()
+  }
+
+  // Reorder a gallery image — swaps sort_order with its neighbour in the DB.
+  async function moveGalleryItem(i: number, dir: -1 | 1) {
+    const j = i + dir
+    if (j < 0 || j >= gallery.length) return
+    const a = gallery[i], b = gallery[j]
+    const next = [...gallery]; next[i] = b; next[j] = a
+    setGallery(next.map((g, k) => ({ ...g, sort_order: k })))
+    await Promise.all([
+      supabase.from('campaign_gallery').update({ sort_order: j }).eq('id', a.id),
+      supabase.from('campaign_gallery').update({ sort_order: i }).eq('id', b.id),
+    ])
+    router.refresh()
+  }
 
   // Donation buttons (plans) state — each button: amount + optional design + label
   const initialPlans: DonationPlan[] =
@@ -390,6 +416,18 @@ export default function CampaignMediaClient({
   const [mainVideo, setMainVideo] = useState(Math.max(0, initialVideos.findIndex(v => v.url === initialVideoUrl)))
   const [savingVideos, setSavingVideos] = useState(false)
   const [savedVideos, setSavedVideos] = useState(false)
+  const [uploadingVideo, setUploadingVideo] = useState<number | null>(null)
+
+  async function uploadVideoFile(i: number, file: File) {
+    setUploadingVideo(i)
+    try {
+      const url = await uploadImage(file, `${orgId}/${campaignId}/video-${Date.now()}`)
+      setVideoField(i, 'url', url)
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'העלאת הסרטון נכשלה')
+    }
+    setUploadingVideo(null)
+  }
 
   function setVideoField(i: number, field: 'url' | 'title', val: string) {
     setVideos(v => v.map((x, idx) => (idx === i ? { ...x, [field]: val } : x)))
@@ -506,6 +544,7 @@ export default function CampaignMediaClient({
       ...(initialSettings as object),
       banners: banners.map((url, i) => ({ url, sort_order: i })),
       mobile_banners: mobileBanners.map((url, i) => ({ url, sort_order: i })),
+      banner_video_button: bannerVideoButton,
       share_image: shareImage,
       popup_ad: popupImage ? { image_url: popupImage, link: popupLink.trim() || null } : null,
       primary_color: primaryColor,
@@ -865,6 +904,11 @@ export default function CampaignMediaClient({
                 </div>
               </div>
 
+              <label className="flex items-center gap-2 cursor-pointer bg-gray-50 border border-gray-100 rounded-xl px-3 py-2.5">
+                <input type="checkbox" checked={bannerVideoButton} onChange={e => setBannerVideoButton(e.target.checked)} className="w-4 h-4 accent-blue-600" />
+                <span className="text-sm text-gray-700">הצג כפתור הפעלת סרטון על הבאנר (כשמוגדר סרטון ראשי)</span>
+              </label>
+
               <button onClick={saveBannerSettings} disabled={savingBanner}
                 className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white font-semibold text-sm disabled:opacity-50 transition-colors bg-blue-600 hover:bg-blue-700">
                 {savedBanner ? <><Check className="w-4 h-4" /> נשמר!</> : savingBanner ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> שומר...</> : 'שמור שינויים'}
@@ -923,6 +967,7 @@ export default function CampaignMediaClient({
               קישורי YouTube / Vimeo / Google Drive. הסרטון המסומן כ<strong>ראשי</strong> מופיע על באנר הקמפיין ובתצוגה לרשתות;
               כל הסרטונים מוצגים מעל כפתור התרומה ומעל מקטע &quot;אודות&quot;.
             </p>
+            <p className="text-[11px] text-amber-600 mt-1">💡 העלאת קובץ וידאו פחות מומלצת — היא מכבידה על טעינת האתר. עדיף קישור YouTube / Drive.</p>
           </div>
           <div className="p-6 space-y-4">
             <div className="space-y-3">
@@ -943,6 +988,12 @@ export default function CampaignMediaClient({
                       dir="ltr"
                       className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     />
+                    <label className="inline-flex items-center gap-1.5 text-[11px] text-gray-500 hover:text-blue-600 cursor-pointer">
+                      <Upload className="w-3.5 h-3.5" />
+                      {uploadingVideo === i ? 'מעלה…' : 'או העלה קובץ וידאו (עד 10MB)'}
+                      <input type="file" accept="video/*" className="hidden"
+                        onChange={e => { const f = e.target.files?.[0]; if (f) uploadVideoFile(i, f); e.target.value = '' }} />
+                    </label>
                     <input
                       value={v.title}
                       onChange={(e) => setVideoField(i, 'title', e.target.value)}
@@ -1004,7 +1055,18 @@ export default function CampaignMediaClient({
             </div>
           </div>
 
-          <div className="p-6">
+          <div className="p-6 space-y-4">
+            {/* מצב תצוגת הגלריה */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-medium text-gray-700 shrink-0">תצוגה בדף:</span>
+              {([['carousel', 'מתחלפות (סלייד-שואו)'], ['stacked', 'כל התמונות בזו אחר זו']] as const).map(([val, label]) => (
+                <button key={val} type="button" onClick={() => saveGalleryMode(val)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${galleryMode === val ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-500 border-gray-200 hover:border-blue-300'}`}>
+                  {label}
+                </button>
+              ))}
+              <span className="text-[11px] text-gray-400 w-full">סדר התמונות נקבע לפי החצים על כל תמונה (במצב &quot;כל התמונות&quot; מוצגות לפי הסדר).</span>
+            </div>
             {gallery.length === 0 ? (
               <button onClick={() => galleryRef.current?.click()}
                 className="w-full border-2 border-dashed border-gray-200 rounded-2xl p-12 text-center hover:border-blue-300 hover:bg-blue-50/30 transition-all">
@@ -1014,14 +1076,22 @@ export default function CampaignMediaClient({
               </button>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {gallery.map(item => (
+                {gallery.map((item, i) => (
                   <div key={item.id} className="group relative rounded-2xl overflow-hidden aspect-video bg-gray-100">
                     <img src={item.image_url} alt="" className="w-full h-full object-cover" loading="lazy" />
                     <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-2">
-                      <button onClick={() => deleteGalleryItem(item.id)}
-                        className="self-end w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center">
-                        <Trash2 className="w-3 h-3" />
-                      </button>
+                      <div className="flex items-center justify-between">
+                        <div className="flex gap-1">
+                          <button onClick={() => moveGalleryItem(i, -1)} disabled={i === 0} title="הזז ימינה (מוקדם יותר)"
+                            className="w-6 h-6 bg-white/20 hover:bg-white/30 disabled:opacity-30 text-white rounded-full flex items-center justify-center"><ChevronUp className="w-3.5 h-3.5 -rotate-90" /></button>
+                          <button onClick={() => moveGalleryItem(i, 1)} disabled={i === gallery.length - 1} title="הזז שמאלה (מאוחר יותר)"
+                            className="w-6 h-6 bg-white/20 hover:bg-white/30 disabled:opacity-30 text-white rounded-full flex items-center justify-center"><ChevronDown className="w-3.5 h-3.5 -rotate-90" /></button>
+                        </div>
+                        <button onClick={() => deleteGalleryItem(item.id)}
+                          className="w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center">
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
                       <input type="text" defaultValue={item.caption || ''}
                         onBlur={e => updateCaption(item.id, e.target.value)}
                         placeholder="כיתוב (אופציונלי)"

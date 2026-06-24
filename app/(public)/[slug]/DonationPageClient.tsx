@@ -497,6 +497,7 @@ function HeroSection({ campaign, countdown }: {
   const settings = campaign.settings as {
     banners?: { url: string; sort_order: number }[]
     mobile_banners?: { url: string; sort_order: number }[]
+    banner_video_button?: boolean
   }
   const banners = settings?.banners?.length
     ? [...settings.banners].sort((a, b) => a.sort_order - b.sort_order).map(b => b.url)
@@ -508,7 +509,9 @@ function HeroSection({ campaign, countdown }: {
     : banners
 
   const [videoOpen, setVideoOpen] = useState(false)
-  const videoEmbed = campaign.video_url ? getVideoEmbed(campaign.video_url) : null
+  // The play button on the banner can be turned off in the campaign media settings.
+  const showBannerVideo = settings?.banner_video_button !== false
+  const videoEmbed = (showBannerVideo && campaign.video_url) ? getVideoEmbed(campaign.video_url) : null
 
   return (
     <>
@@ -1116,7 +1119,8 @@ function CampaignVideos({ campaign }: { campaign: Campaign }) {
 function AboutSection({ campaign, gallery }: { campaign: Campaign; gallery: GalleryItem[] }) {
   const lang = useLang()
   const t = useT()
-  const settings = campaign.settings as { about_text?: string | null; about_text_en?: string | null; about_image?: string | null }
+  const settings = campaign.settings as { about_text?: string | null; about_text_en?: string | null; about_image?: string | null; gallery_mode?: string }
+  const galleryStacked = settings?.gallery_mode === 'stacked'
   // English visitors see the English about text when provided; otherwise fall back.
   const aboutText = (lang === 'en' && settings?.about_text_en?.trim()) ? settings.about_text_en : settings?.about_text
   const aboutImage = settings?.about_image || null
@@ -1170,7 +1174,24 @@ function AboutSection({ campaign, gallery }: { campaign: Campaign; gallery: Gall
           </button>
         )}
 
-        {gallery.length > 0 && (
+        {/* Stacked mode — every image one after another, by their set order */}
+        {gallery.length > 0 && galleryStacked && (
+          <div className="space-y-4">
+            {gallery.map((g, i) => (
+              <div key={g.id} className="relative rounded-3xl overflow-hidden shadow-md bg-gray-50 cursor-zoom-in" onClick={() => openGallery(i)}>
+                <img src={g.image_url} alt={g.caption || ''} className="w-full h-auto max-h-[80vh] object-contain" loading="lazy" />
+                {g.caption && (
+                  <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 px-5 py-4 pointer-events-none">
+                    <p className="text-white text-sm">{g.caption}</p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Carousel mode (default) — one rotating image */}
+        {gallery.length > 0 && !galleryStacked && (
           <div className="relative rounded-3xl overflow-hidden shadow-md bg-gray-50 cursor-zoom-in" onClick={() => openGallery(idx)}>
             {/* object-contain so the whole image shows — nothing gets cropped */}
             <img src={gallery[idx].image_url} alt={gallery[idx].caption || ''} className="w-full h-auto max-h-[70vh] object-contain" loading="lazy" />
