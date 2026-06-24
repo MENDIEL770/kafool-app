@@ -6,9 +6,12 @@ import { useStore } from "@/lib/plus/store";
 import { useRequireRole } from "@/lib/plus/useAuth";
 import AppShell from "@/components/plus/AppShell";
 import ThemeRoot from "@/components/plus/ThemeRoot";
-import { StatCard, Progress, Modal, Field, Input } from "@/components/plus/ui";
+import { StatCard, Progress, Modal, Field, Input, Textarea } from "@/components/plus/ui";
+import LeadImport from "@/components/plus/LeadImport";
 import { callbackMessage, smsLink, whatsappLink, openLink } from "@/lib/plus/notify";
 import { hebrewDateShort } from "@/lib/plus/hebrewDate";
+import { DEFAULT_SCRIPT } from "@/lib/plus/presets";
+import type { CallScript } from "@/lib/plus/types";
 
 export default function CoordinatorPage() {
   const router = useRouter();
@@ -31,6 +34,7 @@ export default function CoordinatorPage() {
   const updateCallerGroup = useStore((s) => s.updateCallerGroup);
   const approveToPool = useStore((s) => s.approveToPool);
   const rejectMember = useStore((s) => s.rejectMember);
+  const updateBranding = useStore((s) => s.updateBranding);
 
   const campaign = campaigns.find((c) => c.id === campId);
   const brand =
@@ -46,6 +50,12 @@ export default function CoordinatorPage() {
   const [poolMemberId, setPoolMemberId] = useState(""); // when assigning from the manager's pool
   const [editId, setEditId] = useState<string | null>(null);
   const [editLink, setEditLink] = useState("");
+  const [showImport, setShowImport] = useState(false);
+  const [showScript, setShowScript] = useState(false);
+  const branchBrand = branding.find((b) => b.campaign_id === campId);
+  const [script, setScript] = useState<CallScript>(
+    branchBrand?.call_script && (branchBrand.call_script.opening || branchBrand.call_script.story) ? branchBrand.call_script : DEFAULT_SCRIPT
+  );
 
   if (!session || !campaign) return null;
 
@@ -137,7 +147,32 @@ export default function CoordinatorPage() {
           <button onClick={workAsCaller} className="btn-accent px-4 py-2.5 rounded-xl font-semibold">
             📞 עבוד כטלפן
           </button>
+          <button onClick={() => setShowImport(true)} className="btn-ghost px-4 py-2.5 rounded-xl font-semibold" style={{ borderColor: "var(--border)" }}>
+            📥 ייבוא אנשי קשר
+          </button>
+          <button onClick={() => setShowScript(true)} className="btn-ghost px-4 py-2.5 rounded-xl font-semibold" style={{ borderColor: "var(--border)" }}>
+            📋 תסריט שיחה
+          </button>
         </div>
+
+        {/* import contacts into this branch */}
+        <Modal open={showImport} onClose={() => setShowImport(false)} title="ייבוא אנשי קשר לסניף">
+          <LeadImport campaignId={campId!} />
+        </Modal>
+
+        {/* per-branch call script editor */}
+        <Modal open={showScript} onClose={() => setShowScript(false)} title="תסריט השיחה של הסניף">
+          <p className="text-xs text-muted mb-3">התסריט מותאם לסניף שלך ומופיע אצל הטלפנים. {"{שם}"} יוחלף בשם התורם.</p>
+          {(["opening", "story", "objections", "closing"] as const).map((k) => (
+            <Field key={k} label={{ opening: "פתיחה", story: "הסיפור", objections: "מענה להתנגדויות", closing: "סיום שיחה" }[k]}>
+              <Textarea rows={k === "objections" || k === "closing" ? 5 : 2} value={script[k]} onChange={(e) => setScript({ ...script, [k]: e.target.value })} />
+            </Field>
+          ))}
+          <div className="flex gap-2 mt-1">
+            <button onClick={() => setScript(DEFAULT_SCRIPT)} className="btn-ghost px-3 py-2 rounded-lg text-sm" style={{ borderColor: "var(--border)" }}>שחזר ברירת מחדל</button>
+            <button onClick={() => { updateBranding(campId!, { call_script: script }); setShowScript(false); }} className="btn-primary flex-1 py-2.5 rounded-lg font-semibold">שמור תסריט</button>
+          </div>
+        </Modal>
 
         {/* scheduled callbacks — remind callers to call back */}
         {branchReminders.length > 0 && (

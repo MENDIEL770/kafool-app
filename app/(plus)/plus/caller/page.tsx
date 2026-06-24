@@ -11,6 +11,7 @@ import { Modal, Field, Input, Textarea, Progress, StatusBadge, STATUS_LIST } fro
 import { callbackMessage, smsLink, whatsappLink, openLink } from "@/lib/plus/notify";
 import { hebrewDateShort } from "@/lib/plus/hebrewDate";
 import { fetchCharidyDonations, timeAgo, type CharidyResult } from "@/lib/plus/charidy";
+import { DEFAULT_SCRIPT } from "@/lib/plus/presets";
 import type { Lead, LeadStatus } from "@/lib/plus/types";
 
 const QUICK_STATUSES: LeadStatus[] = ["no_answer", "busy", "wrong_number", "not_interested", "callback"];
@@ -297,16 +298,20 @@ export default function CallerPage() {
           </div>
         )}
 
-        {/* script */}
+        {/* script — branch script if set, else the recommended default */}
         <Modal open={showScript} onClose={() => setShowScript(false)} title="תסריט שיחה">
-          {brand && (
-            <div className="space-y-3 text-sm">
-              <ScriptBlock title="פתיחה" body={brand.call_script.opening} />
-              <ScriptBlock title="הסיפור" body={brand.call_script.story} />
-              <ScriptBlock title="התנגדויות" body={brand.call_script.objections} />
-              <ScriptBlock title="סגירה" body={brand.call_script.closing} />
-            </div>
-          )}
+          {(() => {
+            const cs = brand?.call_script;
+            const script = cs && (cs.opening || cs.story || cs.objections || cs.closing) ? cs : DEFAULT_SCRIPT;
+            return (
+              <div className="space-y-3 text-sm">
+                <ScriptBlock title="פתיחה" body={script.opening} />
+                <ScriptBlock title="הסיפור" body={script.story} />
+                <ScriptBlock title="מענה להתנגדויות" body={script.objections} />
+                <ScriptBlock title="סיום שיחה" body={script.closing} />
+              </div>
+            );
+          })()}
         </Modal>
 
         {/* promise */}
