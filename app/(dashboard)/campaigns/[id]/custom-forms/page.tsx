@@ -35,11 +35,24 @@ interface CustomForm {
 
 // An optional choice step shown BEFORE the donor-details form. Each option
 // routes to a form: '' = the regular donor form, or a custom form id.
+type PreStepType = 'choice' | 'info' | 'consent'
 interface PreStepOption { id: string; label: string; formId?: string }
-interface PreStep { enabled: boolean; title: string; options: PreStepOption[] }
+interface PreStep {
+  enabled: boolean
+  type: PreStepType
+  title: string
+  body?: string          // info / consent message
+  image?: string         // optional image (info)
+  consentLabel?: string  // the checkbox label (consent)
+  options: PreStepOption[]
+}
 const emptyPreStep = (): PreStep => ({
   enabled: false,
+  type: 'choice',
   title: 'מה תרצה לעשות?',
+  body: '',
+  image: '',
+  consentLabel: 'אני מאשר/ת',
   options: [{ id: uid(), label: '', formId: '' }, { id: uid(), label: '', formId: '' }],
 })
 
@@ -87,7 +100,15 @@ export default function CustomFormsPage() {
       setForms(Array.isArray(s.custom_forms) ? (s.custom_forms as CustomForm[]) : [])
       setDefaultFormId(typeof s.default_custom_form_id === 'string' ? s.default_custom_form_id : '')
       const ps = s.pre_donation_step as PreStep | undefined
-      if (ps && Array.isArray(ps.options)) setPreStep({ enabled: !!ps.enabled, title: ps.title || 'מה תרצה לעשות?', options: ps.options.length ? ps.options : emptyPreStep().options })
+      if (ps) setPreStep({
+        enabled: !!ps.enabled,
+        type: ps.type || 'choice',
+        title: ps.title || 'מה תרצה לעשות?',
+        body: ps.body || '',
+        image: ps.image || '',
+        consentLabel: ps.consentLabel || 'אני מאשר/ת',
+        options: Array.isArray(ps.options) && ps.options.length ? ps.options : emptyPreStep().options,
+      })
       const te = s.thank_you_email as { enabled?: boolean; subject?: string; body?: string; image?: string } | undefined
       if (te) setEmail({ enabled: !!te.enabled, subject: te.subject || '', body: te.body || '', image: te.image || '' })
       if (typeof s.payment_note === 'string') setPaymentNote(s.payment_note)
@@ -107,9 +128,14 @@ export default function CustomFormsPage() {
     const validDefault = cleanForms.some(f => f.id === defaultFormId) ? defaultFormId : ''
     const cleanOptions = preStep.options.map(o => ({ ...o, label: o.label.trim() })).filter(o => o.label)
     const cleanPreStep: PreStep = {
-      // "available" = has 2+ options. Whether it actually shows is decided per-button.
-      enabled: cleanOptions.length >= 2,
-      title: preStep.title.trim() || 'בחר אפשרות',
+      type: preStep.type,
+      // "available" (shown when a button selects the pre-step): choice needs 2+
+      // options; info/consent need a message or title.
+      enabled: preStep.type === 'choice' ? cleanOptions.length >= 2 : !!(preStep.body?.trim() || preStep.title.trim()),
+      title: preStep.title.trim() || (preStep.type === 'choice' ? 'בחר אפשרות' : ''),
+      body: preStep.body?.trim() || '',
+      image: preStep.image || '',
+      consentLabel: preStep.consentLabel?.trim() || 'אני מאשר/ת',
       options: cleanOptions,
     }
     const cleanEmail = { enabled: email.enabled, subject: email.subject.trim(), body: email.body.trim(), image: email.image || '' }
@@ -134,6 +160,12 @@ export default function CustomFormsPage() {
   }
   function setFormEmail(fid: string, patch: EmailTpl) {
     setForms(fs => fs.map(x => (x.id === fid ? { ...x, email: { ...(x.email || {}), ...patch } } : x)))
+  }
+  async function uploadPreStepImage(file: File) {
+    setUploadingEmailImg(true)
+    try { const url = await uploadImage(file, `campaigns/${id}/prestep-${Date.now()}`); setPreStep(p => ({ ...p, image: url })) }
+    catch (e) { alert(e instanceof Error ? e.message : 'ההעלאה נכשלה') }
+    setUploadingEmailImg(false)
   }
 
   // ─── form/field mutators ───
@@ -221,44 +253,83 @@ export default function CustomFormsPage() {
 
       {/* Pre-step choice — built here, activated per-button in the buttons settings */}
       <Card>
-        <CardHeader><CardTitle className="text-base">שלב בחירה לפני הטופס</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">שלב מקדים (לפני הטופס)</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <p className="text-xs text-gray-400">
-            מסך בחירה שמופיע מיד אחרי לחיצה על &quot;תרומה&quot;, לפני טופס פרטי-התורם. בנה אותו כאן, ו<strong>הפעל אותו לכל כפתור בנפרד</strong> דרך &quot;מדיה ← כפתורי תרומה ← טופס שנפתח: שלב בחירה&quot;. כל אפשרות פותחת את הטופס שתגדיר לה.
+            מסך שמופיע מיד אחרי לחיצה על &quot;תרומה&quot;, לפני טופס פרטי-התורם. בחר סוג, בנה אותו, ו<strong>הפעל אותו לכל כפתור בנפרד</strong> דרך &quot;מדיה ← כפתורי תרומה ← טופס שנפתח: שלב מקדים&quot;.
           </p>
-          <div className="space-y-1">
-            <Label>כותרת הבחירה</Label>
-            <Input value={preStep.title} onChange={e => setPreStep(p => ({ ...p, title: e.target.value }))} placeholder="מה תרצה לעשות?" />
-          </div>
-          <div className="space-y-2">
-            <Label>אפשרויות</Label>
-            {preStep.options.map((o, i) => (
-              <div key={o.id} className="flex items-start gap-2">
-                <span className="text-xs text-gray-400 w-5 shrink-0 pt-2.5">{i + 1}.</span>
-                <div className="flex-1 space-y-1.5">
-                  <Input value={o.label} onChange={e => updateOption(o.id, { label: e.target.value })} placeholder="לדוגמה: אני רוצה לקנות ערכה ולקבל במשלוח הביתה" />
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] text-gray-400 shrink-0">פותח טופס:</span>
-                    <select
-                      value={o.formId || ''}
-                      onChange={e => updateOption(o.id, { formId: e.target.value })}
-                      className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-sm bg-white outline-none focus:ring-2 focus:ring-blue-400"
-                    >
-                      <option value="">טופס רגיל (פרטי-תורם)</option>
-                      {forms.map(f => <option key={f.id} value={f.id}>{f.name || 'ללא שם'}</option>)}
-                    </select>
-                  </div>
-                </div>
-                <button onClick={() => removeOption(o.id)} disabled={preStep.options.length <= 2} className="text-red-400 hover:text-red-600 disabled:opacity-30 transition-colors shrink-0 pt-2.5" title="מחק אפשרות">
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm font-medium text-gray-700 shrink-0">סוג:</span>
+            {([['choice', 'בחירה'], ['info', 'מסך מידע'], ['consent', 'אישור / הסכמה']] as const).map(([val, label]) => (
+              <button key={val} type="button" onClick={() => setPreStep(p => ({ ...p, type: val }))}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${preStep.type === val ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-500 border-gray-200 hover:border-blue-300'}`}>{label}</button>
             ))}
-            <Button type="button" variant="outline" onClick={addOption} className="w-full">
-              <Plus className="w-4 h-4 ml-1" /> הוסף אפשרות
-            </Button>
-            <p className="text-[11px] text-gray-400">צריך לפחות 2 אפשרויות עם טקסט. ההפעלה היא לכל כפתור בנפרד (במסך כפתורי התרומה).</p>
           </div>
+          <div className="space-y-1">
+            <Label>כותרת</Label>
+            <Input value={preStep.title} onChange={e => setPreStep(p => ({ ...p, title: e.target.value }))} placeholder={preStep.type === 'choice' ? 'מה תרצה לעשות?' : 'כותרת המסך'} />
+          </div>
+
+          {preStep.type === 'choice' && (
+            <div className="space-y-2">
+              <Label>אפשרויות</Label>
+              {preStep.options.map((o, i) => (
+                <div key={o.id} className="flex items-start gap-2">
+                  <span className="text-xs text-gray-400 w-5 shrink-0 pt-2.5">{i + 1}.</span>
+                  <div className="flex-1 space-y-1.5">
+                    <Input value={o.label} onChange={e => updateOption(o.id, { label: e.target.value })} placeholder="לדוגמה: אני רוצה לקנות ערכה ולקבל במשלוח הביתה" />
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] text-gray-400 shrink-0">פותח טופס:</span>
+                      <select value={o.formId || ''} onChange={e => updateOption(o.id, { formId: e.target.value })}
+                        className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-sm bg-white outline-none focus:ring-2 focus:ring-blue-400">
+                        <option value="">טופס רגיל (פרטי-תורם)</option>
+                        {forms.map(f => <option key={f.id} value={f.id}>{f.name || 'ללא שם'}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <button onClick={() => removeOption(o.id)} disabled={preStep.options.length <= 2} className="text-red-400 hover:text-red-600 disabled:opacity-30 transition-colors shrink-0 pt-2.5" title="מחק אפשרות">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+              <Button type="button" variant="outline" onClick={addOption} className="w-full">
+                <Plus className="w-4 h-4 ml-1" /> הוסף אפשרות
+              </Button>
+              <p className="text-[11px] text-gray-400">צריך לפחות 2 אפשרויות עם טקסט.</p>
+            </div>
+          )}
+
+          {(preStep.type === 'info' || preStep.type === 'consent') && (
+            <div className="space-y-1">
+              <Label>טקסט המסך</Label>
+              <textarea value={preStep.body || ''} onChange={e => setPreStep(p => ({ ...p, body: e.target.value }))} rows={4}
+                placeholder="הטקסט שיוצג לתורם לפני שממשיך לטופס…"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-400 resize-y leading-relaxed" />
+            </div>
+          )}
+
+          {preStep.type === 'info' && (
+            <div className="space-y-1">
+              <Label>תמונה (אופציונלי)</Label>
+              <div className="flex items-center gap-3">
+                {preStep.image && <img src={preStep.image} alt="" className="h-14 rounded-lg object-cover" />}
+                <label className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 cursor-pointer">
+                  {uploadingEmailImg ? 'מעלה…' : preStep.image ? 'החלף תמונה' : 'העלה תמונה'}
+                  <input type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) uploadPreStepImage(f); e.target.value = '' }} />
+                </label>
+                {preStep.image && <button type="button" onClick={() => setPreStep(p => ({ ...p, image: '' }))} className="text-xs text-red-400 hover:text-red-600">הסר</button>}
+              </div>
+            </div>
+          )}
+
+          {preStep.type === 'consent' && (
+            <div className="space-y-1">
+              <Label>טקסט תיבת הסימון</Label>
+              <Input value={preStep.consentLabel || ''} onChange={e => setPreStep(p => ({ ...p, consentLabel: e.target.value }))} placeholder="אני מאשר/ת את התנאים" />
+            </div>
+          )}
+
+          <p className="text-[11px] text-gray-400">ההפעלה היא לכל כפתור בנפרד (מסך כפתורי התרומה ← &quot;שלב מקדים&quot;).</p>
         </CardContent>
       </Card>
 

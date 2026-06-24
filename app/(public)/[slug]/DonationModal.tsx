@@ -19,7 +19,7 @@ function unitPriceForQty(base: number, tiers: { minQty: number; discountPercent:
 }
 interface CustomFormDef { id: string; name: string; headerTitle?: string; email?: { subject?: string; body?: string; image?: string }; paymentNote?: string; fields: CustomFieldDef[] }
 interface PreStepOption { id: string; label: string; formId?: string }
-interface PreStepDef { enabled: boolean; title: string; options: PreStepOption[] }
+interface PreStepDef { enabled: boolean; type?: 'choice' | 'info' | 'consent'; title: string; body?: string; image?: string; consentLabel?: string; options: PreStepOption[] }
 
 type Lang = 'he' | 'en'
 
@@ -83,9 +83,10 @@ export default function DonationModal({
   defaultPaymentNote,
   preStep,
 }: Props) {
-  // The choice step is available when it has 2+ options. It is NEVER applied
-  // globally — only when a button's form setting is explicitly 'choice'.
-  const hasPreStep = !!(preStep && (preStep.options?.length ?? 0) >= 2)
+  // The pre-step is available once configured (choice/info/consent). It is NEVER
+  // applied globally — only when a button's form setting is explicitly 'choice'.
+  const hasPreStep = !!(preStep && preStep.enabled)
+  const preStepType = preStep?.type || 'choice'
   const allForms = customForms || []
   // Which flow this open uses: explicit per-button setting → campaign default form.
   const resolveMode = (): string => {
@@ -123,6 +124,7 @@ export default function DonationModal({
   }
   const [step, setStep] = useState<'choice' | 'details' | 'payment'>('details')
   const [choice, setChoice] = useState('')
+  const [consented, setConsented] = useState(false)
   const [activeFormId, setActiveFormId] = useState('')   // '' = regular form
   const activeForm = allForms.find(f => f.id === activeFormId) || null
   const [amount, setAmount] = useState(typeof presetAmount === 'number' ? presetAmount : 0)
@@ -165,6 +167,7 @@ export default function DonationModal({
       setMonths(presetMonths ?? 12)
       setCustomValues({})
       setChoice('')
+      setConsented(false)
       const mode = resolveMode()
       if (mode === 'choice' && hasPreStep) {
         setStep('choice'); setActiveFormId('')
@@ -219,6 +222,7 @@ export default function DonationModal({
         if (v) labeled[f.label] = v
       }
       if (hasPreStep && choice) labeled[preStep!.title || 'בחירה'] = choice
+      if (hasPreStep && preStepType === 'consent' && consented) labeled[preStep!.consentLabel || 'אישור'] = 'כן'
       // per-form thank-you email override (default email is sent server-side)
       const e = activeForm?.email
       const emailTemplate = e && (e.subject || e.body || e.image) ? e : null
@@ -356,7 +360,7 @@ export default function DonationModal({
         <div className="overflow-y-auto flex-1">
 
           {/* Step: Choice (before the form) */}
-          {step === 'choice' && preStep && (
+          {step === 'choice' && preStep && preStepType === 'choice' && (
             <div className="px-5 py-6 space-y-3">
               <p className="text-center text-sm text-gray-500">{lang === 'en' ? 'Choose an option to continue' : 'בחר אפשרות כדי להמשיך'}</p>
               {preStep.options.map(o => (
@@ -372,6 +376,33 @@ export default function DonationModal({
                   {o.label}
                 </button>
               ))}
+            </div>
+          )}
+
+          {/* Info / consent pre-step */}
+          {step === 'choice' && preStep && (preStepType === 'info' || preStepType === 'consent') && (
+            <div className="px-5 py-6 space-y-4">
+              {preStepType === 'info' && preStep.image && (
+                <img src={preStep.image} alt="" className="w-full max-h-60 object-contain rounded-2xl" />
+              )}
+              {preStep.body && (
+                <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line text-center">{preStep.body}</p>
+              )}
+              {preStepType === 'consent' && (
+                <label className="flex items-start gap-2 cursor-pointer bg-gray-50 border border-gray-100 rounded-xl px-3 py-2.5">
+                  <input type="checkbox" checked={consented} onChange={e => setConsented(e.target.checked)} className="w-4 h-4 mt-0.5" style={{ accentColor: primaryColor }} />
+                  <span className="text-sm text-gray-700">{preStep.consentLabel || 'אני מאשר/ת'}</span>
+                </label>
+              )}
+              <button
+                type="button"
+                disabled={preStepType === 'consent' && !consented}
+                onClick={() => setStep('details')}
+                className={`w-full py-3.5 font-black text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all ${buttonRadius}`}
+                style={{ backgroundColor: primaryColor }}
+              >
+                {en ? 'Continue' : 'המשך'}
+              </button>
             </div>
           )}
 

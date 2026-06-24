@@ -282,7 +282,7 @@ function PlanEditor({ plan, uploading, isFirst, isLast, customForms, preStepEnab
               className="flex-1 border border-gray-200 rounded-lg px-2 py-1 text-xs bg-white outline-none focus:ring-2 focus:ring-blue-400">
               <option value="">ברירת מחדל</option>
               <option value="regular">טופס רגיל (פרטי-תורם)</option>
-              {preStepEnabled && <option value="choice">שלב בחירה</option>}
+              {preStepEnabled && <option value="choice">שלב מקדים</option>}
               {customForms.map(f => <option key={f.id} value={f.id}>{f.name || 'ללא שם'}</option>)}
             </select>
           </div>
@@ -398,9 +398,9 @@ export default function CampaignMediaClient({
   const campaignCustomForms: FormOption[] = Array.isArray(initialSettings.custom_forms)
     ? (initialSettings.custom_forms as { id: string; name: string }[]).map(f => ({ id: f.id, name: f.name }))
     : []
-  // The "choice step" button option is offered whenever a pre-step with 2+
-  // options exists — activation is per-button, not a global flag.
-  const campaignPreStepEnabled = ((initialSettings.pre_donation_step as { options?: unknown[] } | undefined)?.options?.length ?? 0) >= 2
+  // The "pre-step" button option is offered whenever a pre-step is configured
+  // (choice/info/consent) — activation is per-button, not a global flag.
+  const campaignPreStepEnabled = !!(initialSettings.pre_donation_step as { enabled?: boolean } | undefined)?.enabled
   const [savingAmounts, setSavingAmounts] = useState(false)
   const [savedAmounts, setSavedAmounts] = useState(false)
 
