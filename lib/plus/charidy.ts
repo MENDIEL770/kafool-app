@@ -27,90 +27,23 @@ export interface CharidyResult {
   error?: string;
 }
 
-// ---- deterministic helpers (so a given link yields a stable base feed) ------
-function hash(str: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < str.length; i++) {
-    h ^= str.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return Math.abs(h);
-}
-
-const DONOR_NAMES = [
-  "משפחת כהן", "אנונימי", "דוד לוי", "משפחת פרידמן", "רחל מ.", "יוסי ב.",
-  "משפחת אזולאי", "אנונימי", "ש. רוזנברג", "תורם יקר", "משפחת דהן", "א. שפירא",
-  "נדבן", "משפחת ביטון", "מ. גולדשטיין", "אנונימי",
-];
-const AMOUNTS = [36, 52, 100, 180, 360, 500, 720, 1000, 1800];
-
-// module-level "live" growth per link — each refresh may add a new donation,
-// so repeated refreshes feel live. Resets on full page reload (demo only).
-const liveGrowth = new Map<string, CharidyDonation[]>();
-
-function baseFeed(link: string): CharidyDonation[] {
-  const seed = hash(link || "anon");
-  const count = 4 + (seed % 7); // 4–10 base donations
-  const out: CharidyDonation[] = [];
-  for (let i = 0; i < count; i++) {
-    const r = hash(`${link}:${i}`);
-    out.push({
-      id: `base-${seed}-${i}`,
-      donor: DONOR_NAMES[r % DONOR_NAMES.length],
-      amount: AMOUNTS[r % AMOUNTS.length],
-      at: new Date(Date.now() - (count - i) * 3600_000).toISOString(),
-      anonymous: DONOR_NAMES[r % DONOR_NAMES.length] === "אנונימי",
-    });
-  }
-  return out;
-}
-
 /**
- * Fetch donations for a Charidy link. `simulateNew` (default true) lets a manual
- * refresh occasionally surface a brand-new donation, mimicking a live feed.
+ * Fetch real donations for a Charidy link via our server proxy
+ * (/api/plus/charidy), which resolves the vanity slug → campaign id (and team)
+ * and reads the Charidy public API. The UI shape is unchanged.
  */
-export async function fetchCharidyDonations(link: string, simulateNew = true): Promise<CharidyResult> {
-  // network latency feel
-  await new Promise((r) => setTimeout(r, 450));
-
+export async function fetchCharidyDonations(link: string): Promise<CharidyResult> {
   if (!link || !/charidy/i.test(link)) {
-    return {
-      ok: false,
-      total: 0,
-      count: 0,
-      donations: [],
-      fetchedAt: new Date().toISOString(),
-      error: "הקישור אינו נראה כקישור Charidy תקין",
-    };
+    return { ok: false, total: 0, count: 0, donations: [], fetchedAt: new Date().toISOString(),
+      error: "הקישור אינו נראה כקישור Charidy תקין" };
   }
-
-  const base = baseFeed(link);
-  const grown = liveGrowth.get(link) ?? [];
-
-  // ~55% chance a refresh brings a fresh donation
-  if (simulateNew && Math.random() < 0.55) {
-    const r = hash(`${link}:${Date.now()}`);
-    grown.push({
-      id: `live-${Date.now()}`,
-      donor: DONOR_NAMES[r % DONOR_NAMES.length],
-      amount: AMOUNTS[r % AMOUNTS.length],
-      at: new Date().toISOString(),
-      anonymous: DONOR_NAMES[r % DONOR_NAMES.length] === "אנונימי",
-    });
-    liveGrowth.set(link, grown);
+  try {
+    const res = await fetch(`/api/plus/charidy?link=${encodeURIComponent(link)}`, { cache: "no-store" });
+    return (await res.json()) as CharidyResult;
+  } catch (e) {
+    return { ok: false, total: 0, count: 0, donations: [], fetchedAt: new Date().toISOString(),
+      error: e instanceof Error ? e.message : "שגיאת רשת" };
   }
-
-  const donations = [...base, ...grown].sort((a, b) => b.at.localeCompare(a.at));
-  const total = donations.reduce((s, d) => s + d.amount, 0);
-
-  return {
-    ok: true,
-    campaignTitle: "Charidy",
-    total,
-    count: donations.length,
-    donations,
-    fetchedAt: new Date().toISOString(),
-  };
 }
 
 export function timeAgo(iso: string): string {
