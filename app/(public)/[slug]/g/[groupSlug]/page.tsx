@@ -12,8 +12,14 @@ function adminClient() {
 
 export const revalidate = 60 // ISR — cache for 60 seconds
 
+// Route params can arrive percent-encoded (Hebrew slugs), so decode defensively
+// before matching them against the stored slug.
+function dec(s: string): string { try { return decodeURIComponent(s) } catch { return s } }
+
 export default async function GroupPage({ params }: { params: Promise<{ slug: string; groupSlug: string }> }) {
-  const { slug, groupSlug } = await params
+  const p = await params
+  const slug = dec(p.slug)
+  const groupSlug = dec(p.groupSlug)
   const supabase = adminClient()
 
   const { data: campaign } = await supabase

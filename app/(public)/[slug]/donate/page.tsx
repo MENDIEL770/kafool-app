@@ -9,7 +9,8 @@ export default async function DonatePage({
   params: Promise<{ slug: string }>
   searchParams: Promise<{ amount?: string; group?: string; caller?: string; error?: string }>
 }) {
-  const { slug } = await params
+  let { slug } = await params
+  try { slug = decodeURIComponent(slug) } catch {}
   const { amount, group, caller, error } = await searchParams
 
   const supabase = await createClient()

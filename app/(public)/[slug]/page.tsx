@@ -13,8 +13,11 @@ function adminClient() {
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://kafool.com'
 
+// Route params can arrive percent-encoded (Hebrew slugs) — decode before matching.
+function dec(s: string): string { try { return decodeURIComponent(s) } catch { return s } }
+
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
-  const { slug } = await params
+  const slug = dec((await params).slug)
   const supabase = adminClient()
 
   const { data: campaign } = await supabase
@@ -64,7 +67,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 export const revalidate = 60 // ISR — cache for 60 seconds
 
 export default async function PublicDonationPage({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params
+  const slug = dec((await params).slug)
   const supabase = adminClient()
 
   // Resolve campaign by slug
