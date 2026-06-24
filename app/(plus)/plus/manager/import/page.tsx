@@ -3,6 +3,7 @@
 import { useState } from "react";
 import * as XLSX from "xlsx";
 import { useStore } from "@/lib/plus/store";
+import { importBranchLeads } from "@/lib/plus/actions";
 import { useRequireRole } from "@/lib/plus/useAuth";
 import AppShell from "@/components/plus/AppShell";
 import ThemeRoot from "@/components/plus/ThemeRoot";
@@ -11,24 +12,43 @@ import { Field } from "@/components/plus/ui";
 
 // target lead fields the user maps columns onto
 const TARGETS: { key: string; label: string; required?: boolean }[] = [
+  { key: "branch", label: "סניף (לייבוא מרובה-סניפים)" },
+  { key: "coord_email", label: "מייל רכז הסניף" },
   { key: "full_name", label: "שם מלא", required: true },
   { key: "phone", label: "טלפון", required: true },
   { key: "email", label: "אימייל" },
   { key: "address", label: "כתובת" },
   { key: "birthday", label: "תאריך לידה" },
   { key: "notes", label: "הערות" },
-  { key: "prev_amount", label: "תרומה קודמת (₪)" },
+  { key: "history", label: "היסטוריית תרומות (סכומים מופרדים בפסיק)" },
 ];
+
+// "1800,360;2024:5000" -> [{date,amount}] (supports plain amounts or year:amount)
+function parseHistory(raw: string): { date: string; amount: number }[] {
+  return String(raw || "")
+    .split(/[;,\n]+/).map((t) => t.trim()).filter(Boolean)
+    .map((tok) => {
+      const [a, b] = tok.split(":");
+      const amount = Number((b ?? a).replace(/[^\d.]/g, ""));
+      const date = b ? a.trim() : "";
+      return amount > 0 ? { date: date || "—", amount } : null;
+    })
+    .filter((x): x is { date: string; amount: number } => !!x);
+}
 
 export default function ImportPage() {
   const session = useRequireRole(["manager"]);
-  const rootId = session?.campaign_id ?? null;
+  const campaigns = useStore((s) => s.campaigns);
+  const rootId = session?.campaign_id ?? campaigns.find((c) => c.parent_campaign_id === null)?.id ?? null;
   const importLeads = useStore((s) => s.importLeads);
+  const refresh = useStore((s) => s.refresh);
 
   const [headers, setHeaders] = useState<string[]>([]);
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [result, setResult] = useState<{ added: number; duplicates: number; review: number } | null>(null);
+  const [branchResult, setBranchResult] = useState<{ branches: number; coordinators: number; leads: number; duplicates: number } | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const onFile = (file?: File) => {
     if (!file) return;
@@ -59,21 +79,46 @@ export default function ImportPage() {
     reader.readAsBinaryString(file);
   };
 
-  const doImport = () => {
-    const mapped = rows.map((r) => {
-      const prev = mapping.prev_amount ? Number(r[mapping.prev_amount]) : 0;
-      return {
+  const byBranch = !!mapping.branch;
+
+  const doImport = async () => {
+    setResult(null); setBranchResult(null);
+    const history = (r: Record<string, unknown>) => mapping.history ? parseHistory(String(r[mapping.history] ?? "")) : [];
+
+    if (byBranch) {
+      // multi-branch import → creates branches + coordinators + leads server-side
+      setBusy(true);
+      const branchRows = rows.map((r) => ({
+        branch: String(r[mapping.branch] ?? ""),
+        coordEmail: mapping.coord_email ? String(r[mapping.coord_email]) : undefined,
         full_name: String(r[mapping.full_name] ?? ""),
         phone: String(r[mapping.phone] ?? ""),
         email: mapping.email ? String(r[mapping.email]) : undefined,
         address: mapping.address ? String(r[mapping.address]) : undefined,
-        birthday: mapping.birthday ? String(r[mapping.birthday]) : undefined,
         notes: mapping.notes ? String(r[mapping.notes]) : undefined,
-        donation_history: prev > 0 ? [{ date: "2025", amount: prev }] : [],
-      };
-    });
-    const res = importLeads(rootId!, mapped);
-    setResult(res);
+        history: history(r),
+      }));
+      try {
+        const res = await importBranchLeads(rootId!, branchRows);
+        await refresh();
+        setBranchResult(res);
+      } catch (e) {
+        alert(e instanceof Error ? e.message : "הייבוא נכשל");
+      }
+      setBusy(false);
+      return;
+    }
+
+    const mapped = rows.map((r) => ({
+      full_name: String(r[mapping.full_name] ?? ""),
+      phone: String(r[mapping.phone] ?? ""),
+      email: mapping.email ? String(r[mapping.email]) : undefined,
+      address: mapping.address ? String(r[mapping.address]) : undefined,
+      birthday: mapping.birthday ? String(r[mapping.birthday]) : undefined,
+      notes: mapping.notes ? String(r[mapping.notes]) : undefined,
+      donation_history: history(r),
+    }));
+    setResult(importLeads(rootId!, mapped));
   };
 
   if (!session) return null;
@@ -135,12 +180,17 @@ export default function ImportPage() {
                 </table>
               </div>
 
+              {byBranch && (
+                <div className="text-xs text-blue-600 bg-blue-50 rounded-lg px-3 py-2 mb-3">
+                  ייבוא מרובה-סניפים: ייווצרו סניפים לפי עמודת "סניף", חשבונות רכזים לפי "מייל רכז", והלידים עם היסטוריית התרומות שלהם.
+                </div>
+              )}
               <button
-                disabled={!mapping.full_name || !mapping.phone}
+                disabled={!mapping.full_name || !mapping.phone || busy}
                 onClick={doImport}
                 className="btn-primary w-full py-3 rounded-xl font-semibold disabled:opacity-50"
               >
-                ייבא {rows.length} לידים
+                {busy ? "מייבא…" : byBranch ? `ייבא ${rows.length} שורות לסניפים` : `ייבא ${rows.length} לידים`}
               </button>
             </>
           )}
@@ -150,6 +200,14 @@ export default function ImportPage() {
               <div className="font-semibold mb-1">✅ הייבוא הושלם</div>
               <div className="text-sm text-muted">נוספו {result.added} · כפולים שדולגו {result.duplicates} · לבדיקה (מספר לא תקין) {result.review}</div>
               <div className="text-sm mt-2">המשך ל<b>סינון</b> כדי לבחור למי להתקשר.</div>
+            </div>
+          )}
+
+          {branchResult && (
+            <div className="mt-4 rounded-xl p-4" style={{ background: "var(--bg)" }}>
+              <div className="font-semibold mb-1">✅ הייבוא לסניפים הושלם</div>
+              <div className="text-sm text-muted">נוצרו {branchResult.branches} סניפים · {branchResult.coordinators} רכזים · {branchResult.leads} לידים · כפולים שדולגו {branchResult.duplicates}</div>
+              <div className="text-sm mt-2">הרכזים יכולים להיכנס עם המייל שלהם ולנהל את הסניף.</div>
             </div>
           )}
         </div>

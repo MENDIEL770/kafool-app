@@ -56,6 +56,7 @@ export default function CallerPage() {
   const [showCallback, setShowCallback] = useState(false);
   const [showReminders, setShowReminders] = useState(false);
   const [showDonations, setShowDonations] = useState(false);
+  const [showCharge, setShowCharge] = useState(false);
   const [promiseAmt, setPromiseAmt] = useState("");
   const [note, setNote] = useState("");
 
@@ -185,11 +186,19 @@ export default function CallerPage() {
                 <StatusBadge status={current.status} />
               </div>
               {current.donation_history.length > 0 && (
-                <div className="mt-3 bg-white/15 rounded-lg px-3 py-2 inline-flex items-center gap-2">
-                  <span className="text-xs">תרומה קודמת:</span>
-                  <span className="font-bold text-lg">
-                    {current.donation_history[current.donation_history.length - 1].amount.toLocaleString("he-IL")} ₪
-                  </span>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <div className="bg-white/15 rounded-lg px-3 py-2 inline-flex items-center gap-2">
+                    <span className="text-xs">תרומה קודמת:</span>
+                    <span className="font-bold text-lg">
+                      {current.donation_history[current.donation_history.length - 1].amount.toLocaleString("he-IL")} ₪
+                    </span>
+                  </div>
+                  <div className="bg-white/15 rounded-lg px-3 py-2 inline-flex items-center gap-2">
+                    <span className="text-xs">ממוצע תרומה:</span>
+                    <span className="font-bold text-lg">
+                      {Math.round(current.donation_history.reduce((s, d) => s + d.amount, 0) / current.donation_history.length).toLocaleString("he-IL")} ₪
+                    </span>
+                  </div>
                 </div>
               )}
             </div>
@@ -262,6 +271,14 @@ export default function CallerPage() {
                 </button>
                 <button onClick={() => setShowSend(true)} className="btn-accent py-3 rounded-xl font-semibold">
                   🔗 שליחת קישור
+                </button>
+                <button
+                  onClick={() => setShowCharge(true)}
+                  disabled={!group.donation_link}
+                  className="py-3 rounded-xl font-semibold text-white col-span-2 disabled:opacity-40"
+                  style={{ background: "#7c3aed" }}
+                >
+                  💳 חיוב מיידי בכרטיס אשראי
                 </button>
                 <button
                   onClick={() => { logCall(current.id, cgId!, "donated", note || undefined); goNext(); }}
@@ -427,6 +444,31 @@ export default function CallerPage() {
                   <p className="text-sm text-muted text-center py-3">אין עדיין תרומות.</p>
                 )}
               </div>
+            </>
+          )}
+        </Modal>
+
+        {/* immediate credit-card charge — opens the caller's Charidy donation page in an iframe */}
+        <Modal open={showCharge} onClose={() => setShowCharge(false)} title="חיוב מיידי — Charidy">
+          {!group.donation_link ? (
+            <p className="text-sm text-muted text-center py-4">לא הוגדר קישור Charidy אישי. הגדר אותו ב"💰 תרומות".</p>
+          ) : (
+            <>
+              <p className="text-xs text-muted mb-2">מלא את פרטי האשראי של התורם ישירות בטופס. בסיום החיוב — סמן "תרם!".</p>
+              <iframe
+                src={group.donation_link}
+                title="Charidy"
+                className="w-full rounded-lg border"
+                style={{ height: "60vh", borderColor: "var(--border)" }}
+                allow="payment"
+              />
+              <button
+                onClick={() => { if (current) { logCall(current.id, cgId!, "donated", note || undefined); } setShowCharge(false); goNext(); }}
+                className="w-full mt-3 py-3 rounded-xl font-semibold text-white"
+                style={{ background: "#16a34a" }}
+              >
+                ✅ החיוב בוצע — סמן תרם
+              </button>
             </>
           )}
         </Modal>

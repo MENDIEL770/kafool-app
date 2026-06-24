@@ -213,6 +213,75 @@ export async function importLeads(campaignId: string, rows: Partial<Lead>[]): Pr
   return { added, duplicates, review }
 }
 
+/**
+ * Manager bulk import: one Excel with a 'branch' column. Creates each branch
+ * (kp_campaign under root), its coordinator account (by email), and the leads
+ * with donation history — grouped per branch, deduped by phone.
+ */
+export async function importBranchLeads(rootId: string, rows: {
+  branch: string; coordEmail?: string; full_name: string; phone: string;
+  email?: string; address?: string; notes?: string; history?: { date: string; amount: number }[];
+}[]): Promise<{ branches: number; coordinators: number; leads: number; duplicates: number }> {
+  const c = await ctx(); assertManagerial(c.role)
+  const admin = await createServiceClient()
+  const norm = (s: string) => (s || '').replace(/\s+/g, '').trim()
+
+  const { data: existingBranches } = await admin.from('kp_campaigns')
+    .select('id, name').eq('organization_id', c.orgId!).eq('parent_campaign_id', rootId)
+  const branchByName = new Map<string, string>((existingBranches ?? []).map(b => [norm(b.name as string), b.id as string]))
+
+  const byBranch = new Map<string, typeof rows>()
+  for (const r of rows) {
+    const k = (r.branch || '').trim() || 'כללי'
+    if (!byBranch.has(k)) byBranch.set(k, [])
+    byBranch.get(k)!.push(r)
+  }
+
+  let branches = 0, coordinators = 0, leads = 0, duplicates = 0
+  for (const [branchName, brRows] of byBranch) {
+    let branchId = branchByName.get(norm(branchName))
+    const coordEmail = brRows.find(r => r.coordEmail)?.coordEmail?.trim().toLowerCase()
+    if (!branchId) {
+      branchId = crypto.randomUUID()
+      await admin.from('kp_campaigns').insert({
+        id: branchId, organization_id: c.orgId!, parent_campaign_id: rootId,
+        name: branchName, style: 'hierarchical', goal_amount: 0, coordinator_email: coordEmail ?? null,
+      })
+      branchByName.set(norm(branchName), branchId)
+      branches++
+    }
+    if (coordEmail) {
+      const { data: existingMember } = await admin.from('kp_members')
+        .select('id').eq('organization_id', c.orgId!).ilike('email', coordEmail).maybeSingle()
+      if (!existingMember) {
+        await admin.from('kp_members').insert({
+          organization_id: c.orgId!, email: coordEmail, role: 'coordinator',
+          campaign_id: branchId, status: 'active', is_active: true,
+        })
+        coordinators++
+      } else {
+        await admin.from('kp_members').update({ role: 'coordinator', campaign_id: branchId, status: 'active', is_active: true })
+          .eq('id', existingMember.id)
+      }
+    }
+    const { data: existingLeads } = await admin.from('kp_leads').select('phone').eq('campaign_id', branchId)
+    const seen = new Set((existingLeads ?? []).map(l => (l.phone as string).replace(/\D/g, '')))
+    const toInsert: Record<string, unknown>[] = []
+    for (const r of brRows) {
+      const digits = (r.phone || '').replace(/\D/g, '')
+      if (digits && seen.has(digits)) { duplicates++; continue }
+      if (digits) seen.add(digits)
+      toInsert.push({
+        organization_id: c.orgId!, campaign_id: branchId, full_name: r.full_name || 'ללא שם',
+        phone: r.phone || '', email: r.email ?? null, address: r.address ?? null, notes: r.notes ?? null,
+        status: 'new', donation_history: r.history ?? [], import_source: 'excel',
+      })
+    }
+    if (toInsert.length) { await admin.from('kp_leads').insert(toInsert); leads += toInsert.length }
+  }
+  return { branches, coordinators, leads, duplicates }
+}
+
 export async function setCallDecision(leadId: string, decision: 'yes' | 'no') {
   const c = await ctx(); assertManagerial(c.role)
   const admin = await createServiceClient()
