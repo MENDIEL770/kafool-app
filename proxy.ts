@@ -31,6 +31,19 @@ export async function proxy(request: NextRequest) {
 
   const path = request.nextUrl.pathname
 
+  // ── Kafool+ subdomain (plus.kafool.com) → serve the /plus module at the root ──
+  const host = (request.headers.get('host') || '').toLowerCase()
+  if (/(^|\.)plus\.kafool\.com$/.test(host)) {
+    const passthrough =
+      path.startsWith('/plus') || path.startsWith('/api') || path.startsWith('/auth') ||
+      path.startsWith('/kafool-plus-login') || path.startsWith('/_next') || path.startsWith('/login')
+    if (!passthrough) {
+      const url = request.nextUrl.clone()
+      url.pathname = `/plus${path === '/' ? '' : path}`
+      return NextResponse.rewrite(url, { request: { headers: requestHeaders } })
+    }
+  }
+
   // Protect dashboard routes
   if (path.startsWith('/dashboard') || path.startsWith('/campaigns') ||
       path.startsWith('/callers') || path.startsWith('/war-room') ||
