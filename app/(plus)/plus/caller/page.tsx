@@ -119,10 +119,12 @@ export default function CallerPage() {
   const sendTemplate = (channel: "sms" | "whatsapp") => {
     if (!current) return;
     const tpl = templates.find((t) => t.channel === channel) ?? templates[0];
-    const body = (tpl?.body ?? "")
+    let body = (tpl?.body ?? "שלום {שם}, תודה רבה! קישור לתרומה מאובטח: {קישור}")
       .replace("{שם}", current.full_name)
-      .replace("{קישור}", group.donation_link)
+      .replace("{קישור}", group.donation_link || "")
       .replace("{סכום}", promiseAmt || "");
+    // attach the campaign media file — a link in SMS, a preview/file in WhatsApp
+    if (brand?.media_url) body += `\n${brand.media_url}`;
     const phone = current.phone.replace(/[^\d]/g, "");
     const url =
       channel === "whatsapp"

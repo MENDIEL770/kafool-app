@@ -60,6 +60,11 @@ export default function AppShell({
             </button>
           </div>
         </header>
+        {branding?.banner_url && (
+          // top-of-page banner — shown on mobile
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={branding.banner_url} alt="" className="md:hidden w-full rounded-2xl mb-4 object-cover kp-fade" style={{ maxHeight: 160 }} />
+        )}
         <main className="flex-1 w-full">{children}</main>
       </div>
     </div>

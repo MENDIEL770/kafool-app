@@ -71,6 +71,7 @@ export interface CampaignBranding {
   banner_url: string | null;
   background_image_url: string | null;
   favicon_url: string | null;
+  media_url?: string | null; // sharable media (image/PDF) sent to donors
   campaign_name: string;
   tagline: string;
   welcome_message: string;

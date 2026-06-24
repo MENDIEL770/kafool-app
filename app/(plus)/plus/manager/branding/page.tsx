@@ -7,6 +7,7 @@ import AppShell from "@/components/plus/AppShell";
 import ThemeRoot from "@/components/plus/ThemeRoot";
 import ManagerNav from "@/components/plus/ManagerNav";
 import { Field, Input, Textarea } from "@/components/plus/ui";
+import { uploadImage } from "@/lib/image-client";
 import { cssVarStyle } from "@/lib/plus/theme";
 import { COLOR_PRESETS, SCRIPT_PRESETS } from "@/lib/plus/presets";
 import type { CampaignBranding } from "@/lib/plus/types";
@@ -21,16 +22,21 @@ export default function BrandingStudio() {
   const [draft, setDraft] = useState<CampaignBranding | null>(saved ?? null);
   const [tab, setTab] = useState<"colors" | "media" | "content" | "script">("colors");
   const [savedFlash, setSavedFlash] = useState(false);
+  const [uploading, setUploading] = useState<string | null>(null);
 
   if (!session || !draft) return null;
 
   const set = (patch: Partial<CampaignBranding>) => setDraft({ ...draft, ...patch });
 
-  const onUpload = (key: "logo_url" | "banner_url" | "background_image_url", file?: File) => {
+  // real upload to Supabase Storage (images and PDF)
+  const onUpload = async (key: "logo_url" | "banner_url" | "background_image_url" | "media_url", file?: File) => {
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => set({ [key]: reader.result as string } as Partial<CampaignBranding>);
-    reader.readAsDataURL(file);
+    setUploading(key);
+    try {
+      const url = await uploadImage(file, `plus/${draft.organization_id}/${key}-${crypto.randomUUID()}`);
+      set({ [key]: url } as Partial<CampaignBranding>);
+    } catch (e) { alert(e instanceof Error ? e.message : "ההעלאה נכשלה"); }
+    setUploading(null);
   };
 
   const save = () => {
@@ -108,10 +114,11 @@ export default function BrandingStudio() {
 
             {tab === "media" && (
               <div>
-                <UploadRow label="לוגו" current={draft.logo_url} onFile={(f) => onUpload("logo_url", f)} onClear={() => set({ logo_url: null })} />
-                <UploadRow label="באנר" current={draft.banner_url} onFile={(f) => onUpload("banner_url", f)} onClear={() => set({ banner_url: null })} />
-                <UploadRow label="תמונת רקע" current={draft.background_image_url} onFile={(f) => onUpload("background_image_url", f)} onClear={() => set({ background_image_url: null })} />
-                <p className="text-xs text-muted mt-2">הקבצים נשמרים scoped לארגון (Supabase Storage בפרודקשן).</p>
+                <UploadRow label="לוגו" current={draft.logo_url} uploading={uploading === "logo_url"} onFile={(f) => onUpload("logo_url", f)} onClear={() => set({ logo_url: null })} />
+                <UploadRow label="באנר (מופיע בראש הדף בנייד)" current={draft.banner_url} uploading={uploading === "banner_url"} onFile={(f) => onUpload("banner_url", f)} onClear={() => set({ banner_url: null })} />
+                <UploadRow label="תמונת רקע" current={draft.background_image_url} uploading={uploading === "background_image_url"} onFile={(f) => onUpload("background_image_url", f)} onClear={() => set({ background_image_url: null })} />
+                <UploadRow label="קובץ מדיה לשיתוף (תמונה / PDF)" current={draft.media_url ?? null} uploading={uploading === "media_url"} accept="image/*,application/pdf" onFile={(f) => onUpload("media_url", f)} onClear={() => set({ media_url: null })} />
+                <p className="text-xs text-muted mt-2">קובץ המדיה יישלח לתורם — בקישור SMS וכקובץ/תצוגה בוואטסאפ. הקבצים נשמרים ב-Supabase Storage.</p>
               </div>
             )}
 
@@ -204,18 +211,21 @@ function ColorRow({ label, value, onChange }: { label: string; value: string; on
   );
 }
 
-function UploadRow({ label, current, onFile, onClear }: { label: string; current: string | null; onFile: (f?: File) => void; onClear: () => void }) {
+function UploadRow({ label, current, onFile, onClear, accept = "image/*", uploading }: { label: string; current: string | null; onFile: (f?: File) => void; onClear: () => void; accept?: string; uploading?: boolean }) {
+  const isImg = !!current && !/\.pdf($|\?)/i.test(current);
   return (
     <div className="mb-4">
       <div className="text-sm font-medium mb-1">{label}</div>
       <div className="flex items-center gap-2">
-        {current && (
+        {current && (isImg ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={current} alt="" className="h-12 rounded-lg border" style={{ borderColor: "var(--border)" }} />
-        )}
+        ) : (
+          <a href={current} target="_blank" rel="noreferrer" className="h-12 px-3 rounded-lg border flex items-center text-xs font-semibold" style={{ borderColor: "var(--border)" }}>📄 PDF</a>
+        ))}
         <label className="btn-ghost px-3 py-2 rounded-lg text-sm cursor-pointer" style={{ borderColor: "var(--border)" }}>
-          העלה
-          <input type="file" accept="image/*" className="hidden" onChange={(e) => onFile(e.target.files?.[0])} />
+          {uploading ? "מעלה…" : "העלה"}
+          <input type="file" accept={accept} className="hidden" onChange={(e) => onFile(e.target.files?.[0])} />
         </label>
         {current && <button onClick={onClear} className="text-sm text-red-500">הסר</button>}
       </div>
