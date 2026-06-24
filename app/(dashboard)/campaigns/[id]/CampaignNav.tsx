@@ -35,7 +35,7 @@ export default function CampaignNav({ campaign }: Props) {
     { href: `${base}/media`, label: 'מדיה', icon: Image },
     { href: `${base}/donors`, label: 'תורמים', icon: Users },
     { href: `${base}/groups`, label: 'קבוצות', icon: Group },
-    { href: `${base}/custom-forms`, label: 'התאמות אישיות', icon: SlidersHorizontal },
+    { href: `${base}/custom-forms`, label: 'טפסים בהתאמה אישית', icon: SlidersHorizontal },
     { href: `${base}/email`, label: 'אימייל', icon: Mail },
   ]
 
