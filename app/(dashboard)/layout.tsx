@@ -47,10 +47,23 @@ export default async function DashboardLayout({ children }: { children: React.Re
   // Resolve the org currently in scope (own org, or the one a super admin entered)
   let contextOrgName: string | null = (profile as { organizations?: { name: string } }).organizations?.name ?? null
   let contextOrgStatus: string | undefined = (profile as { organizations?: { status: string } }).organizations?.status
+  // Module entitlements of the in-scope org (which products it's subscribed to).
+  const ownOrg = (profile as { organizations?: { has_fundraising?: boolean; has_kafool_plus?: boolean } }).organizations
+  let entFundraising = ownOrg?.has_fundraising !== false
+  let entKafoolPlus = ownOrg?.has_kafool_plus === true
   if (ctx.isSuperAdmin && ctx.orgId) {
-    const { data: o } = await supabase.from('organizations').select('name, status').eq('id', ctx.orgId).single()
+    const { data: o } = await supabase.from('organizations').select('name, status, has_fundraising, has_kafool_plus').eq('id', ctx.orgId).single()
     contextOrgName = o?.name ?? null
     contextOrgStatus = o?.status
+    entFundraising = o?.has_fundraising !== false
+    entKafoolPlus = o?.has_kafool_plus === true
+  }
+
+  // Module route gates (super-admins exempt; coordinators/callers handled above).
+  if (!ctx.isSuperAdmin) {
+    const fundraisingRoute = ['/dashboard', '/campaigns', '/reports', '/sms'].some(p => pathname === p || pathname.startsWith(p + '/'))
+    if (!entFundraising && fundraisingRoute) redirect(entKafoolPlus ? '/kafool-plus' : '/onboarding')
+    if (!entKafoolPlus && inKafoolPlus) redirect(entFundraising ? '/dashboard' : '/onboarding')
   }
 
   // Org must be active (super-admins and the Kafool+ pages are exempt)
@@ -67,7 +80,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      <Sidebar profile={profile} contextOrgName={contextOrgName} viewingOtherOrg={ctx.isSuperAdmin && !!ctx.orgId} lockToKafoolPlus={false} />
+      <Sidebar profile={profile} contextOrgName={contextOrgName} viewingOtherOrg={ctx.isSuperAdmin && !!ctx.orgId} lockToKafoolPlus={false} entitlements={{ fundraising: entFundraising, kafoolPlus: entKafoolPlus }} />
       <main className="flex-1 min-w-0 p-4 lg:p-6 pt-[4.5rem] lg:pt-6 overflow-x-hidden">{children}</main>
     </div>
   )

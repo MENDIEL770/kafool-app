@@ -22,6 +22,8 @@ export default function CreateOrgModal({ onClose }: Props) {
     accountMode: 'password' as 'password' | 'invite',
     ownerPassword: '',
     ownerPasswordConfirm: '',
+    hasFundraising: true,
+    hasKafoolPlus: false,
   })
 
   function set(key: keyof typeof form, val: string | boolean) {
@@ -31,6 +33,7 @@ export default function CreateOrgModal({ onClose }: Props) {
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     if (!form.orgName) { setError('שם הארגון הוא חובה'); return }
+    if (!form.hasFundraising && !form.hasKafoolPlus) { setError('יש לבחור לפחות מודול אחד (גיוס או Kafool+)'); return }
     if (form.ownerEmail && form.accountMode === 'password') {
       if (form.ownerPassword.length < 6) { setError('הסיסמה חייבת להכיל לפחות 6 תווים'); return }
       if (form.ownerPassword !== form.ownerPasswordConfirm) { setError('הסיסמאות אינן תואמות'); return }
@@ -48,6 +51,8 @@ export default function CreateOrgModal({ onClose }: Props) {
         ownerPhone: form.ownerPhone,
         ownerPassword: form.accountMode === 'password' ? form.ownerPassword : undefined,
         sendInvite: form.accountMode === 'invite',
+        hasFundraising: form.hasFundraising,
+        hasKafoolPlus: form.hasKafoolPlus,
       }),
     })
     const data = await res.json()
@@ -96,6 +101,30 @@ export default function CreateOrgModal({ onClose }: Props) {
                   placeholder="ישיבת... / עמותת... / מוסד..."
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition"
                 />
+              </div>
+
+              {/* Module entitlements */}
+              <div className="border-t border-gray-100 pt-4">
+                <p className="text-xs font-semibold text-gray-400 mb-2">מנוי / מודולים *</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => set('hasFundraising', !form.hasFundraising)}
+                    className={`text-right rounded-xl border px-3 py-2.5 transition-colors ${form.hasFundraising ? 'border-blue-400 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}
+                  >
+                    <span className={`text-xs font-bold block ${form.hasFundraising ? 'text-blue-700' : 'text-gray-600'}`}>מערכת גיוס תרומות</span>
+                    <span className="text-[10px] text-gray-400">קמפיינים, דוחות, SMS, תשלום</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => set('hasKafoolPlus', !form.hasKafoolPlus)}
+                    className={`text-right rounded-xl border px-3 py-2.5 transition-colors ${form.hasKafoolPlus ? 'border-violet-400 bg-violet-50' : 'border-gray-200 hover:border-gray-300'}`}
+                  >
+                    <span className={`text-xs font-bold block ${form.hasKafoolPlus ? 'text-violet-700' : 'text-gray-600'}`}>Kafool+ (טלפניה)</span>
+                    <span className="text-[10px] text-gray-400">מוקד טלפוני, לידים, חמ"ל</span>
+                  </button>
+                </div>
+                <p className="text-[10px] text-gray-400 mt-1.5">בחר לפחות מודול אחד. התפריט של הלקוח ייבנה לפי הבחירה.</p>
               </div>
 
               <div className="border-t border-gray-100 pt-4">

@@ -43,6 +43,7 @@ interface Props {
   contextOrgName?: string | null   // org currently in scope (super admin may view another org)
   viewingOtherOrg?: boolean        // super admin "entered" a specific org
   lockToKafoolPlus?: boolean       // kafoolplus_only coordinator/caller — Kafool+ only
+  entitlements?: { fundraising: boolean; kafoolPlus: boolean }  // org module subscription
 }
 
 const DEFAULT_CAMPAIGN_KEY = 'kafool_default_campaign'
@@ -137,10 +138,12 @@ function NavLink({
   )
 }
 
-export default function Sidebar({ profile, contextOrgName, viewingOtherOrg, lockToKafoolPlus }: Props) {
+export default function Sidebar({ profile, contextOrgName, viewingOtherOrg, lockToKafoolPlus, entitlements }: Props) {
   const pathname = usePathname()
   const router = useRouter()
   const isSuperAdmin = profile.role === 'super_admin'
+  // Which modules the in-scope org is subscribed to (defaults to both if unknown).
+  const ent = entitlements ?? { fundraising: true, kafoolPlus: true }
   // Org-specific nav (dashboard/campaigns/reports/SMS/Kafool+/settings) only
   // makes sense when an org is in scope. In the super-admin global "מבט-על"
   // mode there's no org, so we hide it and show only the super-admin sections.
@@ -252,7 +255,7 @@ export default function Sidebar({ profile, contextOrgName, viewingOtherOrg, lock
         <>
         {showOrgNav && (
         <>
-        {navItems.map((item) => (
+        {ent.fundraising && navItems.map((item) => (
           <NavLink
             key={item.href}
             href={item.href}
@@ -263,7 +266,8 @@ export default function Sidebar({ profile, contextOrgName, viewingOtherOrg, lock
           />
         ))}
 
-        {/* Kafool+ section */}
+        {/* Kafool+ section — only for orgs subscribed to it */}
+        {ent.kafoolPlus && (
         <div className="pt-1">
           <button
             onClick={() => setPlusOpen(v => !v)}
@@ -303,6 +307,7 @@ export default function Sidebar({ profile, contextOrgName, viewingOtherOrg, lock
             </div>
           )}
         </div>
+        )}
 
         <div className="pt-4 pb-1.5 px-3">
           <div className="text-[10px] font-semibold text-slate-600 uppercase tracking-widest">

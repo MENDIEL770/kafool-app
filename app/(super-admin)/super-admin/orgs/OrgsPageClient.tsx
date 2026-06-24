@@ -14,6 +14,8 @@ interface Org {
   registration_number?: string | null
   created_at: string
   profiles?: { full_name: string; phone?: string; id: string } | null
+  has_fundraising?: boolean
+  has_kafool_plus?: boolean
 }
 
 const STATUS_MAP = {
@@ -196,7 +198,7 @@ export default function OrgsPageClient({ orgs, raisedByOrg = {}, stats: platform
 
                     {/* Actions */}
                     <td className="px-5 py-4">
-                      <OrgActions orgId={org.id} status={org.status} slug={org.slug} />
+                      <OrgActions orgId={org.id} status={org.status} slug={org.slug} hasFundraising={org.has_fundraising !== false} hasKafoolPlus={org.has_kafool_plus === true} />
                     </td>
                   </tr>
                 )
