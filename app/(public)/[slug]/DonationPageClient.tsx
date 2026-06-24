@@ -1119,15 +1119,39 @@ function AboutSection({ campaign, gallery }: { campaign: Campaign; gallery: Gall
   // English visitors see the English about text when provided; otherwise fall back.
   const aboutText = (lang === 'en' && settings?.about_text_en?.trim()) ? settings.about_text_en : settings?.about_text
   const aboutImage = settings?.about_image || null
-  const [idx, setIdx] = useState(0)
-  const [zoom, setZoom] = useState(false)
-  const [galleryZoom, setGalleryZoom] = useState(false)
+  const [idx, setIdx] = useState(0)               // inline carousel position
+  const [lightbox, setLightbox] = useState<number | null>(null)  // index into allImages, null = closed
+  const touchX = useRef<number | null>(null)
+
+  // One unified image set for the fullscreen viewer: the about image first, then the gallery.
+  const allImages = useMemo(() => {
+    const arr: { url: string; caption?: string | null }[] = []
+    if (aboutImage) arr.push({ url: aboutImage })
+    for (const g of gallery) arr.push({ url: g.image_url, caption: g.caption })
+    return arr
+  }, [aboutImage, gallery])
+  const galleryStart = aboutImage ? 1 : 0          // where gallery images begin in allImages
+
+  const lbPrev = () => setLightbox(i => (i === null ? i : (i - 1 + allImages.length) % allImages.length))
+  const lbNext = () => setLightbox(i => (i === null ? i : (i + 1) % allImages.length))
 
   useEffect(() => {
-    if (gallery.length <= 1 || galleryZoom) return
+    if (gallery.length <= 1 || lightbox !== null) return
     const t = setInterval(() => setIdx(i => (i + 1) % gallery.length), 4000)
     return () => clearInterval(t)
-  }, [gallery.length, galleryZoom])
+  }, [gallery.length, lightbox])
+
+  // arrow-key navigation in the lightbox
+  useEffect(() => {
+    if (lightbox === null) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setLightbox(null)
+      else if (e.key === 'ArrowLeft') lbNext()
+      else if (e.key === 'ArrowRight') lbPrev()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [lightbox, allImages.length])
 
   if (!aboutText && gallery.length === 0 && !aboutImage) return null
 
@@ -1137,7 +1161,7 @@ function AboutSection({ campaign, gallery }: { campaign: Campaign; gallery: Gall
 
         {/* תמונת אודות עומדת — לחיצה מרחיבה */}
         {aboutImage && (
-          <button type="button" onClick={() => setZoom(true)}
+          <button type="button" onClick={() => setLightbox(0)}
             className="block w-full max-w-xs mx-auto rounded-2xl overflow-hidden shadow-md group relative focus:outline-none">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={aboutImage} alt={t('aboutCampaign')} className="w-full h-auto object-contain" style={{ aspectRatio: '4 / 5' }} loading="lazy" />
@@ -1147,17 +1171,8 @@ function AboutSection({ campaign, gallery }: { campaign: Campaign; gallery: Gall
           </button>
         )}
 
-        {/* Lightbox */}
-        {zoom && aboutImage && (
-          <div className="fixed inset-0 z-[90] bg-black/85 flex items-center justify-center p-4" onClick={() => setZoom(false)}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={aboutImage} alt="" className="max-w-full max-h-full object-contain rounded-lg" onClick={e => e.stopPropagation()} />
-            <button onClick={() => setZoom(false)} className="absolute top-4 left-4 w-10 h-10 rounded-full bg-white/15 text-white flex items-center justify-center text-xl">✕</button>
-          </div>
-        )}
-
         {gallery.length > 0 && (
-          <div className="relative rounded-3xl overflow-hidden shadow-md bg-gray-50 cursor-zoom-in" onClick={() => setGalleryZoom(true)}>
+          <div className="relative rounded-3xl overflow-hidden shadow-md bg-gray-50 cursor-zoom-in" onClick={() => setLightbox(galleryStart + idx)}>
             {/* object-contain so the whole image shows — nothing gets cropped */}
             <img src={gallery[idx].image_url} alt={gallery[idx].caption || ''} className="w-full h-auto max-h-[70vh] object-contain" loading="lazy" />
             {gallery[idx].caption && (
@@ -1176,23 +1191,34 @@ function AboutSection({ campaign, gallery }: { campaign: Campaign; gallery: Gall
           </div>
         )}
 
-        {/* Gallery fullscreen lightbox with prev/next arrows */}
-        {galleryZoom && gallery.length > 0 && (
-          <div className="fixed inset-0 z-[90] bg-black/90 flex items-center justify-center p-4" onClick={(e) => { if (e.target === e.currentTarget) setGalleryZoom(false) }}>
+        {/* Unified fullscreen lightbox — about image + gallery, with arrows, swipe and keys */}
+        {lightbox !== null && allImages[lightbox] && (
+          <div
+            className="fixed inset-0 z-[90] bg-black/90 flex items-center justify-center p-4"
+            onClick={(e) => { if (e.target === e.currentTarget) setLightbox(null) }}
+            onTouchStart={e => { touchX.current = e.touches[0]?.clientX ?? null }}
+            onTouchEnd={e => {
+              const start = touchX.current; touchX.current = null
+              if (start === null || allImages.length <= 1) return
+              const dx = (e.changedTouches[0]?.clientX ?? start) - start
+              if (Math.abs(dx) > 40) { if (dx < 0) lbNext(); else lbPrev() }
+            }}
+          >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={gallery[idx].image_url} alt={gallery[idx].caption || ''} className="max-w-full max-h-full object-contain rounded-lg" onClick={e => e.stopPropagation()} />
-            <button onClick={() => setGalleryZoom(false)} className="absolute top-4 left-4 w-10 h-10 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center text-xl">✕</button>
-            {gallery.length > 1 && (
+            <img src={allImages[lightbox].url} alt={allImages[lightbox].caption || ''} draggable={false}
+              className="max-w-full max-h-full object-contain rounded-lg select-none" onClick={e => e.stopPropagation()} />
+            <button onClick={() => setLightbox(null)} aria-label="סגור" className="absolute top-4 left-4 w-10 h-10 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center text-xl">✕</button>
+            {allImages.length > 1 && (
               <>
-                <button aria-label="הקודם" onClick={e => { e.stopPropagation(); setIdx(i => (i - 1 + gallery.length) % gallery.length) }}
+                <button aria-label="הקודם" onClick={e => { e.stopPropagation(); lbPrev() }}
                   className="absolute right-3 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center">
                   <ChevronDown className="w-6 h-6 -rotate-90" />
                 </button>
-                <button aria-label="הבא" onClick={e => { e.stopPropagation(); setIdx(i => (i + 1) % gallery.length) }}
+                <button aria-label="הבא" onClick={e => { e.stopPropagation(); lbNext() }}
                   className="absolute left-3 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center">
                   <ChevronDown className="w-6 h-6 rotate-90" />
                 </button>
-                <div className="absolute bottom-4 inset-x-0 text-center text-white/70 text-sm">{idx + 1} / {gallery.length}</div>
+                <div className="absolute bottom-4 inset-x-0 text-center text-white/70 text-sm pointer-events-none">{lightbox + 1} / {allImages.length}</div>
               </>
             )}
           </div>
