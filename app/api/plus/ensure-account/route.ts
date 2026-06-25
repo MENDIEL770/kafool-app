@@ -24,14 +24,31 @@ export async function POST(req: NextRequest) {
 
   // Must be a real, active Kafool+ member.
   const { data: members } = await admin
-    .from('kp_members').select('id, role').ilike('email', mail).eq('is_active', true).limit(1)
+    .from('kp_members').select('id, role, user_id').ilike('email', mail).eq('is_active', true).limit(1)
   const member = (members ?? [])[0]
   if (!member) return NextResponse.json({ error: 'מייל זה אינו רשום כמשתמש Kafool+' }, { status: 403 })
 
   // Does an auth account already exist for this email?
   const { data: list } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 })
   const existing = list?.users.find(u => (u.email || '').toLowerCase() === mail)
-  if (existing) return NextResponse.json({ exists: true })
+  if (existing) {
+    // A real email/password is already set → never override it (a member who
+    // changed their password keeps it; the client just shows "wrong password").
+    const hasPassword = (existing.identities ?? []).some(i => i.provider === 'email')
+    if (hasPassword) return NextResponse.json({ exists: true })
+
+    // Account exists but is passwordless (created via Google / admin without a
+    // password) → set the shared default so the member can log in & change it.
+    if (String(password || '') !== DEFAULT_PASSWORD) {
+      return NextResponse.json({ error: `התחבר/י תחילה עם סיסמת ברירת המחדל: ${DEFAULT_PASSWORD}` }, { status: 401 })
+    }
+    const { error: setErr } = await admin.auth.admin.updateUserById(existing.id, {
+      password: DEFAULT_PASSWORD, email_confirm: true,
+    })
+    if (setErr) return NextResponse.json({ error: setErr.message }, { status: 500 })
+    if (!member.user_id) await admin.from('kp_members').update({ user_id: existing.id }).eq('id', member.id)
+    return NextResponse.json({ created: true })
+  }
 
   // No account yet → only create with the shared default password.
   if (String(password || '') !== DEFAULT_PASSWORD) {
