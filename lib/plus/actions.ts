@@ -191,6 +191,18 @@ export async function updateCampaignStyle(campaignId: string, style: 'hierarchic
   await admin.from('kp_campaigns').update({ style, updated_at: now() }).eq('id', campaignId).eq('organization_id', c.orgId!)
 }
 
+// Manager renames the campaign — keeps the displayed name (header/branding) in sync.
+export async function renameCampaign(campaignId: string, name: string) {
+  const c = await ctx(); assertManagerial(c.role)
+  const nm = name.trim()
+  if (!nm) return
+  const admin = await createServiceClient()
+  await admin.from('kp_campaigns').update({ name: nm, updated_at: now() }).eq('id', campaignId).eq('organization_id', c.orgId!)
+  const { data: br } = await admin.from('kp_campaign_branding').select('id').eq('campaign_id', campaignId).maybeSingle()
+  if (br) await admin.from('kp_campaign_branding').update({ campaign_name: nm, updated_at: now() }).eq('id', br.id)
+  else await admin.from('kp_campaign_branding').insert({ organization_id: c.orgId!, campaign_id: campaignId, campaign_name: nm })
+}
+
 export async function addSubCampaign(id: string, parentId: string, name: string, coordEmail: string, goal: number): Promise<string> {
   const c = await ctx(); assertManagerial(c.role)
   const admin = await createServiceClient()

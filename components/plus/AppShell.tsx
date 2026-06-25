@@ -7,10 +7,16 @@ import Logo from "./Logo";
 import type { CampaignBranding } from "@/lib/plus/types";
 
 const ROLE_LABEL: Record<string, string> = {
-  super_admin: "מנהל מערכת",
-  manager: "מנהל ראשי",
-  coordinator: "רכז סניף",
+  super_admin: "סופר אדמין",
+  manager: "מנהל",
+  coordinator: "רכז",
   caller: "טלפן",
+};
+const ROLE_COLOR: Record<string, string> = {
+  super_admin: "#7c3aed",
+  manager: "#2563eb",
+  coordinator: "#0891b2",
+  caller: "#16a34a",
 };
 
 export default function AppShell({
@@ -42,9 +48,16 @@ export default function AppShell({
           <div className="flex items-center gap-2 shrink-0">
             {right}
             {session && (
-              <div className="hidden sm:flex flex-col items-end leading-tight">
-                <span className="text-sm font-semibold">{session.display_name}</span>
-                <span className="text-[11px]" style={{ color: "#aebbd6" }}>{ROLE_LABEL[session.role]}</span>
+              <div className="flex flex-col items-end leading-tight min-w-0 max-w-[42vw] sm:max-w-[16rem]">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="text-sm font-semibold truncate">{session.display_name}</span>
+                  <span className="text-[10px] font-bold text-white px-1.5 py-0.5 rounded-full shrink-0" style={{ background: ROLE_COLOR[session.role] ?? "#475569" }}>
+                    {ROLE_LABEL[session.role]}
+                  </span>
+                </div>
+                {session.email && (
+                  <span className="text-[11px] truncate max-w-full" style={{ color: "#aebbd6" }} dir="ltr">{session.email}</span>
+                )}
               </div>
             )}
             <button

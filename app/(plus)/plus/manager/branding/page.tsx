@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useStore } from "@/lib/plus/store";
 import { useRequireRole } from "@/lib/plus/useAuth";
 import AppShell from "@/components/plus/AppShell";
@@ -9,8 +9,21 @@ import ManagerNav from "@/components/plus/ManagerNav";
 import { Field, Input, Textarea } from "@/components/plus/ui";
 import { uploadImage } from "@/lib/image-client";
 import { cssVarStyle } from "@/lib/plus/theme";
-import { COLOR_PRESETS, SCRIPT_PRESETS } from "@/lib/plus/presets";
+import { COLOR_PRESETS, SCRIPT_PRESETS, DEFAULT_SCRIPT } from "@/lib/plus/presets";
 import type { CampaignBranding } from "@/lib/plus/types";
+
+// Default branding so the studio works even before a row exists (save upserts it).
+function emptyBranding(campaignId: string, orgId: string): CampaignBranding {
+  const ts = new Date().toISOString();
+  return {
+    id: "", organization_id: orgId, campaign_id: campaignId,
+    primary_color: "#1e3a8a", secondary_color: "#3b82f6", accent_color: "#f59e0b",
+    background_style: "light", logo_url: null, banner_url: null, background_image_url: null, favicon_url: null,
+    media_url: null, campaign_name: "", tagline: "", welcome_message: "",
+    call_script: DEFAULT_SCRIPT, thank_you_message: "", preset_id: null,
+    created_at: ts, updated_at: ts,
+  };
+}
 
 export default function BrandingStudio() {
   const session = useRequireRole(["manager"]);
@@ -19,10 +32,16 @@ export default function BrandingStudio() {
   const updateBranding = useStore((s) => s.updateBranding);
 
   const saved = branding.find((b) => b.campaign_id === rootId);
-  const [draft, setDraft] = useState<CampaignBranding | null>(saved ?? null);
+  const [draft, setDraft] = useState<CampaignBranding | null>(null);
   const [tab, setTab] = useState<"colors" | "media" | "content" | "script">("colors");
   const [savedFlash, setSavedFlash] = useState(false);
   const [uploading, setUploading] = useState<string | null>(null);
+
+  // seed the draft once session/campaign resolve — from the saved row, or a default
+  useEffect(() => {
+    if (draft || !rootId || !session) return;
+    setDraft(saved ?? emptyBranding(rootId, session.organization_id));
+  }, [draft, saved, rootId, session]);
 
   if (!session || !draft) return null;
 

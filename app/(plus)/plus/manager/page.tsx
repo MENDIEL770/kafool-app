@@ -7,6 +7,7 @@ import AppShell from "@/components/plus/AppShell";
 import ThemeRoot from "@/components/plus/ThemeRoot";
 import ManagerNav from "@/components/plus/ManagerNav";
 import { StatCard, Progress, Modal, Field, Input } from "@/components/plus/ui";
+import { renameCampaign } from "@/lib/plus/actions";
 
 export default function ManagerDashboard() {
   const session = useRequireRole(["manager"]);
@@ -20,6 +21,7 @@ export default function ManagerDashboard() {
   const addSubCampaign = useStore((s) => s.addSubCampaign);
   const addMasterCampaign = useStore((s) => s.addMasterCampaign);
   const updateCampaignStyle = useStore((s) => s.updateCampaignStyle);
+  const refresh = useStore((s) => s.refresh);
 
   // root = the manager's campaign, else the org's first master campaign
   const topLevel = useMemo(() => campaigns.filter((c) => c.parent_campaign_id === null), [campaigns]);
@@ -30,6 +32,9 @@ export default function ManagerDashboard() {
   const treeIds = useMemo(() => (rootId ? descendantCampaignIds(campaigns, rootId) : []), [campaigns, rootId]);
 
   const [showAdd, setShowAdd] = useState(false);
+  const [editName, setEditName] = useState(false);
+  const [nameDraft, setNameDraft] = useState("");
+  const [savingName, setSavingName] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", goal: "300000" });
   const [firstForm, setFirstForm] = useState<{ name: string; goal: string; style: "hierarchical" | "flat" }>({ name: "", goal: "1000000", style: "hierarchical" });
 
@@ -99,6 +104,32 @@ export default function ManagerDashboard() {
     <ThemeRoot campaignId={rootId}>
       <AppShell branding={brand} subtitle="מנהל ראשי · לוח בקרה ארצי">
         <ManagerNav />
+
+        <div className="card p-4 mb-4">
+          {editName ? (
+            <div className="flex items-center gap-2">
+              <Input value={nameDraft} onChange={(e) => setNameDraft(e.target.value)} placeholder="שם הקמפיין" autoFocus />
+              <button
+                disabled={savingName || !nameDraft.trim()}
+                onClick={async () => { setSavingName(true); await renameCampaign(root.id, nameDraft.trim()).catch(() => {}); await refresh(); setSavingName(false); setEditName(false); }}
+                className="btn-primary px-3 py-2 rounded-lg text-sm font-semibold disabled:opacity-50 whitespace-nowrap"
+              >
+                {savingName ? "שומר…" : "שמור"}
+              </button>
+              <button onClick={() => setEditName(false)} className="btn-ghost px-3 py-2 rounded-lg text-sm" style={{ borderColor: "var(--border)" }}>ביטול</button>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <div className="text-xs text-muted">שם הקמפיין</div>
+                <div className="font-extrabold text-lg truncate">{brand?.campaign_name || root.name}</div>
+              </div>
+              <button onClick={() => { setNameDraft(brand?.campaign_name || root.name); setEditName(true); }} className="btn-ghost text-xs px-3 py-1.5 rounded-lg font-medium shrink-0" style={{ borderColor: "var(--border)" }}>
+                ✏️ שנה שם
+              </button>
+            </div>
+          )}
+        </div>
 
         <div className="card p-4 mb-4">
           <div className="text-sm font-medium mb-2">קצב גיוס ארצי</div>
