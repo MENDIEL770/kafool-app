@@ -61,7 +61,11 @@ export default function KesherSettingsPage() {
       if (!ctxOrgId) return
       setOrgId(ctxOrgId)
 
-      const base = (process.env.NEXT_PUBLIC_BASE_URL || window.location.origin).replace(/^http:/, 'https:')
+      // Use the canonical www host — the apex (kafool.com) 308-redirects, and
+      // payment-provider webhooks (Kesher) don't follow redirects on POST, so the
+      // call would be lost. Always present the non-redirecting www URL.
+      const base = (process.env.NEXT_PUBLIC_BASE_URL || window.location.origin)
+        .replace(/^http:/, 'https:').replace('://kafool.com', '://www.kafool.com')
       setWebhookUrl(base + '/api/webhooks/kesher')
 
       const { data: org } = await supabase

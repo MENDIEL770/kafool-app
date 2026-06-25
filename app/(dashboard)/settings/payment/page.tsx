@@ -46,8 +46,10 @@ export default function PaymentSettingsPage() {
           kesher_webhook_secret: org.kesher_webhook_secret || '',
           kesher_active: org.kesher_active || false,
         })
-        // Build webhook URL for this org
-        const base = process.env.NEXT_PUBLIC_BASE_URL || window.location.origin
+        // Build webhook URL — canonical www host (the apex 308-redirects and
+        // Kesher won't follow it on POST, losing the call).
+        const base = (process.env.NEXT_PUBLIC_BASE_URL || window.location.origin)
+          .replace(/^http:/, 'https:').replace('://kafool.com', '://www.kafool.com')
         setWebhookUrl(`${base}/api/webhooks/kesher`)
       }
     }
