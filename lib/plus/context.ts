@@ -56,9 +56,20 @@ export async function getPlusContext(supabase: SupabaseClient): Promise<PlusCont
   const admin = await createServiceClient()
   const base = { isSuperAdmin: ctx.isSuperAdmin, userId: user.id, email: user.email ?? null }
 
-  // 0) super admins are always managers (god mode)
+  // 0) super admins are always managers (god mode). Scope the telephony module
+  // to an org that is actually subscribed to Kafool+: if the super-admin's
+  // current org context isn't (e.g. they hit /manager from their own org), fall
+  // back to a Kafool+ org so they see the live campaigns, not an empty state.
   if (ctx.isSuperAdmin) {
-    return { role: 'manager', orgId: ctx.orgId, member: null, ...base }
+    let orgId = ctx.orgId
+    const subscribed = orgId
+      ? ((await admin.from('organizations').select('has_kafool_plus').eq('id', orgId).limit(1)).data ?? [])[0]?.has_kafool_plus === true
+      : false
+    if (!subscribed) {
+      const { data: kpOrgs } = await admin.from('organizations').select('id').eq('has_kafool_plus', true).limit(1)
+      orgId = (kpOrgs ?? [])[0]?.id ?? orgId
+    }
+    return { role: 'manager', orgId, member: null, ...base }
   }
 
   // 1) explicit membership by user_id (an account may have >1 row — pick one;
