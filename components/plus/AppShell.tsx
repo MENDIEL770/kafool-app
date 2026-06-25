@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { Settings } from "lucide-react";
 import { useStore } from "@/lib/plus/store";
 import { createClient } from "@/lib/supabase/client";
 import Logo from "./Logo";
@@ -61,9 +62,16 @@ export default function AppShell({
               </div>
             )}
             <button
+              onClick={() => router.push("/plus/settings")}
+              title="הגדרות חשבון"
+              className="w-9 h-9 flex items-center justify-center rounded-lg transition-colors"
+              style={{ background: "rgba(255,255,255,.12)", color: "#fff" }}
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+            <button
               onClick={async () => {
                 logout();
-                await fetch("/api/plus/quick-login", { method: "DELETE" }).catch(() => {});
                 await createClient().auth.signOut();
                 router.push("/kafool-plus-login");
               }}

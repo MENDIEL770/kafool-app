@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Loader2, Phone, Users, Target, ArrowRight, Search, ChevronLeft } from 'lucide-react'
+import { Loader2, Phone, ArrowLeft } from 'lucide-react'
 
 const PLUS_ORIGIN = typeof window !== 'undefined' ? window.location.origin : ''
 
@@ -10,57 +10,49 @@ const isInAppBrowser = () =>
   typeof navigator !== 'undefined' &&
   /FBAN|FBAV|Instagram|Line|Twitter|WhatsApp|MicroMessenger|; wv\)|GSA\//i.test(navigator.userAgent)
 
-type Role = 'manager' | 'coordinator' | 'caller'
-type Member = { id: string; label: string; sub: string }
-
-const ROLES: { key: Role; title: string; desc: string; icon: typeof Phone; color: string }[] = [
-  { key: 'manager',     title: 'מנהל ראשי', desc: 'גישה מלאה לכל הסניפים והנתונים', icon: Target, color: '#c2a14e' },
-  { key: 'coordinator', title: 'רכז',       desc: 'ניהול הסניף והטלפנים שלי',        icon: Users,  color: '#6366f1' },
-  { key: 'caller',      title: 'טלפן',      desc: 'מסך החיוג והלידים שלי',           icon: Phone,  color: '#3b82f6' },
-]
-
 export default function KafoolPlusLoginPage() {
-  const [step, setStep] = useState<'roles' | 'pick'>('roles')
-  const [role, setRole] = useState<Role | null>(null)
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [members, setMembers] = useState<Member[]>([])
-  const [filter, setFilter] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showGoogle, setShowGoogle] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
   const [inApp, setInApp] = useState(false)
   useEffect(() => { setInApp(isInAppBrowser()) }, [])
-  // already logged in with a real Google session → straight in.
+  // already logged in → straight in.
   useEffect(() => {
     createClient().auth.getSession().then(({ data }) => {
       if (data.session && typeof window !== 'undefined') window.location.replace('/plus')
     })
   }, [])
 
-  async function submitPassword(e: React.FormEvent) {
+  async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
-    if (!role || !password) return
     setLoading(true); setError(null)
-    const res = await fetch('/api/plus/quick-login', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ role, password }),
-    })
-    const data = await res.json().catch(() => ({}))
-    if (!res.ok) { setError(data.error || 'שגיאה'); setLoading(false); return }
-    if (data.redirect) { window.location.href = data.redirect; return }
-    setMembers(data.members || []); setStep('pick'); setLoading(false)
-  }
+    const supabase = createClient()
+    const mail = email.trim().toLowerCase()
 
-  async function pickMember(memberId: string) {
-    setLoading(true); setError(null)
-    const res = await fetch('/api/plus/quick-login', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ memberId }),
-    })
-    const data = await res.json().catch(() => ({}))
-    if (!res.ok) { setError(data.error || 'שגיאה'); setLoading(false); return }
-    window.location.href = data.redirect || '/plus'
+    // 1) try a normal sign-in
+    let { error: signInErr } = await supabase.auth.signInWithPassword({ email: mail, password })
+
+    // 2) no account yet? lazily provision it with the default password, then retry.
+    if (signInErr) {
+      const res = await fetch('/api/plus/ensure-account', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: mail, password }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (data.created) {
+        ({ error: signInErr } = await supabase.auth.signInWithPassword({ email: mail, password }))
+      } else if (data.exists) {
+        setError('סיסמה שגויה'); setLoading(false); return
+      } else {
+        setError(data.error || 'אימייל או סיסמה שגויים'); setLoading(false); return
+      }
+    }
+
+    if (signInErr) { setError('אימייל או סיסמה שגויים'); setLoading(false); return }
+    window.location.href = '/plus'
   }
 
   async function signInWithGoogle() {
@@ -71,10 +63,6 @@ export default function KafoolPlusLoginPage() {
     })
     if (error) { setError(error.message); setGoogleLoading(false) }
   }
-
-  const roleMeta = ROLES.find(r => r.key === role)
-  const filtered = members.filter(m =>
-    !filter || m.label.includes(filter) || m.sub.includes(filter))
 
   return (
     <div dir="rtl" className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden"
@@ -95,99 +83,42 @@ export default function KafoolPlusLoginPage() {
         </div>
 
         {/* card */}
-        <div className="rounded-3xl p-6 shadow-2xl border" style={{ background: 'rgba(255,255,255,0.97)', borderColor: 'rgba(255,255,255,0.2)' }}>
+        <div className="rounded-3xl p-7 shadow-2xl border" style={{ background: 'rgba(255,255,255,0.97)', borderColor: 'rgba(255,255,255,0.2)' }}>
+          <h1 className="text-2xl font-black text-gray-900 text-center">כניסה למערכת</h1>
+          <p className="text-sm text-gray-400 text-center mt-1 mb-5">התחברות עם אימייל וסיסמה</p>
 
           {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2 mb-4 text-center">{error}</p>}
 
-          {/* STEP: role + password */}
-          {step === 'roles' && (
-            <>
-              <h1 className="text-xl font-black text-gray-900 text-center mb-1">בחר/י כיצד להיכנס</h1>
-              <p className="text-sm text-gray-400 text-center mb-5">בחר/י תפקיד והזן/י את סיסמת הכניסה</p>
+          <form onSubmit={handleLogin} className="space-y-3">
+            <div>
+              <label className="text-[13px] font-semibold text-gray-600 mb-1 block">אימייל</label>
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} required dir="ltr"
+                placeholder="you@example.com" autoComplete="username"
+                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-violet-400" />
+            </div>
+            <div>
+              <label className="text-[13px] font-semibold text-gray-600 mb-1 block">סיסמה</label>
+              <input type="password" value={password} onChange={e => setPassword(e.target.value)} required dir="ltr"
+                placeholder="••••••••" autoComplete="current-password"
+                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-violet-400" />
+            </div>
 
-              <div className="space-y-2.5">
-                {ROLES.map(({ key, title, desc, icon: Icon, color }) => {
-                  const active = role === key
-                  return (
-                    <button key={key} onClick={() => { setRole(key); setError(null) }}
-                      className="w-full flex items-center gap-3 rounded-2xl border-2 px-4 py-3 text-right transition-all"
-                      style={{
-                        borderColor: active ? color : '#e5e7eb',
-                        background: active ? `${color}12` : '#fff',
-                      }}>
-                      <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${color}1a` }}>
-                        <Icon className="w-5 h-5" style={{ color }} />
-                      </div>
-                      <div className="flex-1">
-                        <div className="font-bold text-gray-900">{title}</div>
-                        <div className="text-[12px] text-gray-400">{desc}</div>
-                      </div>
-                      <div className="w-5 h-5 rounded-full border-2 flex items-center justify-center" style={{ borderColor: active ? color : '#d1d5db' }}>
-                        {active && <div className="w-2.5 h-2.5 rounded-full" style={{ background: color }} />}
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
+            <button type="submit" disabled={loading}
+              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-white transition-all disabled:opacity-50"
+              style={{ background: '#21376a' }}>
+              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <>כניסה <ArrowLeft className="w-4 h-4" /></>}
+            </button>
+          </form>
 
-              {role && (
-                <form onSubmit={submitPassword} className="mt-4 space-y-3">
-                  <input
-                    type="password" inputMode="numeric" autoFocus value={password}
-                    onChange={e => setPassword(e.target.value)} placeholder="סיסמת כניסה"
-                    dir="ltr"
-                    className="w-full text-center tracking-widest text-lg bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-violet-400"
-                  />
-                  <button type="submit" disabled={loading || !password}
-                    className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-white transition-all disabled:opacity-50"
-                    style={{ background: roleMeta?.color || '#6366f1' }}>
-                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <>המשך <ArrowRight className="w-4 h-4" /></>}
-                  </button>
-                </form>
-              )}
-            </>
-          )}
+          <p className="text-center text-[12px] text-gray-400 mt-4">
+            התחברות ראשונה? הזן/י את האימייל שלך עם סיסמת ברירת המחדל — תוכל/י לשנות אותה בהגדרות.
+          </p>
 
-          {/* STEP: pick yourself from the list */}
-          {step === 'pick' && (
-            <>
-              <button onClick={() => { setStep('roles'); setPassword(''); setMembers([]); setFilter('') }}
-                className="flex items-center gap-1 text-sm text-gray-400 hover:text-gray-600 mb-3">
-                <ChevronLeft className="w-4 h-4 rotate-180" /> חזרה
-              </button>
-              <h1 className="text-xl font-black text-gray-900 text-center mb-1">
-                {role === 'coordinator' ? 'בחר/י את הסניף שלך' : 'בחר/י את עצמך'}
-              </h1>
-              <p className="text-sm text-gray-400 text-center mb-4">לחץ/י על השם שלך כדי להיכנס</p>
-
-              <div className="relative mb-3">
-                <Search className="w-4 h-4 text-gray-300 absolute right-3 top-1/2 -translate-y-1/2" />
-                <input value={filter} onChange={e => setFilter(e.target.value)} placeholder="חיפוש..."
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl pr-9 pl-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-violet-400" />
-              </div>
-
-              <div className="max-h-[44vh] overflow-auto space-y-1.5 -mx-1 px-1">
-                {filtered.length === 0 && <p className="text-center text-sm text-gray-400 py-6">לא נמצאו תוצאות</p>}
-                {filtered.map(m => (
-                  <button key={m.id} onClick={() => pickMember(m.id)} disabled={loading}
-                    className="w-full flex items-center justify-between gap-2 rounded-xl border border-gray-100 hover:border-violet-300 hover:bg-violet-50/50 px-3.5 py-3 text-right transition-all disabled:opacity-50">
-                    <div className="min-w-0">
-                      <div className="font-semibold text-gray-800 truncate">{m.label}</div>
-                      {m.sub && <div className="text-[11px] text-gray-400 truncate" dir="ltr">{m.sub}</div>}
-                    </div>
-                    <ArrowRight className="w-4 h-4 text-gray-300 shrink-0" />
-                  </button>
-                ))}
-              </div>
-              {loading && <div className="flex justify-center pt-3"><Loader2 className="w-5 h-5 animate-spin text-violet-500" /></div>}
-            </>
-          )}
-
-          {/* hidden Google fallback (for the team / edge cases) */}
+          {/* hidden Google fallback (for accounts that signed up with Google) */}
           <div className="mt-5 pt-4 border-t border-gray-100 text-center">
             {!showGoogle ? (
               <button onClick={() => setShowGoogle(true)} className="text-[12px] text-gray-400 hover:text-gray-600 underline">
-                התחברות עם Google (לצוות)
+                התחברות עם Google
               </button>
             ) : (
               <>
