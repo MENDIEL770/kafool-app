@@ -99,6 +99,7 @@ export interface CallerGroup {
   display_name: string;
   public_slug: string;
   donation_link: string;
+  charidy_team_id?: string | null; // numeric Charidy team id (from team_id_list) — auto-resolved from the link
   personal_goal: number;
   phone?: string; // caller's phone — used to SMS them callback reminders
   is_coordinator?: boolean; // true when a coordinator works as a caller too

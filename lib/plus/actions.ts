@@ -247,7 +247,31 @@ export async function ensureCallerGroupFor(id: string, campaignId: string, email
 export async function updateCallerGroup(id: string, patch: Partial<CallerGroup>) {
   const c = await ctx(); assertManagerial(c.role)
   const admin = await createServiceClient()
-  await admin.from('kp_caller_groups').update({ ...patch, updated_at: now() }).eq('id', id).eq('organization_id', c.orgId!)
+  const full: Record<string, unknown> = { ...patch, updated_at: now() }
+  // When the Charidy link is set/changed, resolve its numeric team id so the
+  // donation webhook can map incoming donations back to this caller group.
+  if (typeof patch.donation_link === 'string' && patch.charidy_team_id === undefined) {
+    const { resolveCharidyTeamId } = await import('./charidyResolve')
+    full.charidy_team_id = await resolveCharidyTeamId(patch.donation_link)
+  }
+  await admin.from('kp_caller_groups').update(full).eq('id', id).eq('organization_id', c.orgId!)
+}
+
+// Manager/coordinator one-click: fill charidy_team_id for any group that has a
+// Charidy link but no resolved team id yet (e.g. links saved before this feature).
+export async function backfillCharidyTeamIds(): Promise<{ resolved: number; total: number }> {
+  const c = await ctx(); assertManagerial(c.role)
+  const admin = await createServiceClient()
+  const { resolveCharidyTeamId } = await import('./charidyResolve')
+  const { data } = await admin.from('kp_caller_groups')
+    .select('id, donation_link, charidy_team_id').eq('organization_id', c.orgId!)
+  const todo = (data ?? []).filter(g => g.donation_link && !g.charidy_team_id)
+  let resolved = 0
+  for (const g of todo) {
+    const tid = await resolveCharidyTeamId(g.donation_link as string)
+    if (tid) { await admin.from('kp_caller_groups').update({ charidy_team_id: tid, updated_at: now() }).eq('id', g.id); resolved++ }
+  }
+  return { resolved, total: todo.length }
 }
 
 export async function removeCallerGroup(id: string) {

@@ -50,6 +50,7 @@ export default function CoordinatorPage() {
   const [poolMemberId, setPoolMemberId] = useState(""); // when assigning from the manager's pool
   const [editId, setEditId] = useState<string | null>(null);
   const [editLink, setEditLink] = useState("");
+  const [backfilling, setBackfilling] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [showScript, setShowScript] = useState(false);
   const branchBrand = branding.find((b) => b.campaign_id === campId);
@@ -211,7 +212,23 @@ export default function CoordinatorPage() {
 
         {/* ranking / caller table */}
         <div className="card overflow-hidden">
-          <div className="p-4 border-b font-bold" style={{ borderColor: "var(--border)" }}>דירוג הטלפנים</div>
+          <div className="p-4 border-b flex items-center justify-between gap-2" style={{ borderColor: "var(--border)" }}>
+            <span className="font-bold">דירוג הטלפנים</span>
+            <button
+              disabled={backfilling}
+              title="מזהה את מספר הצוות ב-Charidy מכל קישור — כדי שתרומות ייוחסו לטלפן הנכון"
+              onClick={async () => {
+                setBackfilling(true);
+                const { backfillCharidyTeamIds } = await import("@/lib/plus/actions");
+                const r = await backfillCharidyTeamIds().catch(() => null);
+                setBackfilling(false);
+                alert(r ? `סונכרנו ${r.resolved} מתוך ${r.total} קישורים ל-Charidy.` : "שגיאה בסנכרון.");
+              }}
+              className="text-xs px-2.5 py-1.5 rounded-lg btn-secondary disabled:opacity-50"
+            >
+              {backfilling ? "מסנכרן…" : "🔗 סנכרן מזהי Charidy"}
+            </button>
+          </div>
           {ranking.length === 0 ? (
             <div className="p-6 text-center text-muted">אין עדיין טלפנים. הוסף את הראשון.</div>
           ) : (
