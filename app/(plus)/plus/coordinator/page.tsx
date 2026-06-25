@@ -51,7 +51,7 @@ export default function CoordinatorPage() {
   const myGroup = myCallers.find((c) => c.caller_email?.toLowerCase() === session?.email?.toLowerCase());
 
   const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "", phone: "", link: "", goal: "50000" });
+  const [form, setForm] = useState({ name: "", email: "", phone: "", link: "", goal: "0" });
   // Charidy links: branch campaign link (powers the team picker) + personal group
   const [campLinkDraft, setCampLinkDraft] = useState(campaign?.charidy_campaign_link ?? "");
   const [coordLinkDraft, setCoordLinkDraft] = useState(myGroup?.donation_link ?? "");
@@ -355,8 +355,8 @@ export default function CoordinatorPage() {
               </select>
             </Field>
           )}
-          <Field label="קישור תרומה (Charidy)"><Input value={form.link} onChange={(e) => setForm({ ...form, link: e.target.value })} dir="ltr" /></Field>
-          <Field label="יעד אישי (₪)"><Input type="number" value={form.goal} onChange={(e) => setForm({ ...form, goal: e.target.value })} /></Field>
+          <Field label="קישור לקבוצה האישית שלו (Charidy)"><Input value={form.link} onChange={(e) => setForm({ ...form, link: e.target.value })} dir="ltr" placeholder="https://charidy.com/.../my-team" /></Field>
+          <p className="text-xs text-muted -mt-1 mb-2">💡 היעד נשאב אוטומטית מעמוד הקמפיין ב-Charidy — אין צורך להגדיר אותו כאן.</p>
           <button
             disabled={!form.name || !form.email}
             onClick={() => {
@@ -367,7 +367,7 @@ export default function CoordinatorPage() {
               }
               setShowAdd(false);
               setPoolMemberId("");
-              setForm({ name: "", email: "", phone: "", link: "", goal: "50000" });
+              setForm({ name: "", email: "", phone: "", link: "", goal: "0" });
             }}
             className="btn-primary w-full py-2.5 rounded-lg font-semibold disabled:opacity-50"
           >

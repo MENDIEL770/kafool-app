@@ -4,6 +4,7 @@ import { useState } from "react";
 import * as XLSX from "xlsx";
 import { useStore } from "@/lib/plus/store";
 import { autoDetect, buildLead } from "@/lib/plus/import-detect";
+import { parseVCards } from "@/lib/plus/vcard";
 
 const FIELD_LABELS: Record<string, string> = {
   full_name: "שם", phone: "טלפון", email: "אימייל", address: "כתובת", birthday: "ת. לידה", notes: "הערות",
@@ -21,8 +22,17 @@ export default function LeadImport({ campaignId, onDone }: { campaignId: string;
   const onFile = (file?: File) => {
     if (!file) return;
     setResult(null);
+    const isVcf = /\.vcf$/i.test(file.name) || /vcard/i.test(file.type);
     const reader = new FileReader();
     reader.onload = (e) => {
+      // iPhone/Android exported contacts (vCard) — no columns to map, import directly.
+      if (isVcf) {
+        const parsed = parseVCards(String(e.target?.result ?? ""));
+        if (!parsed.length) { alert("לא נמצאו אנשי קשר עם טלפון בקובץ ה-vCard."); return; }
+        setResult(importLeads(campaignId, parsed));
+        onDone?.();
+        return;
+      }
       const wb = XLSX.read(e.target?.result, { type: "binary" });
       const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(wb.Sheets[wb.SheetNames[0]], { defval: "" });
       if (!json.length) return;
@@ -30,7 +40,7 @@ export default function LeadImport({ campaignId, onDone }: { campaignId: string;
       const { mapping: m, historyCols: hc } = autoDetect(hdrs, json);
       setHeaders(hdrs); setRows(json); setMapping(m); setHistoryCols(hc);
     };
-    reader.readAsBinaryString(file);
+    if (isVcf) reader.readAsText(file); else reader.readAsBinaryString(file);
   };
 
   const doImport = () => {
@@ -44,8 +54,8 @@ export default function LeadImport({ campaignId, onDone }: { campaignId: string;
       <label className="block border-2 border-dashed rounded-xl p-6 text-center cursor-pointer mb-3" style={{ borderColor: "var(--border)" }}>
         <div className="text-3xl mb-1">📥</div>
         <div className="font-medium text-sm">בחר קובץ או גרור לכאן</div>
-        <div className="text-xs text-muted mt-1">.xlsx, .xls, .csv — זיהוי עמודות אוטומטי</div>
-        <input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={(e) => onFile(e.target.files?.[0])} />
+        <div className="text-xs text-muted mt-1">vCard (.vcf) מהאייפון · או .xlsx / .xls / .csv — זיהוי אוטומטי</div>
+        <input type="file" accept=".vcf,text/vcard,.xlsx,.xls,.csv" className="hidden" onChange={(e) => onFile(e.target.files?.[0])} />
       </label>
 
       {headers.length > 0 && (
