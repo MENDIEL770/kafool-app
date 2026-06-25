@@ -54,7 +54,11 @@ export async function loadPlusData(ctx: PlusContext): Promise<PlusData> {
     campaigns: (campaignsRes.data ?? []) as Campaign[],
     branding: (brandingRes.data ?? []) as CampaignBranding[],
     callerGroups: (cgRes.data ?? []) as CallerGroup[],
-    leads: (leadsRes.data ?? []) as Lead[],
+    // lift the triage decision out of custom_fields so it survives reloads
+    leads: (leadsRes.data ?? []).map((l: Record<string, unknown>) => ({
+      ...l,
+      call_decision: (l.custom_fields as Record<string, unknown> | null)?.call_decision as 'yes' | 'no' | undefined,
+    })) as Lead[],
     members: (membersRes.data ?? []) as Member[],
     calls: (callsRes.data ?? []) as Call[],
     promises: (promisesRes.data ?? []) as PromiseRow[],

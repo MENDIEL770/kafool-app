@@ -11,6 +11,49 @@ async function j(url: string) {
   return r.json()
 }
 
+export interface CharidyTeam { teamId: string; name: string; url: string; goal: number; donated: number }
+
+// Resolve a campaign slug/id from a campaign (or team) link.
+async function resolveCampaign(link: string): Promise<{ id: string; shortlink: string } | null> {
+  if (!link || !/charidy/i.test(link)) return null
+  let path = link.trim()
+  if (!/^https?:\/\//i.test(path)) path = `https://${path}`
+  const u = new URL(path)
+  if (!/charidy\.com$/i.test(u.hostname)) return null
+  let segs = u.pathname.split('/').filter(Boolean)
+  if (segs[0] && /^[a-z]{2}$/i.test(segs[0])) segs = segs.slice(1)
+  const campaignSlug = segs[0]
+  if (!campaignSlug) return null
+  const campRes = await j(`${API}/campaign/${encodeURIComponent(campaignSlug)}?locate_by_shortlink=1`)
+  const camp = Array.isArray(campRes.data) ? campRes.data[0] : campRes.data
+  const id = camp?.id ?? camp?.attributes?.campaign_id
+  if (!id) return null
+  return { id: String(id), shortlink: camp?.attributes?.shortlink || campaignSlug }
+}
+
+// List all teams of a Charidy campaign — for the coordinator to pick a caller's
+// group link. Each team's numeric id matches the donation webhook's team_id_list.
+export async function listCharidyTeams(campaignLink: string): Promise<CharidyTeam[]> {
+  try {
+    const camp = await resolveCampaign(campaignLink)
+    if (!camp) return []
+    const tRes = await j(`${API}/campaign/${camp.id}/teams?limit=1000`)
+    const teams = (tRes.data || []) as { id: string; attributes: Record<string, unknown> }[]
+    return teams.map((t) => {
+      const a = t.attributes || {}
+      const slug = String(a.slug || a.shortlink || '')
+      const sl = String(a.campaign_shortlink || camp.shortlink)
+      return {
+        teamId: String(t.id),
+        name: String(a.name || slug || t.id),
+        url: slug ? `https://charidy.com/${sl}/${slug}` : '',
+        goal: Number(a.goal || 0),
+        donated: Number(a.donated || 0),
+      }
+    }).filter((t) => t.url).sort((x, y) => x.name.localeCompare(y.name, 'he'))
+  } catch { return [] }
+}
+
 export async function resolveCharidyTeamId(link: string): Promise<string | null> {
   try {
     if (!link || !/charidy/i.test(link)) return null

@@ -11,7 +11,9 @@ import LeadImport from "@/components/plus/LeadImport";
 import { callbackMessage, smsLink, whatsappLink, openLink } from "@/lib/plus/notify";
 import { hebrewDateShort } from "@/lib/plus/hebrewDate";
 import { DEFAULT_SCRIPT } from "@/lib/plus/presets";
+import { setCampaignCharidyLink, listCharidyTeamsForLink } from "@/lib/plus/actions";
 import type { CallScript } from "@/lib/plus/types";
+import type { CharidyTeam } from "@/lib/plus/charidyResolve";
 
 export default function CoordinatorPage() {
   const router = useRouter();
@@ -35,6 +37,7 @@ export default function CoordinatorPage() {
   const approveToPool = useStore((s) => s.approveToPool);
   const rejectMember = useStore((s) => s.rejectMember);
   const updateBranding = useStore((s) => s.updateBranding);
+  const refresh = useStore((s) => s.refresh);
 
   const campaign = campaigns.find((c) => c.id === campId);
   const brand =
@@ -44,9 +47,17 @@ export default function CoordinatorPage() {
 
   const myCallers = useMemo(() => callerGroups.filter((c) => c.campaign_id === campId), [callerGroups, campId]);
   const myLeads = useMemo(() => leads.filter((l) => l.campaign_id === campId), [leads, campId]);
+  // the coordinator's own personal caller group (they may also call)
+  const myGroup = myCallers.find((c) => c.caller_email?.toLowerCase() === session?.email?.toLowerCase());
 
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", phone: "", link: "", goal: "50000" });
+  // Charidy links: branch campaign link (powers the team picker) + personal group
+  const [campLinkDraft, setCampLinkDraft] = useState(campaign?.charidy_campaign_link ?? "");
+  const [coordLinkDraft, setCoordLinkDraft] = useState(myGroup?.donation_link ?? "");
+  const [charidyTeams, setCharidyTeams] = useState<CharidyTeam[]>([]);
+  const [loadingTeams, setLoadingTeams] = useState(false);
+  const [savingLinks, setSavingLinks] = useState(false);
   const [poolMemberId, setPoolMemberId] = useState(""); // when assigning from the manager's pool
   const [editId, setEditId] = useState<string | null>(null);
   const [editLink, setEditLink] = useState("");
@@ -57,6 +68,32 @@ export default function CoordinatorPage() {
   const [script, setScript] = useState<CallScript>(
     branchBrand?.call_script && (branchBrand.call_script.opening || branchBrand.call_script.story) ? branchBrand.call_script : DEFAULT_SCRIPT
   );
+
+  const saveCharidyLinks = async () => {
+    if (!campId) return;
+    setSavingLinks(true);
+    try {
+      await setCampaignCharidyLink(campId, campLinkDraft.trim());
+      const link = coordLinkDraft.trim();
+      let gid = myGroup?.id;
+      if (!gid && link) gid = ensureCallerGroupFor(campId, session!.email, "רכז");
+      if (gid) updateCallerGroup(gid, { donation_link: link });
+      await refresh();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "השמירה נכשלה");
+    }
+    setSavingLinks(false);
+  };
+
+  const loadTeams = async () => {
+    const link = campLinkDraft.trim();
+    if (!link) { alert("הזן קודם את קישור הקמפיין ב-Charidy."); return; }
+    setLoadingTeams(true);
+    const teams = await listCharidyTeamsForLink(link).catch(() => [] as CharidyTeam[]);
+    setCharidyTeams(teams);
+    setLoadingTeams(false);
+    if (!teams.length) alert("לא נמצאו קבוצות ב-Charidy עבור הקישור הזה.");
+  };
 
   if (!session || !campaign) return null;
 
@@ -210,6 +247,26 @@ export default function CoordinatorPage() {
           </div>
         )}
 
+        {/* Charidy links — campaign (powers the team picker) + my personal group */}
+        <div className="card p-4 space-y-3">
+          <div className="font-bold">🔗 קישורי Charidy</div>
+          <Field label="קישור הקמפיין שלי ב-Charidy (ממנו נשלוף את רשימת הקבוצות)">
+            <Input value={campLinkDraft} onChange={(e) => setCampLinkDraft(e.target.value)} dir="ltr" placeholder="https://charidy.com/..." />
+          </Field>
+          <Field label="הקישור לקבוצה האישית שלי (אם אני גם מתקשר)">
+            <Input value={coordLinkDraft} onChange={(e) => setCoordLinkDraft(e.target.value)} dir="ltr" placeholder="https://charidy.com/.../my-team" />
+          </Field>
+          <div className="flex gap-2">
+            <button onClick={saveCharidyLinks} disabled={savingLinks} className="btn-primary flex-1 py-2.5 rounded-lg font-semibold disabled:opacity-50">
+              {savingLinks ? "שומר…" : "שמור קישורים"}
+            </button>
+            <button onClick={loadTeams} disabled={loadingTeams} className="btn-secondary px-3 py-2.5 rounded-lg font-semibold disabled:opacity-50 whitespace-nowrap">
+              {loadingTeams ? "טוען…" : `🔄 רענן קבוצות${charidyTeams.length ? ` (${charidyTeams.length})` : ""}`}
+            </button>
+          </div>
+          <p className="text-xs text-muted">לאחר שמירת קישור הקמפיין ולחיצה על "רענן קבוצות", בהוספת טלפן חדש תוכל לבחור את הקבוצה שלו מתוך הרשימה.</p>
+        </div>
+
         {/* ranking / caller table */}
         <div className="card overflow-hidden">
           <div className="p-4 border-b flex items-center justify-between gap-2" style={{ borderColor: "var(--border)" }}>
@@ -276,6 +333,24 @@ export default function CoordinatorPage() {
           <Field label="שם הטלפן"><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
           <Field label="אימייל (Google)"><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} dir="ltr" disabled={!!poolMemberId} /></Field>
           <Field label="טלפן נייד (לתזכורות SMS)"><Input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} dir="ltr" /></Field>
+          {charidyTeams.length > 0 && (
+            <Field label="בחר קבוצה מ-Charidy">
+              <select
+                value=""
+                onChange={(e) => {
+                  const t = charidyTeams.find((x) => x.url === e.target.value);
+                  if (t) setForm((f) => ({ ...f, link: t.url, name: f.name || t.name, goal: t.goal ? String(t.goal) : f.goal }));
+                }}
+                className="w-full px-3 py-2 rounded-lg border bg-transparent"
+                style={{ borderColor: "var(--border)" }}
+              >
+                <option value="">— בחר מתוך {charidyTeams.length} קבוצות —</option>
+                {charidyTeams.map((t) => (
+                  <option key={t.teamId} value={t.url}>{t.name}{t.goal ? ` · יעד ${t.goal.toLocaleString("he-IL")}` : ""}</option>
+                ))}
+              </select>
+            </Field>
+          )}
           <Field label="קישור תרומה (Charidy)"><Input value={form.link} onChange={(e) => setForm({ ...form, link: e.target.value })} dir="ltr" /></Field>
           <Field label="יעד אישי (₪)"><Input type="number" value={form.goal} onChange={(e) => setForm({ ...form, goal: e.target.value })} /></Field>
           <button

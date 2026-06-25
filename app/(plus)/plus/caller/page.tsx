@@ -7,6 +7,9 @@ import { initiateCall } from "@/lib/plus/dialer";
 import AppShell from "@/components/plus/AppShell";
 import ThemeRoot from "@/components/plus/ThemeRoot";
 import CallbackPicker from "@/components/plus/CallbackPicker";
+import SwipeTriage from "@/components/plus/SwipeTriage";
+import CallerContactsImport from "@/components/plus/CallerContactsImport";
+import { setCallDecisionOwn, saveMyCallerLink } from "@/lib/plus/actions";
 import { Modal, Field, Input, Textarea, Progress, StatusBadge, STATUS_LIST } from "@/components/plus/ui";
 import { callbackMessage, smsLink, whatsappLink, openLink } from "@/lib/plus/notify";
 import { hebrewDateShort } from "@/lib/plus/hebrewDate";
@@ -34,6 +37,7 @@ export default function CallerPage() {
   const addReminder = useStore((s) => s.addReminder);
   const updateCallerGroup = useStore((s) => s.updateCallerGroup);
   const updateLead = useStore((s) => s.updateLead);
+  const refresh = useStore((s) => s.refresh);
 
   // resolve the caller group: explicit on the session, else the one matching
   // this user's email within their campaign (coordinator-as-caller path).
@@ -48,7 +52,17 @@ export default function CallerPage() {
     branding[0];
 
   const myLeads = useMemo(() => leads.filter((l) => l.assigned_caller_group_id === cgId), [leads, cgId]);
-  const pending = myLeads.filter((l) => ["new", "no_answer", "busy", "callback"].includes(l.status));
+  // self-imported contacts awaiting the caller's swipe triage
+  const triageQueue = useMemo(
+    () => myLeads.filter((l) => (l.custom_fields as Record<string, unknown> | null)?.needs_triage && l.call_decision === undefined),
+    [myLeads]
+  );
+  // call queue: pending status, not rejected, and (manager-assigned OR triaged-yes)
+  const pending = myLeads.filter((l) =>
+    ["new", "no_answer", "busy", "callback"].includes(l.status) &&
+    l.call_decision !== "no" &&
+    (l.call_decision === "yes" || !(l.custom_fields as Record<string, unknown> | null)?.needs_triage)
+  );
 
   const [idx, setIdx] = useState(0);
   const [expanded, setExpanded] = useState(false);
@@ -59,6 +73,8 @@ export default function CallerPage() {
   const [showReminders, setShowReminders] = useState(false);
   const [showDonations, setShowDonations] = useState(false);
   const [showCharge, setShowCharge] = useState(false);
+  const [showContacts, setShowContacts] = useState(false);
+  const [showTriage, setShowTriage] = useState(false);
   const [promiseAmt, setPromiseAmt] = useState("");
   const [note, setNote] = useState("");
 
@@ -90,8 +106,15 @@ export default function CallerPage() {
 
   if (!session || !group) return null;
 
-  const saveLink = () => {
-    updateCallerGroup(group.id, { donation_link: linkDraft.trim() });
+  const saveLink = async () => {
+    updateCallerGroup(group.id, { donation_link: linkDraft.trim() }); // optimistic
+    try { await saveMyCallerLink(linkDraft.trim()); } catch { /* ignore */ }
+  };
+
+  // triage swipe: persist the caller's own decision + reflect it locally
+  const triage = (id: string, d: "yes" | "no") => {
+    updateLead(id, { call_decision: d });
+    setCallDecisionOwn(id, d).catch(() => { /* ignore */ });
   };
 
   // Reconcile Charidy donations to the leads I called — match by name (Charidy
@@ -175,6 +198,9 @@ export default function CallerPage() {
               <button onClick={() => setShowReminders(true)} className="btn-ghost text-sm px-3 py-1.5 rounded-lg font-medium relative" style={{ borderColor: "var(--border)" }}>
                 🔔 חזרות{myReminders.length > 0 ? ` (${myReminders.length})` : ""}
               </button>
+              <button onClick={() => setShowContacts(true)} className="btn-ghost text-sm px-3 py-1.5 rounded-lg font-medium" style={{ borderColor: "var(--border)" }}>
+                📇 אנשי קשר
+              </button>
               <button onClick={() => setShowScript(true)} className="btn-accent text-sm px-3 py-1.5 rounded-lg font-medium">
                 📋 תסריט
               </button>
@@ -188,6 +214,17 @@ export default function CallerPage() {
             <Mini label="תרמו" v={stats.donated} />
           </div>
         </div>
+
+        {triageQueue.length > 0 && (
+          <button
+            onClick={() => setShowTriage(true)}
+            className="w-full card p-3 mb-4 flex items-center justify-between gap-2 text-right"
+            style={{ borderColor: "var(--accent)", borderWidth: 2 }}
+          >
+            <span className="text-sm font-semibold">📇 {triageQueue.length} אנשי קשר ממתינים לסינון — בחר למי להתקשר</span>
+            <span className="btn-accent text-sm px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap">סנן עכשיו</span>
+          </button>
+        )}
 
         {brand?.welcome_message && (
           <div className="text-center text-sm text-muted mb-4">{brand.welcome_message}</div>
@@ -482,6 +519,20 @@ export default function CallerPage() {
               </div>
             </>
           )}
+        </Modal>
+
+        {/* upload my own contacts */}
+        <Modal open={showContacts} onClose={() => setShowContacts(false)} title="העלאת אנשי הקשר שלי">
+          <CallerContactsImport onDone={() => { void refresh(); }} />
+        </Modal>
+
+        {/* triage — swipe who to call */}
+        <Modal open={showTriage} onClose={() => setShowTriage(false)} title="סינון — למי להתקשר?">
+          <SwipeTriage
+            queue={triageQueue}
+            onDecide={triage}
+            doneMessage="כל מי שסימנת ✓ נכנס לרשימת השיחות שלך."
+          />
         </Modal>
 
         {/* immediate credit-card charge — opens the caller's Charidy donation page in an iframe */}

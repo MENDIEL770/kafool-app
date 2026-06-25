@@ -474,6 +474,78 @@ export async function setCallDecision(leadId: string, decision: 'yes' | 'no') {
   await admin.from('kp_leads').update({ custom_fields: cf, updated_at: now() }).eq('id', leadId).eq('organization_id', c.orgId!)
 }
 
+// Caller triage: a caller swipes their OWN leads (or a managerial user any lead).
+export async function setCallDecisionOwn(leadId: string, decision: 'yes' | 'no') {
+  const c = await ctx()
+  const admin = await createServiceClient()
+  const { data: lead } = await admin.from('kp_leads').select('custom_fields, assigned_caller_group_id, organization_id').eq('id', leadId).maybeSingle()
+  if (!lead || lead.organization_id !== c.orgId) throw new Error('Kafool+: lead not found')
+  const isOwner = !!c.member?.caller_group_id && lead.assigned_caller_group_id === c.member.caller_group_id
+  if (!isOwner && !['super_admin', 'manager', 'coordinator'].includes(c.role!)) throw new Error('אין הרשאה')
+  const cf = { ...(lead.custom_fields as Record<string, unknown> ?? {}), call_decision: decision }
+  await admin.from('kp_leads').update({ custom_fields: cf, updated_at: now() }).eq('id', leadId)
+}
+
+// Caller imports their own contacts (file or phone) into their group. Marked for
+// triage so they swipe who to call before the contacts enter the call queue.
+export async function importCallerContacts(rows: { full_name: string; phone: string; email?: string }[]): Promise<{ added: number; duplicates: number }> {
+  const c = await ctx()
+  const cgId = c.member?.caller_group_id
+  if (!cgId) throw new Error('Kafool+: אין לך קבוצת טלפן')
+  const admin = await createServiceClient()
+  const { data: cg } = await admin.from('kp_caller_groups').select('campaign_id, organization_id').eq('id', cgId).maybeSingle()
+  if (!cg || cg.organization_id !== c.orgId) throw new Error('Kafool+: קבוצה לא נמצאה')
+  const { data: existing } = await admin.from('kp_leads').select('phone').eq('assigned_caller_group_id', cgId)
+  const seen = new Set((existing ?? []).map(l => (l.phone as string).replace(/\D/g, '')))
+  let added = 0, duplicates = 0
+  const toAdd: Record<string, unknown>[] = []
+  for (const r of rows) {
+    const phoneRaw = (r.phone ?? '').toString().trim()
+    const digits = phoneRaw.replace(/\D/g, '')
+    if (!digits) continue
+    if (seen.has(digits)) { duplicates++; continue }
+    seen.add(digits)
+    toAdd.push({
+      organization_id: cg.organization_id, campaign_id: cg.campaign_id, assigned_caller_group_id: cgId,
+      full_name: (r.full_name ?? '').trim() || 'ללא שם', phone: phoneRaw, email: r.email ?? null,
+      status: 'new', import_source: 'contacts', custom_fields: { needs_triage: true },
+    })
+    added++
+  }
+  if (toAdd.length) await admin.from('kp_leads').insert(toAdd)
+  return { added, duplicates }
+}
+
+// Caller saves their OWN Charidy group link (manager-only updateCallerGroup would
+// reject them). Auto-resolves the numeric team id for donation→caller matching.
+export async function saveMyCallerLink(link: string): Promise<{ ok: boolean; teamId: string | null }> {
+  const c = await ctx()
+  const cgId = c.member?.caller_group_id
+  if (!cgId) throw new Error('Kafool+: אין לך קבוצת טלפן')
+  const admin = await createServiceClient()
+  const { resolveCharidyTeamId } = await import('./charidyResolve')
+  const teamId = await resolveCharidyTeamId(link)
+  await admin.from('kp_caller_groups').update({ donation_link: link.trim(), charidy_team_id: teamId, updated_at: now() })
+    .eq('id', cgId).eq('organization_id', c.orgId!)
+  return { ok: true, teamId }
+}
+
+// Coordinator/manager: the branch's Charidy CAMPAIGN link — used to pull the list
+// of teams so callers' group links can be picked from it.
+export async function setCampaignCharidyLink(campaignId: string, link: string) {
+  const c = await ctx(); assertManagerial(c.role)
+  const admin = await createServiceClient()
+  await admin.from('kp_campaigns').update({ charidy_campaign_link: link.trim() || null, updated_at: now() })
+    .eq('id', campaignId).eq('organization_id', c.orgId!)
+}
+
+// List the teams of a Charidy campaign (for the coordinator's group picker).
+export async function listCharidyTeamsForLink(campaignLink: string) {
+  await ctx()
+  const { listCharidyTeams } = await import('./charidyResolve')
+  return listCharidyTeams(campaignLink)
+}
+
 export async function assignLeadsEvenly(campaignId: string, callerGroupIds: string[]) {
   const c = await ctx(); assertManagerial(c.role)
   if (callerGroupIds.length === 0) return

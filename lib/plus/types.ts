@@ -48,6 +48,7 @@ export interface Campaign {
   linked_kafool_campaign_id: string | null;
   coordinator_email?: string | null;
   coordinator_user_id?: string | null;
+  charidy_campaign_link?: string | null; // Charidy CAMPAIGN url — source for the team picker
   created_at: string;
   updated_at: string;
 }
