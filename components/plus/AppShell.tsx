@@ -63,6 +63,7 @@ export default function AppShell({
             <button
               onClick={async () => {
                 logout();
+                await fetch("/api/plus/quick-login", { method: "DELETE" }).catch(() => {});
                 await createClient().auth.signOut();
                 router.push("/kafool-plus-login");
               }}

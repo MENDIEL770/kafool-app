@@ -32,6 +32,12 @@ export interface PlusContext {
 const COLS = 'id, role, organization_id, campaign_id, caller_group_id'
 
 export async function getPlusContext(supabase: SupabaseClient): Promise<PlusContext> {
+  // ── Quick-login (shared password + pick-from-list) takes precedence over any
+  // Supabase session. The identity lives in a signed httpOnly cookie.
+  const { getQuickIdentity } = await import('./quick')
+  const quick = await getQuickIdentity()
+  if (quick) return quick
+
   const { data: { user } } = await supabase.auth.getUser()
 
   // ── LOCAL DEV ONLY: impersonate a Kafool+ member by email (no OAuth needed).
