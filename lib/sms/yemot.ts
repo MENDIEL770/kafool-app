@@ -99,14 +99,15 @@ export async function sendYemotSms(
     // Normalize phone: remove spaces, dashes
     const normalizedPhone = phone.replace(/[\s\-]/g, '')
 
-    // sender / caller ID (textual). The provider requires it sent on the call.
-    const from = process.env.SMS_SENDER || 'Kafool'
+    // Sender / caller ID (textual). Only sent when SMS_SENDER is explicitly set —
+    // Yemot rejects an unapproved textual sender, so leaving it unset falls back
+    // to the account's default sender (the original, working behavior).
+    const from = (process.env.SMS_SENDER || '').trim()
 
-    const res = await yemotCall<SendSmsResponse>(
-      'SendSms',
-      { phones: normalizedPhone, message, from },
-      apiKey
-    )
+    const params: Record<string, string> = { phones: normalizedPhone, message }
+    if (from) params.from = from
+
+    const res = await yemotCall<SendSmsResponse>('SendSms', params, apiKey)
 
     if (res.responseStatus === 'OK') {
       return { success: true }
