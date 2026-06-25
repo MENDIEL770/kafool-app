@@ -7,6 +7,27 @@ import { importCallerContacts } from "@/lib/plus/actions";
 
 type Row = { full_name: string; phone: string; email?: string };
 
+// Parse a vCard (.vcf) file — what iPhone/Android export when you share contacts.
+function parseVCards(text: string): Row[] {
+  // unfold folded lines (continuation lines start with a space/tab)
+  const unfolded = text.replace(/\r?\n[ \t]/g, "");
+  const rows: Row[] = [];
+  for (const card of unfolded.split(/BEGIN:VCARD/i).slice(1)) {
+    let name = "", phone = "", email = "";
+    for (const raw of card.split(/\r?\n/)) {
+      const line = raw.trim();
+      if (/^END:VCARD/i.test(line)) break;
+      const val = line.slice(line.indexOf(":") + 1).trim();
+      if (/^FN[;:]/i.test(line)) name = val;
+      else if (/^N[;:]/i.test(line) && !name) { const p = val.split(";"); name = [p[1], p[0]].filter(Boolean).join(" ").trim(); }
+      else if (/^TEL[;:]/i.test(line) && !phone) phone = val;
+      else if (/^EMAIL[;:]/i.test(line) && !email) email = val;
+    }
+    if (phone) rows.push({ full_name: name || "ללא שם", phone, email: email || undefined });
+  }
+  return rows;
+}
+
 // Minimal typing for the Contacts Picker API (Chrome on Android only).
 type ContactInfo = { name?: string[]; tel?: string[]; email?: string[] };
 interface ContactsManager { select(props: string[], opts?: { multiple?: boolean }): Promise<ContactInfo[]>; getProperties(): Promise<string[]>; }
@@ -36,9 +57,17 @@ export default function CallerContactsImport({ onDone }: { onDone?: () => void }
   const onFile = (file?: File) => {
     if (!file) return;
     setResult(null); setError(null);
+    const isVcf = /\.vcf$/i.test(file.name) || /vcard/i.test(file.type);
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
+        if (isVcf) {
+          // iPhone/Android exported contacts (vCard)
+          const rows = parseVCards(String(e.target?.result ?? ""));
+          if (!rows.length) { setError("לא נמצאו אנשי קשר עם טלפון בקובץ ה-vCard."); return; }
+          submit(rows);
+          return;
+        }
         const wb = XLSX.read(e.target?.result, { type: "binary" });
         const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(wb.Sheets[wb.SheetNames[0]], { defval: "" });
         if (!json.length) { setError("הקובץ ריק."); return; }
@@ -51,7 +80,7 @@ export default function CallerContactsImport({ onDone }: { onDone?: () => void }
         submit(rows);
       } catch { setError("קריאת הקובץ נכשלה."); }
     };
-    reader.readAsBinaryString(file);
+    if (isVcf) reader.readAsText(file); else reader.readAsBinaryString(file);
   };
 
   const pickFromPhone = async () => {
@@ -80,12 +109,14 @@ export default function CallerContactsImport({ onDone }: { onDone?: () => void }
       <label className="block border-2 border-dashed rounded-xl p-6 text-center cursor-pointer" style={{ borderColor: "var(--border)" }}>
         <div className="text-2xl mb-1">📥</div>
         <div className="font-medium text-sm">{contactsApi ? "או העלה קובץ" : "העלה קובץ אנשי קשר"}</div>
-        <div className="text-xs text-muted mt-1">.xlsx, .xls, .csv — זיהוי עמודות אוטומטי</div>
-        <input type="file" accept=".xlsx,.xls,.csv" className="hidden" disabled={busy} onChange={(e) => onFile(e.target.files?.[0])} />
+        <div className="text-xs text-muted mt-1">vCard (.vcf) מהאייפון · או .xlsx / .csv</div>
+        <input type="file" accept=".vcf,text/vcard,.xlsx,.xls,.csv" className="hidden" disabled={busy} onChange={(e) => onFile(e.target.files?.[0])} />
       </label>
 
       {!contactsApi && (
-        <p className="text-[11px] text-muted text-center">ייבוא ישיר מאנשי הקשר בטלפון זמין ב-Chrome על אנדרואיד.</p>
+        <p className="text-[11px] text-muted text-center">
+          באייפון: אנשי קשר → בחר/שתף → <b>ייצוא כרטיס</b> → תקבל קובץ <b>.vcf</b> → העלה אותו כאן.
+        </p>
       )}
 
       {busy && <p className="text-sm text-center text-muted">מייבא…</p>}
