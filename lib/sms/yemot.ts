@@ -93,16 +93,18 @@ export async function yemotLogin(username: string, password: string): Promise<st
 export async function sendYemotSms(
   apiKey: string,
   phone: string,
-  message: string
-): Promise<{ success: boolean; error?: string }> {
+  message: string,
+  fromOverride?: string,
+): Promise<{ success: boolean; error?: string; sent: Record<string, string> }> {
   try {
     // Normalize phone: remove spaces, dashes
     const normalizedPhone = phone.replace(/[\s\-]/g, '')
 
-    // Sender / caller ID (textual). Only sent when SMS_SENDER is explicitly set —
-    // Yemot rejects an unapproved textual sender, so leaving it unset falls back
-    // to the account's default sender (the original, working behavior).
-    const from = (process.env.SMS_SENDER || '').trim()
+    // Sender / caller ID (textual). Only sent when set — Yemot rejects an
+    // unapproved textual sender, so leaving it unset falls back to the account's
+    // default sender. `fromOverride` lets callers (the test endpoint) force a
+    // specific value, or '' to explicitly omit it regardless of env.
+    const from = (fromOverride !== undefined ? fromOverride : (process.env.SMS_SENDER || '')).trim()
 
     const params: Record<string, string> = { phones: normalizedPhone, message }
     if (from) params.from = from
@@ -110,17 +112,19 @@ export async function sendYemotSms(
     const res = await yemotCall<SendSmsResponse>('SendSms', params, apiKey)
 
     if (res.responseStatus === 'OK') {
-      return { success: true }
+      return { success: true, sent: params }
     }
 
     return {
       success: false,
       error: res.message || `Yemot error code: ${res.messageCode}`,
+      sent: params,
     }
   } catch (err) {
     return {
       success: false,
       error: String(err),
+      sent: {},
     }
   }
 }
