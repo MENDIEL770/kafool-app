@@ -290,7 +290,10 @@ export default function DonationModal({
         params.set('credittype', '4')
       }
     }
-    params.set('addactiondata', campaign.id)
+    // Encode the group into addactiondata (campaignId|groupSlug) — Kesher echoes
+    // it back as addData on the webhook, so Bit/bank donations get group-attributed
+    // even without returning to /thanks (Kesher doesn't echo the raw `group` param).
+    params.set('addactiondata', campaign.id + (selectedGroupSlug ? `|${selectedGroupSlug}` : ''))
     // Nedarim-hosted payment pages route their server CallBack by Param1/Param2,
     // so the webhook can attach the donation to the right campaign/group.
     params.set('Param1', campaign.id)
@@ -632,9 +635,8 @@ export default function DonationModal({
               <button
                 onClick={() => {
                   persistDonor()
-                  // Bit opens its own hosted page in a new tab; the rest use the iframe step.
-                  if (paymentMethod === 'bit' && bitUrl) window.open(buildPaymentUrl(bitUrl), '_blank', 'noopener')
-                  else setStep('payment')
+                  // All methods (incl. Bit) load in the in-page payment iframe.
+                  setStep('payment')
                 }}
                 disabled={!canProceed}
                 className={`w-full py-4 font-black text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all ${buttonRadius}`}

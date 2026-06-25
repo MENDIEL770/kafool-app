@@ -18,11 +18,14 @@ async function handle(body: Record<string, unknown>): Promise<string> {
   if (body.isSucces !== undefined || body.transactionNumber !== undefined) {
     const success = String(body.isSucces ?? '').toLowerCase() === 'true'
     if (!success) return `ignored: isSucces=${body.isSucces}`
-    const campaignId = String(body.addData ?? body.Details ?? body.adddata ?? body.ref ?? '').trim() || null
+    // addData = "campaignId" or "campaignId|groupSlug" (we encode the group there)
+    const rawAdd = String(body.addData ?? body.Details ?? body.adddata ?? body.ref ?? '').trim()
+    const [addCampaign, addGroup] = rawAdd.split('|')
+    const campaignId = (addCampaign || '').trim() || null
     const amount = Number(String(body.total ?? body.Sum ?? 0).replace(/[^\d.]/g, '')) || 0
     const txn = String(body.transactionNumber ?? body.NumTransaction ?? '').trim()
     const obligationRef = String(body.obligationRef ?? '').trim()
-    const groupSlug = String(body.group ?? body.moreData ?? body.dg ?? '').trim() || null
+    const groupSlug = (addGroup || String(body.group ?? body.moreData ?? body.dg ?? '')).trim() || null
     if (!campaignId) return `ignored: no campaign (addData empty), txn ${txn}`
     const { data: campaign } = await supabase.from('campaigns').select('org_id').eq('id', campaignId).single()
     if (!campaign) return `ignored: campaign not found (${campaignId})`
