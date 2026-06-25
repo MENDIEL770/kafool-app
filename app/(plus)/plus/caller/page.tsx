@@ -51,6 +51,11 @@ export default function CallerPage() {
     branding.find((b) => b.campaign_id === campaign?.parent_campaign_id) ??
     branding[0];
 
+  // the caller's branch + coordinator (the branch's coordinator email / display name)
+  const coordEmail = campaign?.coordinator_email ?? null;
+  const coordGroup = callerGroups.find((c) => c.campaign_id === campaign?.id && !!coordEmail && c.caller_email?.toLowerCase() === coordEmail.toLowerCase());
+  const coordName = coordGroup?.display_name || coordEmail || "—";
+
   const myLeads = useMemo(() => leads.filter((l) => l.assigned_caller_group_id === cgId), [leads, cgId]);
   // self-imported contacts awaiting the caller's swipe triage
   const triageQueue = useMemo(
@@ -185,6 +190,18 @@ export default function CallerPage() {
   return (
     <ThemeRoot campaignId={group.campaign_id}>
       <AppShell branding={brand} subtitle={`${group.display_name} · ${campaign?.name ?? ""}`}>
+        {/* my branch + coordinator */}
+        <div className="card p-3 mb-4 flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-[11px] text-muted">הסניף שלי</div>
+            <div className="font-bold truncate">🏢 {campaign?.name ?? "—"}</div>
+          </div>
+          <div className="min-w-0 text-left">
+            <div className="text-[11px] text-muted">הרכז שלי</div>
+            <div className="font-bold truncate">👤 {coordName}</div>
+          </div>
+        </div>
+
         {/* personal goal */}
         <div className="card p-4 mb-4">
           <div className="flex items-center justify-between mb-2 gap-2">
