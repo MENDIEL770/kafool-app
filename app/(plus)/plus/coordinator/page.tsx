@@ -146,7 +146,7 @@ export default function CoordinatorPage() {
 
   return (
     <ThemeRoot campaignId={campId}>
-      <AppShell branding={brand} subtitle={`רכז · ${campaign.name}`}>
+      <AppShell branding={brand} subtitle={`${session.role === "coordinator" ? "רכז" : "מנהל"} · ${campaign.name}`}>
         <div className="card p-4 mb-4">
           <div className="text-sm font-medium mb-2">יעד הסניף</div>
           <Progress value={branchPromised} goal={campaign.goal_amount} />
