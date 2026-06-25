@@ -360,11 +360,14 @@ export default function CallerPage() {
         {mode === "dialer" && (<>
         <div className="flex items-center justify-between gap-2 mb-3">
           <button onClick={() => setMode("home")} className="btn-ghost text-sm px-3 py-1.5 rounded-lg" style={{ borderColor: "var(--border)" }}>
-            ← חזרה לתפריט
+            ← תפריט
           </button>
           <span className="text-xs text-muted">
-            רשימה: {listFilter === "personal" ? "המאגר שלי" : listFilter === "manager" ? "מהרכז/מנהל" : "הכל"}
+            {listFilter === "personal" ? "המאגר שלי" : listFilter === "manager" ? "מהרכז/מנהל" : "הכל"}
           </span>
+          <button onClick={() => setShowScript(true)} className="btn-accent text-sm px-3 py-1.5 rounded-lg font-bold">
+            📋 תסריט
+          </button>
         </div>
 
         {/* manual dialer — type any number and call */}
@@ -537,11 +540,12 @@ export default function CallerPage() {
             const cs = brand?.call_script;
             const script = cs && (cs.opening || cs.story || cs.objections || cs.closing) ? cs : DEFAULT_SCRIPT;
             return (
-              <div className="space-y-3 text-sm">
-                <ScriptBlock title="פתיחה" body={script.opening} />
-                <ScriptBlock title="הסיפור" body={script.story} />
-                <ScriptBlock title="מענה להתנגדויות" body={script.objections} />
-                <ScriptBlock title="סיום שיחה" body={script.closing} />
+              <div className="space-y-2">
+                <p className="text-sm text-muted mb-2">הקש על כותרת כדי לפתוח/לסגור — תוך כדי השיחה.</p>
+                <ScriptBlock title="פתיחה" body={script.opening} icon="👋" defaultOpen />
+                <ScriptBlock title="הסיפור" body={script.story} icon="📖" />
+                <ScriptBlock title="מענה להתנגדויות" body={script.objections} icon="💬" />
+                <ScriptBlock title="סיום שיחה" body={script.closing} icon="✅" />
               </div>
             );
           })()}
@@ -860,11 +864,22 @@ function Mini({ label, v }: { label: string; v: number | string }) {
   );
 }
 
-function ScriptBlock({ title, body }: { title: string; body: string }) {
+function ScriptBlock({ title, body, icon, defaultOpen }: { title: string; body: string; icon?: string; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(!!defaultOpen);
+  if (!body || !body.trim()) return null;
   return (
-    <div>
-      <div className="font-bold mb-0.5" style={{ color: "var(--primary)" }}>{title}</div>
-      <p className="text-muted whitespace-pre-wrap">{body}</p>
+    <div className="card overflow-hidden">
+      <button onClick={() => setOpen((o) => !o)} className="w-full flex items-center justify-between gap-2 p-4 text-right">
+        <span className="font-extrabold text-lg flex items-center gap-2" style={{ color: "var(--primary)" }}>
+          {icon && <span className="text-2xl">{icon}</span>}{title}
+        </span>
+        <span className="text-lg text-muted shrink-0">{open ? "▲" : "▼"}</span>
+      </button>
+      {open && (
+        <div className="px-4 pb-4">
+          <p className="text-lg leading-relaxed whitespace-pre-wrap" style={{ color: "var(--text)" }}>{body}</p>
+        </div>
+      )}
     </div>
   );
 }
