@@ -191,6 +191,52 @@ export async function updateCampaignStyle(campaignId: string, style: 'hierarchic
   await admin.from('kp_campaigns').update({ style, updated_at: now() }).eq('id', campaignId).eq('organization_id', c.orgId!)
 }
 
+// Manager edits a branch + its coordinator (name, coordinator email, goal).
+// Keeps the coordinator kp_member in sync; resetting user_id when the email
+// changes so the new coordinator claims the row on their next Google login.
+export async function updateBranchCoordinator(branchId: string, patch: { name?: string; email?: string; goal?: number }) {
+  const c = await ctx(); assertManagerial(c.role)
+  const admin = await createServiceClient()
+  const { data: branch } = await admin.from('kp_campaigns')
+    .select('coordinator_email').eq('id', branchId).eq('organization_id', c.orgId!).maybeSingle()
+  if (!branch) throw new Error('Kafool+: הסניף לא נמצא')
+  const oldEmail = (branch.coordinator_email as string | null ?? '').trim().toLowerCase()
+  const newEmail = patch.email !== undefined ? patch.email.trim().toLowerCase() : undefined
+
+  const upd: Record<string, unknown> = { updated_at: now() }
+  if (patch.name?.trim()) upd.name = patch.name.trim()
+  if (patch.goal !== undefined) upd.goal_amount = patch.goal
+  if (newEmail !== undefined) upd.coordinator_email = newEmail || null
+  await admin.from('kp_campaigns').update(upd).eq('id', branchId).eq('organization_id', c.orgId!)
+
+  if (newEmail !== undefined && newEmail !== oldEmail) {
+    const { data: mem } = await admin.from('kp_members').select('id')
+      .eq('organization_id', c.orgId!).eq('campaign_id', branchId).eq('role', 'coordinator').maybeSingle()
+    if (newEmail) {
+      if (mem) await admin.from('kp_members').update({ email: newEmail, user_id: null, status: 'active', is_active: true, updated_at: now() }).eq('id', mem.id)
+      else await admin.from('kp_members').insert({ organization_id: c.orgId!, email: newEmail, role: 'coordinator', campaign_id: branchId, status: 'active', is_active: true })
+    } else if (mem) {
+      await admin.from('kp_members').delete().eq('id', mem.id)
+    }
+  }
+}
+
+// Move a branch's coordinator to a different branch (reassign).
+export async function reassignCoordinator(fromBranchId: string, toBranchId: string) {
+  const c = await ctx(); assertManagerial(c.role)
+  if (fromBranchId === toBranchId) return
+  const admin = await createServiceClient()
+  const { data: from } = await admin.from('kp_campaigns')
+    .select('coordinator_email').eq('id', fromBranchId).eq('organization_id', c.orgId!).maybeSingle()
+  const email = (from?.coordinator_email as string | null ?? '').trim().toLowerCase()
+  if (!email) throw new Error('Kafool+: לסניף הזה אין רכז להעביר')
+  const { data: mem } = await admin.from('kp_members').select('id')
+    .eq('organization_id', c.orgId!).eq('campaign_id', fromBranchId).eq('role', 'coordinator').maybeSingle()
+  if (mem) await admin.from('kp_members').update({ campaign_id: toBranchId, updated_at: now() }).eq('id', mem.id)
+  await admin.from('kp_campaigns').update({ coordinator_email: null, updated_at: now() }).eq('id', fromBranchId).eq('organization_id', c.orgId!)
+  await admin.from('kp_campaigns').update({ coordinator_email: email, updated_at: now() }).eq('id', toBranchId).eq('organization_id', c.orgId!)
+}
+
 // Manager renames the campaign — keeps the displayed name (header/branding) in sync.
 export async function renameCampaign(campaignId: string, name: string) {
   const c = await ctx(); assertManagerial(c.role)

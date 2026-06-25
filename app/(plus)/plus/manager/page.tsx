@@ -7,7 +7,7 @@ import AppShell from "@/components/plus/AppShell";
 import ThemeRoot from "@/components/plus/ThemeRoot";
 import ManagerNav from "@/components/plus/ManagerNav";
 import { StatCard, Progress, Modal, Field, Input } from "@/components/plus/ui";
-import { renameCampaign } from "@/lib/plus/actions";
+import { renameCampaign, updateBranchCoordinator, reassignCoordinator } from "@/lib/plus/actions";
 
 export default function ManagerDashboard() {
   const session = useRequireRole(["manager"]);
@@ -32,6 +32,9 @@ export default function ManagerDashboard() {
   const treeIds = useMemo(() => (rootId ? descendantCampaignIds(campaigns, rootId) : []), [campaigns, rootId]);
 
   const [showAdd, setShowAdd] = useState(false);
+  const [coordSearch, setCoordSearch] = useState("");
+  const [editBranch, setEditBranch] = useState<{ id: string; name: string; email: string; goal: string; moveTo: string } | null>(null);
+  const [savingBranch, setSavingBranch] = useState(false);
   const [editName, setEditName] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
   const [savingName, setSavingName] = useState(false);
@@ -170,28 +173,50 @@ export default function ManagerDashboard() {
           <button onClick={() => setShowAdd(true)} className="btn-primary px-4 py-2 rounded-xl text-sm font-semibold">+ סניף חדש</button>
         </div>
 
+        <Input
+          value={coordSearch}
+          onChange={(e) => setCoordSearch(e.target.value)}
+          placeholder="🔍 חיפוש רכז או סניף — שם / אימייל"
+          className="mb-3"
+        />
+
         <div className="card overflow-hidden">
-          {branchRanking.length === 0 ? (
-            <div className="p-6 text-center text-muted">אין סניפים. צור את הראשון.</div>
-          ) : (
-            <div className="divide-y" style={{ borderColor: "var(--border)" }}>
-              {branchRanking.map((r, i) => (
-                <div key={r.sc.id} className="p-4 flex items-center gap-3">
-                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-sm font-bold" style={{ background: i === 0 ? "var(--accent)" : "var(--secondary)" }}>
-                    {i + 1}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-semibold truncate">{r.sc.name}</div>
-                    <div className="text-xs text-muted truncate">{r.callers} טלפנים · רכז: {r.sc.coordinator_email ?? "—"}</div>
-                  </div>
-                  <div className="text-left min-w-[120px]">
-                    <div className="font-bold">{r.promised.toLocaleString("he-IL")} ₪</div>
-                    <div className="text-xs text-muted">מתוך {r.sc.goal_amount.toLocaleString("he-IL")}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          {(() => {
+            const q = coordSearch.trim().toLowerCase();
+            const filtered = q
+              ? branchRanking.filter((r) => (r.sc.name || "").toLowerCase().includes(q) || (r.sc.coordinator_email || "").toLowerCase().includes(q))
+              : branchRanking;
+            if (branchRanking.length === 0) return <div className="p-6 text-center text-muted">אין סניפים. צור את הראשון.</div>;
+            if (filtered.length === 0) return <div className="p-6 text-center text-muted">לא נמצא רכז/סניף תואם.</div>;
+            return (
+              <div className="divide-y" style={{ borderColor: "var(--border)" }}>
+                {filtered.map((r) => {
+                  const rank = branchRanking.indexOf(r);
+                  return (
+                    <div key={r.sc.id} className="p-4 flex items-center gap-3">
+                      <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0" style={{ background: rank === 0 ? "var(--accent)" : "var(--secondary)" }}>
+                        {rank + 1}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold truncate">{r.sc.name}</div>
+                        <div className="text-xs text-muted truncate">{r.callers} טלפנים · רכז: {r.sc.coordinator_email ?? "—"}</div>
+                      </div>
+                      <div className="text-left min-w-[110px]">
+                        <div className="font-bold">{r.promised.toLocaleString("he-IL")} ₪</div>
+                        <div className="text-xs text-muted">מתוך {r.sc.goal_amount.toLocaleString("he-IL")}</div>
+                      </div>
+                      <button
+                        onClick={() => setEditBranch({ id: r.sc.id, name: r.sc.name, email: r.sc.coordinator_email ?? "", goal: String(r.sc.goal_amount ?? 0), moveTo: "" })}
+                        className="btn-ghost text-xs px-2.5 py-1.5 rounded-lg shrink-0" style={{ borderColor: "var(--border)" }}
+                      >
+                        ✏️
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </div>
 
         <Modal open={showAdd} onClose={() => setShowAdd(false)} title="הקמת תת-קמפיין (סניף)">
@@ -205,6 +230,48 @@ export default function ManagerDashboard() {
           >
             צור סניף + הזמן רכז
           </button>
+        </Modal>
+
+        {/* edit coordinator / branch */}
+        <Modal open={!!editBranch} onClose={() => setEditBranch(null)} title="עריכת רכז / סניף">
+          {editBranch && (
+            <>
+              <Field label="שם הסניף"><Input value={editBranch.name} onChange={(e) => setEditBranch({ ...editBranch, name: e.target.value })} /></Field>
+              <Field label="אימייל הרכז (Google)"><Input type="email" value={editBranch.email} onChange={(e) => setEditBranch({ ...editBranch, email: e.target.value })} dir="ltr" placeholder="coordinator@gmail.com" /></Field>
+              <Field label="יעד הסניף (₪)"><Input type="number" value={editBranch.goal} onChange={(e) => setEditBranch({ ...editBranch, goal: e.target.value })} /></Field>
+              <p className="text-[11px] text-muted -mt-2 mb-2">שינוי האימייל יאפס את ההתחברות — הרכז החדש יתבע את הסניף בכניסה הבאה עם Google.</p>
+
+              <Field label="העברת הרכז לסניף אחר">
+                <select
+                  value={editBranch.moveTo}
+                  onChange={(e) => setEditBranch({ ...editBranch, moveTo: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border bg-transparent" style={{ borderColor: "var(--border)" }}
+                >
+                  <option value="">— השאר בסניף הנוכחי —</option>
+                  {subCampaigns.filter((sc) => sc.id !== editBranch.id).map((sc) => (
+                    <option key={sc.id} value={sc.id}>{sc.name}{sc.coordinator_email ? ` (תפוס: ${sc.coordinator_email})` : ""}</option>
+                  ))}
+                </select>
+              </Field>
+
+              <button
+                disabled={savingBranch}
+                onClick={async () => {
+                  setSavingBranch(true);
+                  try {
+                    await updateBranchCoordinator(editBranch.id, { name: editBranch.name, email: editBranch.email, goal: Number(editBranch.goal) || 0 });
+                    if (editBranch.moveTo) await reassignCoordinator(editBranch.id, editBranch.moveTo);
+                    await refresh();
+                    setEditBranch(null);
+                  } catch (err) { alert(err instanceof Error ? err.message : "השמירה נכשלה"); }
+                  setSavingBranch(false);
+                }}
+                className="btn-primary w-full py-2.5 rounded-lg font-semibold disabled:opacity-50"
+              >
+                {savingBranch ? "שומר…" : "שמור שינויים"}
+              </button>
+            </>
+          )}
         </Modal>
         </>
         )}
