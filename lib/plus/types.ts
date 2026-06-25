@@ -49,6 +49,7 @@ export interface Campaign {
   coordinator_email?: string | null;
   coordinator_user_id?: string | null;
   charidy_campaign_link?: string | null; // Charidy CAMPAIGN url — source for the team picker
+  charidy_donate_url?: string | null;    // donate.charidy.com/<id> — embeddable prefilled checkout
   created_at: string;
   updated_at: string;
 }

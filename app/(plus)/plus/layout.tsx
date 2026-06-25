@@ -14,9 +14,10 @@ export const dynamic = 'force-dynamic'
 export default async function PlusLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/kafool-plus-login')
 
   const ctx = await getPlusContext(supabase)
+  // no real session AND no dev-impersonation context → go to login
+  if (!user && !ctx.role) redirect('/kafool-plus-login')
   // Logged in but not a member yet → join-request flow (pick campaign + branch).
   if (!ctx.role) {
     const [joinable, pending] = await Promise.all([listJoinable(), myPendingRequest()])

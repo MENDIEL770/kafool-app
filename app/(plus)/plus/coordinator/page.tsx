@@ -55,6 +55,7 @@ export default function CoordinatorPage() {
   // Charidy links: branch campaign link (powers the team picker) + personal group
   const [campLinkDraft, setCampLinkDraft] = useState(campaign?.charidy_campaign_link ?? "");
   const [coordLinkDraft, setCoordLinkDraft] = useState(myGroup?.donation_link ?? "");
+  const [donateUrlDraft, setDonateUrlDraft] = useState(campaign?.charidy_donate_url ?? "");
   const [charidyTeams, setCharidyTeams] = useState<CharidyTeam[]>([]);
   const [loadingTeams, setLoadingTeams] = useState(false);
   const [savingLinks, setSavingLinks] = useState(false);
@@ -73,7 +74,7 @@ export default function CoordinatorPage() {
     if (!campId) return;
     setSavingLinks(true);
     try {
-      await setCampaignCharidyLink(campId, campLinkDraft.trim());
+      await setCampaignCharidyLink(campId, campLinkDraft.trim(), donateUrlDraft.trim());
       const link = coordLinkDraft.trim();
       let gid = myGroup?.id;
       if (!gid && link) gid = ensureCallerGroupFor(campId, session!.email, "רכז");
@@ -255,6 +256,9 @@ export default function CoordinatorPage() {
           </Field>
           <Field label="הקישור לקבוצה האישית שלי (אם אני גם מתקשר)">
             <Input value={coordLinkDraft} onChange={(e) => setCoordLinkDraft(e.target.value)} dir="ltr" placeholder="https://charidy.com/.../my-team" />
+          </Field>
+          <Field label="דף תשלום מוטמע (donate.charidy.com) — מצארדי, לחיוב מהיר עם פרטי תורם מולאים">
+            <Input value={donateUrlDraft} onChange={(e) => setDonateUrlDraft(e.target.value)} dir="ltr" placeholder="https://donate.charidy.com/38789" />
           </Field>
           <div className="flex gap-2">
             <button onClick={saveCharidyLinks} disabled={savingLinks} className="btn-primary flex-1 py-2.5 rounded-lg font-semibold disabled:opacity-50">

@@ -554,7 +554,8 @@ function phoneKey(phone: string): string {
   return d.slice(-9)
 }
 
-export async function importCallerContacts(rows: { full_name: string; phone: string; email?: string }[]): Promise<{ added: number; duplicates: number; noPhone: number }> {
+export async function importCallerContacts(rows: { full_name: string; phone: string; email?: string; notes?: string }[]): Promise<{ added: number; duplicates: number; noPhone: number; overseas: number }> {
+  const { isIsraeliPhone } = await import('./phone')
   const c = await ctx()
   const cgId = c.member?.caller_group_id
   if (!cgId) throw new Error('Kafool+: אין לך קבוצת טלפן')
@@ -563,7 +564,7 @@ export async function importCallerContacts(rows: { full_name: string; phone: str
   if (!cg || cg.organization_id !== c.orgId) throw new Error('Kafool+: קבוצה לא נמצאה')
   const { data: existing } = await admin.from('kp_leads').select('phone').eq('assigned_caller_group_id', cgId)
   const seen = new Set((existing ?? []).map(l => phoneKey(l.phone as string)).filter(k => k.length >= 7))
-  let added = 0, duplicates = 0, noPhone = 0
+  let added = 0, duplicates = 0, noPhone = 0, overseas = 0
   const toAdd: Record<string, unknown>[] = []
   for (const r of rows) {
     const phoneRaw = (r.phone ?? '').toString().trim()
@@ -571,15 +572,18 @@ export async function importCallerContacts(rows: { full_name: string; phone: str
     if (key.length < 7) { noPhone++; continue }          // no usable number → skip + report
     if (seen.has(key)) { duplicates++; continue }         // merge duplicates (0xx == +972xx)
     seen.add(key)
+    const isOverseas = !isIsraeliPhone(phoneRaw)
+    if (isOverseas) overseas++
     toAdd.push({
       organization_id: cg.organization_id, campaign_id: cg.campaign_id, assigned_caller_group_id: cgId,
       full_name: (r.full_name ?? '').trim() || 'ללא שם', phone: phoneRaw, email: r.email ?? null,
-      status: 'new', import_source: 'contacts', custom_fields: { needs_triage: true },
+      notes: r.notes ?? null,
+      status: 'new', import_source: 'contacts', custom_fields: { needs_triage: true, overseas: isOverseas },
     })
     added++
   }
   if (toAdd.length) await admin.from('kp_leads').insert(toAdd)
-  return { added, duplicates, noPhone }
+  return { added, duplicates, noPhone, overseas }
 }
 
 // Clean a caller's leads: merge phone duplicates (keeping the most-progressed
@@ -635,11 +639,12 @@ export async function saveMyCallerLink(link: string): Promise<{ ok: boolean; tea
 
 // Coordinator/manager: the branch's Charidy CAMPAIGN link — used to pull the list
 // of teams so callers' group links can be picked from it.
-export async function setCampaignCharidyLink(campaignId: string, link: string) {
+export async function setCampaignCharidyLink(campaignId: string, link: string, donateUrl?: string) {
   const c = await ctx(); assertManagerial(c.role)
   const admin = await createServiceClient()
-  await admin.from('kp_campaigns').update({ charidy_campaign_link: link.trim() || null, updated_at: now() })
-    .eq('id', campaignId).eq('organization_id', c.orgId!)
+  const upd: Record<string, unknown> = { charidy_campaign_link: link.trim() || null, updated_at: now() }
+  if (donateUrl !== undefined) upd.charidy_donate_url = donateUrl.trim() || null
+  await admin.from('kp_campaigns').update(upd).eq('id', campaignId).eq('organization_id', c.orgId!)
 }
 
 // List the teams of a Charidy campaign (for the coordinator's group picker).

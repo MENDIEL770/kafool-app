@@ -14,6 +14,8 @@ import { Modal, Field, Input, Textarea, Progress, StatusBadge, STATUS_LIST } fro
 import { callbackMessage, smsLink, whatsappLink, openLink } from "@/lib/plus/notify";
 import { hebrewDateShort } from "@/lib/plus/hebrewDate";
 import { fetchCharidyDonations, timeAgo, type CharidyResult } from "@/lib/plus/charidy";
+import { isIsraeliPhone } from "@/lib/plus/phone";
+import HelpGuide from "@/components/plus/HelpGuide";
 import { DEFAULT_SCRIPT } from "@/lib/plus/presets";
 import type { Lead, LeadStatus } from "@/lib/plus/types";
 
@@ -57,13 +59,18 @@ export default function CallerPage() {
   const coordName = coordGroup?.display_name || coordEmail || "—";
 
   const myLeads = useMemo(() => leads.filter((l) => l.assigned_caller_group_id === cgId), [leads, cgId]);
-  // self-imported contacts awaiting the caller's swipe triage
+  // classify by the actual phone — works for every lead, not just freshly imported
+  const isOverseas = (l: Lead) => !isIsraeliPhone(l.phone);
+  // overseas (non-Israeli) contacts go to their own list, out of the main flow
+  const overseasLeads = useMemo(() => myLeads.filter(isOverseas), [myLeads]);
+  // self-imported Israeli contacts awaiting the caller's swipe triage
   const triageQueue = useMemo(
-    () => myLeads.filter((l) => (l.custom_fields as Record<string, unknown> | null)?.needs_triage && l.call_decision === undefined),
+    () => myLeads.filter((l) => !isOverseas(l) && (l.custom_fields as Record<string, unknown> | null)?.needs_triage && l.call_decision === undefined),
     [myLeads]
   );
-  // call queue: pending status, not rejected, and (manager-assigned OR triaged-yes)
+  // call queue: Israeli, pending status, not rejected, and (manager-assigned OR triaged-yes)
   const pending = myLeads.filter((l) =>
+    !isOverseas(l) &&
     ["new", "no_answer", "busy", "callback"].includes(l.status) &&
     l.call_decision !== "no" &&
     (l.call_decision === "yes" || !(l.custom_fields as Record<string, unknown> | null)?.needs_triage)
@@ -82,6 +89,7 @@ export default function CallerPage() {
   const [showTriage, setShowTriage] = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showOverseas, setShowOverseas] = useState(false);
   const [donorSearch, setDonorSearch] = useState("");
   const [promiseAmt, setPromiseAmt] = useState("");
   const [note, setNote] = useState("");
@@ -125,6 +133,20 @@ export default function CallerPage() {
     setCallDecisionOwn(id, d).catch(() => { /* ignore */ });
   };
 
+  // Charidy embeddable donate page with the donor's details prefilled (the
+  // coordinator sets donate.charidy.com/<id> on the campaign; this page allows
+  // iframe embedding, unlike charidy.com).
+  const buildDonateUrl = (lead?: Lead): string | null => {
+    const base = campaign?.charidy_donate_url?.trim();
+    if (!base || !lead) return null;
+    const p = new URLSearchParams({ lang: "he" });
+    if (group?.charidy_team_id) p.set("team_id", group.charidy_team_id);
+    if (lead.full_name) { p.set("fullname", lead.full_name); p.set("displayname", lead.full_name); }
+    if (lead.email) p.set("email", lead.email);
+    if (lead.phone) p.set("phone", lead.phone.replace(/\D/g, ""));
+    return `${base}${base.includes("?") ? "&" : "?"}${p.toString()}`;
+  };
+
   // Reconcile Charidy donations to the leads I called — match by name (Charidy
   // hides phone), mark them donated and record how much they gave.
   const normName = (s: string) =>
@@ -163,8 +185,9 @@ export default function CallerPage() {
     .filter((p) => p.caller_group_id === cgId)
     .reduce((s, p) => s + p.amount, 0);
 
-  // ── caller metrics / dashboard ──
-  const myCalls = useMemo(() => calls.filter((c) => c.caller_group_id === cgId), [calls, cgId]);
+  // ── caller metrics / dashboard ── (plain computations — must stay below the
+  // early return without adding hooks, so no useMemo here)
+  const myCalls = calls.filter((c) => c.caller_group_id === cgId);
   const ANSWERED = ["donated", "promised", "callback", "not_interested", "removed", "wrong_number"];
   const cf = (l: Lead) => (l.custom_fields as Record<string, unknown> | null) ?? {};
   const donatedTotal = myLeads.reduce((s, l) => s + (Number(cf(l).charidy_total ?? cf(l).charidy_amount ?? 0) || 0), 0);
@@ -178,24 +201,23 @@ export default function CallerPage() {
   };
   const conversion = stats.called ? Math.round((stats.donated / stats.called) * 100) : 0;
   // recommended hours — when answered calls actually happened (fallback: evening)
-  const recommendedHours = useMemo(() => {
+  const recommendedHours = (() => {
     const buckets: Record<number, number> = {};
     myCalls.filter((c) => ANSWERED.includes(c.outcome)).forEach((c) => { const h = new Date(c.called_at).getHours(); buckets[h] = (buckets[h] || 0) + 1; });
     const top = Object.entries(buckets).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([h]) => `${h}:00`);
     return top.length ? top : ["18:00", "19:00", "20:00"];
-  }, [myCalls]);
+  })();
   // call history — most recent first, with the lead name
-  const callHistory = useMemo(() =>
-    [...myCalls].sort((a, b) => b.called_at.localeCompare(a.called_at)).map((c) => ({
-      ...c, lead: leads.find((l) => l.id === c.lead_id),
-    })), [myCalls, leads]);
+  const callHistory = [...myCalls].sort((a, b) => b.called_at.localeCompare(a.called_at)).map((c) => ({
+    ...c, lead: leads.find((l) => l.id === c.lead_id),
+  }));
 
   // donor name search → tap to call
-  const searchHits = useMemo(() => {
+  const searchHits = (() => {
     const q = donorSearch.trim().toLowerCase();
     if (q.length < 1) return [];
     return myLeads.filter((l) => (l.full_name || "").toLowerCase().includes(q) || (l.phone || "").includes(q)).slice(0, 8);
-  }, [donorSearch, myLeads]);
+  })();
 
   const leadCalls = current ? calls.filter((c) => c.lead_id === current.id) : [];
 
@@ -254,9 +276,15 @@ export default function CallerPage() {
               <button onClick={() => setShowHistory(true)} className="btn-ghost text-sm px-3 py-1.5 rounded-lg font-medium" style={{ borderColor: "var(--border)" }}>
                 📋 שיחות
               </button>
+              {overseasLeads.length > 0 && (
+                <button onClick={() => setShowOverseas(true)} className="btn-ghost text-sm px-3 py-1.5 rounded-lg font-medium" style={{ borderColor: "var(--border)" }}>
+                  🌍 חו״ל ({overseasLeads.length})
+                </button>
+              )}
               <button onClick={() => setShowScript(true)} className="btn-accent text-sm px-3 py-1.5 rounded-lg font-medium">
                 📋 תסריט
               </button>
+              <HelpGuide />
             </div>
           </div>
           <Progress value={promisedTotal} goal={group.personal_goal} />
@@ -308,6 +336,22 @@ export default function CallerPage() {
         {brand?.welcome_message && (
           <div className="text-center text-sm text-muted mb-4">{brand.welcome_message}</div>
         )}
+
+        {/* progress — remaining to call, so the caller feels momentum */}
+        {(() => {
+          const handled = myLeads.filter((l) => !isOverseas(l) && ["donated", "promised", "not_interested", "removed", "wrong_number"].includes(l.status)).length;
+          const totalToCall = handled + pending.length;
+          if (totalToCall === 0) return null;
+          return (
+            <div className="card p-3 mb-4">
+              <div className="flex items-center justify-between text-sm mb-1.5">
+                <span className="font-semibold">נותרו לחיוג: <b style={{ color: "var(--accent)" }}>{pending.length}</b></span>
+                <span className="text-muted">טופלו {handled} / {totalToCall}</span>
+              </div>
+              <Progress value={handled} goal={totalToCall} />
+            </div>
+          );
+        })()}
 
         {!current ? (
           <div className="card p-8 text-center">
@@ -664,6 +708,29 @@ export default function CallerPage() {
           </div>
         </Modal>
 
+        {/* overseas (non-Israeli) contacts — separate list */}
+        <Modal open={showOverseas} onClose={() => setShowOverseas(false)} title="אנשי קשר חו״ל">
+          <p className="text-sm text-muted mb-3">מספרים לא-ישראליים (לא 05.. / +972). מופרדים מהתור הראשי.</p>
+          {overseasLeads.length === 0 ? (
+            <p className="text-sm text-muted text-center py-4">אין אנשי קשר חו״ל.</p>
+          ) : (
+            <div className="space-y-1.5 max-h-[60vh] overflow-y-auto">
+              {overseasLeads.map((l) => (
+                <div key={l.id} className="card p-3 flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="font-semibold truncate">{l.full_name}</div>
+                    <div className="text-xs text-muted" dir="ltr">{l.phone}</div>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <StatusBadge status={l.status} />
+                    <a href={`tel:${l.phone}`} className="text-sm btn-primary px-3 py-1.5 rounded-lg">📞 חייג</a>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Modal>
+
         {/* call history */}
         <Modal open={showHistory} onClose={() => setShowHistory(false)} title="השיחות שלי">
           {callHistory.length === 0 ? (
@@ -686,29 +753,52 @@ export default function CallerPage() {
           )}
         </Modal>
 
-        {/* immediate credit-card charge — opens the caller's Charidy donation page in an iframe */}
+        {/* immediate credit-card charge — Charidy blocks iframe embedding, so we
+            open its page in a new tab; the caller fills the card there + marks donated */}
         <Modal open={showCharge} onClose={() => setShowCharge(false)} title="חיוב מיידי — Charidy">
-          {!group.donation_link ? (
-            <p className="text-sm text-muted text-center py-4">לא הוגדר קישור Charidy אישי. הגדר אותו ב"💰 תרומות".</p>
-          ) : (
-            <>
-              <p className="text-xs text-muted mb-2">מלא את פרטי האשראי של התורם ישירות בטופס. בסיום החיוב — סמן "תרם!".</p>
-              <iframe
-                src={group.donation_link}
-                title="Charidy"
-                className="w-full rounded-lg border"
-                style={{ height: "60vh", borderColor: "var(--border)" }}
-                allow="payment"
-              />
-              <button
-                onClick={() => { if (current) { logCall(current.id, cgId!, "donated", note || undefined); } setShowCharge(false); goNext(); }}
-                className="w-full mt-3 py-3 rounded-xl font-semibold text-white"
-                style={{ background: "#16a34a" }}
-              >
-                ✅ החיוב בוצע — סמן תרם
-              </button>
-            </>
-          )}
+          {(() => {
+            const donateUrl = buildDonateUrl(current);
+            if (donateUrl) {
+              // embeddable Charidy donate page with the donor's details prefilled
+              return (
+                <>
+                  <p className="text-xs text-muted mb-2">פרטי התורם כבר מולאו. הזן את פרטי האשראי ולחץ "סמן תרם" בסיום.</p>
+                  <iframe
+                    src={donateUrl}
+                    title="Charidy"
+                    className="w-full rounded-lg border"
+                    style={{ height: "60vh", borderColor: "var(--border)" }}
+                    allow="payment"
+                  />
+                  <button
+                    onClick={() => { if (current) { logCall(current.id, cgId!, "donated", note || undefined); } setShowCharge(false); goNext(); }}
+                    className="w-full mt-3 py-3 rounded-xl font-semibold text-white"
+                    style={{ background: "#16a34a" }}
+                  >
+                    ✅ החיוב בוצע — סמן תרם
+                  </button>
+                </>
+              );
+            }
+            if (!group.donation_link) {
+              return <p className="text-sm text-muted text-center py-4">לא הוגדר דף תשלום. הרכז יגדיר "דף תשלום מוטמע" (donate.charidy.com) במסך הרכז.</p>;
+            }
+            // fallback: charidy.com blocks iframes → open in a new tab
+            return (
+              <>
+                <p className="text-sm text-muted mb-3">פתח את דף החיוב בטאב חדש, מלא את פרטי האשראי של התורם, ובסיום חזור וסמן "תרם".</p>
+                <a href={group.donation_link} target="_blank" rel="noopener noreferrer" className="block w-full text-center btn-primary py-3 rounded-xl font-bold mb-2">
+                  💳 פתח דף חיוב בטאב חדש ↗
+                </a>
+                <button
+                  onClick={() => { if (current) { logCall(current.id, cgId!, "donated", note || undefined); } setShowCharge(false); goNext(); }}
+                  className="w-full py-3 rounded-xl font-semibold text-white" style={{ background: "#16a34a" }}
+                >
+                  ✅ החיוב בוצע — סמן תרם
+                </button>
+              </>
+            );
+          })()}
         </Modal>
       </AppShell>
     </ThemeRoot>

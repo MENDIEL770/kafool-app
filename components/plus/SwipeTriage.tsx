@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import type { Lead } from "@/lib/plus/types";
 import { StatusBadge } from "@/components/plus/ui";
+import { isIsraeliPhone } from "@/lib/plus/phone";
 
 /** Tinder-style swipe to pick who to call (right = yes, left = skip). */
 export default function SwipeTriage({
@@ -39,6 +40,11 @@ export default function SwipeTriage({
 
   return (
     <div className="max-w-md mx-auto select-none">
+      <div className="text-center mb-3">
+        <span className="text-sm font-semibold px-3 py-1 rounded-full" style={{ background: "var(--bg)" }}>
+          נותרו לסינון: <b>{queue.length}</b>
+        </span>
+      </div>
       <div className="relative h-72">
         {queue[1] && <div className="absolute inset-0 card scale-95 opacity-50" />}
         <div
@@ -58,10 +64,11 @@ export default function SwipeTriage({
           onTouchEnd={onEnd}
         >
           <div className="flex items-start justify-between">
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-2xl font-bold">{current.full_name}</h2>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-4xl font-extrabold leading-tight">{current.full_name}</h2>
                 {current.is_vip && <span className="bg-yellow-400 text-black text-xs px-2 py-0.5 rounded-full font-bold">VIP</span>}
+                {!isIsraeliPhone(current.phone) && <span className="text-xs px-2 py-0.5 rounded-full text-white font-bold" style={{ background: "#0ea5e9" }}>🌍 חו״ל</span>}
               </div>
               <div className="text-lg text-muted mt-1" dir="ltr">{current.phone}</div>
             </div>

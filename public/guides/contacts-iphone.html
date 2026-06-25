@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>מדריך — ייצוא אנשי קשר מהאייפון ל-Kafool+</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --primary:#1f6feb;--secondary:#0d2847;--accent:#f0a92e;
+    --ink:#13233b;--muted:#6b7a90;--line:#e6ebf2;--ok:#1f9d6b;
+    --ios-blue:#007aff;--ios-bg:#f2f2f7;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  body{font-family:'Heebo',sans-serif;background:linear-gradient(160deg,#e8edf5,#d3dae8);color:var(--ink);min-height:100vh;padding:30px 16px}
+  .container{max-width:1000px;margin:0 auto}
+  .header{text-align:center;margin-bottom:30px}
+  .header .kicker{display:inline-block;background:var(--primary);color:#fff;font-size:13px;font-weight:700;padding:6px 16px;border-radius:20px;margin-bottom:14px}
+  .header h1{font-size:30px;font-weight:900;color:var(--secondary);line-height:1.2;margin-bottom:10px}
+  .header p{font-size:15px;color:#4a5a70;max-width:520px;margin:0 auto;line-height:1.6}
+
+  .stage{display:grid;grid-template-columns:1fr 360px;gap:30px;align-items:center;background:#fff;border-radius:28px;padding:30px;box-shadow:0 20px 60px rgba(13,40,71,.12);min-height:720px}
+
+  /* left: step text */
+  .steps-side{align-self:stretch;display:flex;flex-direction:column}
+  .stepnum{display:inline-flex;align-items:center;gap:10px;margin-bottom:16px}
+  .stepnum .circle{width:46px;height:46px;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;transition:.3s}
+  .stepnum .of{font-size:14px;color:var(--muted);font-weight:600}
+  .step-title{font-size:24px;font-weight:800;color:var(--secondary);margin-bottom:12px;line-height:1.3}
+  .step-desc{font-size:16px;color:#4a5a70;line-height:1.7;margin-bottom:8px}
+  .step-desc b{color:var(--primary)}
+  .tipbox{background:#fff8eb;border:1px solid #f7e3b8;border-radius:14px;padding:14px 16px;font-size:14px;color:#8a5a00;margin-top:16px;display:flex;gap:10px;align-items:flex-start}
+
+  .dots{display:flex;gap:8px;margin-top:auto;padding-top:24px}
+  .dots .d{width:10px;height:10px;border-radius:50%;background:var(--line);transition:.3s;cursor:pointer}
+  .dots .d.active{background:var(--primary);width:28px;border-radius:6px}
+
+  .controls{display:flex;gap:12px;margin-top:20px}
+  .nav-btn{flex:1;border:0;border-radius:14px;padding:15px;font-family:inherit;font-size:16px;font-weight:700;cursor:pointer;transition:.15s;display:flex;align-items:center;justify-content:center;gap:8px}
+  .nav-btn.prev{background:var(--ios-bg);color:var(--ink)}
+  .nav-btn.next{background:var(--primary);color:#fff;box-shadow:0 8px 20px rgba(31,111,235,.3)}
+  .nav-btn:active{transform:scale(.97)}
+  .nav-btn:disabled{opacity:.4;cursor:default}
+
+  /* right: phone */
+  .phone-side{display:flex;justify-content:center}
+  .phone{width:330px;height:670px;background:#000;border-radius:44px;padding:11px;box-shadow:0 24px 60px rgba(0,0,0,.3);position:relative;flex-shrink:0}
+  .notch{position:absolute;top:11px;left:50%;transform:translateX(-50%);width:130px;height:26px;background:#000;border-radius:0 0 18px 18px;z-index:50}
+  .pscreen{background:var(--ios-bg);border-radius:34px;height:100%;overflow:hidden;position:relative}
+  .pstatus{display:flex;justify-content:space-between;align-items:center;padding:14px 24px 6px;font-size:13px;font-weight:700}
+  .scene{position:absolute;inset:0;top:40px;opacity:0;transform:translateX(16px);transition:opacity .35s,transform .35s;pointer-events:none;overflow:hidden;visibility:hidden}
+  .scene.show{opacity:1;transform:translateX(0);pointer-events:auto;visibility:visible}
+
+  /* finger pointer */
+  .finger{position:absolute;width:46px;height:46px;border-radius:50%;background:rgba(31,111,235,.25);border:2px solid var(--primary);z-index:40;
+    opacity:0;animation:tap 2s infinite;pointer-events:none}
+  .scene.show .finger{opacity:1}
+  @keyframes tap{0%,100%{transform:scale(1);opacity:.7}50%{transform:scale(.7);opacity:1}}
+
+  /* iOS UI bits */
+  .ios-nav{display:flex;align-items:center;justify-content:space-between;padding:10px 18px}
+  .ios-title{font-size:17px;font-weight:700;text-align:center;flex:1}
+  .ios-btn{width:38px;height:38px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--ios-blue);box-shadow:0 1px 4px rgba(0,0,0,.1)}
+  .ios-pill{background:#fff;border-radius:20px;padding:9px 16px;font-size:14px;font-weight:600;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+  .ios-row{background:#fff;margin:8px 14px;border-radius:14px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;font-size:15px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+  .ios-row .chev{color:#c0c4cc;font-size:15px}
+  .ios-row .ct{color:var(--muted);font-size:14px}
+  .ios-contact{display:flex;align-items:center;gap:12px;padding:11px 16px;border-bottom:1px solid #eee}
+  .ios-contact .av{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#8b9dc3,#6b7a90);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px}
+  .ios-contact .nm{font-size:16px;font-weight:600}
+  .sectionlabel{font-size:13px;color:var(--muted);padding:14px 18px 4px;font-weight:600}
+  .menu-pop{position:absolute;background:#fff;border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:4px;z-index:30}
+  .menu-pop .mi{padding:13px 20px;font-size:16px;display:flex;align-items:center;justify-content:space-between;gap:30px}
+  .check{width:26px;height:26px;border-radius:50%;background:var(--ios-blue);color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+  .check.off{background:none;border:2px solid #c8ccd4}
+  .share-sheet{position:absolute;bottom:0;left:0;right:0;background:#fff;border-radius:22px 22px 0 0;padding:18px 16px 24px;box-shadow:0 -8px 30px rgba(0,0,0,.15);z-index:20}
+  .share-head{display:flex;align-items:center;gap:12px;padding-bottom:14px;border-bottom:1px solid #eee;margin-bottom:14px}
+  .vcf{width:48px;height:54px;border:1px solid var(--line);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:9px;color:var(--muted)}
+  .app-grid{display:flex;gap:16px;justify-content:space-around}
+  .app-ico{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:11px;color:var(--ink)}
+  .app-ico .sq{width:54px;height:54px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:26px}
+
+  /* kafool screen */
+  .kf-top{background:var(--secondary);margin:8px;border-radius:14px;padding:14px;color:#fff;display:flex;justify-content:space-between;align-items:center}
+  .kf-top .role{background:var(--primary);font-size:11px;padding:3px 9px;border-radius:10px;font-weight:700}
+  .kf-btn{background:var(--ios-bg);border-radius:12px;padding:13px;text-align:center;font-size:14px;font-weight:700;margin:8px 14px;border:1px solid var(--line)}
+  .kf-btn.imp{background:#eef4ff;border-color:#cfe0ff;color:var(--primary)}
+  .kf-drop{margin:14px;border:2px dashed #cfe0ff;border-radius:16px;padding:30px 16px;text-align:center;background:#f8fbff}
+  .kf-drop .ic{font-size:34px;margin-bottom:10px}
+  .kf-drop .t{font-size:15px;font-weight:700;color:var(--secondary)}
+  .kf-drop .s{font-size:12px;color:var(--muted);margin-top:4px}
+
+  @media(max-width:880px){
+    body{padding:18px 12px}
+    .stage{grid-template-columns:1fr;gap:20px;padding:18px;min-height:auto}
+    .phone-side{order:-1}
+    .phone{width:270px;height:550px}
+    .header h1{font-size:22px}
+    .header p{font-size:14px}
+    .step-title{font-size:20px}
+    .step-desc{font-size:15px}
+    .steps-side{text-align:center}
+    .stepnum{justify-content:center}
+    .dots{justify-content:center}
+  }
+  @media(max-width:420px){
+    .phone{width:248px;height:506px}
+    .nav-btn{font-size:14px;padding:13px}
+    .header h1{font-size:19px}
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="kicker">מדריך · ייבוא אנשי קשר</div>
+    <h1>איך לייצא את אנשי הקשר מהאייפון<br>ולהעלות אותם ל-Kafool+</h1>
+    <p>עקבו אחרי השלבים — בכל שלב תראו בדיוק איפה ללחוץ במסך. אפשר להתקדם עם הכפתורים למטה.</p>
+  </div>
+
+  <div class="stage">
+    <div class="steps-side">
+      <div class="stepnum"><div class="circle" id="snum">1</div><div class="of">שלב <span id="scur">1</span> מתוך <span id="stotal">9</span></div></div>
+      <div class="step-title" id="stitle"></div>
+      <div class="step-desc" id="sdesc"></div>
+      <div class="tipbox" id="stip" style="display:none"><span>💡</span><span id="stiptext"></span></div>
+      <div class="dots" id="dots"></div>
+      <div class="controls">
+        <button class="nav-btn prev" id="prevBtn" onclick="step(-1)">→ הקודם</button>
+        <button class="nav-btn next" id="nextBtn" onclick="step(1)">הבא ←</button>
+      </div>
+    </div>
+
+    <div class="phone-side">
+      <div class="phone">
+        <div class="notch"></div>
+        <div class="pscreen">
+          <div class="pstatus"><span>15:25</span><span>📶 🔋</span></div>
+          <div id="scenes"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ---- scene builders (mimic the real iPhone screens) ----
+const scenes = {
+  1: `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding-bottom:60px">
+      <div style="position:relative">
+        <div style="width:74px;height:74px;border-radius:18px;background:linear-gradient(135deg,#e8e8e8,#d0d0d0);display:flex;align-items:center;justify-content:center;box-shadow:0 6px 18px rgba(0,0,0,.18);position:relative;overflow:hidden">
+          <div style="position:absolute;right:0;top:0;bottom:0;width:8px;background:linear-gradient(#4da6ff,#f0a92e 50%,#34c759)"></div>
+          <div style="width:42px;height:42px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;color:#8b95a3">\u{1F464}</div>
+        </div>
+        <div class="finger" style="top:14px;left:50%;margin-left:-23px"></div>
+      </div>
+      <div style="font-size:14px;font-weight:600;margin-top:12px;color:var(--ink)">\u05D0\u05E0\u05E9\u05D9 \u05E7\u05E9\u05E8</div>
+     </div>`,
+
+  2: `<div class="ios-nav"><div class="ios-btn">\u203A</div><div class="ios-title">\u05D0\u05E0\u05E9\u05D9 \u05E7\u05E9\u05E8</div><div style="width:38px"></div></div>
+      <div class="ios-contact" style="margin-top:6px"><div class="av">\u05D9</div><div><div class="nm">\u05D9\u05D5\u05E1\u05D9 \u05DB\u05D4\u05DF</div><div class="ct">\u05D4\u05DB\u05E8\u05D8\u05D9\u05E1 \u05E9\u05DC\u05D9</div></div></div>
+      <div class="sectionlabel">\u05D0</div>
+      ${['\u05D0\u05D1\u05E8\u05D4\u05DD \u05DC\u05D5\u05D9','\u05D0\u05E1\u05EA\u05E8 \u05E4\u05E8\u05D9\u05D3\u05DE\u05DF','\u05D0\u05D5\u05E8\u05D9 \u05D1\u05E8\u05E7','\u05D0\u05D9\u05EA\u05DF \u05E9\u05DE\u05E9','\u05D0\u05DC\u05D4 \u05E8\u05D5\u05D6\u05DF'].map(n=>`<div class="ios-contact"><div class="av">${n[0]}</div><div class="nm">${n}</div></div>`).join('')}
+      <div class="finger" style="top:6px;right:18px"></div>`,
+
+  3: `<div class="ios-nav"><div class="ios-pill">\u05E2\u05E8\u05D9\u05DB\u05D4</div><div class="ios-title">\u05E8\u05E9\u05D9\u05DE\u05D5\u05EA</div><div class="ios-pill">\u05D4\u05D5\u05E1\u05E4\u05EA \u05E8\u05E9\u05D9\u05DE\u05D4</div></div>
+      <div class="ios-row" style="margin-top:12px"><span>\u{1F465} \u05DB\u05DC \u05D0\u05E0\u05E9\u05D9 \u05D4\u05E7\u05E9\u05E8</span><span class="ct">3,021 \u203A</span></div>
+      <div class="sectionlabel">iCloud</div>
+      <div class="ios-row"><span>\u05D4\u05DB\u05D5\u05DC \u05DE\u05EA\u05D5\u05DA iCloud</span><span class="ct">2,951 \u203A</span></div>
+      <div class="sectionlabel">Gmail</div>
+      <div class="ios-row"><span>\u05D4\u05DB\u05D5\u05DC \u05DE\u05EA\u05D5\u05DA Gmail</span><span class="ct">898 \u203A</span></div>
+      <div class="finger" style="top:60px;left:50%;margin-left:-23px"></div>`,
+
+  4: `<div class="ios-nav"><div class="ios-pill" style="opacity:.5">\u05E2\u05E8\u05D9\u05DB\u05D4</div><div class="ios-title">\u05E8\u05E9\u05D9\u05DE\u05D5\u05EA</div><div class="ios-pill" style="opacity:.5">\u05D4\u05D5\u05E1\u05E4\u05EA \u05E8\u05E9\u05D9\u05DE\u05D4</div></div>
+      <div class="ios-row" style="margin-top:10px;opacity:.5"><span>\u{1F465} \u05DB\u05DC \u05D0\u05E0\u05E9\u05D9 \u05D4\u05E7\u05E9\u05E8</span><span class="ct">3,021 \u203A</span></div>
+      <div class="menu-pop" style="top:96px;left:50%;transform:translateX(-50%);width:180px"><div class="mi" style="justify-content:flex-end">\u05D9\u05D9\u05E6\u05D5\u05D0 <span style="color:var(--ios-blue)">\u2197</span></div></div>
+      <div class="finger" style="top:104px;left:50%;margin-left:-23px"></div>`,
+
+  5: `<div class="sectionlabel" style="text-align:center;font-size:16px;font-weight:800;color:var(--ink);padding:14px 0 10px">\u05E9\u05D9\u05EA\u05D5\u05E3 3,021 \u05D0\u05E0\u05E9\u05D9 \u05E7\u05E9\u05E8</div>
+      <div style="padding:0 16px">
+      ${[['\u05E9\u05DD \u05E4\u05E8\u05D8\u05D9',1],['\u05E9\u05DD \u05DE\u05E9\u05E4\u05D7\u05D4',1],['\u05D8\u05DC\u05E4\u05D5\u05DF',1],['\u05DE\u05D9\u05D9\u05DC',1],['\u05DB\u05EA\u05D5\u05D1\u05EA',0]].map(f=>`<div class="ios-row" style="margin:7px 0;padding:12px 14px"><span>${f[0]}</span><span class="check ${f[1]?'':'off'}">${f[1]?'\u2713':''}</span></div>`).join('')}
+      </div>
+      <div class="ios-pill" style="position:absolute;bottom:26px;left:50%;transform:translateX(-50%);background:#fff;font-weight:700;box-shadow:0 4px 16px rgba(0,0,0,.14)">\u2713 \u05D1\u05D7\u05D9\u05E8\u05EA \u05DB\u05DC \u05D4\u05E9\u05D3\u05D5\u05EA</div>
+      <div class="finger" style="bottom:30px;left:50%;margin-left:-23px"></div>`,
+
+  6: `<div class="ios-nav"><div class="ios-pill" style="opacity:.4">\u05E2\u05E8\u05D9\u05DB\u05D4</div><div class="ios-title" style="opacity:.4">\u05E8\u05E9\u05D9\u05DE\u05D5\u05EA</div><div style="width:60px"></div></div>
+      <div class="ios-row" style="opacity:.4"><span>\u{1F465} \u05DB\u05DC \u05D0\u05E0\u05E9\u05D9 \u05D4\u05E7\u05E9\u05E8</span><span class="ct">3,021</span></div>
+      <div class="share-sheet">
+        <div class="share-head"><div class="vcf">\u{1F4C7}<br>VCF</div><div><b>\u05DB\u05DC \u05D0\u05E0\u05E9\u05D9 \u05D4\u05E7\u05E9\u05E8</b><br><span class="ct">\u05DB\u05E8\u05D8\u05D9\u05E1 \u05D0\u05D9\u05E9 \u05E7\u05E9\u05E8</span></div></div>
+        <div class="app-grid">
+          <div class="app-ico"><div class="sq" style="background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.12)">\u{1F4C1}</div>\u05E7\u05D1\u05E6\u05D9\u05DD</div>
+          <div class="app-ico"><div class="sq" style="background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.12)">\u2709\uFE0F</div>Gmail</div>
+          <div class="app-ico"><div class="sq" style="background:#25d366">\u{1F4AC}</div>WhatsApp</div>
+          <div class="app-ico"><div class="sq" style="background:#007aff">\u{1F4E1}</div>AirDrop</div>
+        </div>
+      </div>
+      <div class="finger" style="bottom:78px;right:46px"></div>`,
+
+  7: `<div style="padding:14px 16px">
+      <div style="font-size:18px;font-weight:800;margin-bottom:14px;text-align:center">\u{1F4C1} \u05E9\u05DE\u05D9\u05E8\u05D4 \u05D1\u05E7\u05D1\u05E6\u05D9\u05DD</div>
+      <div class="ios-row" style="margin:0 0 8px"><span>\u{1F4F1} \u05D1\u05D0\u05D9\u05E4\u05D5\u05DF \u05E9\u05DC\u05D9</span><span class="check">\u2713</span></div>
+      <div class="ios-row" style="margin:0 0 8px;opacity:.6"><span>\u2601\uFE0F iCloud Drive</span><span class="chev">\u203A</span></div>
+      <div class="ios-row" style="margin:0;opacity:.6"><span>\u{1F4C2} \u05D4\u05D5\u05E8\u05D3\u05D5\u05EA</span><span class="chev">\u203A</span></div>
+      <div class="ios-pill" style="display:block;margin:18px 0 0;text-align:center;background:var(--ios-blue);color:#fff;font-weight:700;padding:13px">\u05E9\u05DE\u05D9\u05E8\u05D4 \u2713</div>
+      </div>
+      <div class="finger" style="top:64px;left:50%;margin-left:-23px"></div>`,
+
+  8: `<div class="kf-top"><div><div class="role" style="display:inline-block">\u05E8\u05DB\u05D6</div><div style="font-size:11px;margin-top:3px;opacity:.7">kafoolapp@gmail.com</div></div><div style="font-size:13px">\u05E8\u05DB\u05D6 \u00B7 \u05D1\u05D3\u05D9\u05E7\u05D4</div></div>
+      <div style="margin:8px 14px;background:#fff;border-radius:12px;padding:12px;border:1px solid var(--line)"><div style="font-size:12px;color:var(--muted)">\u05D9\u05E2\u05D3 \u05D4\u05E1\u05E0\u05D9\u05E3</div><div style="font-size:13px;margin-top:4px">0% \u00B7 \u20AA0 \u05DE\u05EA\u05D5\u05DA \u20AA50,000</div></div>
+      <div style="display:flex;gap:8px;margin:8px 14px">
+        <div style="flex:1;background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;text-align:center"><b style="font-size:20px">3</b><div style="font-size:11px;color:var(--muted)">\u05D8\u05DC\u05E4\u05E0\u05D9\u05DD</div></div>
+        <div style="flex:1;background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;text-align:center"><b style="font-size:20px">0</b><div style="font-size:11px;color:var(--muted)">\u05DC\u05D9\u05D3\u05D9\u05DD</div></div>
+      </div>
+      <div class="kf-btn imp" style="margin-top:14px">\u{1F4E5} \u05D9\u05D9\u05D1\u05D5\u05D0 \u05D0\u05E0\u05E9\u05D9 \u05E7\u05E9\u05E8</div>
+      <div class="finger" style="top:286px;left:50%;margin-left:-23px"></div>`,
+
+  9: `<div class="kf-top" style="opacity:.35"><div style="font-size:13px">Kafool+</div></div>
+      <div style="margin:8px 14px;height:50px;background:#f0f2f6;border-radius:12px;opacity:.35"></div>
+      <div style="display:flex;gap:8px;margin:8px 14px;opacity:.35"><div style="flex:1;height:60px;background:#f0f2f6;border-radius:12px"></div><div style="flex:1;height:60px;background:#f0f2f6;border-radius:12px"></div></div>
+      <div class="share-sheet"><div style="text-align:center;font-weight:800;font-size:16px;margin-bottom:14px">\u05D9\u05D9\u05D1\u05D5\u05D0 \u05D0\u05E0\u05E9\u05D9 \u05E7\u05E9\u05E8 \u05DC\u05E1\u05E0\u05D9\u05E3</div>
+        <div class="kf-drop"><div class="ic">\u{1F4E5}</div><div class="t">\u05D1\u05D7\u05E8 \u05E7\u05D5\u05D1\u05E5 \u05D0\u05D5 \u05D2\u05E8\u05D5\u05E8 \u05DC\u05DB\u05D0\u05DF</div><div class="s">xlsx \u00B7 xls \u00B7 csv \u00B7 vcf \u2014 \u05D6\u05D9\u05D4\u05D5\u05D9 \u05E2\u05DE\u05D5\u05D3\u05D5\u05EA \u05D0\u05D5\u05D8\u05D5\u05DE\u05D8\u05D9</div></div>
+      </div>
+      <div class="finger" style="bottom:96px;left:50%;margin-left:-23px"></div>`,
+};
+
+const STEPS = [
+  {t:'\u05E4\u05EA\u05D7\u05D5 \u05D0\u05EA \u05D0\u05E4\u05DC\u05D9\u05E7\u05E6\u05D9\u05D9\u05EA "\u05D0\u05E0\u05E9\u05D9 \u05E7\u05E9\u05E8"', d:'\u05D1\u05DE\u05E1\u05DA \u05D4\u05D1\u05D9\u05EA \u05E9\u05DC \u05D4\u05D0\u05D9\u05D9\u05E4\u05D5\u05DF, \u05DC\u05D7\u05E6\u05D5 \u05E2\u05DC \u05D0\u05D9\u05D9\u05E7\u05D5\u05DF \u05D4\u05D0\u05E4\u05DC\u05D9\u05E7\u05E6\u05D9\u05D4 <b>\u05D0\u05E0\u05E9\u05D9 \u05E7\u05E9\u05E8</b> \u05DB\u05D3\u05D9 \u05DC\u05E4\u05EA\u05D5\u05D7 \u05D0\u05D5\u05EA\u05D4.', tip:'\u05D4\u05D0\u05D9\u05D9\u05E7\u05D5\u05DF \u05E0\u05E8\u05D0\u05D4 \u05DB\u05DE\u05D5 \u05E1\u05DE\u05DC \u05D0\u05D3\u05DD \u05E2\u05DD \u05E4\u05E1 \u05E6\u05D1\u05E2\u05D5\u05E0\u05D9 \u05D1\u05E6\u05D3.'},
+  {t:'\u05E4\u05EA\u05D7\u05D5 \u05D0\u05EA \u05E8\u05E9\u05D9\u05DE\u05EA \u05D4\u05E8\u05E9\u05D9\u05DE\u05D5\u05EA', d:'\u05DC\u05D7\u05E6\u05D5 \u05E2\u05DC \u05D4\u05D7\u05E5 <b>\u2039</b> \u05D1\u05E4\u05D9\u05E0\u05D4 \u05D4\u05D9\u05DE\u05E0\u05D9\u05EA \u05D4\u05E2\u05DC\u05D9\u05D5\u05E0\u05D4 \u05DB\u05D3\u05D9 \u05DC\u05E4\u05EA\u05D5\u05D7 \u05D0\u05EA \u05E8\u05E9\u05D9\u05DE\u05EA \u05D4\u05E8\u05E9\u05D9\u05DE\u05D5\u05EA.', tip:''},
+  {t:'\u05D1\u05D7\u05E8\u05D5 "\u05DB\u05DC \u05D0\u05E0\u05E9\u05D9 \u05D4\u05E7\u05E9\u05E8"', d:'\u05DC\u05D7\u05E6\u05D5 <b>\u05DC\u05D7\u05D9\u05E6\u05D4 \u05D0\u05E8\u05D5\u05DB\u05D4</b> \u05E2\u05DC <b>"\u05DB\u05DC \u05D0\u05E0\u05E9\u05D9 \u05D4\u05E7\u05E9\u05E8"</b> (\u05D4\u05E9\u05D5\u05E8\u05D4 \u05D4\u05E2\u05DC\u05D9\u05D5\u05E0\u05D4 \u05E2\u05DD \u05D4\u05DE\u05E1\u05E4\u05E8 \u05D4\u05DB\u05D5\u05DC\u05DC).', tip:'\u05D4\u05DC\u05D7\u05D9\u05E6\u05D4 \u05D4\u05D0\u05E8\u05D5\u05DB\u05D4 \u05D4\u05D9\u05D0 \u05DE\u05D4 \u05E9\u05E4\u05D5\u05EA\u05D7 \u05D0\u05EA \u05EA\u05E4\u05E8\u05D9\u05D8 \u05D4\u05D9\u05D9\u05E6\u05D5\u05D0.'},
+  {t:'\u05DC\u05D7\u05E6\u05D5 \u05E2\u05DC "\u05D9\u05D9\u05E6\u05D5\u05D0"', d:'\u05D1\u05EA\u05E4\u05E8\u05D9\u05D8 \u05E9\u05E0\u05E4\u05EA\u05D7, \u05D1\u05D7\u05E8\u05D5 <b>\u05D9\u05D9\u05E6\u05D5\u05D0</b>. \u05DB\u05DA \u05DE\u05EA\u05D7\u05D9\u05DC\u05D9\u05DD \u05DC\u05D4\u05DB\u05D9\u05DF \u05D0\u05EA \u05E7\u05D5\u05D1\u05E5 \u05D0\u05E0\u05E9\u05D9 \u05D4\u05E7\u05E9\u05E8.', tip:''},
+  {t:'\u05D1\u05D7\u05E8\u05D5 \u05D0\u05EA \u05DB\u05DC \u05D4\u05E9\u05D3\u05D5\u05EA', d:'\u05DE\u05D5\u05DE\u05DC\u05E5 \u05DC\u05DC\u05D7\u05D5\u05E5 \u05E2\u05DC <b>"\u05D1\u05D7\u05D9\u05E8\u05EA \u05DB\u05DC \u05D4\u05E9\u05D3\u05D5\u05EA"</b> \u05DB\u05D3\u05D9 \u05E9\u05DB\u05DC \u05D4\u05DE\u05D9\u05D3\u05E2 \u05D9\u05D9\u05E9\u05DE\u05E8 (\u05E9\u05DD, \u05D8\u05DC\u05E4\u05D5\u05DF, \u05DE\u05D9\u05D9\u05DC \u05D5\u05DB\u05D5\'). \u05D0\u05D7\u05E8 \u05DB\u05DA \u05DC\u05D7\u05E6\u05D5 <b>\u2713</b> \u05DC\u05DE\u05E2\u05DC\u05D4.', tip:'\u05DB\u05DB\u05DC \u05E9\u05EA\u05DB\u05DC\u05DC\u05D5 \u05D9\u05D5\u05EA\u05E8 \u05E9\u05D3\u05D5\u05EA, \u05DB\u05DA \u05DC-Kafool+ \u05D9\u05D4\u05D9\u05D4 \u05D9\u05D5\u05EA\u05E8 \u05DE\u05D9\u05D3\u05E2 \u05E2\u05DC \u05DB\u05DC \u05D0\u05D9\u05E9 \u05E7\u05E9\u05E8.'},
+  {t:'\u05D1\u05D7\u05E8\u05D5 \u05D0\u05D9\u05E4\u05D4 \u05DC\u05E9\u05DE\u05D5\u05E8', d:'\u05D1\u05D7\u05DC\u05D5\u05DF \u05D4\u05E9\u05D9\u05EA\u05D5\u05E3 \u05E9\u05D9\u05D9\u05E4\u05EA\u05D7, \u05D1\u05D7\u05E8\u05D5 \u05D0\u05EA <b>"\u05E7\u05D1\u05E6\u05D9\u05DD"</b> \u05DB\u05D3\u05D9 \u05DC\u05E9\u05DE\u05D5\u05E8 \u05D0\u05EA \u05D4\u05E7\u05D5\u05D1\u05E5 \u05D9\u05E9\u05D9\u05E8\u05D5\u05EA \u05D1\u05D8\u05DC\u05E4\u05D5\u05DF.', tip:'\u05D4\u05E7\u05D5\u05D1\u05E5 \u05E0\u05E9\u05DE\u05E8 \u05D1\u05E4\u05D5\u05E8\u05DE\u05D8 VCF \u2014 Kafool+ \u05D9\u05D5\u05D3\u05E2 \u05DC\u05E7\u05E8\u05D5\u05D0 \u05D0\u05D5\u05EA\u05D5.'},
+  {t:'\u05E9\u05DE\u05E8\u05D5 \u05D1\u05D0\u05D9\u05E4\u05D5\u05DF \u05E9\u05DC\u05DB\u05DD', d:'\u05D1\u05D7\u05E8\u05D5 <b>"\u05D1\u05D0\u05D9\u05E4\u05D5\u05DF \u05E9\u05DC\u05D9"</b> \u05D5\u05DC\u05D7\u05E6\u05D5 <b>\u05E9\u05DE\u05D9\u05E8\u05D4</b>. \u05D4\u05E7\u05D5\u05D1\u05E5 \u05E0\u05E9\u05DE\u05E8 \u05D1\u05EA\u05D9\u05E7\u05D9\u05D9\u05EA \u05D4\u05E7\u05D1\u05E6\u05D9\u05DD \u05E9\u05DC \u05D4\u05D8\u05DC\u05E4\u05D5\u05DF.', tip:'\u05DB\u05DA \u05D4\u05E7\u05D5\u05D1\u05E5 \u05E0\u05E9\u05D0\u05E8 \u05D1\u05D8\u05DC\u05E4\u05D5\u05DF \u05D5\u05E7\u05DC \u05DC\u05DE\u05E6\u05D5\u05D0 \u05D0\u05D5\u05EA\u05D5 \u05D1\u05E9\u05DC\u05D1 \u05D4\u05D1\u05D0.'},
+  {t:'\u05D4\u05D9\u05DB\u05E0\u05E1\u05D5 \u05DC-Kafool+ \u05D5\u05DC\u05D7\u05E6\u05D5 "\u05D9\u05D9\u05D1\u05D5\u05D0 \u05D0\u05E0\u05E9\u05D9 \u05E7\u05E9\u05E8"', d:'\u05D4\u05EA\u05D7\u05D1\u05E8\u05D5 \u05DC-<b>Kafool+</b>, \u05D5\u05D1\u05DE\u05E1\u05DA \u05D4\u05E1\u05E0\u05D9\u05E3 \u05DC\u05D7\u05E6\u05D5 \u05E2\u05DC \u05D4\u05DB\u05E4\u05EA\u05D5\u05E8 <b>\u{1F4E5} \u05D9\u05D9\u05D1\u05D5\u05D0 \u05D0\u05E0\u05E9\u05D9 \u05E7\u05E9\u05E8</b>.', tip:''},
+  {t:'\u05D2\u05E8\u05E8\u05D5 \u05D0\u05EA \u05D4\u05E7\u05D5\u05D1\u05E5 \u2014 \u05D5\u05D6\u05D4\u05D5!', d:'\u05D1\u05D7\u05DC\u05D5\u05DF \u05E9\u05E0\u05E4\u05EA\u05D7, <b>\u05D2\u05E8\u05E8\u05D5 \u05D0\u05EA \u05D4\u05E7\u05D5\u05D1\u05E5</b> \u05E9\u05E9\u05DE\u05E8\u05EA\u05DD \u05D0\u05D5 \u05DC\u05D7\u05E6\u05D5 \u05DC\u05D1\u05D7\u05D9\u05E8\u05D4. \u05D4\u05DE\u05E2\u05E8\u05DB\u05EA \u05EA\u05D6\u05D4\u05D4 \u05D0\u05EA \u05D4\u05E2\u05DE\u05D5\u05D3\u05D5\u05EA \u05D0\u05D5\u05D8\u05D5\u05DE\u05D8\u05D9\u05EA \u05D5\u05EA\u05E2\u05DC\u05D4 \u05D0\u05EA \u05DB\u05DC \u05D0\u05E0\u05E9\u05D9 \u05D4\u05E7\u05E9\u05E8. \u{1F389}', tip:'\u05EA\u05D5\u05DE\u05DA \u05D1-VCF, Excel \u05D5-CSV. \u05D0\u05D7\u05E8\u05D9 \u05D4\u05D9\u05D9\u05D1\u05D5\u05D0 \u05EA\u05D5\u05DB\u05DC\u05D5 \u05DC\u05E1\u05E0\u05DF \u05D5\u05DC\u05D7\u05DC\u05E7 \u05DC\u05D8\u05DC\u05E4\u05E0\u05D9\u05DD.'},
+];
+
+let cur=0;
+const scenesEl=document.getElementById('scenes');
+scenesEl.innerHTML = Object.keys(scenes).map(k=>`<div class="scene" data-s="${k}">${scenes[k]}</div>`).join('');
+const dotsEl=document.getElementById('dots');
+dotsEl.innerHTML = STEPS.map((_,i)=>`<div class="d" onclick="goto(${i})"></div>`).join('');
+
+function render(){
+  const s=STEPS[cur];
+  document.getElementById('snum').textContent=cur+1;
+  document.getElementById('scur').textContent=cur+1;
+  document.getElementById('stitle').textContent=s.t;
+  document.getElementById('sdesc').innerHTML=s.d;
+  const tip=document.getElementById('stip');
+  if(s.tip){ tip.style.display='flex'; document.getElementById('stiptext').textContent=s.tip; }
+  else tip.style.display='none';
+  document.querySelectorAll('.scene').forEach(sc=>sc.classList.toggle('show', +sc.dataset.s===cur+1));
+  document.querySelectorAll('.dots .d').forEach((d,i)=>d.classList.toggle('active',i===cur));
+  document.getElementById('prevBtn').disabled = cur===0;
+  document.getElementById('nextBtn').textContent = cur===STEPS.length-1 ? '↺ התחל מחדש' : 'הבא ←';
+}
+function step(dir){
+  if(cur===STEPS.length-1 && dir===1){ cur=0; render(); return; }
+  cur=Math.max(0,Math.min(STEPS.length-1,cur+dir)); render();
+}
+function goto(i){ cur=i; render(); }
+render();
+</script>
+</body>
+</html>

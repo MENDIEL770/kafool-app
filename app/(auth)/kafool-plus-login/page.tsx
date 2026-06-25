@@ -21,6 +21,12 @@ export default function KafoolPlusLoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [inApp, setInApp] = useState(false)
   useEffect(() => { setInApp(isInAppBrowser()) }, [])
+  // already logged in? remember the account and go straight in.
+  useEffect(() => {
+    createClient().auth.getSession().then(({ data }) => {
+      if (data.session && typeof window !== 'undefined') window.location.replace(`${PLUS_ORIGIN}/`)
+    })
+  }, [])
 
   async function signInWithGoogle() {
     setLoading(true); setError(null)

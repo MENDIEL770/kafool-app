@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>מדריך — ייצוא אנשי קשר מאנדרואיד ל-Kafool+</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --primary:#1f6feb;--secondary:#0d2847;--accent:#f0a92e;
+    --ink:#13233b;--muted:#6b7a90;--line:#e6ebf2;--ok:#1f9d6b;
+    --gms-blue:#1a73e8;--gms-bg:#f8f9fa;--gms-surface:#fff;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  body{font-family:'Heebo',sans-serif;background:linear-gradient(160deg,#e8edf5,#d3dae8);color:var(--ink);min-height:100vh;padding:30px 16px}
+  .container{max-width:1000px;margin:0 auto}
+  .header{text-align:center;margin-bottom:30px}
+  .header .kicker{display:inline-flex;align-items:center;gap:8px;background:#34a853;color:#fff;font-size:13px;font-weight:700;padding:6px 16px;border-radius:20px;margin-bottom:14px}
+  .header h1{font-size:30px;font-weight:900;color:var(--secondary);line-height:1.2;margin-bottom:10px}
+  .header p{font-size:15px;color:#4a5a70;max-width:520px;margin:0 auto;line-height:1.6}
+
+  .stage{display:grid;grid-template-columns:1fr 360px;gap:30px;align-items:center;background:#fff;border-radius:28px;padding:30px;box-shadow:0 20px 60px rgba(13,40,71,.12);min-height:720px}
+  .steps-side{align-self:stretch;display:flex;flex-direction:column}
+  .stepnum{display:inline-flex;align-items:center;gap:10px;margin-bottom:16px}
+  .stepnum .circle{width:46px;height:46px;border-radius:50%;background:#34a853;color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800}
+  .stepnum .of{font-size:14px;color:var(--muted);font-weight:600}
+  .step-title{font-size:24px;font-weight:800;color:var(--secondary);margin-bottom:12px;line-height:1.3}
+  .step-desc{font-size:16px;color:#4a5a70;line-height:1.7;margin-bottom:8px}
+  .step-desc b{color:#34a853}
+  .tipbox{background:#fff8eb;border:1px solid #f7e3b8;border-radius:14px;padding:14px 16px;font-size:14px;color:#8a5a00;margin-top:16px;display:flex;gap:10px;align-items:flex-start}
+  .dots{display:flex;gap:8px;margin-top:auto;padding-top:24px}
+  .dots .d{width:10px;height:10px;border-radius:50%;background:var(--line);transition:.3s;cursor:pointer}
+  .dots .d.active{background:#34a853;width:28px;border-radius:6px}
+  .controls{display:flex;gap:12px;margin-top:20px}
+  .nav-btn{flex:1;border:0;border-radius:14px;padding:15px;font-family:inherit;font-size:16px;font-weight:700;cursor:pointer;transition:.15s;display:flex;align-items:center;justify-content:center;gap:8px}
+  .nav-btn.prev{background:var(--gms-bg);color:var(--ink)}
+  .nav-btn.next{background:#34a853;color:#fff;box-shadow:0 8px 20px rgba(52,168,83,.3)}
+  .nav-btn:active{transform:scale(.97)}
+  .nav-btn:disabled{opacity:.4;cursor:default}
+
+  .phone-side{display:flex;justify-content:center}
+  /* Android phone — flat, hole-punch camera */
+  .phone{width:330px;height:670px;background:#1a1a1a;border-radius:34px;padding:9px;box-shadow:0 24px 60px rgba(0,0,0,.3);position:relative;flex-shrink:0}
+  .punch{position:absolute;top:20px;left:50%;transform:translateX(-50%);width:11px;height:11px;background:#000;border-radius:50%;z-index:50}
+  .pscreen{background:var(--gms-bg);border-radius:26px;height:100%;overflow:hidden;position:relative;font-family:'Roboto','Heebo',sans-serif}
+  .pstatus{display:flex;justify-content:space-between;align-items:center;padding:12px 20px 6px;font-size:12px;font-weight:500;color:#333}
+  .scene{position:absolute;inset:0;top:38px;opacity:0;transform:translateX(16px);transition:opacity .35s,transform .35s;pointer-events:none;visibility:hidden;overflow:hidden}
+  .scene.show{opacity:1;transform:translateX(0);pointer-events:auto;visibility:visible}
+
+  .finger{position:absolute;width:46px;height:46px;border-radius:50%;background:rgba(52,168,83,.25);border:2px solid #34a853;z-index:40;opacity:0;animation:tap 2s infinite;pointer-events:none}
+  .scene.show .finger{opacity:1}
+  @keyframes tap{0%,100%{transform:scale(1);opacity:.7}50%{transform:scale(.7);opacity:1}}
+
+  /* Material UI bits */
+  .gms-appbar{display:flex;align-items:center;gap:14px;padding:14px 18px;background:var(--gms-surface)}
+  .gms-appbar .mtitle{font-size:20px;font-weight:500;color:#202124;flex:1}
+  .gms-appbar .mic{font-size:20px;color:#5f6368}
+  .gms-search{background:#f1f3f4;margin:10px 16px;border-radius:24px;padding:11px 18px;display:flex;align-items:center;gap:12px;font-size:14px;color:#5f6368}
+  .gms-contact{display:flex;align-items:center;gap:16px;padding:12px 18px}
+  .gms-contact .av{width:40px;height:40px;border-radius:50%;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:500;font-size:17px}
+  .gms-contact .nm{font-size:16px;color:#202124}
+  .gms-tab{display:flex;background:var(--gms-surface);border-bottom:1px solid #e8eaed}
+  .gms-tab div{flex:1;text-align:center;padding:14px 0;font-size:14px;font-weight:500;color:#5f6368}
+  .gms-tab div.on{color:var(--gms-blue);border-bottom:2px solid var(--gms-blue)}
+  .gms-menu{position:absolute;background:#fff;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,.18);padding:8px 0;z-index:30;min-width:180px}
+  .gms-menu .mi{padding:13px 20px;font-size:15px;color:#202124;text-align:right}
+  .gms-menu .mi:active{background:#f1f3f4}
+  .gms-fab{position:absolute;bottom:20px;left:20px;width:56px;height:56px;border-radius:18px;background:var(--gms-blue);color:#fff;display:flex;align-items:center;justify-content:center;font-size:26px;box-shadow:0 6px 16px rgba(26,115,232,.4);z-index:20}
+  .gms-dialog{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border-radius:28px;padding:24px;width:84%;box-shadow:0 8px 40px rgba(0,0,0,.25);z-index:30}
+  .gms-dialog h3{font-size:20px;color:#202124;margin-bottom:8px}
+  .gms-dialog p{font-size:14px;color:#5f6368;line-height:1.6;margin-bottom:18px}
+  .gms-radio{display:flex;align-items:center;gap:14px;padding:12px 0;font-size:15px;color:#202124}
+  .gms-radio .r{width:20px;height:20px;border-radius:50%;border:2px solid var(--gms-blue);display:flex;align-items:center;justify-content:center}
+  .gms-radio .r.on::after{content:'';width:10px;height:10px;border-radius:50%;background:var(--gms-blue)}
+  .gms-radio .r.off{border-color:#bdc1c6}
+  .gms-btn{display:inline-block;background:var(--gms-blue);color:#fff;font-weight:500;font-size:14px;padding:11px 22px;border-radius:22px;margin-top:10px}
+  .gms-btn.text{background:none;color:var(--gms-blue)}
+
+  /* files app (android) */
+  .files-top{background:var(--gms-surface);padding:16px 18px;font-size:20px;font-weight:500;color:#202124}
+  .files-row{display:flex;align-items:center;gap:16px;padding:13px 18px;font-size:15px}
+  .files-row .ic{width:40px;height:40px;border-radius:10px;background:#e8f0fe;color:var(--gms-blue);display:flex;align-items:center;justify-content:center;font-size:20px}
+
+  /* kafool */
+  .kf-top{background:var(--secondary);margin:8px;border-radius:14px;padding:14px;color:#fff;display:flex;justify-content:space-between;align-items:center}
+  .kf-top .role{background:var(--primary);font-size:11px;padding:3px 9px;border-radius:10px;font-weight:700}
+  .kf-btn{background:var(--gms-bg);border-radius:12px;padding:13px;text-align:center;font-size:14px;font-weight:700;margin:8px 14px;border:1px solid var(--line)}
+  .kf-btn.imp{background:#eef4ff;border-color:#cfe0ff;color:var(--primary)}
+  .kf-drop{margin:14px;border:2px dashed #cfe0ff;border-radius:16px;padding:28px 16px;text-align:center;background:#f8fbff}
+  .kf-drop .ic{font-size:32px;margin-bottom:8px}
+  .kf-drop .t{font-size:15px;font-weight:700;color:var(--secondary)}
+  .kf-drop .s{font-size:12px;color:var(--muted);margin-top:4px}
+  .bottom-sheet{position:absolute;bottom:0;left:0;right:0;background:#fff;border-radius:20px 20px 0 0;padding:18px 16px 24px;box-shadow:0 -8px 30px rgba(0,0,0,.15);z-index:20}
+
+  @media(max-width:880px){
+    body{padding:18px 12px}
+    .stage{grid-template-columns:1fr;gap:20px;padding:18px;min-height:auto}
+    .phone-side{order:-1}.phone{width:270px;height:550px}
+    .header h1{font-size:22px}.step-title{font-size:20px}.step-desc{font-size:15px}
+    .steps-side{text-align:center}.stepnum{justify-content:center}.dots{justify-content:center}
+  }
+  @media(max-width:420px){.phone{width:248px;height:506px}.header h1{font-size:19px}}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="kicker">🤖 מדריך אנדרואיד · ייבוא אנשי קשר</div>
+    <h1>איך לייצא את אנשי הקשר מאנדרואיד<br>ולהעלות אותם ל-Kafool+</h1>
+    <p>עקבו אחרי השלבים — בכל שלב תראו בדיוק איפה ללחוץ במסך. אפשר להתקדם עם הכפתורים למטה.</p>
+  </div>
+
+  <div class="stage">
+    <div class="steps-side">
+      <div class="stepnum"><div class="circle" id="snum">1</div><div class="of">שלב <span id="scur">1</span> מתוך <span id="stotal">8</span></div></div>
+      <div class="step-title" id="stitle"></div>
+      <div class="step-desc" id="sdesc"></div>
+      <div class="tipbox" id="stip" style="display:none"><span>💡</span><span id="stiptext"></span></div>
+      <div class="dots" id="dots"></div>
+      <div class="controls">
+        <button class="nav-btn prev" id="prevBtn" onclick="step(-1)">→ הקודם</button>
+        <button class="nav-btn next" id="nextBtn" onclick="step(1)">הבא ←</button>
+      </div>
+    </div>
+    <div class="phone-side">
+      <div class="phone">
+        <div class="punch"></div>
+        <div class="pscreen">
+          <div class="pstatus"><span>15:25</span><span>📶 🔋 100%</span></div>
+          <div id="scenes"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const C = ['#34a853','#ea4335','#fbbc04','#1a73e8','#9334e6','#00acc1'];
+const names = ['אברהם לוי','אסתר פרידמן','אורי ברק','איתן שמש','אלה רוזן'];
+
+const scenes = {
+  1: `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding-bottom:60px">
+      <div style="position:relative">
+        <div style="width:68px;height:68px;border-radius:18px;background:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(0,0,0,.15)">
+          <div style="font-size:34px">👤</div>
+          <div style="position:absolute;bottom:-2px;right:-2px;width:26px;height:26px;border-radius:50%;background:#4285f4;display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff">👥</div>
+        </div>
+        <div class="finger" style="top:12px;left:50%;margin-left:-23px"></div>
+      </div>
+      <div style="font-size:13px;font-weight:500;margin-top:12px;color:#202124">אנשי קשר</div>
+     </div>`,
+
+  2: `<div class="gms-appbar"><span style="font-size:22px">☰</span><div class="mtitle">אנשי קשר</div><span class="mic">🔍</span><span class="mic">⋮</span></div>
+      <div class="gms-search">🔍 חיפוש באנשי הקשר</div>
+      ${names.map((n,i)=>`<div class="gms-contact"><div class="av" style="background:${C[i%C.length]}">${n[0]}</div><div class="nm">${n}</div></div>`).join('')}
+      <div class="finger" style="top:6px;left:18px"></div>`,
+
+  3: `<div class="gms-appbar"><span style="font-size:22px;opacity:.5">☰</span><div class="mtitle" style="opacity:.5">אנשי קשר</div><span class="mic">⋮</span></div>
+      <div class="gms-menu" style="top:48px;left:14px">
+        <div class="mi">בחירה</div>
+        <div class="mi" style="color:var(--gms-blue);font-weight:500">ייצוא לקובץ</div>
+        <div class="mi">הגדרות</div>
+      </div>
+      <div class="finger" style="top:96px;left:60px"></div>`,
+
+  4: `<div class="gms-appbar"><span style="font-size:20px">✕</span><div class="mtitle">ייצוא אנשי קשר</div></div>
+      <div style="padding:8px 18px">
+        <div class="gms-radio"><span class="r on"></span><span>כל אנשי הקשר (3,021)</span></div>
+        <div class="gms-radio"><span class="r off"></span><span>בחירה ידנית</span></div>
+      </div>
+      <div style="position:absolute;bottom:24px;left:0;right:0;text-align:center"><span class="gms-btn">ייצוא ל-VCF ›</span></div>
+      <div class="finger" style="bottom:28px;left:50%;margin-left:-23px"></div>`,
+
+  5: `<div class="files-top">שמירה אל…</div>
+      <div class="gms-search" style="margin-top:4px">📁 בחר תיקייה לשמירה</div>
+      <div class="files-row"><div class="ic">📥</div><div><div style="font-size:15px;color:#202124">הורדות</div><div style="font-size:12px;color:#5f6368">Downloads</div></div></div>
+      <div class="files-row" style="opacity:.6"><div class="ic">📂</div><div style="font-size:15px;color:#202124">המסמכים שלי</div></div>
+      <div class="files-row" style="opacity:.6"><div class="ic">💾</div><div style="font-size:15px;color:#202124">אחסון פנימי</div></div>
+      <div style="position:absolute;bottom:24px;left:0;right:0;text-align:center"><span class="gms-btn">שמירה כאן</span></div>
+      <div class="finger" style="top:128px;right:30px"></div>`,
+
+  6: `<div style="padding:30px 24px;text-align:center">
+      <div style="width:72px;height:72px;border-radius:50%;background:#e6f4ea;color:#34a853;display:flex;align-items:center;justify-content:center;font-size:36px;margin:20px auto">✓</div>
+      <div style="font-size:18px;font-weight:600;color:#202124;margin-bottom:8px">הקובץ נשמר!</div>
+      <div style="font-size:14px;color:#5f6368;line-height:1.6">contacts.vcf נשמר בתיקיית <b style="color:#34a853">הורדות</b>.<br>עכשיו נכנסים ל-Kafool+ כדי לייבא אותו.</div>
+      </div>`,
+
+  7: `<div class="kf-top"><div><div class="role" style="display:inline-block">רכז</div><div style="font-size:11px;margin-top:3px;opacity:.7">kafoolapp@gmail.com</div></div><div style="font-size:13px">רכז · בדיקה</div></div>
+      <div style="margin:8px 14px;background:#fff;border-radius:12px;padding:12px;border:1px solid var(--line)"><div style="font-size:12px;color:var(--muted)">יעד הסניף</div><div style="font-size:13px;margin-top:4px">0% · ₪0 מתוך ₪50,000</div></div>
+      <div style="display:flex;gap:8px;margin:8px 14px">
+        <div style="flex:1;background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;text-align:center"><b style="font-size:20px">3</b><div style="font-size:11px;color:var(--muted)">טלפנים</div></div>
+        <div style="flex:1;background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;text-align:center"><b style="font-size:20px">0</b><div style="font-size:11px;color:var(--muted)">לידים</div></div>
+      </div>
+      <div class="kf-btn imp" style="margin-top:14px">📥 ייבוא אנשי קשר</div>
+      <div class="finger" style="top:286px;left:50%;margin-left:-23px"></div>`,
+
+  8: `<div class="kf-top" style="opacity:.35"><div style="font-size:13px">Kafool+</div></div>
+      <div style="margin:8px 14px;height:50px;background:#f0f2f6;border-radius:12px;opacity:.35"></div>
+      <div style="display:flex;gap:8px;margin:8px 14px;opacity:.35"><div style="flex:1;height:60px;background:#f0f2f6;border-radius:12px"></div><div style="flex:1;height:60px;background:#f0f2f6;border-radius:12px"></div></div>
+      <div class="bottom-sheet"><div style="text-align:center;font-weight:800;font-size:16px;margin-bottom:14px">ייבוא אנשי קשר לסניף</div>
+        <div class="kf-drop"><div class="ic">📥</div><div class="t">בחר קובץ או גרור לכאן</div><div class="s">xlsx · xls · csv · vcf — זיהוי עמודות אוטומטי</div></div>
+      </div>
+      <div class="finger" style="bottom:96px;left:50%;margin-left:-23px"></div>`,
+};
+
+const STEPS = [
+  {t:'פתחו את אפליקציית "אנשי קשר"', d:'במסך הבית או במגירת האפליקציות, פתחו את אפליקציית <b>אנשי קשר</b> (Google Contacts).', tip:'האייקון הוא דמות אדם כחולה. אם אין לכם — אפשר להוריד בחינם מ-Google Play.'},
+  {t:'פתחו את התפריט', d:'לחצו על <b>שלוש הנקודות ⋮</b> בפינה (או על תפריט ☰), כדי לפתוח את אפשרויות אנשי הקשר.', tip:'בחלק מהמכשירים התפריט נמצא בפינה השמאלית העליונה.'},
+  {t:'בחרו "ייצוא לקובץ"', d:'בתפריט שנפתח, לחצו על <b>"ייצוא"</b> או <b>"ייצוא לקובץ"</b>.', tip:'במכשירי סמסונג ייתכן שזה נקרא "ניהול אנשי קשר" → "ייצוא".'},
+  {t:'בחרו את כל אנשי הקשר', d:'ודאו שמסומן <b>"כל אנשי הקשר"</b>, ולחצו על <b>ייצוא ל-VCF</b>. כך נוצר קובץ עם כל אנשי הקשר.', tip:'פורמט VCF הוא הסטנדרט לאנשי קשר — Kafool+ קורא אותו בקלות.'},
+  {t:'שמרו את הקובץ', d:'בחרו תיקייה לשמירה — מומלץ <b>"הורדות" (Downloads)</b> כי קל למצוא אותה. לחצו <b>שמירה</b>.', tip:'זכרו את שם הקובץ — בדרך כלל contacts.vcf.'},
+  {t:'הקובץ נשמר', d:'הקובץ נשמר במכשיר שלכם. עכשיו עוברים ל-<b>Kafool+</b> כדי לייבא אותו.', tip:''},
+  {t:'היכנסו ל-Kafool+ ולחצו "ייבוא אנשי קשר"', d:'התחברו ל-<b>Kafool+</b>, ובמסך הסניף לחצו על הכפתור <b>📥 ייבוא אנשי קשר</b>.', tip:''},
+  {t:'בחרו את הקובץ — וזהו!', d:'בחלון שנפתח, לחצו לבחירת הקובץ או <b>גררו אותו</b> מתיקיית ההורדות. המערכת תזהה הכול אוטומטית ותעלה את אנשי הקשר. 🎉', tip:'תומך ב-VCF, Excel ו-CSV. אחרי הייבוא תוכלו לסנן ולחלק לטלפנים.'},
+];
+
+let cur=0;
+const scenesEl=document.getElementById('scenes');
+scenesEl.innerHTML = Object.keys(scenes).map(k=>`<div class="scene" data-s="${k}">${scenes[k]}</div>`).join('');
+document.getElementById('dots').innerHTML = STEPS.map((_,i)=>`<div class="d" onclick="goto(${i})"></div>`).join('');
+document.getElementById('stotal').textContent = STEPS.length;
+
+function render(){
+  const s=STEPS[cur];
+  document.getElementById('snum').textContent=cur+1;
+  document.getElementById('scur').textContent=cur+1;
+  document.getElementById('stitle').textContent=s.t;
+  document.getElementById('sdesc').innerHTML=s.d;
+  const tip=document.getElementById('stip');
+  if(s.tip){tip.style.display='flex';document.getElementById('stiptext').textContent=s.tip}else tip.style.display='none';
+  document.querySelectorAll('.scene').forEach(sc=>sc.classList.toggle('show',+sc.dataset.s===cur+1));
+  document.querySelectorAll('.dots .d').forEach((d,i)=>d.classList.toggle('active',i===cur));
+  document.getElementById('prevBtn').disabled=cur===0;
+  document.getElementById('nextBtn').textContent=cur===STEPS.length-1?'↺ התחל מחדש':'הבא ←';
+}
+function step(dir){if(cur===STEPS.length-1&&dir===1){cur=0;render();return}cur=Math.max(0,Math.min(STEPS.length-1,cur+dir));render()}
+function goto(i){cur=i;render()}
+render();
+</script>
+</body>
+</html>

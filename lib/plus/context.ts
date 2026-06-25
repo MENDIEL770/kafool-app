@@ -33,6 +33,23 @@ const COLS = 'id, role, organization_id, campaign_id, caller_group_id'
 
 export async function getPlusContext(supabase: SupabaseClient): Promise<PlusContext> {
   const { data: { user } } = await supabase.auth.getUser()
+
+  // ── LOCAL DEV ONLY: impersonate a Kafool+ member by email (no OAuth needed).
+  // Guarded by NODE_ENV so it can NEVER run on a production build. Set
+  // KP_DEV_EMAIL in .env.local to the member you want to develop as.
+  if (!user && process.env.NODE_ENV === 'development' && process.env.KP_DEV_EMAIL) {
+    const admin = await createServiceClient()
+    const { data: m } = await admin.from('kp_members').select(COLS)
+      .ilike('email', process.env.KP_DEV_EMAIL).eq('is_active', true).maybeSingle()
+    if (m) {
+      return {
+        role: m.role as PlusRole, orgId: m.organization_id, isSuperAdmin: false,
+        userId: `dev-${m.id}`, email: process.env.KP_DEV_EMAIL,
+        member: { id: m.id, role: m.role as PlusRole, campaign_id: m.campaign_id, caller_group_id: m.caller_group_id },
+      }
+    }
+  }
+
   if (!user) return { role: null, orgId: null, isSuperAdmin: false, userId: null, email: null, member: null }
 
   const ctx = await getContext(supabase)

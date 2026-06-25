@@ -4,26 +4,34 @@ import { useState } from "react";
 import * as XLSX from "xlsx";
 import { autoDetect, buildLead } from "@/lib/plus/import-detect";
 import { importCallerContacts, dedupeMyLeads } from "@/lib/plus/actions";
+import { bestPhone } from "@/lib/plus/phone";
 
-type Row = { full_name: string; phone: string; email?: string };
+type Row = { full_name: string; phone: string; email?: string; notes?: string };
 
 // Parse a vCard (.vcf) file — what iPhone/Android export when you share contacts.
+// A contact can have several TEL lines — we pick the best number to call (Israeli
+// mobile preferred) and keep the rest in notes.
 function parseVCards(text: string): Row[] {
   // unfold folded lines (continuation lines start with a space/tab)
   const unfolded = text.replace(/\r?\n[ \t]/g, "");
   const rows: Row[] = [];
   for (const card of unfolded.split(/BEGIN:VCARD/i).slice(1)) {
-    let name = "", phone = "", email = "";
+    let name = "", email = "";
+    const tels: string[] = [];
     for (const raw of card.split(/\r?\n/)) {
       const line = raw.trim();
       if (/^END:VCARD/i.test(line)) break;
       const val = line.slice(line.indexOf(":") + 1).trim();
       if (/^FN[;:]/i.test(line)) name = val;
       else if (/^N[;:]/i.test(line) && !name) { const p = val.split(";"); name = [p[1], p[0]].filter(Boolean).join(" ").trim(); }
-      else if (/^TEL[;:]/i.test(line) && !phone) phone = val;
+      else if (/^TEL[;:]/i.test(line) && val) tels.push(val);
       else if (/^EMAIL[;:]/i.test(line) && !email) email = val;
     }
-    if (phone) rows.push({ full_name: name || "ללא שם", phone, email: email || undefined });
+    const { primary, others } = bestPhone(tels);
+    if (primary) rows.push({
+      full_name: name || "ללא שם", phone: primary, email: email || undefined,
+      notes: others.length ? `טלפונים נוספים: ${others.join(", ")}` : undefined,
+    });
   }
   return rows;
 }
@@ -35,7 +43,7 @@ interface ContactsManager { select(props: string[], opts?: { multiple?: boolean 
 /** Caller uploads their OWN contacts (Excel/CSV or phone) → their group, for triage. */
 export default function CallerContactsImport({ onDone }: { onDone?: () => void }) {
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<{ added: number; duplicates: number; noPhone: number } | null>(null);
+  const [result, setResult] = useState<{ added: number; duplicates: number; noPhone: number; overseas: number } | null>(null);
   const [dedupeResult, setDedupeResult] = useState<{ merged: number; noPhoneRemoved: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -100,6 +108,12 @@ export default function CallerContactsImport({ onDone }: { onDone?: () => void }
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted">העלה את אנשי הקשר שלך. אחר כך תסנן בהחלקה למי להתקשר — ורק הם ייכנסו לרשימת השיחות.</p>
+      <div className="text-xs rounded-lg px-3 py-2" style={{ background: "var(--bg)" }}>
+        📖 לא בטוח איך מייצאים מהטלפון? מדריך:{" "}
+        <a href="/guides/contacts-iphone.html" target="_blank" rel="noopener noreferrer" className="font-semibold" style={{ color: "var(--secondary)" }}>אייפון</a>
+        {" · "}
+        <a href="/guides/contacts-android.html" target="_blank" rel="noopener noreferrer" className="font-semibold" style={{ color: "var(--secondary)" }}>אנדרואיד</a>
+      </div>
 
       {contactsApi && (
         <button onClick={pickFromPhone} disabled={busy} className="btn-primary w-full py-3 rounded-xl font-semibold disabled:opacity-50">
@@ -125,6 +139,7 @@ export default function CallerContactsImport({ onDone }: { onDone?: () => void }
       {result && (
         <div className="rounded-xl p-3 text-sm" style={{ background: "var(--bg)" }}>
           ✅ נוספו <b>{result.added}</b> אנשי קשר
+          {result.overseas > 0 ? ` · ${result.overseas} חו״ל (ברשימה נפרדת)` : ""}
           {result.duplicates > 0 ? ` · ${result.duplicates} כפולים אוחדו` : ""}
           {result.noPhone > 0 ? ` · ${result.noPhone} ללא טלפון דולגו` : ""}.
           {" "}עבור ל<b>סינון</b> כדי לבחור למי להתקשר.
