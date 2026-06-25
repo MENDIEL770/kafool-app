@@ -657,18 +657,22 @@ export async function listCharidyTeamsForLink(campaignLink: string) {
   return listCharidyTeams(campaignLink)
 }
 
-export async function assignLeadsEvenly(campaignId: string, callerGroupIds: string[]) {
+export async function assignLeadsEvenly(campaignId: string, callerGroupIds: string[]): Promise<{ assigned: number }> {
   const c = await ctx(); assertManagerial(c.role)
-  if (callerGroupIds.length === 0) return
+  if (callerGroupIds.length === 0) return { assigned: 0 }
   const admin = await createServiceClient()
   const { data: pool } = await admin.from('kp_leads').select('id, custom_fields')
     .eq('campaign_id', campaignId).is('assigned_caller_group_id', null)
   const eligible = (pool ?? []).filter(l => (l.custom_fields as { call_decision?: string } ?? {}).call_decision !== 'no')
-  let i = 0
-  for (const l of eligible) {
-    const cg = callerGroupIds[i % callerGroupIds.length]; i++
-    await admin.from('kp_leads').update({ assigned_caller_group_id: cg, updated_at: now() }).eq('id', l.id)
+
+  // Round-robin into buckets, then ONE update per caller group (batched by id) —
+  // not a query per lead, which times out on thousands of contacts.
+  const buckets = new Map<string, string[]>(callerGroupIds.map(id => [id, []]))
+  eligible.forEach((l, i) => buckets.get(callerGroupIds[i % callerGroupIds.length])!.push(l.id as string))
+  for (const [cg, ids] of buckets) {
+    if (ids.length) await admin.from('kp_leads').update({ assigned_caller_group_id: cg, updated_at: now() }).in('id', ids)
   }
+  return { assigned: eligible.length }
 }
 
 export async function assignLead(leadId: string, callerGroupId: string | null) {

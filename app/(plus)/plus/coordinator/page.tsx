@@ -11,7 +11,7 @@ import LeadImport from "@/components/plus/LeadImport";
 import { callbackMessage, smsLink, whatsappLink, openLink } from "@/lib/plus/notify";
 import { hebrewDateShort } from "@/lib/plus/hebrewDate";
 import { DEFAULT_SCRIPT } from "@/lib/plus/presets";
-import { setCampaignCharidyLink, listCharidyTeamsForLink } from "@/lib/plus/actions";
+import { setCampaignCharidyLink, listCharidyTeamsForLink, assignLeadsEvenly as serverAssignEvenly } from "@/lib/plus/actions";
 import type { CallScript } from "@/lib/plus/types";
 import type { CharidyTeam } from "@/lib/plus/charidyResolve";
 
@@ -32,7 +32,6 @@ export default function CoordinatorPage() {
   const assignFromPool = useStore((s) => s.assignFromPool);
   const loginAsMember = useStore((s) => s.loginAsMember);
   const members = useStore((s) => s.members);
-  const assignLeadsEvenly = useStore((s) => s.assignLeadsEvenly);
   const updateCallerGroup = useStore((s) => s.updateCallerGroup);
   const approveToPool = useStore((s) => s.approveToPool);
   const rejectMember = useStore((s) => s.rejectMember);
@@ -64,6 +63,7 @@ export default function CoordinatorPage() {
   const [editLink, setEditLink] = useState("");
   const [backfilling, setBackfilling] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const [splitting, setSplitting] = useState(false);
   const [showScript, setShowScript] = useState(false);
   const branchBrand = branding.find((b) => b.campaign_id === campId);
   const [script, setScript] = useState<CallScript>(
@@ -182,11 +182,22 @@ export default function CoordinatorPage() {
         <div className="flex flex-wrap gap-2 mb-4">
           <button onClick={() => setShowAdd(true)} className="btn-primary px-4 py-2.5 rounded-xl font-semibold">+ הוסף טלפן</button>
           <button
-            onClick={() => assignLeadsEvenly(campId!, myCallers.map((c) => c.id))}
-            disabled={myCallers.length === 0 || unassigned === 0}
+            onClick={async () => {
+              if (!campId || !myCallers.length) return;
+              setSplitting(true);
+              try {
+                const r = await serverAssignEvenly(campId, myCallers.map((c) => c.id));
+                await refresh();
+                alert(`חולקו ${r.assigned} לידים בין ${myCallers.length} טלפנים, שווה בשווה.`);
+              } catch (e) {
+                alert(e instanceof Error ? e.message : "החלוקה נכשלה");
+              }
+              setSplitting(false);
+            }}
+            disabled={splitting || myCallers.length === 0 || unassigned === 0}
             className="btn-secondary px-4 py-2.5 rounded-xl font-semibold disabled:opacity-50"
           >
-            ⚖️ חלוקה שווה ({unassigned})
+            {splitting ? "מחלק…" : `⚖️ חלוקה שווה (${unassigned})`}
           </button>
           <button onClick={workAsCaller} className="btn-accent px-4 py-2.5 rounded-xl font-semibold">
             📞 עבוד כטלפן
