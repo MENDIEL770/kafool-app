@@ -49,7 +49,22 @@ export async function proxy(request: NextRequest) {
   if (/^\/(caller|manager|coordinator)(\/|$)/.test(path)) {
     const url = request.nextUrl.clone()
     url.pathname = `/plus${path}`
-    return NextResponse.rewrite(url, { request: { headers: requestHeaders } })
+    // No-login demo: a ?d=<token> param identifies a demo member. Forward it as a
+    // header so the FIRST render resolves identity without depending on a cookie
+    // surviving a redirect (in-app browsers drop those), and also drop a cookie
+    // so later navigations keep working.
+    const demo = request.nextUrl.searchParams.get('d')
+    if (demo) {
+      requestHeaders.set('x-kp-demo', demo)
+      url.searchParams.delete('d')
+    }
+    const res = NextResponse.rewrite(url, { request: { headers: requestHeaders } })
+    if (demo) {
+      res.cookies.set('kp_demo', demo, {
+        httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', path: '/', maxAge: 60 * 60 * 24 * 30,
+      })
+    }
+    return res
   }
 
   // Protect dashboard routes

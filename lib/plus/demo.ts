@@ -1,6 +1,6 @@
 import 'server-only'
 import crypto from 'crypto'
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { createServiceClient } from '@/lib/supabase/server'
 import type { PlusContext, PlusRole } from './context'
 
@@ -30,9 +30,12 @@ export function verifyDemo(token?: string | null): string | null {
   try { return JSON.parse(Buffer.from(data, 'base64url').toString()).m as string } catch { return null }
 }
 
-/** Resolve the Kafool+ context from the demo cookie, or null. */
+/** Resolve the Kafool+ context from the demo cookie OR the x-kp-demo header
+ * (the proxy forwards a ?d=<token> query param as that header, so the very first
+ * load works even when a browser drops the redirect cookie — e.g. in-app browsers). */
 export async function getDemoIdentity(): Promise<PlusContext | null> {
-  const memberId = verifyDemo((await cookies()).get(DEMO_COOKIE)?.value)
+  const token = (await cookies()).get(DEMO_COOKIE)?.value || (await headers()).get('x-kp-demo')
+  const memberId = verifyDemo(token)
   if (!memberId) return null
   const admin = await createServiceClient()
   const { data } = await admin.from('kp_members')
