@@ -7,14 +7,14 @@ import type { Lead } from "./types";
 // call link without changing callers.
 // ============================================================================
 
-export function callbackMessage(lead: Lead, whenLabel: string, callerName?: string): string {
-  const who = callerName ? ` (${callerName})` : "";
+export function callbackMessage(lead: Lead, whenLabel: string, callerName?: string, campaignName?: string): string {
+  const tel = lead.phone.replace(/[^\d+]/g, "");
   return [
-    `תזכורת לחזרה${who}:`,
-    `${lead.full_name} — ${lead.phone}`,
+    `חזור ל${lead.full_name}${campaignName ? ` בקשר לקמפיין ${campaignName}` : ""}`,
     `מועד: ${whenLabel}`,
-    `לחיוג ישיר: tel:${lead.phone.replace(/[^\d+]/g, "")}`,
-  ].join("\n");
+    `כל מה שנשאר — לחייג: tel:${tel}`,
+    callerName ? `(${callerName})` : "",
+  ].filter(Boolean).join("\n");
 }
 
 function digits(phone?: string): string {

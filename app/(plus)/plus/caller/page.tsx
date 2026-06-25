@@ -80,6 +80,9 @@ export default function CallerPage() {
   const [showCharge, setShowCharge] = useState(false);
   const [showContacts, setShowContacts] = useState(false);
   const [showTriage, setShowTriage] = useState(false);
+  const [showDashboard, setShowDashboard] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [donorSearch, setDonorSearch] = useState("");
   const [promiseAmt, setPromiseAmt] = useState("");
   const [note, setNote] = useState("");
 
@@ -160,12 +163,39 @@ export default function CallerPage() {
     .filter((p) => p.caller_group_id === cgId)
     .reduce((s, p) => s + p.amount, 0);
 
+  // ── caller metrics / dashboard ──
+  const myCalls = useMemo(() => calls.filter((c) => c.caller_group_id === cgId), [calls, cgId]);
+  const ANSWERED = ["donated", "promised", "callback", "not_interested", "removed", "wrong_number"];
+  const cf = (l: Lead) => (l.custom_fields as Record<string, unknown> | null) ?? {};
+  const donatedTotal = myLeads.reduce((s, l) => s + (Number(cf(l).charidy_total ?? cf(l).charidy_amount ?? 0) || 0), 0);
   const stats = {
     total: myLeads.length,
-    called: calls.filter((c) => c.caller_group_id === cgId).length,
+    called: myCalls.length,
+    answered: myCalls.filter((c) => ANSWERED.includes(c.outcome)).length,
+    noAnswer: myCalls.filter((c) => ["no_answer", "busy"].includes(c.outcome)).length,
     donated: myLeads.filter((l) => l.status === "donated").length,
     promised: myLeads.filter((l) => l.status === "promised").length,
   };
+  const conversion = stats.called ? Math.round((stats.donated / stats.called) * 100) : 0;
+  // recommended hours — when answered calls actually happened (fallback: evening)
+  const recommendedHours = useMemo(() => {
+    const buckets: Record<number, number> = {};
+    myCalls.filter((c) => ANSWERED.includes(c.outcome)).forEach((c) => { const h = new Date(c.called_at).getHours(); buckets[h] = (buckets[h] || 0) + 1; });
+    const top = Object.entries(buckets).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([h]) => `${h}:00`);
+    return top.length ? top : ["18:00", "19:00", "20:00"];
+  }, [myCalls]);
+  // call history — most recent first, with the lead name
+  const callHistory = useMemo(() =>
+    [...myCalls].sort((a, b) => b.called_at.localeCompare(a.called_at)).map((c) => ({
+      ...c, lead: leads.find((l) => l.id === c.lead_id),
+    })), [myCalls, leads]);
+
+  // donor name search → tap to call
+  const searchHits = useMemo(() => {
+    const q = donorSearch.trim().toLowerCase();
+    if (q.length < 1) return [];
+    return myLeads.filter((l) => (l.full_name || "").toLowerCase().includes(q) || (l.phone || "").includes(q)).slice(0, 8);
+  }, [donorSearch, myLeads]);
 
   const leadCalls = current ? calls.filter((c) => c.lead_id === current.id) : [];
 
@@ -218,6 +248,12 @@ export default function CallerPage() {
               <button onClick={() => setShowContacts(true)} className="btn-ghost text-sm px-3 py-1.5 rounded-lg font-medium" style={{ borderColor: "var(--border)" }}>
                 📇 אנשי קשר
               </button>
+              <button onClick={() => setShowDashboard(true)} className="btn-ghost text-sm px-3 py-1.5 rounded-lg font-medium" style={{ borderColor: "var(--border)" }}>
+                📊 דשבורד
+              </button>
+              <button onClick={() => setShowHistory(true)} className="btn-ghost text-sm px-3 py-1.5 rounded-lg font-medium" style={{ borderColor: "var(--border)" }}>
+                📋 שיחות
+              </button>
               <button onClick={() => setShowScript(true)} className="btn-accent text-sm px-3 py-1.5 rounded-lg font-medium">
                 📋 תסריט
               </button>
@@ -242,6 +278,32 @@ export default function CallerPage() {
             <span className="btn-accent text-sm px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap">סנן עכשיו</span>
           </button>
         )}
+
+        {/* donor search → call directly */}
+        <div className="mb-4">
+          <Input value={donorSearch} onChange={(e) => setDonorSearch(e.target.value)} placeholder="🔍 חיפוש תורם לפי שם / טלפון — וחייג ישירות" />
+          {searchHits.length > 0 && (
+            <div className="card mt-2 divide-y overflow-hidden" style={{ borderColor: "var(--border)" }}>
+              {searchHits.map((l) => (
+                <div key={l.id} className="p-3 flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="font-semibold truncate">{l.full_name}</div>
+                    <div className="text-xs text-muted" dir="ltr">{l.phone}</div>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <StatusBadge status={l.status} />
+                    <button
+                      onClick={() => { const i = pending.findIndex((p) => p.id === l.id); if (i >= 0) setIdx(i); setDonorSearch(""); initiateCall(l); }}
+                      className="btn-primary text-sm px-3 py-1.5 rounded-lg whitespace-nowrap"
+                    >
+                      📞 חייג
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         {brand?.welcome_message && (
           <div className="text-center text-sm text-muted mb-4">{brand.welcome_message}</div>
@@ -453,7 +515,7 @@ export default function CallerPage() {
                 const lead = leads.find((l) => l.id === r.lead_id);
                 if (!lead) return null;
                 const when = hebrewDateShort(new Date(r.due_at));
-                const msg = callbackMessage(lead, when, group.display_name);
+                const msg = callbackMessage(lead, when, group.display_name, campaign?.name);
                 return (
                   <div key={r.id} className="card p-3">
                     <div className="flex items-center justify-between">
@@ -552,6 +614,78 @@ export default function CallerPage() {
           />
         </Modal>
 
+        {/* dashboard — caller performance */}
+        <Modal open={showDashboard} onClose={() => setShowDashboard(false)} title="הדשבורד שלי">
+          <div className="grid grid-cols-2 gap-2 mb-3">
+            <Mini label="שיחות" v={stats.called} />
+            <Mini label="ענו" v={stats.answered} />
+            <Mini label="לא ענו" v={stats.noAnswer} />
+            <Mini label="יחס המרה" v={`${conversion}%`} />
+          </div>
+          <div className="grid grid-cols-2 gap-2 mb-4">
+            <div className="card p-3 text-center">
+              <div className="text-xs text-muted">התחייבויות</div>
+              <div className="text-xl font-bold">{promisedTotal.toLocaleString("he-IL")} ₪</div>
+            </div>
+            <div className="card p-3 text-center">
+              <div className="text-xs text-muted">תרומות בפועל</div>
+              <div className="text-xl font-bold" style={{ color: "var(--accent)" }}>{donatedTotal.toLocaleString("he-IL")} ₪</div>
+            </div>
+          </div>
+
+          <div className="card p-3 mb-3">
+            <div className="text-sm font-semibold mb-1">🕐 שעות מומלצות להתקשר</div>
+            <div className="text-sm text-muted">{recommendedHours.join(" · ")}</div>
+            <div className="text-[11px] text-muted mt-1">לפי השעות שבהן ענו לך הכי הרבה.</div>
+          </div>
+
+          <div className="card p-3">
+            <div className="flex items-center justify-between mb-1">
+              <div className="text-sm font-semibold">↩️ לחזור אליהם ({myReminders.length})</div>
+              {myReminders.length > 0 && (
+                <button onClick={() => { setShowDashboard(false); setShowReminders(true); }} className="text-xs" style={{ color: "var(--secondary)" }}>הצג הכל</button>
+              )}
+            </div>
+            {myReminders.length === 0 ? (
+              <div className="text-xs text-muted">אין כרגע חזרות מתוזמנות.</div>
+            ) : (
+              <div className="space-y-1">
+                {myReminders.slice(0, 4).map((r) => {
+                  const l = leads.find((x) => x.id === r.lead_id);
+                  return (
+                    <div key={r.id} className="flex items-center justify-between text-sm">
+                      <span className="truncate">{l?.full_name ?? "—"}</span>
+                      <a href={`tel:${l?.phone}`} className="text-xs btn-primary px-2 py-1 rounded-lg shrink-0">📞</a>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </Modal>
+
+        {/* call history */}
+        <Modal open={showHistory} onClose={() => setShowHistory(false)} title="השיחות שלי">
+          {callHistory.length === 0 ? (
+            <p className="text-sm text-muted text-center py-4">עוד לא ביצעת שיחות.</p>
+          ) : (
+            <div className="space-y-1.5 max-h-[60vh] overflow-y-auto">
+              {callHistory.map((c) => (
+                <div key={c.id} className="card p-3 flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="font-semibold truncate">{c.lead?.full_name ?? "—"}</div>
+                    <div className="text-xs text-muted">{hebrewDateShort(new Date(c.called_at))} · {STATUS_LIST[c.outcome]?.label ?? c.outcome}</div>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <StatusBadge status={c.outcome} />
+                    {c.lead && <a href={`tel:${c.lead.phone}`} className="text-xs btn-ghost px-2 py-1 rounded-lg" style={{ borderColor: "var(--border)" }}>📞</a>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Modal>
+
         {/* immediate credit-card charge — opens the caller's Charidy donation page in an iframe */}
         <Modal open={showCharge} onClose={() => setShowCharge(false)} title="חיוב מיידי — Charidy">
           {!group.donation_link ? (
@@ -581,7 +715,7 @@ export default function CallerPage() {
   );
 }
 
-function Mini({ label, v }: { label: string; v: number }) {
+function Mini({ label, v }: { label: string; v: number | string }) {
   return (
     <div className="rounded-xl py-2.5" style={{ background: "var(--bg)" }}>
       <div className="text-xl font-extrabold tracking-tight">{v}</div>

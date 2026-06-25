@@ -227,7 +227,7 @@ export default function CoordinatorPage() {
                 const cg = callerGroups.find((c) => c.id === r.caller_group_id);
                 if (!lead || !cg) return null;
                 const when = hebrewDateShort(new Date(r.due_at));
-                const msg = callbackMessage(lead, when, cg.display_name);
+                const msg = callbackMessage(lead, when, cg.display_name, campaign?.name);
                 return (
                   <div key={r.id} className="py-3">
                     <div className="flex items-center justify-between gap-2">
