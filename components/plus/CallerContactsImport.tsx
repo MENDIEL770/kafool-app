@@ -3,7 +3,7 @@
 import { useState } from "react";
 import * as XLSX from "xlsx";
 import { autoDetect, buildLead } from "@/lib/plus/import-detect";
-import { importCallerContacts } from "@/lib/plus/actions";
+import { importCallerContacts, dedupeMyLeads } from "@/lib/plus/actions";
 
 type Row = { full_name: string; phone: string; email?: string };
 
@@ -35,17 +35,18 @@ interface ContactsManager { select(props: string[], opts?: { multiple?: boolean 
 /** Caller uploads their OWN contacts (Excel/CSV or phone) → their group, for triage. */
 export default function CallerContactsImport({ onDone }: { onDone?: () => void }) {
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<{ added: number; duplicates: number } | null>(null);
+  const [result, setResult] = useState<{ added: number; duplicates: number; noPhone: number } | null>(null);
+  const [dedupeResult, setDedupeResult] = useState<{ merged: number; noPhoneRemoved: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const contactsApi = (typeof navigator !== "undefined" ? (navigator as unknown as { contacts?: ContactsManager }).contacts : undefined);
 
   const submit = async (rows: Row[]) => {
-    const clean = rows.filter((r) => (r.phone || "").replace(/\D/g, "").length >= 6);
-    if (!clean.length) { setError("לא נמצאו אנשי קשר עם מספר טלפון תקין."); return; }
-    setBusy(true); setError(null);
+    if (!rows.length) { setError("לא נמצאו אנשי קשר בקובץ."); return; }
+    setBusy(true); setError(null); setDedupeResult(null);
     try {
-      const res = await importCallerContacts(clean);
+      // send everything — the server dedupes (0xx == +972xx) and counts no-phone
+      const res = await importCallerContacts(rows);
       setResult(res);
       onDone?.();
     } catch (e) {
@@ -123,9 +124,33 @@ export default function CallerContactsImport({ onDone }: { onDone?: () => void }
       {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
       {result && (
         <div className="rounded-xl p-3 text-sm" style={{ background: "var(--bg)" }}>
-          ✅ נוספו <b>{result.added}</b> אנשי קשר{result.duplicates > 0 ? ` · ${result.duplicates} כפולים דולגו` : ""}. עבור ל<b>סינון</b> כדי לבחור למי להתקשר.
+          ✅ נוספו <b>{result.added}</b> אנשי קשר
+          {result.duplicates > 0 ? ` · ${result.duplicates} כפולים אוחדו` : ""}
+          {result.noPhone > 0 ? ` · ${result.noPhone} ללא טלפון דולגו` : ""}.
+          {" "}עבור ל<b>סינון</b> כדי לבחור למי להתקשר.
         </div>
       )}
+
+      {/* clean existing duplicates / no-phone leads */}
+      <div className="pt-2 border-t" style={{ borderColor: "var(--border)" }}>
+        <button
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true); setError(null);
+            try { const r = await dedupeMyLeads(); setDedupeResult(r); onDone?.(); }
+            catch (e) { setError(e instanceof Error ? e.message : "הניקוי נכשל"); }
+            setBusy(false);
+          }}
+          className="btn-secondary w-full py-2.5 rounded-xl font-semibold disabled:opacity-50"
+        >
+          🧹 נקה כפילויות ואנשי קשר ללא טלפון
+        </button>
+        {dedupeResult && (
+          <div className="rounded-xl p-3 text-sm mt-2" style={{ background: "var(--bg)" }}>
+            ✅ אוחדו <b>{dedupeResult.merged}</b> כפילויות · הוסרו <b>{dedupeResult.noPhoneRemoved}</b> ללא טלפון.
+          </div>
+        )}
+      </div>
     </div>
   );
 }

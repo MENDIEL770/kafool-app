@@ -546,7 +546,15 @@ export async function setCallDecisionOwn(leadId: string, decision: 'yes' | 'no')
 
 // Caller imports their own contacts (file or phone) into their group. Marked for
 // triage so they swipe who to call before the contacts enter the call queue.
-export async function importCallerContacts(rows: { full_name: string; phone: string; email?: string }[]): Promise<{ added: number; duplicates: number }> {
+// normalize an Israeli phone to its last 9 local digits — so 0xx / +972xx /
+// spaced variants of the same number dedupe to one.
+function phoneKey(phone: string): string {
+  let d = (phone ?? '').replace(/\D/g, '')
+  if (d.startsWith('972')) d = d.slice(3)
+  return d.slice(-9)
+}
+
+export async function importCallerContacts(rows: { full_name: string; phone: string; email?: string }[]): Promise<{ added: number; duplicates: number; noPhone: number }> {
   const c = await ctx()
   const cgId = c.member?.caller_group_id
   if (!cgId) throw new Error('Kafool+: אין לך קבוצת טלפן')
@@ -554,15 +562,15 @@ export async function importCallerContacts(rows: { full_name: string; phone: str
   const { data: cg } = await admin.from('kp_caller_groups').select('campaign_id, organization_id').eq('id', cgId).maybeSingle()
   if (!cg || cg.organization_id !== c.orgId) throw new Error('Kafool+: קבוצה לא נמצאה')
   const { data: existing } = await admin.from('kp_leads').select('phone').eq('assigned_caller_group_id', cgId)
-  const seen = new Set((existing ?? []).map(l => (l.phone as string).replace(/\D/g, '')))
-  let added = 0, duplicates = 0
+  const seen = new Set((existing ?? []).map(l => phoneKey(l.phone as string)).filter(k => k.length >= 7))
+  let added = 0, duplicates = 0, noPhone = 0
   const toAdd: Record<string, unknown>[] = []
   for (const r of rows) {
     const phoneRaw = (r.phone ?? '').toString().trim()
-    const digits = phoneRaw.replace(/\D/g, '')
-    if (!digits) continue
-    if (seen.has(digits)) { duplicates++; continue }
-    seen.add(digits)
+    const key = phoneKey(phoneRaw)
+    if (key.length < 7) { noPhone++; continue }          // no usable number → skip + report
+    if (seen.has(key)) { duplicates++; continue }         // merge duplicates (0xx == +972xx)
+    seen.add(key)
     toAdd.push({
       organization_id: cg.organization_id, campaign_id: cg.campaign_id, assigned_caller_group_id: cgId,
       full_name: (r.full_name ?? '').trim() || 'ללא שם', phone: phoneRaw, email: r.email ?? null,
@@ -571,7 +579,44 @@ export async function importCallerContacts(rows: { full_name: string; phone: str
     added++
   }
   if (toAdd.length) await admin.from('kp_leads').insert(toAdd)
-  return { added, duplicates }
+  return { added, duplicates, noPhone }
+}
+
+// Clean a caller's leads: merge phone duplicates (keeping the most-progressed
+// record) and remove un-callable leads with no phone number. Calls/promises of a
+// removed duplicate cascade away — we always keep the row that has progress.
+export async function dedupeMyLeads(): Promise<{ merged: number; noPhoneRemoved: number }> {
+  const c = await ctx()
+  const cgId = c.member?.caller_group_id
+  if (!cgId) throw new Error('Kafool+: אין לך קבוצת טלפן')
+  const admin = await createServiceClient()
+  const { data: leads } = await admin.from('kp_leads')
+    .select('id, phone, full_name, status, donation_history, created_at')
+    .eq('assigned_caller_group_id', cgId).order('created_at', { ascending: true })
+  const rank = (s: string) => ['donated', 'promised', 'callback'].includes(s) ? 2 : s === 'new' ? 0 : 1
+  const score = (l: Record<string, unknown>) => rank(l.status as string) * 10
+    + (Array.isArray(l.donation_history) && (l.donation_history as unknown[]).length ? 2 : 0)
+    + ((l.full_name as string) && l.full_name !== 'ללא שם' ? 1 : 0)
+  const byKey = new Map<string, Record<string, unknown>>()
+  const toDelete: string[] = []
+  let noPhoneRemoved = 0
+  for (const l of (leads ?? []) as Record<string, unknown>[]) {
+    const key = phoneKey(l.phone as string)
+    if (key.length < 7) { toDelete.push(l.id as string); noPhoneRemoved++; continue }
+    const prev = byKey.get(key)
+    if (!prev) { byKey.set(key, l); continue }
+    // keep the better-scoring of the two; drop the other
+    if (score(l) > score(prev)) { toDelete.push(prev.id as string); byKey.set(key, l) }
+    else { toDelete.push(l.id as string) }
+  }
+  const merged = toDelete.length - noPhoneRemoved
+  if (toDelete.length) {
+    // delete in chunks to stay under URL limits
+    for (let i = 0; i < toDelete.length; i += 100) {
+      await admin.from('kp_leads').delete().in('id', toDelete.slice(i, i + 100))
+    }
+  }
+  return { merged, noPhoneRemoved }
 }
 
 // Caller saves their OWN Charidy group link (manager-only updateCallerGroup would

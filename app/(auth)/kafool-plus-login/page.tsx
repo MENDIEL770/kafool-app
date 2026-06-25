@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Loader2, Phone, Users, Target } from 'lucide-react'
 
@@ -10,9 +10,17 @@ const PLUS_ORIGIN =
     ? 'https://plus.kafool.com'
     : (typeof window !== 'undefined' ? window.location.origin : '')
 
+// In-app browsers (WhatsApp, Instagram, Facebook, Android webview…) block Google
+// sign-in — the user must open the page in real Safari/Chrome.
+const isInAppBrowser = () =>
+  typeof navigator !== 'undefined' &&
+  /FBAN|FBAV|Instagram|Line|Twitter|WhatsApp|MicroMessenger|; wv\)|GSA\//i.test(navigator.userAgent)
+
 export default function KafoolPlusLoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [inApp, setInApp] = useState(false)
+  useEffect(() => { setInApp(isInAppBrowser()) }, [])
 
   async function signInWithGoogle() {
     setLoading(true); setError(null)
@@ -52,6 +60,12 @@ export default function KafoolPlusLoginPage() {
           <p className="text-sm text-gray-400 text-center mt-1 mb-5">לרכזים ולטלפנים — התחברות מאובטחת עם Google</p>
 
           {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2 mb-4">{error}</p>}
+
+          {inApp && (
+            <div className="text-sm rounded-xl px-3 py-2.5 mb-4" style={{ background: '#fef3c7', color: '#92400e' }}>
+              ⚠️ פתחת בדפדפן בתוך אפליקציה — גוגל חוסם כאן התחברות. פתח/י את <b dir="ltr">plus.kafool.com</b> ב-<b>Safari</b> (או Chrome) ונסה/י שוב.
+            </div>
+          )}
 
           <button
             onClick={signInWithGoogle}
