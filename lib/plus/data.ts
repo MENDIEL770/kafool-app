@@ -63,10 +63,11 @@ export async function loadPlusData(ctx: PlusContext): Promise<PlusData> {
   const isDemo = !!ctx.userId?.startsWith('demo-')
   const leadsP = isDemo
     ? (() => {
-        let qb = admin.from('kp_leads').select('*').eq('organization_id', org)
+        // curated demo leads only (custom_fields.demo = true) — clean & instant
+        let qb = admin.from('kp_leads').select('*').eq('organization_id', org).eq('custom_fields->>demo', 'true')
         if (ctx.member?.caller_group_id) qb = qb.eq('assigned_caller_group_id', ctx.member.caller_group_id)
         else if (ctx.member?.campaign_id) qb = qb.eq('campaign_id', ctx.member.campaign_id)
-        return qb.order('id', { ascending: true }).limit(60).then(r => (r.data ?? []) as Record<string, unknown>[])
+        return qb.limit(60).then(r => (r.data ?? []) as Record<string, unknown>[])
       })()
     : fetchAll(admin, 'kp_leads', org)
   const callsP = isDemo
