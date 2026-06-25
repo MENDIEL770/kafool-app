@@ -63,10 +63,14 @@ async function handle(body: Record<string, unknown>): Promise<string> {
   const donatedAt = pick(body, 'date_added', 'created_at') || null
   if (amount <= 0) return 'ignored: no amount'
 
-  // ── idempotency: same transaction already recorded? ──
-  if (txnId) {
-    const { data: existing } = await admin.from('kp_donations').select('id').eq('charidy_transaction_id', txnId).maybeSingle()
-    if (existing) return `duplicate: txn ${txnId}`
+  // dedupe key — some gateways (check/offline) leave transaction_id empty, so
+  // fall back to the Charidy donation id.
+  const dedupeKey = txnId || donationId
+
+  // ── idempotency: same donation already recorded? ──
+  if (dedupeKey) {
+    const { data: existing } = await admin.from('kp_donations').select('id').eq('charidy_transaction_id', dedupeKey).maybeSingle()
+    if (existing) return `duplicate: ${dedupeKey}`
   }
 
   // ── 1) match the called lead by phone (fallback name) ──
@@ -124,7 +128,7 @@ async function handle(body: Record<string, unknown>): Promise<string> {
       donor_phone: phone || null,
       donor_email: email || null,
       amount,
-      charidy_transaction_id: txnId || null,
+      charidy_transaction_id: dedupeKey || null,
       charidy_donation_id: donationId || null,
       charidy_campaign_id: campaignId || null,
       charidy_team_id: teamId || null,
@@ -159,23 +163,29 @@ async function handle(body: Record<string, unknown>): Promise<string> {
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
-  let body: Record<string, unknown> = {}
+  let parsed: unknown = {}
   try {
     const ct = req.headers.get('content-type') || ''
     const raw = await req.text()
-    if (ct.includes('application/json')) body = JSON.parse(raw)
-    else { try { body = JSON.parse(raw) } catch { new URLSearchParams(raw).forEach((v, k) => { body[k] = v }) } }
+    if (ct.includes('application/json')) parsed = JSON.parse(raw)
+    else { try { parsed = JSON.parse(raw) } catch { const o: Record<string, unknown> = {}; new URLSearchParams(raw).forEach((v, k) => { o[k] = v }); parsed = o } }
   } catch { return NextResponse.json({ ok: true }) }
+
+  // Charidy POSTs an ARRAY of donation objects (sometimes one) — normalize.
+  const items = (Array.isArray(parsed) ? parsed : [parsed]) as Record<string, unknown>[]
 
   let logId: string | null = null
   try {
     const admin = await createServiceClient()
-    const { data } = await admin.from('webhook_logs').insert({ source: 'charidy', ip, body }).select('id').single()
+    const { data } = await admin.from('webhook_logs').insert({ source: 'charidy', ip, body: parsed }).select('id').single()
     logId = data?.id ?? null
   } catch (e) { console.error('Charidy webhook log error:', e) }
 
-  let note = 'error'
-  try { note = await handle(body) } catch (err) { note = `error: ${err instanceof Error ? err.message : String(err)}` }
+  const notes: string[] = []
+  for (const item of items) {
+    try { notes.push(await handle(item)) } catch (err) { notes.push(`error: ${err instanceof Error ? err.message : String(err)}`) }
+  }
+  const note = notes.join(' | ')
   console.log('Charidy webhook:', note)
 
   if (logId) { try { const admin = await createServiceClient(); await admin.from('webhook_logs').update({ note }).eq('id', logId) } catch { /* ignore */ } }
