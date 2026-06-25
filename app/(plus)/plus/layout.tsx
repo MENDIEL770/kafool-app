@@ -1,10 +1,12 @@
 import { redirect } from 'next/navigation'
+import { headers } from 'next/headers'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { getPlusContext } from '@/lib/plus/context'
 import { loadPlusData } from '@/lib/plus/data'
 import { listJoinable, myPendingRequest } from '@/lib/plus/actions'
 import PlusProvider from './PlusProvider'
 import JoinRequest from './JoinRequest'
+import NotEntitled from '@/components/plus/NotEntitled'
 import type { SessionUser } from '@/lib/plus/store'
 
 export const dynamic = 'force-dynamic'
@@ -29,7 +31,21 @@ export default async function PlusLayout({ children }: { children: React.ReactNo
   if (!ctx.isSuperAdmin && ctx.orgId) {
     const admin = await createServiceClient()
     const { data: org } = await admin.from('organizations').select('has_kafool_plus').eq('id', ctx.orgId).maybeSingle()
-    if (org && org.has_kafool_plus === false) redirect('/dashboard')
+    if (org && org.has_kafool_plus === false) {
+      // On the Kafool+ subdomain, a non-entitled account is almost always the
+      // WRONG Google account (multi-account browser) — show a clear "switch
+      // account" screen instead of silently dumping them on the regular Kafool
+      // dashboard. On the main domain, a real Kafool user just goes to /dashboard.
+      const host = (await headers()).get('host') || ''
+      if (/(^|\.)plus\.kafool\.com$/i.test(host)) {
+        return (
+          <div className="kafool-plus min-h-screen" dir="rtl">
+            <NotEntitled email={ctx.email} />
+          </div>
+        )
+      }
+      redirect('/dashboard')
+    }
   }
 
   const data = await loadPlusData(ctx)
