@@ -37,8 +37,18 @@ export async function listCharidyTeams(campaignLink: string): Promise<CharidyTea
   try {
     const camp = await resolveCampaign(campaignLink)
     if (!camp) return []
-    const tRes = await j(`${API}/campaign/${camp.id}/teams?limit=1000`)
-    const teams = (tRes.data || []) as { id: string; attributes: Record<string, unknown> }[]
+    // `show_all=true` returns every team (not just featured); limit max is 100,
+    // so page through. Guard against a non-advancing/ignored page param.
+    const teams: { id: string; attributes: Record<string, unknown> }[] = []
+    const seen = new Set<string>()
+    for (let page = 1; page <= 25; page++) {
+      const tRes = await j(`${API}/campaign/${camp.id}/teams?limit=100&show_all=true&page=${page}`)
+      const batch = (tRes.data || []) as { id: string; attributes: Record<string, unknown> }[]
+      if (!batch.length) break
+      let added = 0
+      for (const t of batch) { if (!seen.has(t.id)) { seen.add(t.id); teams.push(t); added++ } }
+      if (batch.length < 100 || added === 0) break
+    }
     return teams.map((t) => {
       const a = t.attributes || {}
       const slug = String(a.slug || a.shortlink || '')
