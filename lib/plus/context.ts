@@ -61,16 +61,19 @@ export async function getPlusContext(supabase: SupabaseClient): Promise<PlusCont
     return { role: 'manager', orgId: ctx.orgId, member: null, ...base }
   }
 
-  // 1) explicit membership by user_id
-  let { data: member } = await admin
+  // 1) explicit membership by user_id (an account may have >1 row — pick one;
+  // maybeSingle() would THROW on multiple and crash the whole module)
+  const { data: byUser } = await admin
     .from('kp_members').select(COLS)
-    .eq('user_id', user.id).eq('is_active', true).maybeSingle()
+    .eq('user_id', user.id).eq('is_active', true).order('created_at', { ascending: true }).limit(1)
+  let member = (byUser ?? [])[0] ?? null
 
   // 2) first login → claim the pending row matched by email
   if (!member && user.email) {
-    const { data: pending } = await admin
+    const { data: pendings } = await admin
       .from('kp_members').select(COLS)
-      .ilike('email', user.email).is('user_id', null).eq('is_active', true).maybeSingle()
+      .ilike('email', user.email).is('user_id', null).eq('is_active', true).order('created_at', { ascending: true }).limit(1)
+    const pending = (pendings ?? [])[0]
     if (pending) {
       await admin.from('kp_members').update({ user_id: user.id }).eq('id', pending.id)
       member = pending
@@ -91,8 +94,10 @@ export async function getPlusContext(supabase: SupabaseClient): Promise<PlusCont
 
   // 3) implicit manager: the actual OWNER of an org (organizations.owner_id),
   // not profiles.role (the signup trigger makes every account 'admin').
-  const { data: ownedOrg } = await admin
-    .from('organizations').select('id').eq('owner_id', user.id).maybeSingle()
+  // (limit(1) — a user could own >1 org; maybeSingle would throw)
+  const { data: ownedOrgs } = await admin
+    .from('organizations').select('id').eq('owner_id', user.id).limit(1)
+  const ownedOrg = (ownedOrgs ?? [])[0]
   if (ownedOrg) {
     return { role: 'manager', orgId: ctx.orgId ?? ownedOrg.id, member: null, ...base }
   }

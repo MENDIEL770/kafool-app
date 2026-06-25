@@ -210,13 +210,15 @@ export async function updateBranchCoordinator(branchId: string, patch: { name?: 
   await admin.from('kp_campaigns').update(upd).eq('id', branchId).eq('organization_id', c.orgId!)
 
   if (newEmail !== undefined && newEmail !== oldEmail) {
-    const { data: mem } = await admin.from('kp_members').select('id')
-      .eq('organization_id', c.orgId!).eq('campaign_id', branchId).eq('role', 'coordinator').maybeSingle()
+    // a branch may have >1 coordinator row — fetch all (maybeSingle would throw)
+    const { data: mems } = await admin.from('kp_members').select('id')
+      .eq('organization_id', c.orgId!).eq('campaign_id', branchId).eq('role', 'coordinator')
+    const mem = (mems ?? [])[0]
     if (newEmail) {
       if (mem) await admin.from('kp_members').update({ email: newEmail, user_id: null, status: 'active', is_active: true, updated_at: now() }).eq('id', mem.id)
       else await admin.from('kp_members').insert({ organization_id: c.orgId!, email: newEmail, role: 'coordinator', campaign_id: branchId, status: 'active', is_active: true })
-    } else if (mem) {
-      await admin.from('kp_members').delete().eq('id', mem.id)
+    } else if (mems?.length) {
+      await admin.from('kp_members').delete().in('id', mems.map(m => m.id))
     }
   }
 }
@@ -230,9 +232,10 @@ export async function reassignCoordinator(fromBranchId: string, toBranchId: stri
     .select('coordinator_email').eq('id', fromBranchId).eq('organization_id', c.orgId!).maybeSingle()
   const email = (from?.coordinator_email as string | null ?? '').trim().toLowerCase()
   if (!email) throw new Error('Kafool+: לסניף הזה אין רכז להעביר')
-  const { data: mem } = await admin.from('kp_members').select('id')
-    .eq('organization_id', c.orgId!).eq('campaign_id', fromBranchId).eq('role', 'coordinator').maybeSingle()
-  if (mem) await admin.from('kp_members').update({ campaign_id: toBranchId, updated_at: now() }).eq('id', mem.id)
+  // a branch may have >1 coordinator row — move all of them (maybeSingle would throw)
+  const { data: mems } = await admin.from('kp_members').select('id')
+    .eq('organization_id', c.orgId!).eq('campaign_id', fromBranchId).eq('role', 'coordinator')
+  if (mems?.length) await admin.from('kp_members').update({ campaign_id: toBranchId, updated_at: now() }).in('id', mems.map(m => m.id))
   await admin.from('kp_campaigns').update({ coordinator_email: null, updated_at: now() }).eq('id', fromBranchId).eq('organization_id', c.orgId!)
   await admin.from('kp_campaigns').update({ coordinator_email: email, updated_at: now() }).eq('id', toBranchId).eq('organization_id', c.orgId!)
 }
