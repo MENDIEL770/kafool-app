@@ -90,6 +90,7 @@ export default function CallerPage() {
   const [showDashboard, setShowDashboard] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showOverseas, setShowOverseas] = useState(false);
+  const [mode, setMode] = useState<"home" | "dialer">("home"); // home = functions, dialer = call flow
   const [donorSearch, setDonorSearch] = useState("");
   const [promiseAmt, setPromiseAmt] = useState("");
   const [note, setNote] = useState("");
@@ -254,39 +255,10 @@ export default function CallerPage() {
           </div>
         </div>
 
-        {/* personal goal */}
+        {mode === "home" && (<>
+        {/* personal goal + stats */}
         <div className="card p-4 mb-4">
-          <div className="flex items-center justify-between mb-2 gap-2">
-            <span className="text-sm font-medium">
-              היעד האישי שלי{group.is_coordinator ? " (רכז)" : ""}
-            </span>
-            <div className="flex gap-2">
-              <button onClick={() => setShowDonations(true)} className="btn-ghost text-sm px-3 py-1.5 rounded-lg font-medium" style={{ borderColor: "var(--border)" }}>
-                💰 תרומות
-              </button>
-              <button onClick={() => setShowReminders(true)} className="btn-ghost text-sm px-3 py-1.5 rounded-lg font-medium relative" style={{ borderColor: "var(--border)" }}>
-                🔔 חזרות{myReminders.length > 0 ? ` (${myReminders.length})` : ""}
-              </button>
-              <button onClick={() => setShowContacts(true)} className="btn-ghost text-sm px-3 py-1.5 rounded-lg font-medium" style={{ borderColor: "var(--border)" }}>
-                📇 אנשי קשר
-              </button>
-              <button onClick={() => setShowDashboard(true)} className="btn-ghost text-sm px-3 py-1.5 rounded-lg font-medium" style={{ borderColor: "var(--border)" }}>
-                📊 דשבורד
-              </button>
-              <button onClick={() => setShowHistory(true)} className="btn-ghost text-sm px-3 py-1.5 rounded-lg font-medium" style={{ borderColor: "var(--border)" }}>
-                📋 שיחות
-              </button>
-              {overseasLeads.length > 0 && (
-                <button onClick={() => setShowOverseas(true)} className="btn-ghost text-sm px-3 py-1.5 rounded-lg font-medium" style={{ borderColor: "var(--border)" }}>
-                  🌍 חו״ל ({overseasLeads.length})
-                </button>
-              )}
-              <button onClick={() => setShowScript(true)} className="btn-accent text-sm px-3 py-1.5 rounded-lg font-medium">
-                📋 תסריט
-              </button>
-              <HelpGuide />
-            </div>
-          </div>
+          <div className="text-sm font-medium mb-2">היעד האישי שלי{group.is_coordinator ? " (רכז)" : ""}</div>
           <Progress value={promisedTotal} goal={group.personal_goal} />
           <div className="grid grid-cols-4 gap-2 mt-4 text-center">
             <Mini label="סה״כ" v={stats.total} />
@@ -294,6 +266,18 @@ export default function CallerPage() {
             <Mini label="הבטיחו" v={stats.promised} />
             <Mini label="תרמו" v={stats.donated} />
           </div>
+        </div>
+
+        {/* functions */}
+        <div className="grid grid-cols-3 gap-2 mb-4">
+          <button onClick={() => setShowDonations(true)} className="card p-3 flex flex-col items-center gap-1 text-sm font-bold"><span className="text-xl">💰</span>תרומות</button>
+          <button onClick={() => setShowReminders(true)} className="card p-3 flex flex-col items-center gap-1 text-sm font-bold"><span className="text-xl">🔔</span>חזרות{myReminders.length > 0 ? ` (${myReminders.length})` : ""}</button>
+          <button onClick={() => setShowContacts(true)} className="card p-3 flex flex-col items-center gap-1 text-sm font-bold"><span className="text-xl">📇</span>אנשי קשר</button>
+          <button onClick={() => setShowDashboard(true)} className="card p-3 flex flex-col items-center gap-1 text-sm font-bold"><span className="text-xl">📊</span>דשבורד</button>
+          <button onClick={() => setShowHistory(true)} className="card p-3 flex flex-col items-center gap-1 text-sm font-bold"><span className="text-xl">📋</span>שיחות</button>
+          <button onClick={() => setShowScript(true)} className="card p-3 flex flex-col items-center gap-1 text-sm font-bold"><span className="text-xl">📝</span>תסריט</button>
+          {overseasLeads.length > 0 && <button onClick={() => setShowOverseas(true)} className="card p-3 flex flex-col items-center gap-1 text-sm font-bold"><span className="text-xl">🌍</span>חו״ל ({overseasLeads.length})</button>}
+          <HelpGuide className="card p-3 flex flex-col items-center gap-1 text-sm font-bold w-full" label={<><span className="text-xl">❓</span>עזרה</>} />
         </div>
 
         {triageQueue.length > 0 && (
@@ -336,6 +320,19 @@ export default function CallerPage() {
         {brand?.welcome_message && (
           <div className="text-center text-sm text-muted mb-4">{brand.welcome_message}</div>
         )}
+
+        <button
+          onClick={() => { setMode("dialer"); setIdx(0); }}
+          className="btn-primary w-full py-4 rounded-2xl text-lg font-extrabold flex items-center justify-center gap-2"
+        >
+          📞 מסך טלפניה — התחל לחייג{pending.length ? ` (${pending.length})` : ""}
+        </button>
+        </>)}
+
+        {mode === "dialer" && (<>
+        <button onClick={() => setMode("home")} className="btn-ghost text-sm px-3 py-1.5 rounded-lg mb-3" style={{ borderColor: "var(--border)" }}>
+          ← חזרה לתפריט
+        </button>
 
         {/* progress — remaining to call, so the caller feels momentum */}
         {(() => {
@@ -484,6 +481,7 @@ export default function CallerPage() {
             </div>
           </div>
         )}
+        </>)}
 
         {/* script — branch script if set, else the recommended default */}
         <Modal open={showScript} onClose={() => setShowScript(false)} title="תסריט שיחה">

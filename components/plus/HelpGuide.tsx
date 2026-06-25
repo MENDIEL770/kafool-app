@@ -7,7 +7,7 @@ type View = "menu" | "device" | "iphone" | "android" | "home";
 
 /** Help button → contacts-import guide (device chooser + interactive guide) +
  *  "add to home screen" instructions. */
-export default function HelpGuide({ label = "❓ עזרה", className }: { label?: string; className?: string }) {
+export default function HelpGuide({ label = "❓ עזרה", className }: { label?: React.ReactNode; className?: string }) {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<View>("menu");
   const [device, setDevice] = useState<"ios" | "android" | "other">("other");
