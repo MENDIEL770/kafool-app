@@ -32,19 +32,40 @@ const EMPTY: PlusData = {
  * Uses the service client (RLS bypass) + this in-app filtering, mirroring the
  * legacy Kafool+ pattern for email-based users.
  */
+// PostgREST caps a single response at 1000 rows. kp_leads / kp_calls routinely
+// exceed that (a caller can have thousands of imported contacts), so page through
+// the whole set — otherwise rows silently vanish and the caller sees an empty
+// list even though the import succeeded.
+async function fetchAll(
+  admin: Awaited<ReturnType<typeof createServiceClient>>,
+  table: string, org: string,
+): Promise<Record<string, unknown>[]> {
+  const PAGE = 1000
+  const out: Record<string, unknown>[] = []
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await admin
+      .from(table).select('*').eq('organization_id', org)
+      .order('id', { ascending: true }).range(from, from + PAGE - 1)
+    if (error || !data || data.length === 0) break
+    out.push(...(data as Record<string, unknown>[]))
+    if (data.length < PAGE) break
+  }
+  return out
+}
+
 export async function loadPlusData(ctx: PlusContext): Promise<PlusData> {
   if (!ctx.orgId || !ctx.role) return EMPTY
   const admin = await createServiceClient()
   const org = ctx.orgId
 
-  const [campaignsRes, brandingRes, cgRes, leadsRes, membersRes, callsRes, promisesRes, remindersRes, templatesRes] =
+  const [campaignsRes, brandingRes, cgRes, leadsRows, membersRes, callsRows, promisesRes, remindersRes, templatesRes] =
     await Promise.all([
       admin.from('kp_campaigns').select('*').eq('organization_id', org),
       admin.from('kp_campaign_branding').select('*').eq('organization_id', org),
       admin.from('kp_caller_groups').select('*').eq('organization_id', org),
-      admin.from('kp_leads').select('*').eq('organization_id', org),
+      fetchAll(admin, 'kp_leads', org),
       admin.from('kp_members').select('*').eq('organization_id', org),
-      admin.from('kp_calls').select('*').eq('organization_id', org),
+      fetchAll(admin, 'kp_calls', org),
       admin.from('kp_promises').select('*').eq('organization_id', org),
       admin.from('kp_reminders').select('*').eq('organization_id', org),
       admin.from('kp_message_templates').select('*').eq('organization_id', org),
@@ -55,12 +76,12 @@ export async function loadPlusData(ctx: PlusContext): Promise<PlusData> {
     branding: (brandingRes.data ?? []) as CampaignBranding[],
     callerGroups: (cgRes.data ?? []) as CallerGroup[],
     // lift the triage decision out of custom_fields so it survives reloads
-    leads: (leadsRes.data ?? []).map((l: Record<string, unknown>) => ({
+    leads: leadsRows.map((l: Record<string, unknown>) => ({
       ...l,
       call_decision: (l.custom_fields as Record<string, unknown> | null)?.call_decision as 'yes' | 'no' | undefined,
     })) as Lead[],
     members: (membersRes.data ?? []) as Member[],
-    calls: (callsRes.data ?? []) as Call[],
+    calls: callsRows as unknown as Call[],
     promises: (promisesRes.data ?? []) as PromiseRow[],
     reminders: (remindersRes.data ?? []) as Reminder[],
     templates: (templatesRes.data ?? []) as MessageTemplate[],
