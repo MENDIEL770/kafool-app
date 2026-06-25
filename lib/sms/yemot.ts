@@ -99,9 +99,12 @@ export async function sendYemotSms(
     // Normalize phone: remove spaces, dashes
     const normalizedPhone = phone.replace(/[\s\-]/g, '')
 
+    // sender / caller ID (textual). The provider requires it sent on the call.
+    const from = process.env.SMS_SENDER || 'Kafool'
+
     const res = await yemotCall<SendSmsResponse>(
       'SendSms',
-      { phones: normalizedPhone, message },
+      { phones: normalizedPhone, message, from },
       apiKey
     )
 
