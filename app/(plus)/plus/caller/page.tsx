@@ -68,13 +68,19 @@ export default function CallerPage() {
     () => myLeads.filter((l) => !isOverseas(l) && (l.custom_fields as Record<string, unknown> | null)?.needs_triage && l.call_decision === undefined),
     [myLeads]
   );
-  // call queue: Israeli, pending status, not rejected, and (manager-assigned OR triaged-yes)
-  const pending = myLeads.filter((l) =>
+  // personal pool = leads the caller self-imported (import_source 'contacts');
+  // manager pool = leads assigned by the manager/coordinator (excel/manual).
+  const isPersonal = (l: Lead) => l.import_source === "contacts";
+  const inSelectedList = (l: Lead) => listFilter === "all" || (listFilter === "personal" ? isPersonal(l) : !isPersonal(l));
+  const callable = (l: Lead) =>
     !isOverseas(l) &&
     ["new", "no_answer", "busy", "callback"].includes(l.status) &&
     l.call_decision !== "no" &&
-    (l.call_decision === "yes" || !(l.custom_fields as Record<string, unknown> | null)?.needs_triage)
-  );
+    (l.call_decision === "yes" || !(l.custom_fields as Record<string, unknown> | null)?.needs_triage);
+  const personalCount = myLeads.filter((l) => callable(l) && isPersonal(l)).length;
+  const managerCount = myLeads.filter((l) => callable(l) && !isPersonal(l)).length;
+  // call queue: callable + in the selected list
+  const pending = myLeads.filter((l) => callable(l) && inSelectedList(l));
 
   const [idx, setIdx] = useState(0);
   const [expanded, setExpanded] = useState(false);
@@ -91,6 +97,8 @@ export default function CallerPage() {
   const [showHistory, setShowHistory] = useState(false);
   const [showOverseas, setShowOverseas] = useState(false);
   const [mode, setMode] = useState<"home" | "dialer">("home"); // home = functions, dialer = call flow
+  const [listFilter, setListFilter] = useState<"all" | "personal" | "manager">("all");
+  const [manualPhone, setManualPhone] = useState("");
   const [donorSearch, setDonorSearch] = useState("");
   const [promiseAmt, setPromiseAmt] = useState("");
   const [note, setNote] = useState("");
@@ -138,7 +146,10 @@ export default function CallerPage() {
   // coordinator sets donate.charidy.com/<id> on the campaign; this page allows
   // iframe embedding, unlike charidy.com).
   const buildDonateUrl = (lead?: Lead): string | null => {
-    const base = campaign?.charidy_donate_url?.trim();
+    // prefer the campaign's embeddable donate page; else use the caller's own link
+    // if it's already a donate.charidy.com page.
+    const base = campaign?.charidy_donate_url?.trim()
+      || (group?.donation_link && /donate\.charidy\.com/i.test(group.donation_link) ? group.donation_link.trim() : "");
     if (!base || !lead) return null;
     const p = new URLSearchParams({ lang: "he" });
     if (group?.charidy_team_id) p.set("team_id", group.charidy_team_id);
@@ -321,6 +332,23 @@ export default function CallerPage() {
           <div className="text-center text-sm text-muted mb-4">{brand.welcome_message}</div>
         )}
 
+        {/* which list am I calling now? */}
+        <div className="mb-3">
+          <div className="text-sm font-semibold mb-1.5">לאיזו רשימה להתקשר עכשיו?</div>
+          <div className="grid grid-cols-3 gap-2">
+            {([["all", "הכל", personalCount + managerCount], ["personal", "המאגר שלי", personalCount], ["manager", "מהרכז/מנהל", managerCount]] as const).map(([key, lbl, n]) => (
+              <button
+                key={key}
+                onClick={() => { setListFilter(key); setIdx(0); }}
+                className="card p-2.5 text-center text-sm font-bold"
+                style={listFilter === key ? { borderColor: "var(--accent)", borderWidth: 2, color: "var(--accent)" } : undefined}
+              >
+                {lbl}<div className="text-xs text-muted font-normal">{n}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+
         <button
           onClick={() => { setMode("dialer"); setIdx(0); }}
           className="btn-primary w-full py-4 rounded-2xl text-lg font-extrabold flex items-center justify-center gap-2"
@@ -330,9 +358,29 @@ export default function CallerPage() {
         </>)}
 
         {mode === "dialer" && (<>
-        <button onClick={() => setMode("home")} className="btn-ghost text-sm px-3 py-1.5 rounded-lg mb-3" style={{ borderColor: "var(--border)" }}>
-          ← חזרה לתפריט
-        </button>
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <button onClick={() => setMode("home")} className="btn-ghost text-sm px-3 py-1.5 rounded-lg" style={{ borderColor: "var(--border)" }}>
+            ← חזרה לתפריט
+          </button>
+          <span className="text-xs text-muted">
+            רשימה: {listFilter === "personal" ? "המאגר שלי" : listFilter === "manager" ? "מהרכז/מנהל" : "הכל"}
+          </span>
+        </div>
+
+        {/* manual dialer — type any number and call */}
+        <div className="card p-3 mb-4">
+          <div className="text-sm font-semibold mb-2">📟 חיוג ידני</div>
+          <div className="flex items-center gap-2">
+            <Input type="tel" inputMode="tel" value={manualPhone} onChange={(e) => setManualPhone(e.target.value)} placeholder="הזן מספר טלפון לחיוג" dir="ltr" />
+            <a
+              href={manualPhone.replace(/\D/g, "") ? `tel:${manualPhone.replace(/[^\d+]/g, "")}` : undefined}
+              onClick={(e) => { if (!manualPhone.replace(/\D/g, "")) e.preventDefault(); }}
+              className="btn-primary px-4 py-2.5 rounded-lg font-bold whitespace-nowrap"
+            >
+              📞 חייג
+            </a>
+          </div>
+        </div>
 
         {/* progress — remaining to call, so the caller feels momentum */}
         {(() => {
