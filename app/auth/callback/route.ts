@@ -10,7 +10,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 export async function GET(request: NextRequest) {
   const url = new URL(request.url)
   const code = url.searchParams.get('code')
-  const next = url.searchParams.get('next') || '/'
+  const next = url.searchParams.get('next') || '/plus'
   const host = request.headers.get('host') || ''
   const errDesc = url.searchParams.get('error_description') || url.searchParams.get('error') || null
 

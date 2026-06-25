@@ -44,6 +44,14 @@ export async function proxy(request: NextRequest) {
     }
   }
 
+  // ── Serve the Kafool+ module on the MAIN domain too (so plus.kafool.com is no
+  // longer required). These paths exist only in the (plus) group — no collision. ──
+  if (/^\/(caller|manager|coordinator)(\/|$)/.test(path)) {
+    const url = request.nextUrl.clone()
+    url.pathname = `/plus${path}`
+    return NextResponse.rewrite(url, { request: { headers: requestHeaders } })
+  }
+
   // Protect dashboard routes
   if (path.startsWith('/dashboard') || path.startsWith('/campaigns') ||
       path.startsWith('/callers') || path.startsWith('/war-room') ||

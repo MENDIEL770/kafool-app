@@ -4,11 +4,9 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Loader2, Phone, Users, Target } from 'lucide-react'
 
-// The Kafool+ module lives on its own subdomain — always return there after OAuth.
-const PLUS_ORIGIN =
-  typeof window !== 'undefined' && window.location.hostname !== 'localhost'
-    ? 'https://plus.kafool.com'
-    : (typeof window !== 'undefined' ? window.location.origin : '')
+// Kafool+ now runs on the MAIN domain (plus.kafool.com paused) — return to the
+// current origin after OAuth so login works on www.kafool.com.
+const PLUS_ORIGIN = typeof window !== 'undefined' ? window.location.origin : ''
 
 // In-app browsers (WhatsApp, Instagram, Facebook, Android webview…) block Google
 // sign-in — the user must open the page in real Safari/Chrome.
@@ -24,7 +22,7 @@ export default function KafoolPlusLoginPage() {
   // already logged in? remember the account and go straight in.
   useEffect(() => {
     createClient().auth.getSession().then(({ data }) => {
-      if (data.session && typeof window !== 'undefined') window.location.replace(`${PLUS_ORIGIN}/`)
+      if (data.session && typeof window !== 'undefined') window.location.replace('/plus')
     })
   }, [])
 

@@ -130,10 +130,10 @@ export default function LoginPage() {
             </Link>
           </p>
 
-          {/* switch to the Kafool+ telephony login (separate subdomain) */}
+          {/* switch to the Kafool+ telephony login */}
           <div className="pt-2 border-t border-slate-700/50">
             <a
-              href="https://plus.kafool.com"
+              href="/kafool-plus-login"
               className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-violet-200 bg-violet-500/15 border border-violet-500/30 hover:bg-violet-500/25 transition-colors"
             >
               📞 כניסה ל-Kafool+ · מוקד טלפוני
