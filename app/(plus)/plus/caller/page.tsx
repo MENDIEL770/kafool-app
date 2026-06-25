@@ -9,7 +9,7 @@ import ThemeRoot from "@/components/plus/ThemeRoot";
 import CallbackPicker from "@/components/plus/CallbackPicker";
 import SwipeTriage from "@/components/plus/SwipeTriage";
 import CallerContactsImport from "@/components/plus/CallerContactsImport";
-import { setCallDecisionOwn, saveMyCallerLink } from "@/lib/plus/actions";
+import { saveMyCallerLink } from "@/lib/plus/actions";
 import { Modal, Field, Input, Textarea, Progress, StatusBadge, STATUS_LIST } from "@/components/plus/ui";
 import { callbackMessage, smsLink, whatsappLink, openLink } from "@/lib/plus/notify";
 import { hebrewDateShort } from "@/lib/plus/hebrewDate";
@@ -39,6 +39,7 @@ export default function CallerPage() {
   const addReminder = useStore((s) => s.addReminder);
   const updateCallerGroup = useStore((s) => s.updateCallerGroup);
   const updateLead = useStore((s) => s.updateLead);
+  const setCallDecisionsBulk = useStore((s) => s.setCallDecisionsBulk);
   const refresh = useStore((s) => s.refresh);
 
   // resolve the caller group: explicit on the session, else the one matching
@@ -134,12 +135,6 @@ export default function CallerPage() {
   const saveLink = async () => {
     updateCallerGroup(group.id, { donation_link: linkDraft.trim() }); // optimistic
     try { await saveMyCallerLink(linkDraft.trim()); } catch { /* ignore */ }
-  };
-
-  // triage swipe: persist the caller's own decision + reflect it locally
-  const triage = (id: string, d: "yes" | "no") => {
-    updateLead(id, { call_decision: d });
-    setCallDecisionOwn(id, d).catch(() => { /* ignore */ });
   };
 
   // Charidy embeddable donate page with the donor's details prefilled (the
@@ -703,7 +698,7 @@ export default function CallerPage() {
         <Modal open={showTriage} onClose={() => setShowTriage(false)} title="סינון — למי להתקשר?">
           <SwipeTriage
             queue={triageQueue}
-            onDecide={triage}
+            onBatch={setCallDecisionsBulk}
             doneMessage="כל מי שסימנת ✓ נכנס לרשימת השיחות שלך."
           />
         </Modal>

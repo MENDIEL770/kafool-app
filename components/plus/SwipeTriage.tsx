@@ -1,23 +1,47 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Lead } from "@/lib/plus/types";
 import { StatusBadge } from "@/components/plus/ui";
 import { isIsraeliPhone } from "@/lib/plus/phone";
 
 /** Tinder-style swipe to pick who to call (right = yes, left = skip). */
 export default function SwipeTriage({
-  queue, onDecide, doneMessage,
+  queue, onDecide, onBatch, doneMessage,
 }: {
   queue: Lead[];
-  onDecide: (id: string, d: "yes" | "no") => void;
+  onDecide?: (id: string, d: "yes" | "no") => void;
+  // batched persistence — preferred for large queues (buffer + flush in chunks)
+  onBatch?: (items: { id: string; decision: "yes" | "no" }[]) => void;
   doneMessage?: string;
 }) {
   const [drag, setDrag] = useState(0);
   const startX = useRef<number | null>(null);
-  const current = queue[0];
+  // Freeze the queue once: swiping is driven by a LOCAL index, so it stays instant
+  // even with thousands of leads (no global re-render / server call per swipe).
+  const [snapshot] = useState<Lead[]>(queue);
+  const [i, setI] = useState(0);
+  const buffer = useRef<{ id: string; decision: "yes" | "no" }[]>([]);
+  const current = snapshot[i];
+  const remaining = Math.max(0, snapshot.length - i);
 
-  const decide = (d: "yes" | "no") => { if (!current) return; setDrag(0); onDecide(current.id, d); };
+  const flush = () => {
+    if (!buffer.current.length) return;
+    const items = buffer.current;
+    buffer.current = [];
+    if (onBatch) onBatch(items);
+    else if (onDecide) for (const it of items) onDecide(it.id, it.decision);
+  };
+  // flush the tail when the screen closes / unmounts
+  useEffect(() => () => flush(), []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const decide = (d: "yes" | "no") => {
+    if (!current) return;
+    setDrag(0);
+    buffer.current.push({ id: current.id, decision: d });
+    if (buffer.current.length >= 20) flush();
+    setI((x) => x + 1);
+  };
   const onStart = (x: number) => (startX.current = x);
   const onMove = (x: number) => { if (startX.current === null) return; setDrag(x - startX.current); };
   const onEnd = () => {
@@ -42,11 +66,11 @@ export default function SwipeTriage({
     <div className="max-w-md mx-auto select-none">
       <div className="text-center mb-3">
         <span className="text-sm font-semibold px-3 py-1 rounded-full" style={{ background: "var(--bg)" }}>
-          נותרו לסינון: <b>{queue.length}</b>
+          נותרו לסינון: <b>{remaining}</b>
         </span>
       </div>
       <div className="relative h-72">
-        {queue[1] && <div className="absolute inset-0 card scale-95 opacity-50" />}
+        {snapshot[i + 1] && <div className="absolute inset-0 card scale-95 opacity-50" />}
         <div
           className="absolute inset-0 card p-6 flex flex-col justify-between cursor-grab active:cursor-grabbing"
           style={{

@@ -64,6 +64,7 @@ interface State extends PlusData {
   // leads
   importLeads: (campaignId: string, rows: Partial<Lead>[]) => { added: number; duplicates: number; review: number }
   setCallDecision: (leadId: string, decision: 'yes' | 'no') => void
+  setCallDecisionsBulk: (items: { id: string; decision: 'yes' | 'no' }[]) => void
   assignLeadsEvenly: (campaignId: string, callerGroupIds: string[]) => void
   assignLead: (leadId: string, callerGroupId: string | null) => void
   updateLead: (id: string, patch: Partial<Lead>) => void
@@ -242,6 +243,14 @@ export const useStore = create<State>()((set, get) => ({
   setCallDecision: (leadId, decision) => {
     set((s) => ({ leads: s.leads.map((l) => l.id === leadId ? { ...l, call_decision: decision } : l) }))
     api.setCallDecision(leadId, decision).catch(swallow)
+  },
+
+  // batched triage: one store pass + one server request per flush (not per swipe)
+  setCallDecisionsBulk: (items) => {
+    if (!items.length) return
+    const m = new Map(items.map((i) => [i.id, i.decision]))
+    set((s) => ({ leads: s.leads.map((l) => m.has(l.id) ? { ...l, call_decision: m.get(l.id) } : l) }))
+    api.setCallDecisionsBulk(items).catch(swallow)
   },
 
   assignLeadsEvenly: (campaignId, callerGroupIds) => {

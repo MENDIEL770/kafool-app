@@ -536,6 +536,28 @@ export async function setCallDecision(leadId: string, decision: 'yes' | 'no') {
 }
 
 // Caller triage: a caller swipes their OWN leads (or a managerial user any lead).
+// Persist many triage decisions in ONE request (the swipe screen buffers them and
+// flushes in chunks) — instead of a round-trip per swipe, which froze the app on
+// thousands of imported contacts.
+export async function setCallDecisionsBulk(items: { id: string; decision: 'yes' | 'no' }[]) {
+  if (!items.length) return
+  const c = await ctx()
+  const admin = await createServiceClient()
+  const ids = items.map(i => i.id)
+  const { data: leads } = await admin.from('kp_leads')
+    .select('id, custom_fields, assigned_caller_group_id, organization_id').in('id', ids)
+  const byId = new Map((leads ?? []).map(l => [l.id as string, l]))
+  const isMgr = ['super_admin', 'manager', 'coordinator'].includes(c.role!)
+  for (const it of items) {
+    const lead = byId.get(it.id)
+    if (!lead || lead.organization_id !== c.orgId) continue
+    const isOwner = !!c.member?.caller_group_id && lead.assigned_caller_group_id === c.member.caller_group_id
+    if (!isOwner && !isMgr) continue
+    const cf = { ...(lead.custom_fields as Record<string, unknown> ?? {}), call_decision: it.decision }
+    await admin.from('kp_leads').update({ custom_fields: cf, updated_at: now() }).eq('id', it.id)
+  }
+}
+
 export async function setCallDecisionOwn(leadId: string, decision: 'yes' | 'no') {
   const c = await ctx()
   const admin = await createServiceClient()
