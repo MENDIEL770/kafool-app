@@ -5,60 +5,87 @@ import { createServiceClient } from '@/lib/supabase/server'
 // KesherStatus codes = success
 const SUCCESS_CODES = [4, 11]
 
-// Shared processing — records the donation and returns a short note describing
-// what happened, which is also stored on the webhook_logs row for diagnostics.
+// Shared processing — records the donation and returns a short note. Kesher sends
+// TWO shapes that we correlate by obligationRef:
+//   A) transaction confirmation (GET): { total, addData(=campaignId), isSucces,
+//      transactionNumber, obligationRef, moreData(=group?) } — has the amount+campaign.
+//   B) obligation/customer event (POST): { Type, Customer{FirstName,LastName,Phone,
+//      Mail}, Obligation{Sum, PaymentPageNum, ObligationReference} } — has the donor.
 async function handle(body: Record<string, unknown>): Promise<string> {
-  const paymentPageNum = String(body?.PaymentPageNum ?? body?.ProjectNumber ?? '')
-  const ALLOWED_PAGES = (process.env.KESHER_ALLOWED_PAGES || '').split(',').map(s => s.trim()).filter(Boolean)
-  if (ALLOWED_PAGES.length > 0 && paymentPageNum && !ALLOWED_PAGES.includes(paymentPageNum)) {
-    return `ignored: page ${paymentPageNum} not in KESHER_ALLOWED_PAGES`
-  }
-
-  const kesherStatus = Number(body?.KesherStatus ?? 0)
-  if (!SUCCESS_CODES.includes(kesherStatus)) {
-    return `ignored: not success (KesherStatus=${kesherStatus || '∅'})`
-  }
-
-  const amountTotal = Number(body?.Sum ?? body?.total ?? 0)
-  const numTransaction = String(body?.NumTransaction ?? body?.transactionNumber ?? '')
-  const campaignId = String(body?.Details ?? body?.adddata ?? body?.ref ?? '').trim() || null
-  const donorName = String(body?.ReceiptName ?? body?.dn ?? '').trim() || null
-  const groupSlug = String(body?.group ?? body?.dg ?? '').trim() || null
-
-  if (!campaignId) return `ignored: no campaignId (Details/adddata/ref empty), page=${paymentPageNum}, ₪${amountTotal}`
-
   const supabase = await createServiceClient()
-  const { data: campaign } = await supabase.from('campaigns').select('org_id').eq('id', campaignId).single()
-  if (!campaign) return `ignored: campaign not found (${campaignId})`
 
-  // optional group attribution
-  let groupId: string | null = null
-  if (groupSlug) {
-    const { data: g } = await supabase.from('groups').select('id').eq('campaign_id', campaignId).eq('slug', groupSlug).maybeSingle()
-    groupId = g?.id ?? null
+  // ── Format A: transaction confirmation — record the donation ──
+  if (body.isSucces !== undefined || body.transactionNumber !== undefined) {
+    const success = String(body.isSucces ?? '').toLowerCase() === 'true'
+    if (!success) return `ignored: isSucces=${body.isSucces}`
+    const campaignId = String(body.addData ?? body.Details ?? body.adddata ?? body.ref ?? '').trim() || null
+    const amount = Number(String(body.total ?? body.Sum ?? 0).replace(/[^\d.]/g, '')) || 0
+    const txn = String(body.transactionNumber ?? body.NumTransaction ?? '').trim()
+    const obligationRef = String(body.obligationRef ?? '').trim()
+    const groupSlug = String(body.group ?? body.moreData ?? body.dg ?? '').trim() || null
+    if (!campaignId) return `ignored: no campaign (addData empty), txn ${txn}`
+    const { data: campaign } = await supabase.from('campaigns').select('org_id').eq('id', campaignId).single()
+    if (!campaign) return `ignored: campaign not found (${campaignId})`
+
+    // enrich donor name/phone from a matching Format-B obligation event (same ref)
+    let donorName: string | null = null, donorPhone: string | null = null, donorEmail: string | null = null
+    if (obligationRef) {
+      const { data: logs } = await supabase.from('webhook_logs').select('body').eq('source', 'kesher').order('created_at', { ascending: false }).limit(50)
+      for (const l of logs ?? []) {
+        const c = (l.body as Record<string, unknown>)?.Customer as Record<string, unknown> | undefined
+        const o = (l.body as Record<string, unknown>)?.Obligation as Record<string, unknown> | undefined
+        if (c && o && String(o.ObligationReference ?? '') === obligationRef) {
+          donorName = [c.FirstName, c.LastName].filter(Boolean).join(' ').trim() || null
+          donorPhone = (c.Phone as string) || null
+          donorEmail = (c.Mail as string) || null
+          break
+        }
+      }
+    }
+
+    let groupId: string | null = null
+    if (groupSlug) {
+      const { data: g } = await supabase.from('groups').select('id').eq('campaign_id', campaignId).eq('slug', groupSlug).maybeSingle()
+      groupId = g?.id ?? null
+    }
+
+    const { data: existing } = await supabase.from('donations').select('id').eq('kesher_transaction_id', txn).maybeSingle()
+    if (!existing && txn) {
+      await supabase.from('donations').insert({
+        campaign_id: campaignId, org_id: campaign.org_id, amount,
+        donor_name: donorName, donor_phone: donorPhone, donor_email: donorEmail, group_id: groupId,
+        kesher_transaction_id: txn, payment_status: 'completed', kesher_raw: body,
+      })
+    }
+    const { recomputeCampaignRaised } = await import('@/lib/donations')
+    await recomputeCampaignRaised(supabase, campaignId)
+    return existing ? `duplicate: txn ${txn}` : `recorded: ₪${amount} txn ${txn} (${donorName || '?'}, ${donorPhone || '?'}) -> ${campaignId}`
   }
 
-  // insert-if-absent (the thank-you page is the authority for online card flows)
-  const { data: existing } = await supabase
-    .from('donations').select('id').eq('kesher_transaction_id', numTransaction).maybeSingle()
-  if (!existing && numTransaction) {
-    await supabase.from('donations').insert({
-      campaign_id: campaignId,
-      org_id: campaign.org_id,
-      amount: amountTotal,
-      donor_name: donorName,
-      group_id: groupId,
-      kesher_transaction_id: numTransaction,
-      payment_status: 'completed',
-      kesher_raw: body,
-    })
+  // ── Format B: obligation/customer event — kept (logged) for enrichment only ──
+  if (body.Customer && body.Obligation) {
+    const ref = (body.Obligation as Record<string, unknown>)?.ObligationReference
+    return `obligation event Type=${body.Type} ref=${ref} (logged for enrichment)`
   }
 
-  const { recomputeCampaignRaised } = await import('@/lib/donations')
-  await recomputeCampaignRaised(supabase, campaignId)
-  return existing
-    ? `duplicate: txn ${numTransaction} already recorded`
-    : `recorded: ₪${amountTotal} txn ${numTransaction} -> campaign ${campaignId}${groupId ? ` group ${groupId}` : ''}`
+  // ── legacy format (KesherStatus 4/11) ──
+  const kesherStatus = Number(body?.KesherStatus ?? 0)
+  if (SUCCESS_CODES.includes(kesherStatus)) {
+    const campaignId = String(body?.Details ?? body?.adddata ?? body?.ref ?? '').trim() || null
+    const txn = String(body?.NumTransaction ?? '').trim()
+    if (campaignId && txn) {
+      const { data: campaign } = await supabase.from('campaigns').select('org_id').eq('id', campaignId).single()
+      if (campaign) {
+        const { data: existing } = await supabase.from('donations').select('id').eq('kesher_transaction_id', txn).maybeSingle()
+        if (!existing) await supabase.from('donations').insert({ campaign_id: campaignId, org_id: campaign.org_id, amount: Number(body?.Sum ?? 0), donor_name: String(body?.ReceiptName ?? '').trim() || null, kesher_transaction_id: txn, payment_status: 'completed', kesher_raw: body })
+        const { recomputeCampaignRaised } = await import('@/lib/donations')
+        await recomputeCampaignRaised(supabase, campaignId)
+        return existing ? `duplicate (legacy): txn ${txn}` : `recorded (legacy): ₪${body?.Sum} txn ${txn}`
+      }
+    }
+  }
+
+  return `ignored: unrecognized/non-success payload (keys: ${Object.keys(body).slice(0, 8).join(',')})`
 }
 
 // Capture every incoming call (raw) so we can see exactly what Kesher sends.
