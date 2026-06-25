@@ -32,6 +32,11 @@ export interface PlusContext {
 const COLS = 'id, role, organization_id, campaign_id, caller_group_id'
 
 export async function getPlusContext(supabase: SupabaseClient): Promise<PlusContext> {
+  // ── No-login demo link: a signed cookie identifies a member, no Supabase session.
+  const { getDemoIdentity } = await import('./demo')
+  const demo = await getDemoIdentity()
+  if (demo) return demo
+
   const { data: { user } } = await supabase.auth.getUser()
 
   // ── LOCAL DEV ONLY: impersonate a Kafool+ member by email (no OAuth needed).
