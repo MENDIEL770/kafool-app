@@ -20,7 +20,7 @@ export default function KafoolPlusLoginPage() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${PLUS_ORIGIN}/auth/callback?next=/`,
+        redirectTo: `${PLUS_ORIGIN}/auth/callback`,
         queryParams: { prompt: 'select_account' },
       },
     })
