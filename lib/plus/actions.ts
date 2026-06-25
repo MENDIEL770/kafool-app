@@ -353,6 +353,39 @@ export async function importBranchLeads(rootId: string, rows: {
   return { branches, coordinators, leads, duplicates }
 }
 
+/**
+ * Import branch coordinators from a (name, branch, email) list. Matches each to
+ * existing branches by fuzzy name (ignores בנות/בנים, punctuation), sets the
+ * coordinator and creates their kp_member. Creates the branch if none matches.
+ */
+export async function importCoordinators(rootId: string, rows: { name?: string; branch: string; email: string }[]):
+  Promise<{ assigned: number; created: number }> {
+  const c = await ctx(); assertManagerial(c.role)
+  const admin = await createServiceClient()
+  const { data: branches } = await admin.from('kp_campaigns').select('id, name').eq('organization_id', c.orgId!).eq('parent_campaign_id', rootId)
+  const list = (branches ?? []).map(b => ({ id: b.id as string, name: b.name as string }))
+  const norm = (s: string) => (s || '').toLowerCase().replace(/[.,'"`׳״\-_/()]/g, '').replace(/בנות|בנים/g, '').replace(/\s+/g, '').trim()
+  let assigned = 0, created = 0
+  for (const r of rows) {
+    const bn = norm(r.branch); const email = (r.email || '').trim().toLowerCase()
+    if (!bn || !/.+@.+\..+/.test(email)) continue
+    let targets = list.filter(b => { const nb = norm(b.name); return nb && (nb.includes(bn) || bn.includes(nb)) })
+    if (!targets.length) {
+      const id = crypto.randomUUID()
+      await admin.from('kp_campaigns').insert({ id, organization_id: c.orgId!, parent_campaign_id: rootId, name: r.branch, style: 'hierarchical', goal_amount: 0, coordinator_email: email })
+      list.push({ id, name: r.branch }); targets = [{ id, name: r.branch }]; created++
+    }
+    for (const b of targets) {
+      await admin.from('kp_campaigns').update({ coordinator_email: email }).eq('id', b.id)
+      const { data: existing } = await admin.from('kp_members').select('id').eq('organization_id', c.orgId!).ilike('email', email).eq('campaign_id', b.id).maybeSingle()
+      if (!existing) await admin.from('kp_members').insert({ organization_id: c.orgId!, email, role: 'coordinator', campaign_id: b.id, status: 'active', is_active: true })
+      else await admin.from('kp_members').update({ role: 'coordinator', status: 'active', is_active: true }).eq('id', existing.id)
+      assigned++
+    }
+  }
+  return { assigned, created }
+}
+
 export async function setCallDecision(leadId: string, decision: 'yes' | 'no') {
   const c = await ctx(); assertManagerial(c.role)
   const admin = await createServiceClient()

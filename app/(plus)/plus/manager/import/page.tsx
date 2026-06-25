@@ -3,13 +3,13 @@
 import { useState } from "react";
 import * as XLSX from "xlsx";
 import { useStore } from "@/lib/plus/store";
-import { importBranchLeads } from "@/lib/plus/actions";
+import { importBranchLeads, importCoordinators } from "@/lib/plus/actions";
 import { useRequireRole } from "@/lib/plus/useAuth";
 import AppShell from "@/components/plus/AppShell";
 import ThemeRoot from "@/components/plus/ThemeRoot";
 import ManagerNav from "@/components/plus/ManagerNav";
 import { Field } from "@/components/plus/ui";
-import { autoDetect, parseHistory } from "@/lib/plus/import-detect";
+import { autoDetect, parseHistory, findHeaderRow } from "@/lib/plus/import-detect";
 
 // target lead fields the user maps columns onto
 const TARGETS: { key: string; label: string; required?: boolean }[] = [
@@ -38,23 +38,86 @@ export default function ImportPage() {
   const [result, setResult] = useState<{ added: number; duplicates: number; review: number } | null>(null);
   const [branchResult, setBranchResult] = useState<{ branches: number; coordinators: number; leads: number; duplicates: number } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [multiSheet, setMultiSheet] = useState(0); // # of branch sheets detected
+  const [coordResult, setCoordResult] = useState<{ assigned: number; created: number } | null>(null);
+  const [coordBusy, setCoordBusy] = useState(false);
+
+  // coordinators file: (name, branch, email) — usually header-less
+  const onCoordFile = (file?: File) => {
+    if (!file) return;
+    setCoordResult(null);
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const wb = XLSX.read(e.target?.result, { type: "binary" });
+      const raw = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "" });
+      // pick the email column (the one whose cells look like emails), name = first, branch = the other
+      const rows = raw
+        .map((r) => (r as unknown[]).map((c) => String(c ?? "").trim()))
+        .filter((r) => r.some((c) => /.+@.+\..+/.test(c)))
+        .map((r) => {
+          const emailIdx = r.findIndex((c) => /.+@.+\..+/.test(c));
+          const rest = r.map((c, i) => ({ c, i })).filter(({ i }) => i !== emailIdx).map((x) => x.c).filter(Boolean);
+          return { name: rest[0] || "", branch: rest[1] || rest[0] || "", email: r[emailIdx] };
+        });
+      if (!rows.length) { alert("לא נמצאו שורות עם מייל בקובץ"); return; }
+      setCoordBusy(true);
+      try {
+        const res = await importCoordinators(rootId!, rows);
+        await refresh();
+        setCoordResult(res);
+      } catch (err) { alert(err instanceof Error ? err.message : "הייבוא נכשל"); }
+      setCoordBusy(false);
+    };
+    reader.readAsBinaryString(file);
+  };
 
   const onFile = (file?: File) => {
     if (!file) return;
-    setResult(null);
+    setResult(null); setBranchResult(null); setMultiSheet(0);
     const reader = new FileReader();
     reader.onload = (e) => {
       const wb = XLSX.read(e.target?.result, { type: "binary" });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: "" });
+
+      // ── multi-sheet branch file: one sheet per branch (branch = sheet name),
+      // with a title row before the headers. Detect & flatten. ──
+      const isIndex = (n: string) => /אינדקס|index|סיכום|summary/i.test(n);
+      const branchRows: Record<string, unknown>[] = [];
+      const headerSet = new Set<string>();
+      let branchSheets = 0;
+      for (const sn of wb.SheetNames) {
+        if (isIndex(sn)) continue;
+        const raw = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[sn], { header: 1, defval: "" });
+        const hi = findHeaderRow(raw);
+        if (hi < 0) continue;
+        const hdrs = (raw[hi] as unknown[]).map((c) => String(c ?? "").trim());
+        let any = false;
+        for (let i = hi + 1; i < raw.length; i++) {
+          const r = raw[i] as unknown[];
+          if (!r || r.every((c) => String(c ?? "").trim() === "")) continue;
+          const obj: Record<string, unknown> = { __branch: sn };
+          hdrs.forEach((h, idx) => { if (h) { obj[h] = r[idx] ?? ""; headerSet.add(h); } });
+          branchRows.push(obj); any = true;
+        }
+        if (any) branchSheets++;
+      }
+
+      if (branchSheets >= 2) {
+        const hdrs = ["__branch", ...headerSet];
+        const { mapping: guess, historyCols: hist } = autoDetect([...headerSet], branchRows);
+        guess.branch = "__branch"; // branch comes from the sheet name
+        setHeaders(hdrs); setRows(branchRows); setMapping(guess); setHistoryCols(hist);
+        setMultiSheet(branchSheets);
+        return;
+      }
+
+      // ── single flat sheet (possibly with a title row before the headers) ──
+      const raw = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "" });
+      const hi = Math.max(0, findHeaderRow(raw));
+      const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(wb.Sheets[wb.SheetNames[0]], { defval: "", range: hi });
       if (json.length === 0) return;
       const hdrs = Object.keys(json[0]);
-      setHeaders(hdrs);
-      setRows(json);
-      // smart auto-detection (header aliases + content sniffing)
       const { mapping: guess, historyCols: hist } = autoDetect(hdrs, json);
-      setMapping(guess);
-      setHistoryCols(hist);
+      setHeaders(hdrs); setRows(json); setMapping(guess); setHistoryCols(hist);
     };
     reader.readAsBinaryString(file);
   };
@@ -129,6 +192,11 @@ export default function ImportPage() {
 
           {headers.length > 0 && (
             <>
+              {multiSheet > 0 && (
+                <div className="rounded-xl border p-3 mb-3 text-sm" style={{ borderColor: "var(--accent)", background: "color-mix(in srgb, var(--accent) 10%, transparent)" }}>
+                  📑 זוהה קובץ <b>מרובה-לשוניות</b>: {multiSheet} סניפים (לשונית = סניף). כל הלשוניות יאוחדו ויובאו, עם היסטוריית התרומות לפי שנים.
+                </div>
+              )}
               {/* auto-detection summary */}
               <div className="rounded-xl border p-3 mb-4" style={{ borderColor: "var(--border)", background: "var(--bg)" }}>
                 <div className="text-sm font-semibold mb-2">🪄 זוהה אוטומטית ({rows.length} שורות)</div>
@@ -218,6 +286,23 @@ export default function ImportPage() {
               <div className="font-semibold mb-1">✅ הייבוא לסניפים הושלם</div>
               <div className="text-sm text-muted">נוצרו {branchResult.branches} סניפים · {branchResult.coordinators} רכזים · {branchResult.leads} לידים · כפולים שדולגו {branchResult.duplicates}</div>
               <div className="text-sm mt-2">הרכזים יכולים להיכנס עם המייל שלהם ולנהל את הסניף.</div>
+            </div>
+          )}
+        </div>
+
+        {/* coordinators file (name | branch | email) */}
+        <div className="card p-6 mt-4">
+          <h2 className="font-bold text-lg mb-1">ייבוא רכזי סניפים</h2>
+          <p className="text-sm text-muted mb-4">קובץ נפרד עם <b>שם רכז · סניף · מייל</b> (גם בלי שורת כותרת). כל רכז ישויך לסניף המתאים לפי שם — מומלץ לייבא קודם את התורמים.</p>
+          <label className="block border-2 border-dashed rounded-xl p-6 text-center cursor-pointer" style={{ borderColor: "var(--border)" }}>
+            <div className="text-3xl mb-1">👤</div>
+            <div className="font-medium text-sm">{coordBusy ? "מייבא…" : "בחר קובץ רכזים"}</div>
+            <div className="text-xs text-muted mt-1">.xlsx, .xls, .csv</div>
+            <input type="file" accept=".xlsx,.xls,.csv" className="hidden" disabled={coordBusy} onChange={(e) => onCoordFile(e.target.files?.[0])} />
+          </label>
+          {coordResult && (
+            <div className="mt-4 rounded-xl p-4 text-sm" style={{ background: "var(--bg)" }}>
+              ✅ שויכו {coordResult.assigned} רכזים לסניפים{coordResult.created > 0 ? ` · נוצרו ${coordResult.created} סניפים חדשים` : ""}.
             </div>
           )}
         </div>

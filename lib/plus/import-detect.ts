@@ -34,7 +34,12 @@ export function autoDetect(headers: string[], rows: Record<string, unknown>[]): 
   const isEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
   const isAmount = (v: string) => { const n = Number(v.replace(/[₪$,\s]/g, "")); return /^[₪$\s]*[\d,]+(\.\d+)?[₪$\s]*$/.test(v) && n > 0; };
   const isName = (v: string) => /(?:[א-ת]{2,}\s+[א-ת]{2,})|(?:[A-Za-z]{2,}\s+[A-Za-z]{2,})/.test(v);
-  const isYearHeader = (h: string) => /(^|[^\d])(19|20)\d{2}([^\d]|$)/.test(h) || /תש[״"׳']?[עפסקרת]/.test(h) || /תרומ|סכום|donation|amount|pledge/i.test(h);
+  const isYearHeader = (h: string) => {
+    const t = (h || "").trim();
+    return /(^|[^\d])(19|20)\d{2}([^\d]|$)/.test(t) || /תש[״"׳']?[עפסקרת]/.test(t) ||
+      /^[א-ת]["'׳״][א-ת]$/.test(t) || // short Hebrew year like פ"ב, פ"ג
+      /תרומ|סכום|donation|amount|pledge/i.test(t);
+  };
 
   const used = new Set<string>();
   const mapping: Record<string, string> = {};
@@ -54,6 +59,21 @@ export function autoDetect(headers: string[], rows: Record<string, unknown>[]): 
   if (!mapping.full_name) { const h = headers.find((x) => !used.has(x) && frac(vals(x), isName) > 0.4); if (h) { mapping.full_name = h; used.add(h); } }
   const historyCols = headers.filter((h) => !used.has(h) && (isYearHeader(h) || frac(vals(h), isAmount) > 0.6));
   return { mapping, historyCols };
+}
+
+/**
+ * Find the header row in a raw sheet (array of arrays). Real-world sheets often
+ * have a title/summary line before the headers — we look for the first row that
+ * has a name column plus a contact/email column.
+ */
+export function findHeaderRow(raw: unknown[][]): number {
+  for (let i = 0; i < Math.min(raw.length, 10); i++) {
+    const cells = (raw[i] || []).map((c) => String(c ?? "").trim());
+    const hasName = cells.some((c) => /^שם/.test(c) || /^name$/i.test(c) || /שם מלא|תורם/.test(c));
+    const hasContact = cells.some((c) => /פלאפון|טלפון|נייד|מייל|אימייל|phone|email/i.test(c));
+    if (hasName && hasContact) return i;
+  }
+  return -1;
 }
 
 /** Build a lead row from a sheet row using the detected mapping + history columns. */
