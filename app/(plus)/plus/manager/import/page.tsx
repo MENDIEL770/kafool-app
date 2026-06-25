@@ -3,7 +3,7 @@
 import { useState } from "react";
 import * as XLSX from "xlsx";
 import { useStore } from "@/lib/plus/store";
-import { importBranchLeads, importCoordinators } from "@/lib/plus/actions";
+import { importBranchLeads, importCoordinators, importLeads as importLeadsServer } from "@/lib/plus/actions";
 import { useRequireRole } from "@/lib/plus/useAuth";
 import AppShell from "@/components/plus/AppShell";
 import ThemeRoot from "@/components/plus/ThemeRoot";
@@ -21,6 +21,7 @@ const TARGETS: { key: string; label: string; required?: boolean }[] = [
   { key: "address", label: "כתובת" },
   { key: "birthday", label: "תאריך לידה" },
   { key: "notes", label: "הערות" },
+  { key: "ambassador", label: "שם השגריר (יוצר טלפן ומשייך את הלידים שלו)" },
   { key: "history", label: "היסטוריית תרומות (סכומים מופרדים בפסיק)" },
 ];
 
@@ -28,15 +29,14 @@ export default function ImportPage() {
   const session = useRequireRole(["manager"]);
   const campaigns = useStore((s) => s.campaigns);
   const rootId = session?.campaign_id ?? campaigns.find((c) => c.parent_campaign_id === null)?.id ?? null;
-  const importLeads = useStore((s) => s.importLeads);
   const refresh = useStore((s) => s.refresh);
 
   const [headers, setHeaders] = useState<string[]>([]);
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [historyCols, setHistoryCols] = useState<string[]>([]);
-  const [result, setResult] = useState<{ added: number; duplicates: number; review: number } | null>(null);
-  const [branchResult, setBranchResult] = useState<{ branches: number; coordinators: number; leads: number; duplicates: number } | null>(null);
+  const [result, setResult] = useState<{ added: number; duplicates: number; review: number; callers: number } | null>(null);
+  const [branchResult, setBranchResult] = useState<{ branches: number; coordinators: number; leads: number; duplicates: number; callers: number } | null>(null);
   const [busy, setBusy] = useState(false);
   const [multiSheet, setMultiSheet] = useState(0); // # of branch sheets detected
   const [coordResult, setCoordResult] = useState<{ assigned: number; created: number } | null>(null);
@@ -147,6 +147,7 @@ export default function ImportPage() {
         email: mapping.email ? String(r[mapping.email]) : undefined,
         address: mapping.address ? String(r[mapping.address]) : undefined,
         notes: mapping.notes ? String(r[mapping.notes]) : undefined,
+        ambassador: mapping.ambassador ? String(r[mapping.ambassador]) : undefined,
         history: history(r),
       }));
       try {
@@ -167,9 +168,18 @@ export default function ImportPage() {
       address: mapping.address ? String(r[mapping.address]) : undefined,
       birthday: mapping.birthday ? String(r[mapping.birthday]) : undefined,
       notes: mapping.notes ? String(r[mapping.notes]) : undefined,
+      ambassador_note: mapping.ambassador ? String(r[mapping.ambassador]) : undefined,
       donation_history: history(r),
     }));
-    setResult(importLeads(rootId!, mapped));
+    setBusy(true);
+    try {
+      const res = await importLeadsServer(rootId!, mapped);
+      await refresh();
+      setResult(res);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "הייבוא נכשל");
+    }
+    setBusy(false);
   };
 
   if (!session) return null;
@@ -276,7 +286,7 @@ export default function ImportPage() {
           {result && (
             <div className="mt-4 rounded-xl p-4" style={{ background: "var(--bg)" }}>
               <div className="font-semibold mb-1">✅ הייבוא הושלם</div>
-              <div className="text-sm text-muted">נוספו {result.added} · כפולים שדולגו {result.duplicates} · לבדיקה (מספר לא תקין) {result.review}</div>
+              <div className="text-sm text-muted">נוספו {result.added} · כפולים שדולגו {result.duplicates} · לבדיקה (מספר לא תקין) {result.review}{result.callers > 0 ? ` · נוצרו ${result.callers} טלפנים (שגרירים)` : ""}</div>
               <div className="text-sm mt-2">המשך ל<b>סינון</b> כדי לבחור למי להתקשר.</div>
             </div>
           )}
@@ -284,7 +294,7 @@ export default function ImportPage() {
           {branchResult && (
             <div className="mt-4 rounded-xl p-4" style={{ background: "var(--bg)" }}>
               <div className="font-semibold mb-1">✅ הייבוא לסניפים הושלם</div>
-              <div className="text-sm text-muted">נוצרו {branchResult.branches} סניפים · {branchResult.coordinators} רכזים · {branchResult.leads} לידים · כפולים שדולגו {branchResult.duplicates}</div>
+              <div className="text-sm text-muted">נוצרו {branchResult.branches} סניפים · {branchResult.coordinators} רכזים · {branchResult.leads} לידים · {branchResult.callers} טלפנים (שגרירים) · כפולים שדולגו {branchResult.duplicates}</div>
               <div className="text-sm mt-2">הרכזים יכולים להיכנס עם המייל שלהם ולנהל את הסניף.</div>
             </div>
           )}

@@ -281,11 +281,55 @@ export async function removeCallerGroup(id: string) {
 }
 
 // ─── leads ───
-export async function importLeads(campaignId: string, rows: Partial<Lead>[]): Promise<{ added: number; duplicates: number; review: number }> {
+
+// The first segment of an ambassador cell ("שם | לזכות..." → "שם").
+function firstAmbassador(raw: unknown): string {
+  return String(raw ?? '').split('|')[0].replace(/\s+/g, ' ').trim()
+}
+
+/**
+ * Resolve a set of ambassador names to caller-group ids within a campaign,
+ * creating a group for each new ambassador (no login email yet — display only).
+ * Returns a map keyed by normalized name. Reuses existing groups by name.
+ */
+async function resolveAmbassadorGroups(
+  admin: Awaited<ReturnType<typeof createServiceClient>>, orgId: string, campaignId: string, names: Set<string>,
+): Promise<{ map: Map<string, string>; created: number }> {
+  const norm = (s: string) => s.replace(/\s+/g, ' ').trim().toLowerCase()
+  const map = new Map<string, string>()
+  if (names.size === 0) return { map, created: 0 }
+  const { data: existing } = await admin.from('kp_caller_groups')
+    .select('id, display_name').eq('organization_id', orgId).eq('campaign_id', campaignId)
+  for (const g of existing ?? []) map.set(norm(g.display_name as string), g.id as string)
+  let created = 0
+  const toInsert: Record<string, unknown>[] = []
+  for (const name of names) {
+    const k = norm(name)
+    if (!k || map.has(k)) continue
+    const id = crypto.randomUUID()
+    map.set(k, id)
+    toInsert.push({
+      id, organization_id: orgId, campaign_id: campaignId, caller_email: '',
+      display_name: name, public_slug: makePlusSlug(name), donation_link: '', personal_goal: 0,
+    })
+    created++
+  }
+  if (toInsert.length) await admin.from('kp_caller_groups').insert(toInsert)
+  return { map, created }
+}
+
+export async function importLeads(campaignId: string, rows: Partial<Lead>[]): Promise<{ added: number; duplicates: number; review: number; callers: number }> {
   const c = await ctx(); assertManagerial(c.role)
   const admin = await createServiceClient()
   const { data: existing } = await admin.from('kp_leads').select('phone').eq('campaign_id', campaignId)
   const seen = new Set((existing ?? []).map(l => (l.phone as string).replace(/\D/g, '')))
+
+  // ambassador (שגריר) → a caller group per ambassador; their leads get assigned to it
+  const norm = (s: string) => s.replace(/\s+/g, ' ').trim().toLowerCase()
+  const ambNames = new Set<string>()
+  for (const r of rows) { const a = firstAmbassador(r.ambassador_note); if (a) ambNames.add(a) }
+  const { map: ambGroups, created: callers } = await resolveAmbassadorGroups(admin, c.orgId!, campaignId, ambNames)
+
   let added = 0, duplicates = 0, review = 0
   const toAdd: Record<string, unknown>[] = []
   for (const r of rows) {
@@ -295,17 +339,19 @@ export async function importLeads(campaignId: string, rows: Partial<Lead>[]): Pr
     if (digits) seen.add(digits)
     const invalid = !/^0?5\d{8}$/.test(digits) && !/^0\d{8,9}$/.test(digits)
     if (invalid) review++
+    const amb = firstAmbassador(r.ambassador_note)
     toAdd.push({
       organization_id: c.orgId!, campaign_id: campaignId, full_name: r.full_name ?? 'ללא שם', phone: phoneRaw,
       email: r.email ?? null, address: r.address ?? null, birthday: r.birthday ?? null, notes: r.notes ?? null,
       status: 'new', is_vip: r.is_vip ?? false, needs_review: invalid,
       donation_history: r.donation_history ?? [], ambassador_note: r.ambassador_note ?? null,
+      assigned_caller_group_id: amb ? (ambGroups.get(norm(amb)) ?? null) : null,
       import_source: 'excel', custom_fields: r.custom_fields ?? {},
     })
     added++
   }
   if (toAdd.length) await admin.from('kp_leads').insert(toAdd)
-  return { added, duplicates, review }
+  return { added, duplicates, review, callers }
 }
 
 /**
@@ -315,11 +361,12 @@ export async function importLeads(campaignId: string, rows: Partial<Lead>[]): Pr
  */
 export async function importBranchLeads(rootId: string, rows: {
   branch: string; coordEmail?: string; full_name: string; phone: string;
-  email?: string; address?: string; notes?: string; history?: { date: string; amount: number }[];
-}[]): Promise<{ branches: number; coordinators: number; leads: number; duplicates: number }> {
+  email?: string; address?: string; notes?: string; ambassador?: string; history?: { date: string; amount: number }[];
+}[]): Promise<{ branches: number; coordinators: number; leads: number; duplicates: number; callers: number }> {
   const c = await ctx(); assertManagerial(c.role)
   const admin = await createServiceClient()
   const norm = (s: string) => (s || '').replace(/\s+/g, '').trim()
+  const normName = (s: string) => (s || '').replace(/\s+/g, ' ').trim().toLowerCase()
 
   const { data: existingBranches } = await admin.from('kp_campaigns')
     .select('id, name').eq('organization_id', c.orgId!).eq('parent_campaign_id', rootId)
@@ -332,7 +379,7 @@ export async function importBranchLeads(rootId: string, rows: {
     byBranch.get(k)!.push(r)
   }
 
-  let branches = 0, coordinators = 0, leads = 0, duplicates = 0
+  let branches = 0, coordinators = 0, leads = 0, duplicates = 0, callers = 0
   for (const [branchName, brRows] of byBranch) {
     let branchId = branchByName.get(norm(branchName))
     const coordEmail = brRows.find(r => r.coordEmail)?.coordEmail?.trim().toLowerCase()
@@ -359,6 +406,12 @@ export async function importBranchLeads(rootId: string, rows: {
           .eq('id', existingMember.id)
       }
     }
+    // ambassador (שגריר) → caller group per ambassador within this branch
+    const ambNames = new Set<string>()
+    for (const r of brRows) { const a = firstAmbassador(r.ambassador); if (a) ambNames.add(a) }
+    const { map: ambGroups, created } = await resolveAmbassadorGroups(admin, c.orgId!, branchId, ambNames)
+    callers += created
+
     const { data: existingLeads } = await admin.from('kp_leads').select('phone').eq('campaign_id', branchId)
     const seen = new Set((existingLeads ?? []).map(l => (l.phone as string).replace(/\D/g, '')))
     const toInsert: Record<string, unknown>[] = []
@@ -366,15 +419,18 @@ export async function importBranchLeads(rootId: string, rows: {
       const digits = (r.phone || '').replace(/\D/g, '')
       if (digits && seen.has(digits)) { duplicates++; continue }
       if (digits) seen.add(digits)
+      const amb = firstAmbassador(r.ambassador)
       toInsert.push({
         organization_id: c.orgId!, campaign_id: branchId, full_name: r.full_name || 'ללא שם',
         phone: r.phone || '', email: r.email ?? null, address: r.address ?? null, notes: r.notes ?? null,
         status: 'new', donation_history: r.history ?? [], import_source: 'excel',
+        ambassador_note: r.ambassador || null,
+        assigned_caller_group_id: amb ? (ambGroups.get(normName(amb)) ?? null) : null,
       })
     }
     if (toInsert.length) { await admin.from('kp_leads').insert(toInsert); leads += toInsert.length }
   }
-  return { branches, coordinators, leads, duplicates }
+  return { branches, coordinators, leads, duplicates, callers }
 }
 
 /**

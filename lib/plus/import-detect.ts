@@ -22,6 +22,7 @@ export const ALIASES: Record<string, string[]> = {
   notes: ["הערות", "הערה", "comment", "comments", "note", "notes"],
   branch: ["סניף", "קבוצה", "צוות", "קהילה", "branch", "team", "group"],
   coord_email: ["מייל רכז", "אימייל רכז", "רכז", "אחראי", "קפטן", "captain", "coordinator", "leader"],
+  ambassador: ["שגריר", "שגרירים", "שם השגריר", "מגייס", "גייס", "ambassador", "ambassadors", "referrer", "recruiter", "solicitor"],
 };
 
 const norm = (s: string) => s.toLowerCase().replace(/["'`׳״.\-_/]/g, "").replace(/\s+/g, " ").trim();
