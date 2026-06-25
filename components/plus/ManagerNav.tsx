@@ -7,13 +7,13 @@ import { useStore } from "@/lib/plus/store";
 // flatOnly tabs (סינון/שיוך) belong to the coordinator in a hierarchical
 // campaign, so the manager only sees them when the campaign is flat.
 const TABS = [
-  { href: "/plus/manager", label: "לוח בקרה" },
-  { href: "/plus/manager/import", label: "1. ייבוא אקסל" },
-  { href: "/plus/manager/callers", label: "2. טלפנים" },
-  { href: "/plus/manager/filter", label: "3. סינון", flatOnly: true },
-  { href: "/plus/manager/assign", label: "4. שיוך", flatOnly: true },
-  { href: "/plus/manager/branding", label: "🎨 מיתוג" },
-  { href: "/plus/manager/members", label: "הרשאות" },
+  { href: "/manager", label: "לוח בקרה" },
+  { href: "/manager/import", label: "1. ייבוא אקסל" },
+  { href: "/manager/callers", label: "2. טלפנים" },
+  { href: "/manager/filter", label: "3. סינון", flatOnly: true },
+  { href: "/manager/assign", label: "4. שיוך", flatOnly: true },
+  { href: "/manager/branding", label: "🎨 מיתוג" },
+  { href: "/manager/members", label: "הרשאות" },
 ];
 
 export default function ManagerNav() {

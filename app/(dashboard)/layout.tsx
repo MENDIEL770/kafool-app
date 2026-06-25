@@ -28,7 +28,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   // Coordinators/callers are Kafool+ users — confined to the module, with the
   // regular dashboard gates skipped (they may not have an org of their own).
   if (kp.role === 'coordinator' || kp.role === 'caller') {
-    if (!inKafoolPlus) redirect('/plus')
+    if (!inKafoolPlus) redirect('https://plus.kafool.com')
     return (
       <div className="flex min-h-screen bg-gray-50">
         <Sidebar profile={profile} contextOrgName={null} viewingOtherOrg={false} lockToKafoolPlus />
@@ -44,7 +44,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
     if (!ctx.isSuperAdmin && !profile.org_id) {
       // no regular-Kafool access — if they're a Kafool+ member, send them there
       const plus = await getPlusContext(supabase)
-      redirect(plus.role ? '/plus' : '/onboarding')
+      if (plus.role) redirect('https://plus.kafool.com')
+      redirect('/onboarding')
     }
     if (ctx.isSuperAdmin && ctx.isGlobal) redirect('/super-admin/orgs')
   }
@@ -67,7 +68,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   // Module route gates (super-admins exempt; coordinators/callers handled above).
   if (!ctx.isSuperAdmin) {
     const fundraisingRoute = ['/dashboard', '/campaigns', '/reports', '/sms'].some(p => pathname === p || pathname.startsWith(p + '/'))
-    if (!entFundraising && fundraisingRoute) redirect(entKafoolPlus ? '/plus' : '/onboarding')
+    if (!entFundraising && fundraisingRoute) { if (entKafoolPlus) redirect('https://plus.kafool.com'); redirect('/onboarding') }
     if (!entKafoolPlus && inKafoolPlus) redirect(entFundraising ? '/dashboard' : '/onboarding')
   }
 

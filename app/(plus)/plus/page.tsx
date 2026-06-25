@@ -10,9 +10,9 @@ export default async function PlusIndex() {
   const supabase = await createClient()
   const ctx = await getPlusContext(supabase)
   const home: Record<string, string> = {
-    manager: '/plus/manager',
-    coordinator: '/plus/coordinator',
-    caller: '/plus/caller',
+    manager: '/manager',
+    coordinator: '/coordinator',
+    caller: '/caller',
   }
-  redirect(home[ctx.role ?? 'caller'] ?? '/plus/manager')
+  redirect(home[ctx.role ?? 'caller'] ?? '/manager')
 }

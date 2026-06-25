@@ -56,7 +56,7 @@ const navItems = [
 ]
 
 const kafoolPlusItems = [
-  { href: '/plus', label: 'מוקד טלפוני', icon: Megaphone },
+  { href: 'https://plus.kafool.com', label: 'מוקד טלפוני', icon: Megaphone },
 ]
 
 const settingsItems = [

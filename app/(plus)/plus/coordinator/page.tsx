@@ -103,7 +103,7 @@ export default function CoordinatorPage() {
     // refresh the session so caller_group_id resolves (re-login as same member)
     const me = members.find((m) => m.id && m.email.toLowerCase() === session!.email.toLowerCase() && m.campaign_id === campId);
     if (me) loginAsMember(me.id);
-    router.push("/plus/caller");
+    router.push("/caller");
   };
 
   return (
