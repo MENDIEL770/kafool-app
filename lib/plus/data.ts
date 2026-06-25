@@ -58,14 +58,29 @@ export async function loadPlusData(ctx: PlusContext): Promise<PlusData> {
   const admin = await createServiceClient()
   const org = ctx.orgId
 
+  // Demo identities (no-login links) get a small, scoped slice so the page is
+  // light and instant on a phone in front of an audience — real members load all.
+  const isDemo = !!ctx.userId?.startsWith('demo-')
+  const leadsP = isDemo
+    ? (() => {
+        let qb = admin.from('kp_leads').select('*').eq('organization_id', org)
+        if (ctx.member?.caller_group_id) qb = qb.eq('assigned_caller_group_id', ctx.member.caller_group_id)
+        else if (ctx.member?.campaign_id) qb = qb.eq('campaign_id', ctx.member.campaign_id)
+        return qb.order('id', { ascending: true }).limit(60).then(r => (r.data ?? []) as Record<string, unknown>[])
+      })()
+    : fetchAll(admin, 'kp_leads', org)
+  const callsP = isDemo
+    ? admin.from('kp_calls').select('*').eq('organization_id', org).limit(100).then(r => (r.data ?? []) as Record<string, unknown>[])
+    : fetchAll(admin, 'kp_calls', org)
+
   const [campaignsRes, brandingRes, cgRes, leadsRows, membersRes, callsRows, promisesRes, remindersRes, templatesRes] =
     await Promise.all([
       admin.from('kp_campaigns').select('*').eq('organization_id', org),
       admin.from('kp_campaign_branding').select('*').eq('organization_id', org),
       admin.from('kp_caller_groups').select('*').eq('organization_id', org),
-      fetchAll(admin, 'kp_leads', org),
+      leadsP,
       admin.from('kp_members').select('*').eq('organization_id', org),
-      fetchAll(admin, 'kp_calls', org),
+      callsP,
       admin.from('kp_promises').select('*').eq('organization_id', org),
       admin.from('kp_reminders').select('*').eq('organization_id', org),
       admin.from('kp_message_templates').select('*').eq('organization_id', org),
