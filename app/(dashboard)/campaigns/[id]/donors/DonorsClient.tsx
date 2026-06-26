@@ -47,6 +47,21 @@ interface Donation {
   custom_data?: Record<string, string> | null
 }
 
+// How the donation was paid. Manual donations carry it in custom_data.payment_method;
+// online ones (Kesher / Nedarim) are credit-card by default.
+const PAYMENT_METHODS = [
+  { value: 'credit', label: 'אשראי' },
+  { value: 'bit', label: 'ביט' },
+  { value: 'transfer', label: 'העברה' },
+] as const
+const METHOD_LABEL: Record<string, string> = { credit: 'אשראי', bit: 'ביט', transfer: 'העברה' }
+function donationMethod(d: { custom_data?: Record<string, string> | null; kesher_transaction_id?: string | null }): string | null {
+  const m = d.custom_data?.payment_method
+  if (m && METHOD_LABEL[m]) return METHOD_LABEL[m]
+  if (d.kesher_transaction_id) return 'אשראי' // online via Kesher/Nedarim = credit card
+  return null
+}
+
 interface GroupOption { id: string; name: string }
 interface PlanOption { amount: number; label: string | null }
 
@@ -83,7 +98,7 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
       .filter(([, v]) => v.trim() !== '')
   function copyText(text: string) { navigator.clipboard?.writeText(text).catch(() => {}) }
   const [showAdd, setShowAdd] = useState(false)
-  const [addForm, setAddForm] = useState({ amount: '', donor_name: '', donor_phone: '', donor_email: '', dedication: '', group_id: '', payment_type: 'one_time', installments: '' })
+  const [addForm, setAddForm] = useState({ amount: '', donor_name: '', donor_phone: '', donor_email: '', dedication: '', group_id: '', payment_type: 'one_time', installments: '', payment_method: 'credit' })
   const [saving, setSaving] = useState(false)
   const [addError, setAddError] = useState('')
 
@@ -150,6 +165,7 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
       'קבוצה': groupName(d.group_id),
       'הקדשה': d.dedication || '',
       'סטטוס': d.payment_status === 'completed' ? 'הושלם' : d.payment_status,
+      'אמצעי תשלום': donationMethod(d) || '',
       'מקור': d.kesher_transaction_id ? 'אונליין' : 'ידני',
       'מזהה עסקה': d.kesher_transaction_id || '',
       'תאריך': new Date(d.created_at).toLocaleString('he-IL'),
@@ -183,6 +199,7 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
       installments: d.installments ?? null,
       // the amount field holds the MONTHLY amount when it's a הו"ק, else the full amount
       amount: isHok ? (d.monthly_amount ?? d.amount) : d.amount,
+      custom_data: { ...(d.custom_data || {}), payment_method: d.custom_data?.payment_method || (d.kesher_transaction_id ? 'credit' : 'transfer') },
     })
   }
 
@@ -209,6 +226,7 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
       payment_type: newType,
       installments: newInstallments,
       monthly_amount: newMonthly,
+      custom_data: { ...(original?.custom_data || {}), payment_method: editForm.custom_data?.payment_method || 'credit' },
     }).eq('id', editId)
     if (!error) {
       const next = donations.map(d => d.id === editId ? { ...d, ...editForm, amount: newAmount, group_id: newGroupId, payment_type: newType, installments: newInstallments, monthly_amount: newMonthly } : d)
@@ -325,6 +343,7 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
       payment_type: isHok ? 'hok' : 'one_time',
       installments: isHok && months > 0 ? months : null,
       monthly_amount: isHok ? inputAmount : null,
+      custom_data: { payment_method: addForm.payment_method },
     }).select().single()
     if (error || !data) {
       setAddError(error?.message || 'הוספת התרומה נכשלה')
@@ -334,7 +353,7 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
     const next = [data, ...donations]
     setDonations(next)
     await syncTotals(next, addForm.group_id ? [addForm.group_id] : [])
-    setAddForm({ amount: '', donor_name: '', donor_phone: '', donor_email: '', dedication: '', group_id: '', payment_type: 'one_time', installments: '' })
+    setAddForm({ amount: '', donor_name: '', donor_phone: '', donor_email: '', dedication: '', group_id: '', payment_type: 'one_time', installments: '', payment_method: 'credit' })
     setShowAdd(false)
     setSaving(false)
     router.refresh()
@@ -550,6 +569,16 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
               </div>
             </div>
             <div className="space-y-1">
+              <Label className="text-xs">אופן תשלום</Label>
+              <select
+                value={addForm.payment_method}
+                onChange={e => setAddForm(f => ({ ...f, payment_method: e.target.value }))}
+                className="w-full h-9 border border-gray-200 rounded-md px-2 text-sm bg-white outline-none focus:ring-2 focus:ring-blue-400"
+              >
+                {PAYMENT_METHODS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1">
               <Label className="text-xs">שם תורם</Label>
               <Input value={addForm.donor_name} onChange={e => setAddForm(f => ({ ...f, donor_name: e.target.value }))} />
             </div>
@@ -732,7 +761,7 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
                     onChange={e => setSelected(e.target.checked ? new Set(sorted.map(d => d.id)) : new Set())}
                   />
                 </th>
-                {['תאריך', 'שם', 'טלפון', 'סכום', 'סוג', 'הקדשה', 'מקור', 'סטטוס', ''].map(h => (
+                {['תאריך', 'שם', 'טלפון', 'סכום', 'סוג', 'אמצעי', 'הקדשה', 'מקור', 'סטטוס', ''].map(h => (
                   <th key={h} className="text-right px-4 py-3 text-xs font-semibold text-gray-500">{h}</th>
                 ))}
               </tr>
@@ -796,6 +825,16 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
                         )}
                       </td>
                       <td className="px-4 py-2">
+                        <select
+                          value={editForm.custom_data?.payment_method || 'credit'}
+                          onChange={e => setEditForm(f => ({ ...f, custom_data: { ...(f.custom_data || {}), payment_method: e.target.value } }))}
+                          aria-label="אופן תשלום"
+                          className="h-7 w-full border border-gray-200 rounded-md px-1 text-xs bg-white outline-none focus:ring-2 focus:ring-blue-400"
+                        >
+                          {PAYMENT_METHODS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                        </select>
+                      </td>
+                      <td className="px-4 py-2">
                         <Input value={editForm.dedication || ''} onChange={e => setEditForm(f => ({ ...f, dedication: e.target.value }))} className="h-7 text-xs" />
                       </td>
                       <td className="px-4 py-2"></td>
@@ -847,6 +886,11 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
                           <span className="text-xs px-2 py-0.5 rounded-full bg-gray-50 text-gray-500">חד״פ</span>
                         )}
                       </td>
+                      <td className="px-4 py-3">
+                        {donationMethod(d)
+                          ? <span className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 whitespace-nowrap">{donationMethod(d)}</span>
+                          : <span className="text-gray-300">—</span>}
+                      </td>
                       <td className="px-4 py-3 text-gray-400 text-xs max-w-[120px] truncate">{d.dedication || '—'}</td>
                       <td className="px-4 py-3">
                         <span className={`text-xs px-2 py-0.5 rounded-full ${d.kesher_transaction_id ? 'bg-green-50 text-green-700' : 'bg-blue-50 text-blue-700'}`}>
@@ -870,7 +914,7 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
 
                 {editId !== d.id && expanded.has(d.id) && customEntries(d).length > 0 && (
                   <tr className="bg-blue-50/30">
-                    <td colSpan={10} className="px-6 pb-4 pt-0">
+                    <td colSpan={11} className="px-6 pb-4 pt-0">
                       <div className="rounded-xl border border-blue-100 bg-white p-4 shadow-sm">
                         <div className="flex items-center justify-between mb-3">
                           <h4 className="text-sm font-bold text-gray-700 flex items-center gap-1.5">
