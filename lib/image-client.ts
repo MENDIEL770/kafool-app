@@ -79,13 +79,29 @@ export async function uploadImage(file: File, path: string): Promise<string> {
   return `${publicUrl}?t=${Date.now()}`
 }
 
+// Request a fresh signed upload URL/token for a path.
+async function signUpload(path: string, ext: string): Promise<{ fullPath: string; token: string }> {
+  const res = await fetch('/api/upload/sign', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path, ext }),
+  })
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}))
+    throw new Error(d.error || 'יצירת הרשאת ההעלאה נכשלה')
+  }
+  const { path: fullPath, token } = await res.json()
+  return { fullPath, token }
+}
+
 /**
  * Upload a campaign video straight to Supabase Storage (via a signed URL, like
  * images — so it bypasses Vercel's ~4.5MB function-body limit). No compression:
- * videos are stored as-is, capped at MAX_VIDEO_BYTES (20MB). Returns the public
- * URL. Throws a clear error if the file is too big or not a video.
+ * videos are stored as-is, capped at MAX_VIDEO_BYTES (100MB). Reports upload
+ * progress (0–100) via onProgress; uses a raw XHR PUT for real progress and
+ * falls back to the SDK (no progress) if that fails. Returns the public URL.
  */
-export async function uploadVideo(file: File, path: string): Promise<string> {
+export async function uploadVideo(file: File, path: string, onProgress?: (pct: number) => void): Promise<string> {
   if (file.type && !file.type.startsWith('video/')) {
     throw new Error('הקובץ אינו סרטון תקין.')
   }
@@ -93,23 +109,34 @@ export async function uploadVideo(file: File, path: string): Promise<string> {
     throw new Error('הסרטון גדול מ-100MB. נסו קובץ קטן יותר, או הדביקו קישור YouTube / Drive.')
   }
   const ext = (file.name.split('.').pop() || 'mp4').toLowerCase()
-  const signRes = await fetch('/api/upload/sign', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ path, ext }),
-  })
-  if (!signRes.ok) {
-    const d = await signRes.json().catch(() => ({}))
-    throw new Error(d.error || 'יצירת הרשאת ההעלאה נכשלה')
-  }
-  const { path: fullPath, token } = await signRes.json()
-
   const supabase = createClient()
-  const { error } = await supabase.storage
-    .from(BUCKET)
-    .uploadToSignedUrl(fullPath, token, file, { contentType: file.type || 'video/mp4' })
-  if (error) throw new Error(error.message || 'העלאת הסרטון נכשלה')
 
-  const { data: { publicUrl } } = supabase.storage.from(BUCKET).getPublicUrl(fullPath)
-  return `${publicUrl}?t=${Date.now()}`
+  // 1) real progress via XHR PUT to the signed-upload endpoint.
+  try {
+    const { fullPath, token } = await signUpload(path, ext)
+    const uploadUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/upload/sign/${BUCKET}/${fullPath}?token=${token}`
+    await new Promise<void>((resolve, reject) => {
+      const xhr = new XMLHttpRequest()
+      xhr.open('PUT', uploadUrl)
+      xhr.setRequestHeader('content-type', file.type || 'video/mp4')
+      xhr.setRequestHeader('x-upsert', 'true')
+      xhr.upload.onprogress = e => { if (e.lengthComputable) onProgress?.(Math.round((e.loaded / e.total) * 100)) }
+      xhr.onload = () => (xhr.status >= 200 && xhr.status < 300) ? resolve() : reject(new Error(`HTTP ${xhr.status}`))
+      xhr.onerror = () => reject(new Error('network'))
+      xhr.send(file)
+    })
+    onProgress?.(100)
+    const { data: { publicUrl } } = supabase.storage.from(BUCKET).getPublicUrl(fullPath)
+    return `${publicUrl}?t=${Date.now()}`
+  } catch {
+    // 2) fallback: SDK upload (no progress) with a FRESH token (the XHR may have spent the first).
+    const { fullPath, token } = await signUpload(path, ext)
+    const { error } = await supabase.storage
+      .from(BUCKET)
+      .uploadToSignedUrl(fullPath, token, file, { contentType: file.type || 'video/mp4' })
+    if (error) throw new Error(error.message || 'העלאת הסרטון נכשלה')
+    onProgress?.(100)
+    const { data: { publicUrl } } = supabase.storage.from(BUCKET).getPublicUrl(fullPath)
+    return `${publicUrl}?t=${Date.now()}`
+  }
 }

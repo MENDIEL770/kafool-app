@@ -583,6 +583,11 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
   // Large mode: big 1:1 buttons (full-width-ish squares on mobile, large circles
   // side by side on desktop). Buttons WRAP onto multiple rows so none get cut.
   const large = buttonSize === 'large'
+  // The plan (amount) buttons follow the configured button shape on EVERY screen
+  // — they used to be hard-coded to circles on desktop (md:rounded-full).
+  const planShape = buttonRadius.includes('full') ? 'rounded-full'
+    : buttonRadius.includes('xl') ? 'rounded-3xl'   // מעוגל
+    : 'rounded-lg'                                    // מרובע
   const gridCls = large
     ? 'grid grid-cols-2 gap-4 md:flex md:flex-wrap md:gap-6 md:pt-4 md:px-4 md:justify-center'
     : 'grid grid-cols-3 gap-4 pb-2 px-1 md:flex md:flex-wrap md:gap-5 md:pt-4 md:px-4 md:justify-center'
@@ -590,8 +595,8 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
     ? 'flex flex-col items-center gap-2 cursor-pointer focus:outline-none w-full md:w-auto'
     : 'flex flex-col items-center gap-2 cursor-pointer focus:outline-none'
   const shapeCls = large
-    ? 'w-full aspect-square rounded-2xl md:w-[180px] md:h-[180px] md:aspect-auto md:rounded-full overflow-hidden transition-all duration-200 relative'
-    : 'w-[90px] h-[90px] md:w-[110px] md:h-[110px] rounded-full overflow-hidden transition-all duration-200 relative'
+    ? `w-full aspect-square md:w-[180px] md:h-[180px] md:aspect-auto ${planShape} overflow-hidden transition-all duration-200 relative`
+    : `w-[90px] h-[90px] md:w-[110px] md:h-[110px] ${planShape} overflow-hidden transition-all duration-200 relative`
   const amountTextCls = large ? 'text-white font-black text-3xl md:text-3xl' : 'text-white font-black text-lg md:text-xl'
 
   return (
@@ -669,7 +674,7 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
                 <div
                   className={otherAmountImage
                     ? `${shapeCls} flex items-end justify-center`
-                    : `${large ? 'w-full aspect-square rounded-2xl md:w-[180px] md:h-[180px] md:aspect-auto md:rounded-full' : 'w-[90px] h-[90px] md:w-[110px] md:h-[110px] rounded-full'} border-2 border-dashed border-gray-300 flex flex-col items-center justify-center bg-gray-50 transition-all duration-200`}
+                    : `${large ? `w-full aspect-square md:w-[180px] md:h-[180px] md:aspect-auto ${planShape}` : `w-[90px] h-[90px] md:w-[110px] md:h-[110px] ${planShape}`} border-2 border-dashed border-gray-300 flex flex-col items-center justify-center bg-gray-50 transition-all duration-200`}
                   style={{
                     boxShadow: customActive
                       ? `0 0 0 4px white, 0 0 0 7px ${primaryColor}, 0 6px 20px ${primaryColor}44`

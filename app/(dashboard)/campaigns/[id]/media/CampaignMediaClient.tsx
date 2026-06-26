@@ -421,6 +421,7 @@ export default function CampaignMediaClient({
   const [savingVideos, setSavingVideos] = useState(false)
   const [savedVideos, setSavedVideos] = useState(false)
   const [uploadingVideo, setUploadingVideo] = useState<number | null>(null)
+  const [videoProgress, setVideoProgress] = useState(0)
 
   async function uploadVideoFile(i: number, file: File) {
     if (file.size > MAX_VIDEO_BYTES) {
@@ -428,8 +429,9 @@ export default function CampaignMediaClient({
       return
     }
     setUploadingVideo(i)
+    setVideoProgress(0)
     try {
-      const url = await uploadVideo(file, `${orgId}/${campaignId}/video-${Date.now()}`)
+      const url = await uploadVideo(file, `${orgId}/${campaignId}/video-${Date.now()}`, setVideoProgress)
       setVideoField(i, 'url', url)
     } catch (e) {
       alert(e instanceof Error ? e.message : 'העלאת הסרטון נכשלה')
@@ -1004,10 +1006,15 @@ export default function CampaignMediaClient({
                     />
                     <label className="inline-flex items-center gap-1.5 text-[11px] text-gray-500 hover:text-blue-600 cursor-pointer">
                       <Upload className="w-3.5 h-3.5" />
-                      {uploadingVideo === i ? 'מעלה…' : 'או העלה קובץ וידאו (עד 100MB)'}
+                      {uploadingVideo === i ? `מעלה… ${videoProgress}%` : 'או העלה קובץ וידאו (עד 100MB)'}
                       <input type="file" accept="video/*" className="hidden"
                         onChange={e => { const f = e.target.files?.[0]; if (f) uploadVideoFile(i, f); e.target.value = '' }} />
                     </label>
+                    {uploadingVideo === i && (
+                      <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-blue-500 rounded-full transition-all duration-150" style={{ width: `${videoProgress}%` }} />
+                      </div>
+                    )}
                     <input
                       value={v.title}
                       onChange={(e) => setVideoField(i, 'title', e.target.value)}
