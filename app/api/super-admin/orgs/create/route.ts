@@ -11,14 +11,8 @@ export async function POST(req: NextRequest) {
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
   if (profile?.role !== 'super_admin') return NextResponse.json({ error: 'אין הרשאה' }, { status: 403 })
 
-  const { orgName, ownerEmail, ownerName, ownerPhone, ownerPassword, sendInvite, hasFundraising, hasKafoolPlus } = await req.json()
+  const { orgName, ownerEmail, ownerName, ownerPhone, ownerPassword, sendInvite } = await req.json()
   if (!orgName) return NextResponse.json({ error: 'שם ארגון הוא חובה' }, { status: 400 })
-  // entitlements: default to fundraising-only; at least one module is required
-  const entFundraising = hasFundraising !== false
-  const entKafoolPlus = hasKafoolPlus === true
-  if (!entFundraising && !entKafoolPlus) {
-    return NextResponse.json({ error: 'יש לבחור לפחות מודול אחד (גיוס או Kafool+)' }, { status: 400 })
-  }
   if (ownerPassword && String(ownerPassword).length < 6) {
     return NextResponse.json({ error: 'הסיסמה חייבת להכיל לפחות 6 תווים' }, { status: 400 })
   }
@@ -41,7 +35,7 @@ export async function POST(req: NextRequest) {
   // Create org
   const { data: org, error: orgError } = await adminClient
     .from('organizations')
-    .insert({ name: orgName, slug, status: ownerEmail ? 'pending' : 'active', has_fundraising: entFundraising, has_kafool_plus: entKafoolPlus })
+    .insert({ name: orgName, slug, status: ownerEmail ? 'pending' : 'active', has_fundraising: true })
     .select()
     .single()
 

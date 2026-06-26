@@ -42,8 +42,6 @@ interface Props {
   profile: Profile
   contextOrgName?: string | null   // org currently in scope (super admin may view another org)
   viewingOtherOrg?: boolean        // super admin "entered" a specific org
-  lockToKafoolPlus?: boolean       // kafoolplus_only coordinator/caller — Kafool+ only
-  entitlements?: { fundraising: boolean; kafoolPlus: boolean }  // org module subscription
 }
 
 const DEFAULT_CAMPAIGN_KEY = 'kafool_default_campaign'
@@ -55,9 +53,6 @@ const navItems = [
   { href: '/sms', label: 'SMS ואוטומציות', icon: MessageSquare },
 ]
 
-const kafoolPlusItems = [
-  { href: '/plus', label: 'מוקד טלפוני', icon: Megaphone },
-]
 
 const settingsItems = [
   { href: '/team', label: 'צוות', icon: UserCog },
@@ -68,7 +63,6 @@ const settingsItems = [
 const superAdminItems = [
   { href: '/super-admin/agent', label: 'סוכן AI', icon: Bot },
   { href: '/super-admin/orgs', label: 'ניהול ארגונים', icon: Building2 },
-  { href: '/super-admin/kafool-requests', label: 'פניות Kafool+', icon: Inbox },
   { href: '/super-admin/cms', label: 'ניהול תוכן', icon: FileText },
   { href: '/super-admin/portfolio', label: 'עיצובים / תיק עבודות', icon: ImageIcon },
   { href: '/media-guide', label: 'מדריך מדיה', icon: ImageIcon },
@@ -135,18 +129,14 @@ function NavLink({
   )
 }
 
-export default function Sidebar({ profile, contextOrgName, viewingOtherOrg, lockToKafoolPlus, entitlements }: Props) {
+export default function Sidebar({ profile, contextOrgName, viewingOtherOrg }: Props) {
   const pathname = usePathname()
   const router = useRouter()
   const isSuperAdmin = profile.role === 'super_admin'
-  // Which modules the in-scope org is subscribed to (defaults to both if unknown).
-  const ent = entitlements ?? { fundraising: true, kafoolPlus: true }
-  // Org-specific nav (dashboard/campaigns/reports/SMS/Kafool+/settings) only
-  // makes sense when an org is in scope. In the super-admin global "מבט-על"
-  // mode there's no org, so we hide it and show only the super-admin sections.
+  // Org-specific nav (dashboard/campaigns/reports/SMS/settings) only makes sense
+  // when an org is in scope. In the super-admin global "מבט-על" mode there's no
+  // org, so we hide it and show only the super-admin sections.
   const showOrgNav = !isSuperAdmin || !!viewingOtherOrg
-  const isPlusActive = kafoolPlusItems.some(item => pathname.startsWith(item.href))
-  const [plusOpen, setPlusOpen] = useState(isPlusActive)
   const [mobileOpen, setMobileOpen] = useState(false)
 
   // close the mobile drawer whenever the route changes
@@ -246,13 +236,9 @@ export default function Sidebar({ profile, contextOrgName, viewingOtherOrg, lock
 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        {lockToKafoolPlus ? (
-          <NavLink href="/kafool-plus" label="מוקד טלפוני" icon={Megaphone} pathname={pathname} accent="purple" />
-        ) : (
-        <>
         {showOrgNav && (
         <>
-        {ent.fundraising && navItems.map((item) => (
+        {navItems.map((item) => (
           <NavLink
             key={item.href}
             href={item.href}
@@ -262,49 +248,6 @@ export default function Sidebar({ profile, contextOrgName, viewingOtherOrg, lock
             defaultKey={'defaultKey' in item ? item.defaultKey : undefined}
           />
         ))}
-
-        {/* Kafool+ section — only for orgs subscribed to it */}
-        {ent.kafoolPlus && (
-        <div className="pt-1">
-          <button
-            onClick={() => setPlusOpen(v => !v)}
-            className={cn(
-              'w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-150',
-              isPlusActive
-                ? 'bg-violet-500/15 text-violet-300'
-                : 'text-slate-300 hover:bg-white/5 hover:text-slate-100'
-            )}
-          >
-            <div className={cn(
-              'w-5 h-5 rounded-md flex items-center justify-center shrink-0',
-              isPlusActive ? 'bg-violet-500' : 'bg-violet-500/30'
-            )}>
-              <Sparkles className="w-3 h-3 text-white" />
-            </div>
-            <span className="flex-1 text-right">Kafool+</span>
-            <span className="text-[9px] font-medium text-violet-400/70 bg-violet-500/10 border border-violet-500/20 rounded-full px-1.5 py-0.5 leading-none">
-              בפיתוח
-            </span>
-            <ChevronDown className={cn('w-3.5 h-3.5 text-slate-500 transition-transform shrink-0', plusOpen && 'rotate-180')} />
-          </button>
-
-          {plusOpen && (
-            <div className="mt-0.5 space-y-0.5">
-              {kafoolPlusItems.map((item) => (
-                <NavLink
-                  key={item.href}
-                  href={item.href}
-                  label={item.label}
-                  icon={item.icon}
-                  pathname={pathname}
-                  accent="blue"
-                  indent
-                />
-              ))}
-            </div>
-          )}
-        </div>
-        )}
 
         <div className="pt-4 pb-1.5 px-3">
           <div className="text-[10px] font-semibold text-slate-600 uppercase tracking-widest">
@@ -357,8 +300,6 @@ export default function Sidebar({ profile, contextOrgName, viewingOtherOrg, lock
               />
             ))}
           </>
-        )}
-        </>
         )}
       </nav>
 

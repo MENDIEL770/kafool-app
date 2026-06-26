@@ -5,13 +5,12 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { LogIn, Send, ChevronDown, KeyRound, Target, Megaphone, SlidersHorizontal, X, Check, Snowflake, Lock } from 'lucide-react'
 
-export default function OrgActions({ orgId, status, slug, ownerEmail, hasFundraising = true, hasKafoolPlus = false }: {
+export default function OrgActions({ orgId, status, slug, ownerEmail, hasFundraising = true }: {
   orgId: string
   status: string
   slug: string
   ownerEmail?: string
   hasFundraising?: boolean
-  hasKafoolPlus?: boolean
 }) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
@@ -33,14 +32,13 @@ export default function OrgActions({ orgId, status, slug, ownerEmail, hasFundrai
     setLoading(false)
   }
 
-  // Toggle a module subscription; never let an org end up with neither.
-  async function toggleModule(field: 'has_fundraising' | 'has_kafool_plus') {
-    const next = field === 'has_fundraising' ? !hasFundraising : !hasKafoolPlus
-    const other = field === 'has_fundraising' ? hasKafoolPlus : hasFundraising
-    if (!next && !other) { alert('הארגון חייב להיות מנוי לפחות למודול אחד.'); return }
+  // Toggle the fundraising subscription on/off.
+  async function toggleModule(_field: 'has_fundraising') {
+    const next = !hasFundraising
+    if (!next) { alert('הארגון חייב להיות מנוי למערכת גיוס התרומות.'); return }
     setLoading(true)
     const supabase = createClient()
-    await supabase.from('organizations').update({ [field]: next }).eq('id', orgId)
+    await supabase.from('organizations').update({ has_fundraising: next }).eq('id', orgId)
     router.refresh()
     setLoading(false)
   }
@@ -173,14 +171,6 @@ export default function OrgActions({ orgId, status, slug, ownerEmail, hasFundrai
                 <span className="flex items-center gap-2"><Target className="w-3 h-3" /> גיוס תרומות</span>
                 <span className={`text-[10px] font-bold ${hasFundraising ? 'text-green-600' : 'text-gray-300'}`}>{hasFundraising ? 'פעיל' : 'כבוי'}</span>
               </button>
-              <button
-                onClick={() => toggleModule('has_kafool_plus')}
-                disabled={loading}
-                className="w-full flex items-center justify-between gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
-              >
-                <span className="flex items-center gap-2"><Megaphone className="w-3 h-3" /> Kafool+</span>
-                <span className={`text-[10px] font-bold ${hasKafoolPlus ? 'text-violet-600' : 'text-gray-300'}`}>{hasKafoolPlus ? 'פעיל' : 'כבוי'}</span>
-              </button>
 
               <div className="border-t border-gray-100 my-1" />
 
@@ -242,13 +232,7 @@ export default function OrgActions({ orgId, status, slug, ownerEmail, hasFundrai
                     <span className="flex items-center gap-2.5 text-sm font-semibold text-gray-700"><Target className="w-4 h-4 text-blue-600" /> מערכת גיוס תרומות</span>
                     <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${hasFundraising ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-400'}`}>{hasFundraising ? 'פעיל' : 'כבוי'}</span>
                   </button>
-                  <button onClick={() => toggleModule('has_kafool_plus')} disabled={loading}
-                    className={`w-full flex items-center justify-between gap-3 rounded-xl border px-3.5 py-3 transition-colors ${hasKafoolPlus ? 'border-violet-300 bg-violet-50' : 'border-gray-200 hover:border-gray-300'}`}>
-                    <span className="flex items-center gap-2.5 text-sm font-semibold text-gray-700"><Megaphone className="w-4 h-4 text-violet-600" /> Kafool+ (טלפניה)</span>
-                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${hasKafoolPlus ? 'bg-violet-600 text-white' : 'bg-gray-100 text-gray-400'}`}>{hasKafoolPlus ? 'פעיל' : 'כבוי'}</span>
-                  </button>
                 </div>
-                <p className="text-[11px] text-gray-400 mt-1.5">התפריט של המנהל נבנה לפי המודולים שמופעלים.</p>
               </div>
 
               {/* Account status / freeze */}

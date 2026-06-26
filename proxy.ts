@@ -2,8 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function proxy(request: NextRequest) {
-  // Expose the current path to server components (the dashboard layout uses it
-  // to lock kafoolplus_only coordinators/callers to the Kafool+ module).
+  // Expose the current path to server components that need it.
   const requestHeaders = new Headers(request.headers)
   requestHeaders.set('x-pathname', request.nextUrl.pathname)
   let supabaseResponse = NextResponse.next({ request: { headers: requestHeaders } })
@@ -30,42 +29,6 @@ export async function proxy(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
 
   const path = request.nextUrl.pathname
-
-  // ── Kafool+ subdomain (plus.kafool.com) → serve the /plus module at the root ──
-  const host = (request.headers.get('host') || '').toLowerCase()
-  if (/(^|\.)plus\.kafool\.com$/.test(host)) {
-    const passthrough =
-      path.startsWith('/plus') || path.startsWith('/api') || path.startsWith('/auth') ||
-      path.startsWith('/kafool-plus-login') || path.startsWith('/_next') || path.startsWith('/login')
-    if (!passthrough) {
-      const url = request.nextUrl.clone()
-      url.pathname = `/plus${path === '/' ? '' : path}`
-      return NextResponse.rewrite(url, { request: { headers: requestHeaders } })
-    }
-  }
-
-  // ── Serve the Kafool+ module on the MAIN domain too (so plus.kafool.com is no
-  // longer required). These paths exist only in the (plus) group — no collision. ──
-  if (/^\/(caller|manager|coordinator)(\/|$)/.test(path)) {
-    const url = request.nextUrl.clone()
-    url.pathname = `/plus${path}`
-    // No-login demo: a ?d=<token> param identifies a demo member. Forward it as a
-    // header so the FIRST render resolves identity without depending on a cookie
-    // surviving a redirect (in-app browsers drop those), and also drop a cookie
-    // so later navigations keep working.
-    const demo = request.nextUrl.searchParams.get('d')
-    if (demo) {
-      requestHeaders.set('x-kp-demo', demo)
-      url.searchParams.delete('d')
-    }
-    const res = NextResponse.rewrite(url, { request: { headers: requestHeaders } })
-    if (demo) {
-      res.cookies.set('kp_demo', demo, {
-        httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', path: '/', maxAge: 60 * 60 * 24 * 30,
-      })
-    }
-    return res
-  }
 
   // Protect dashboard routes
   if (path.startsWith('/dashboard') || path.startsWith('/campaigns') ||
