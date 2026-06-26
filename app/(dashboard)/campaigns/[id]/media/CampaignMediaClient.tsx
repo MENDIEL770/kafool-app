@@ -422,6 +422,8 @@ export default function CampaignMediaClient({
   const [savedVideos, setSavedVideos] = useState(false)
   const [uploadingVideo, setUploadingVideo] = useState<number | null>(null)
   const [videoProgress, setVideoProgress] = useState(0)
+  // whether the videos section is shown on the public campaign page (default: yes)
+  const [showVideos, setShowVideos] = useState<boolean>((initialSettings.show_videos as boolean) ?? true)
 
   async function uploadVideoFile(i: number, file: File) {
     if (file.size > MAX_VIDEO_BYTES) {
@@ -459,7 +461,7 @@ export default function CampaignMediaClient({
     const { data: existing } = await supabase.from('campaigns').select('settings').eq('id', campaignId).single()
     await supabase.from('campaigns').update({
       video_url: ordered[0]?.url || null,
-      settings: { ...(existing?.settings as object), videos: ordered, banner_video_button: bannerVideoButton },
+      settings: { ...(existing?.settings as object), videos: ordered, banner_video_button: bannerVideoButton, show_videos: showVideos },
     }).eq('id', campaignId)
     setSavingVideos(false); setSavedVideos(true)
     setTimeout(() => setSavedVideos(false), 2000)
@@ -1032,6 +1034,12 @@ export default function CampaignMediaClient({
               className="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-700">
               <Plus className="w-4 h-4" /> הוסף סרטון
             </button>
+
+            <label className="flex items-center gap-2 cursor-pointer bg-gray-50 border border-gray-100 rounded-xl px-3 py-2.5">
+              <input type="checkbox" checked={showVideos} onChange={e => setShowVideos(e.target.checked)} className="w-4 h-4 accent-blue-600" />
+              <span className="text-sm text-gray-700">הצג את הסרטונים בדף הקמפיין</span>
+            </label>
+            <p className="text-[11px] text-gray-400 -mt-2">בטל סימון כדי להסתיר את מקטע הסרטונים מהדף הציבורי — מבלי למחוק את הסרטונים.</p>
 
             <label className="flex items-center gap-2 cursor-pointer bg-gray-50 border border-gray-100 rounded-xl px-3 py-2.5">
               <input type="checkbox" checked={bannerVideoButton} onChange={e => setBannerVideoButton(e.target.checked)} className="w-4 h-4 accent-blue-600" />

@@ -1089,15 +1089,16 @@ function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCre
 
 // Campaign videos (main first) shown as centered thumbnails with an optional title.
 function CampaignVideos({ campaign }: { campaign: Campaign }) {
-  const settings = campaign.settings as { videos?: (string | { url: string; title?: string })[] }
+  const [openEmbed, setOpenEmbed] = useState<string | null>(null)
+  const settings = campaign.settings as { videos?: (string | { url: string; title?: string })[]; show_videos?: boolean }
   const raw = settings?.videos?.length ? settings.videos : (campaign.video_url ? [campaign.video_url] : [])
   const all = raw
     .map(v => (typeof v === 'string' ? { url: v, title: '' } : { url: v.url, title: v.title || '' }))
     .map(v => ({ ...v, embed: getVideoEmbed(v.url), thumb: getYoutubeThumbnail(v.url) }))
     .filter(v => v.embed)
-  const [openEmbed, setOpenEmbed] = useState<string | null>(null)
 
-  if (all.length === 0) return null
+  // hidden from the public page (toggle in the media editor), or nothing to show
+  if (settings?.show_videos === false || all.length === 0) return null
   return (
     <section className="py-6 px-4 bg-white border-t border-gray-100">
       <div className="max-w-3xl mx-auto">
@@ -1429,12 +1430,14 @@ function PopupAd({ ad, campaignId }: { ad?: { image_url?: string; link?: string 
   }, [ad?.image_url, campaignId])
 
   if (!ad?.image_url || !open) return null
-  const img = <img src={ad.image_url} alt="פרסומת" className="w-full h-auto rounded-2xl shadow-2xl" />
+  const img = <img src={ad.image_url} alt="פרסומת" className="block w-auto max-w-full max-h-[88vh] mx-auto rounded-2xl shadow-2xl" />
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setOpen(false)}>
-      <div className="relative w-full max-w-sm" onClick={e => e.stopPropagation()}>
-        <button onClick={() => setOpen(false)} aria-label="סגור" className="absolute -top-11 left-0 inline-flex items-center gap-1.5 px-3 h-9 rounded-full bg-white/15 hover:bg-white/25 text-white text-sm font-medium">
-          <X className="w-4 h-4" /> סגור
+      <div className="relative max-w-md" onClick={e => e.stopPropagation()}>
+        {/* close — always-visible corner button, one click closes */}
+        <button onClick={() => setOpen(false)} aria-label="סגור"
+          className="absolute z-10 top-2 left-2 w-10 h-10 rounded-full bg-black/55 hover:bg-black/75 text-white flex items-center justify-center shadow-lg transition active:scale-90">
+          <X className="w-5 h-5" />
         </button>
         {ad.link
           ? <a href={ad.link} target="_blank" rel="noopener noreferrer">{img}</a>
