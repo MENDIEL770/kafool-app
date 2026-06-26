@@ -424,7 +424,7 @@ export default function CampaignMediaClient({
 
   async function uploadVideoFile(i: number, file: File) {
     if (file.size > MAX_VIDEO_BYTES) {
-      alert('הסרטון גדול מ-20MB. נסו קובץ קטן יותר, או הדביקו קישור YouTube / Drive.')
+      alert('הסרטון גדול מ-100MB. נסו קובץ קטן יותר, או הדביקו קישור YouTube / Drive.')
       return
     }
     setUploadingVideo(i)
@@ -1004,7 +1004,7 @@ export default function CampaignMediaClient({
                     />
                     <label className="inline-flex items-center gap-1.5 text-[11px] text-gray-500 hover:text-blue-600 cursor-pointer">
                       <Upload className="w-3.5 h-3.5" />
-                      {uploadingVideo === i ? 'מעלה…' : 'או העלה קובץ וידאו (עד 20MB)'}
+                      {uploadingVideo === i ? 'מעלה…' : 'או העלה קובץ וידאו (עד 100MB)'}
                       <input type="file" accept="video/*" className="hidden"
                         onChange={e => { const f = e.target.files?.[0]; if (f) uploadVideoFile(i, f); e.target.value = '' }} />
                     </label>

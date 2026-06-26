@@ -11,7 +11,7 @@ import { createClient } from '@/lib/supabase/client'
 
 const BUCKET = 'campaign-media'
 export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024 // 10MB per image
-export const MAX_VIDEO_BYTES = 20 * 1024 * 1024 // 20MB per campaign video
+export const MAX_VIDEO_BYTES = 100 * 1024 * 1024 // 100MB per campaign video
 
 /** Downscale an image to fit within maxDim and re-encode as JPEG. */
 export async function compressImage(file: File, maxDim = 1920, quality = 0.85): Promise<File> {
@@ -90,7 +90,7 @@ export async function uploadVideo(file: File, path: string): Promise<string> {
     throw new Error('הקובץ אינו סרטון תקין.')
   }
   if (file.size > MAX_VIDEO_BYTES) {
-    throw new Error('הסרטון גדול מ-20MB. נסו קובץ קטן יותר, או הדביקו קישור YouTube / Drive.')
+    throw new Error('הסרטון גדול מ-100MB. נסו קובץ קטן יותר, או הדביקו קישור YouTube / Drive.')
   }
   const ext = (file.name.split('.').pop() || 'mp4').toLowerCase()
   const signRes = await fetch('/api/upload/sign', {
