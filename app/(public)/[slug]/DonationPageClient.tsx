@@ -556,7 +556,7 @@ function HeroSection({ campaign, countdown }: {
   )
 }
 
-function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius, buttonSize = 'default', otherAmountImage, defaultCta, onDonate }: {
+function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius, buttonSize = 'default', otherAmountImage, otherAmountPlacement = 'grid', defaultCta, onDonate }: {
   plans: { amount: number; label?: string; image_url?: string | null; payment_type?: 'one_time' | 'hok'; months?: number | null; form?: string | null; cta?: string | null }[]
   primaryColor: string
   campaignSlug: string
@@ -564,6 +564,7 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
   buttonRadius: string
   buttonSize?: 'default' | 'large'
   otherAmountImage?: string | null
+  otherAmountPlacement?: 'grid' | 'cta'
   defaultCta?: string
   onDonate: (amount?: number, groupSlug?: string, method?: 'one_time' | 'hok', months?: number, formMode?: string) => void
 }) {
@@ -661,8 +662,8 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
             )
           })}
 
-          {/* סכום אחר — כל העיגול לחיץ, עם טבעת בחירה כמו השאר */}
-          {(() => {
+          {/* סכום אחר — מוצג כאן רק כשהמנהל בחר "ברשימת הכפתורים" (אחרת ליד כפתור התרומה) */}
+          {otherAmountPlacement === 'grid' && (() => {
             const customActive = !selected && !!custom && Number(custom) > 0
             return (
               <button
@@ -713,6 +714,17 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
 
         {/* Payment actions */}
         <div className="flex flex-row justify-center gap-2 sm:gap-3 mt-6 max-w-md mx-auto">
+          {/* 'סכום אחר' next to the donate button (when the manager chose this placement) */}
+          {otherAmountPlacement === 'cta' && (
+            <button
+              type="button"
+              onClick={() => onDonate(undefined, selectedGroup || undefined, 'one_time', undefined, undefined)}
+              className={`flex-none px-4 sm:px-6 py-2.5 sm:py-3.5 border-2 font-bold text-xs sm:text-sm transition-colors hover:bg-gray-50 ${buttonRadius}`}
+              style={{ borderColor: primaryColor, color: primaryColor }}
+            >
+              {t('otherAmount')}
+            </button>
+          )}
           <button
             onClick={() => onDonate(finalAmount ?? undefined, selectedGroup || undefined, selectedMethod, selectedMethod === 'hok' ? selectedMonths : undefined, selected != null ? (plans[selected]?.form ?? undefined) : undefined)}
             className={`flex-1 py-2.5 sm:py-3.5 text-white font-black text-sm sm:text-base text-center shadow-lg hover:opacity-90 active:scale-95 transition-all ${buttonRadius}`}
@@ -769,7 +781,7 @@ function ProgressSection({ raised, goal, donorsCount, primaryColor, bricks }: { 
         {/* סכום גדול */}
         <div className="text-center space-y-2">
           <div className="text-5xl md:text-7xl font-black tabular-nums leading-none" style={{ color: primaryColor }}>
-            ₪{raised.toLocaleString('he-IL')}
+            ₪{Math.ceil(raised).toLocaleString('he-IL')}
           </div>
           <div className="text-base md:text-lg text-gray-500">
             {t('raisedOfGoal')} ₪{goal.toLocaleString('he-IL')}
@@ -792,7 +804,7 @@ function ProgressSection({ raised, goal, donorsCount, primaryColor, bricks }: { 
           </div>
           <div className="flex justify-between text-xs text-gray-400 mt-1.5">
             <span>{pct}% {completed}</span>
-            {goal > raised && <span>{t('remaining')} ₪{(goal - raised).toLocaleString('he-IL')}</span>}
+            {goal > raised && <span>{t('remaining')} ₪{Math.ceil(goal - raised).toLocaleString('he-IL')}</span>}
             {goal <= raised && goal > 0 && <span className="font-bold" style={{ color: primaryColor }}>{t('goalReached')}</span>}
           </div>
         </div>
@@ -1067,7 +1079,7 @@ function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCre
                         <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: primaryColor }} />
                       </div>
                       <div className="flex justify-between text-[11px] text-gray-400 mt-1.5">
-                        <span>₪{(g.raised_amount || 0).toLocaleString()} {t('raised')}</span>
+                        <span>₪{Math.ceil(g.raised_amount || 0).toLocaleString()} {t('raised')}</span>
                         <span>{t('goalWord')} ₪{(g.goal_amount || 0).toLocaleString()}</span>
                       </div>
 
@@ -1608,7 +1620,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <div className="text-2xl font-black tabular-nums leading-none" style={{ color: primaryColor }}>
-                  ₪{groupRaised.toLocaleString('he-IL')}
+                  ₪{Math.ceil(groupRaised).toLocaleString('he-IL')}
                 </div>
                 <div className="text-[11px] text-gray-400 mt-1">{lang === 'en' ? 'of' : 'מתוך'} ₪{activeGroup.goal_amount.toLocaleString('he-IL')} {lang === 'en' ? 'goal' : 'יעד'}</div>
               </div>
@@ -1651,7 +1663,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
       )}
 
       {/* 3. Donation Plans */}
-      {isOn('amounts') && <DonationPlans plans={donationPlans} primaryColor={primaryColor} campaignSlug={campaign.slug} groups={groups} buttonRadius={buttonRadius} buttonSize={buttonSize} otherAmountImage={(settings as { other_amount_design?: string })?.other_amount_design || null} defaultCta={(settings as { donate_cta?: string })?.donate_cta || ''} onDonate={openDonate} />}
+      {isOn('amounts') && <DonationPlans plans={donationPlans} primaryColor={primaryColor} campaignSlug={campaign.slug} groups={groups} buttonRadius={buttonRadius} buttonSize={buttonSize} otherAmountImage={(settings as { other_amount_design?: string })?.other_amount_design || null} otherAmountPlacement={(settings as { other_amount_placement?: 'grid' | 'cta' })?.other_amount_placement === 'cta' ? 'cta' : 'grid'} defaultCta={(settings as { donate_cta?: string })?.donate_cta || ''} onDonate={openDonate} />}
 
       {/* 4. Progress */}
       {isOn('goal') && <ProgressSection raised={raisedAmount} goal={campaign.goal_amount} donorsCount={donations.length} primaryColor={primaryColor} bricks={(campaign.settings as { bricks?: { total: number; price: number; label?: string } })?.bricks} />}

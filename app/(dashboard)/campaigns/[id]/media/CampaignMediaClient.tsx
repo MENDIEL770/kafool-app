@@ -395,6 +395,10 @@ export default function CampaignMediaClient({
   const [plans, setPlans] = useState<DonationPlan[]>(initialPlans)
   const [uploadingPlan, setUploadingPlan] = useState<number | null>(null)
   const [otherAmountImage, setOtherAmountImage] = useState<string | null>((initialSettings.other_amount_design as string) || null)
+  // how the "other amount" button appears: in the buttons grid, or beside the donate CTA
+  const [otherAmountPlacement, setOtherAmountPlacement] = useState<'grid' | 'cta'>(
+    (initialSettings.other_amount_placement as 'grid' | 'cta') === 'cta' ? 'cta' : 'grid'
+  )
   const [uploadingOther, setUploadingOther] = useState(false)
   const [donateCta, setDonateCta] = useState<string>((initialSettings.donate_cta as string) || '')
   // Custom forms + pre-step (defined in the "התאמות אישיות" tab) — for the
@@ -644,6 +648,7 @@ export default function CampaignMediaClient({
       donation_plans: clean,
       donation_amounts: clean.map(p => p.amount), // keep in sync for backward-compat
       other_amount_design: otherAmountImage || null,
+      other_amount_placement: otherAmountPlacement,
       donate_cta: donateCta.trim() || null,
       primary_color: primaryColor,
     }
@@ -1208,6 +1213,23 @@ export default function CampaignMediaClient({
               {otherAmountImage && (
                 <button onClick={() => setOtherAmountImage(null)} className="text-[10px] text-gray-400 hover:text-red-500 shrink-0" title="הסר עיצוב">הסר עיצוב</button>
               )}
+            </div>
+
+            {/* מיקום כפתור "סכום אחר" */}
+            <div className="border border-gray-100 rounded-2xl p-3 bg-gray-50/50">
+              <p className="text-sm font-bold text-gray-800 mb-2">מיקום כפתור &quot;סכום אחר&quot;</p>
+              <div className="grid grid-cols-2 gap-2">
+                {([
+                  ['grid', 'ברשימת הכפתורים', 'ככפתור נוסף בין הסכומים — עם אפשרות להעלאת גרפיקה'],
+                  ['cta', 'ליד כפתור "לתרומה"', 'כפתור נפרד מימין לכפתור התרומה (פותח חלון להקלדת סכום)'],
+                ] as const).map(([val, title, desc]) => (
+                  <button key={val} type="button" onClick={() => setOtherAmountPlacement(val)}
+                    className={`text-right rounded-xl border px-3 py-2.5 transition-colors ${otherAmountPlacement === val ? 'border-blue-400 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                    <span className={`text-xs font-bold block ${otherAmountPlacement === val ? 'text-blue-700' : 'text-gray-600'}`}>{title}</span>
+                    <span className="text-[10px] text-gray-400">{desc}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
