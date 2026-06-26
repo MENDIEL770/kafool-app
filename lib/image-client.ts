@@ -11,6 +11,7 @@ import { createClient } from '@/lib/supabase/client'
 
 const BUCKET = 'campaign-media'
 export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024 // 10MB per image
+export const MAX_VIDEO_BYTES = 20 * 1024 * 1024 // 20MB per campaign video
 
 /** Downscale an image to fit within maxDim and re-encode as JPEG. */
 export async function compressImage(file: File, maxDim = 1920, quality = 0.85): Promise<File> {
@@ -73,6 +74,41 @@ export async function uploadImage(file: File, path: string): Promise<string> {
     .from(BUCKET)
     .uploadToSignedUrl(fullPath, token, toSend, { contentType: toSend.type || 'image/jpeg' })
   if (error) throw new Error(error.message || 'העלאת הקובץ נכשלה')
+
+  const { data: { publicUrl } } = supabase.storage.from(BUCKET).getPublicUrl(fullPath)
+  return `${publicUrl}?t=${Date.now()}`
+}
+
+/**
+ * Upload a campaign video straight to Supabase Storage (via a signed URL, like
+ * images — so it bypasses Vercel's ~4.5MB function-body limit). No compression:
+ * videos are stored as-is, capped at MAX_VIDEO_BYTES (20MB). Returns the public
+ * URL. Throws a clear error if the file is too big or not a video.
+ */
+export async function uploadVideo(file: File, path: string): Promise<string> {
+  if (file.type && !file.type.startsWith('video/')) {
+    throw new Error('הקובץ אינו סרטון תקין.')
+  }
+  if (file.size > MAX_VIDEO_BYTES) {
+    throw new Error('הסרטון גדול מ-20MB. נסו קובץ קטן יותר, או הדביקו קישור YouTube / Drive.')
+  }
+  const ext = (file.name.split('.').pop() || 'mp4').toLowerCase()
+  const signRes = await fetch('/api/upload/sign', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path, ext }),
+  })
+  if (!signRes.ok) {
+    const d = await signRes.json().catch(() => ({}))
+    throw new Error(d.error || 'יצירת הרשאת ההעלאה נכשלה')
+  }
+  const { path: fullPath, token } = await signRes.json()
+
+  const supabase = createClient()
+  const { error } = await supabase.storage
+    .from(BUCKET)
+    .uploadToSignedUrl(fullPath, token, file, { contentType: file.type || 'video/mp4' })
+  if (error) throw new Error(error.message || 'העלאת הסרטון נכשלה')
 
   const { data: { publicUrl } } = supabase.storage.from(BUCKET).getPublicUrl(fullPath)
   return `${publicUrl}?t=${Date.now()}`

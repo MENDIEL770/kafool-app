@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { uploadImage } from '@/lib/image-client'
+import { uploadVideo, MAX_VIDEO_BYTES } from '@/lib/image-client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { buttonVariants } from '@/components/ui/button'
@@ -423,9 +423,13 @@ export default function CampaignMediaClient({
   const [uploadingVideo, setUploadingVideo] = useState<number | null>(null)
 
   async function uploadVideoFile(i: number, file: File) {
+    if (file.size > MAX_VIDEO_BYTES) {
+      alert('הסרטון גדול מ-20MB. נסו קובץ קטן יותר, או הדביקו קישור YouTube / Drive.')
+      return
+    }
     setUploadingVideo(i)
     try {
-      const url = await uploadImage(file, `${orgId}/${campaignId}/video-${Date.now()}`)
+      const url = await uploadVideo(file, `${orgId}/${campaignId}/video-${Date.now()}`)
       setVideoField(i, 'url', url)
     } catch (e) {
       alert(e instanceof Error ? e.message : 'העלאת הסרטון נכשלה')
@@ -1000,7 +1004,7 @@ export default function CampaignMediaClient({
                     />
                     <label className="inline-flex items-center gap-1.5 text-[11px] text-gray-500 hover:text-blue-600 cursor-pointer">
                       <Upload className="w-3.5 h-3.5" />
-                      {uploadingVideo === i ? 'מעלה…' : 'או העלה קובץ וידאו (עד 10MB)'}
+                      {uploadingVideo === i ? 'מעלה…' : 'או העלה קובץ וידאו (עד 20MB)'}
                       <input type="file" accept="video/*" className="hidden"
                         onChange={e => { const f = e.target.files?.[0]; if (f) uploadVideoFile(i, f); e.target.value = '' }} />
                     </label>
