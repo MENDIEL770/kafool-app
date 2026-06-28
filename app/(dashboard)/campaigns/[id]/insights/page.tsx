@@ -31,11 +31,14 @@ export default async function InsightsPage({ params }: { params: Promise<{ id: s
   const completed = uniq('donate_complete')
   const pct = (n: number, of: number) => (of > 0 ? Math.round((n / of) * 100) : 0)
 
+  // gate=true → counts toward the strict drop-off chain. The video step is optional
+  // (you can donate without watching), so it's shown but doesn't gate the funnel.
   const funnel = [
-    { label: 'נכנסו לדף', value: views, icon: Eye, color: '#3b82f6' },
-    { label: 'לחצו "לתרומה"', value: opened, icon: MousePointerClick, color: '#8b5cf6' },
-    { label: 'הגיעו לתשלום', value: payment, icon: CreditCard, color: '#f59e0b' },
-    { label: 'השלימו תרומה', value: completed, icon: CheckCircle2, color: '#10b981' },
+    { label: 'נכנסו לדף', value: views, icon: Eye, color: '#3b82f6', gate: true },
+    { label: 'צפו בסרטון', value: videoPlays, icon: PlayCircle, color: '#8b5cf6', gate: false },
+    { label: 'לחצו "לתרומה"', value: opened, icon: MousePointerClick, color: '#a855f7', gate: true },
+    { label: 'הגיעו לתשלום', value: payment, icon: CreditCard, color: '#f59e0b', gate: true },
+    { label: 'השלימו תרומה', value: completed, icon: CheckCircle2, color: '#10b981', gate: true },
   ]
   const droppedDetails = Math.max(0, opened - payment)   // opened the form but didn't reach payment
   const droppedPayment = Math.max(0, payment - completed) // reached payment but didn't finish
@@ -74,24 +77,28 @@ export default async function InsightsPage({ params }: { params: Promise<{ id: s
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
             <h2 className="font-bold text-gray-800 mb-4">משפך התרומה</h2>
             <div className="space-y-3">
-              {funnel.map((f, i) => {
+              {(() => { let lastGate = views; return funnel.map((f, i) => {
                 const width = views > 0 ? Math.max(4, pct(f.value, views)) : 0
-                const dropFromPrev = i > 0 ? funnel[i - 1].value - f.value : 0
+                const drop = (f.gate && i > 0) ? Math.max(0, lastGate - f.value) : 0
+                if (f.gate) lastGate = f.value
                 return (
                   <div key={f.label}>
                     <div className="flex items-center justify-between text-sm mb-1">
-                      <span className="flex items-center gap-1.5 font-semibold text-gray-700"><f.icon className="w-4 h-4" style={{ color: f.color }} /> {f.label}</span>
+                      <span className="flex items-center gap-1.5 font-semibold text-gray-700">
+                        <f.icon className="w-4 h-4" style={{ color: f.color }} /> {f.label}
+                        {!f.gate && <span className="text-[10px] font-normal text-gray-300">(לא חובה במסע)</span>}
+                      </span>
                       <span className="font-bold text-gray-900">{f.value.toLocaleString('he-IL')} <span className="text-xs font-normal text-gray-400">({pct(f.value, views)}%)</span></span>
                     </div>
                     <div className="h-7 bg-gray-100 rounded-lg overflow-hidden">
-                      <div className="h-full rounded-lg transition-all" style={{ width: `${width}%`, background: f.color }} />
+                      <div className="h-full rounded-lg transition-all" style={{ width: `${width}%`, background: f.color, opacity: f.gate ? 1 : 0.7 }} />
                     </div>
-                    {i > 0 && dropFromPrev > 0 && (
-                      <div className="text-[11px] text-red-400 mt-0.5">↳ נשרו {dropFromPrev.toLocaleString('he-IL')} בשלב הקודם</div>
+                    {drop > 0 && (
+                      <div className="text-[11px] text-red-400 mt-0.5">↳ נשרו {drop.toLocaleString('he-IL')} בשלב הקודם</div>
                     )}
                   </div>
                 )
-              })}
+              }) })()}
             </div>
           </div>
 
