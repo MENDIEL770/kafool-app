@@ -49,6 +49,7 @@ const DEFAULT_CAMPAIGN_KEY = 'kafool_default_campaign'
 const navItems = [
   { href: '/dashboard', label: 'לוח בקרה', icon: LayoutDashboard },
   { href: '/campaigns', label: 'קמפיינים', icon: Target, defaultKey: DEFAULT_CAMPAIGN_KEY },
+  { href: '/donor-pool', label: 'מאגר תורמים', icon: Users },
   { href: '/reports', label: 'דוחות', icon: BarChart3 },
   { href: '/sms', label: 'SMS ואוטומציות', icon: MessageSquare },
 ]

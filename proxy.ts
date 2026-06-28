@@ -34,6 +34,7 @@ export async function proxy(request: NextRequest) {
   if (path.startsWith('/dashboard') || path.startsWith('/campaigns') ||
       path.startsWith('/callers') || path.startsWith('/war-room') ||
       path.startsWith('/reports') || path.startsWith('/sms') ||
+      path.startsWith('/donor-pool') ||
       path.startsWith('/settings') || path.startsWith('/super-admin')) {
     if (!user) {
       return NextResponse.redirect(new URL('/login', request.url))
