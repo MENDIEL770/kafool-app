@@ -89,7 +89,7 @@ export default async function PublicDonationPage({ params }: { params: Promise<{
       .single(),
     supabase
       .from('donations')
-      .select('id, donor_name, amount, dedication, created_at, group_id, payment_type, monthly_amount, installments')
+      .select('id, donor_name, amount, dedication, created_at, group_id, payment_type, monthly_amount, installments, custom_data')
       .eq('campaign_id', campaign.id)
       .eq('payment_status', 'completed')
       .order('created_at', { ascending: false })
@@ -108,7 +108,13 @@ export default async function PublicDonationPage({ params }: { params: Promise<{
 
   const org      = orgRes.data
   if (!org) notFound()
-  const donations = donationsRes.data
+  // Hide the donor name on the public page when the donation is marked anonymous
+  // (by the donor, or by the manager via the checkbox). Never expose custom_data.
+  const donations = (donationsRes.data ?? []).map(({ custom_data, ...d }) => {
+    const cd = custom_data as Record<string, unknown> | null
+    const anon = !!cd && (cd.anonymous === true || cd.anonymous === 'true')
+    return { ...d, donor_name: anon ? null : d.donor_name }
+  })
   const groups   = groupsRes.data
   const gallery  = galleryRes.data
 

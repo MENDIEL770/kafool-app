@@ -11,4 +11,9 @@ export function sanitizeHtml(html: string | null | undefined): string {
     .replace(/\son\w+\s*=\s*'[^']*'/gi, '')
     .replace(/\son\w+\s*=\s*[^\s>]+/gi, '')
     .replace(/javascript:/gi, '')
+    // links open in a new tab (drop any existing target/rel first, then add safe ones)
+    .replace(/<a\b([^>]*)>/gi, (_m, attrs) => {
+      const cleaned = String(attrs).replace(/\s(?:target|rel)\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+      return `<a${cleaned} target="_blank" rel="noopener noreferrer">`
+    })
 }

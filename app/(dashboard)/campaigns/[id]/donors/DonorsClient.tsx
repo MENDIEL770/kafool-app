@@ -98,7 +98,7 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
       .filter(([, v]) => v.trim() !== '')
   function copyText(text: string) { navigator.clipboard?.writeText(text).catch(() => {}) }
   const [showAdd, setShowAdd] = useState(false)
-  const [addForm, setAddForm] = useState({ amount: '', donor_name: '', donor_phone: '', donor_email: '', dedication: '', group_id: '', payment_type: 'one_time', installments: '', payment_method: 'credit' })
+  const [addForm, setAddForm] = useState({ amount: '', donor_name: '', donor_phone: '', donor_email: '', dedication: '', group_id: '', payment_type: 'one_time', installments: '', payment_method: 'credit', manager_note: '' })
   const [saving, setSaving] = useState(false)
   const [addError, setAddError] = useState('')
 
@@ -226,7 +226,7 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
       payment_type: newType,
       installments: newInstallments,
       monthly_amount: newMonthly,
-      custom_data: { ...(original?.custom_data || {}), payment_method: editForm.custom_data?.payment_method || 'credit' },
+      custom_data: { ...(original?.custom_data || {}), ...(editForm.custom_data || {}), payment_method: editForm.custom_data?.payment_method || 'credit' },
     }).eq('id', editId)
     if (!error) {
       const next = donations.map(d => d.id === editId ? { ...d, ...editForm, amount: newAmount, group_id: newGroupId, payment_type: newType, installments: newInstallments, monthly_amount: newMonthly } : d)
@@ -236,6 +236,17 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
       setEditId(null)
     }
     setSaving(false)
+  }
+
+  // Quick inline toggle: hide the donor's name on the PUBLIC page (shows "אנונימי")
+  // while the manager keeps seeing the real name here.
+  const isAnon = (d: Donation) => d.custom_data?.anonymous === 'true'
+  async function toggleAnonymous(d: Donation) {
+    const next = !isAnon(d)
+    const cd = { ...(d.custom_data || {}), anonymous: next ? 'true' : '' }
+    setDonations(ds => ds.map(x => x.id === d.id ? { ...x, custom_data: cd } : x))
+    await supabase.from('donations').update({ custom_data: cd }).eq('id', d.id)
+    fetch('/api/revalidate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ slug: campaign.slug }) }).catch(() => {})
   }
 
   // ── חישוב סכום אמיתי (לא צובר טעויות) ──
@@ -343,7 +354,7 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
       payment_type: isHok ? 'hok' : 'one_time',
       installments: isHok && months > 0 ? months : null,
       monthly_amount: isHok ? inputAmount : null,
-      custom_data: { payment_method: addForm.payment_method },
+      custom_data: { payment_method: addForm.payment_method, ...(addForm.manager_note.trim() ? { manager_note: addForm.manager_note.trim() } : {}) },
     }).select().single()
     if (error || !data) {
       setAddError(error?.message || 'הוספת התרומה נכשלה')
@@ -353,7 +364,7 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
     const next = [data, ...donations]
     setDonations(next)
     await syncTotals(next, addForm.group_id ? [addForm.group_id] : [])
-    setAddForm({ amount: '', donor_name: '', donor_phone: '', donor_email: '', dedication: '', group_id: '', payment_type: 'one_time', installments: '', payment_method: 'credit' })
+    setAddForm({ amount: '', donor_name: '', donor_phone: '', donor_email: '', dedication: '', group_id: '', payment_type: 'one_time', installments: '', payment_method: 'credit', manager_note: '' })
     setShowAdd(false)
     setSaving(false)
     router.refresh()
@@ -596,6 +607,10 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
               <Label className="text-xs">הקדשה</Label>
               <Input value={addForm.dedication} onChange={e => setAddForm(f => ({ ...f, dedication: e.target.value }))} />
             </div>
+            <div className="space-y-1 col-span-2">
+              <Label className="text-xs">הערה פנימית (לא מתפרסם בחוץ)</Label>
+              <Input value={addForm.manager_note} onChange={e => setAddForm(f => ({ ...f, manager_note: e.target.value }))} placeholder="לעיני המנהל בלבד" />
+            </div>
             {groups.length > 0 && (
               <div className="space-y-1">
                 <Label className="text-xs">שיוך לקבוצה</Label>
@@ -835,7 +850,12 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
                         </select>
                       </td>
                       <td className="px-4 py-2">
-                        <Input value={editForm.dedication || ''} onChange={e => setEditForm(f => ({ ...f, dedication: e.target.value }))} className="h-7 text-xs" />
+                        <Input value={editForm.dedication || ''} onChange={e => setEditForm(f => ({ ...f, dedication: e.target.value }))} className="h-7 text-xs" placeholder="הקדשה" />
+                        <Input
+                          value={editForm.custom_data?.manager_note || ''}
+                          onChange={e => setEditForm(f => ({ ...f, custom_data: { ...(f.custom_data || {}), manager_note: e.target.value } }))}
+                          className="h-7 text-xs mt-1" placeholder="הערה פנימית (לא מתפרסם)"
+                        />
                       </td>
                       <td className="px-4 py-2"></td>
                       <td className="px-4 py-2"></td>
@@ -857,9 +877,17 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
                         <span className="block text-[11px] text-gray-300">{new Date(d.created_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</span>
                       </td>
                       <td className="px-4 py-3 font-medium text-gray-800">
-                        {d.donor_name || <span className="text-gray-300">אנונימי</span>}
+                        <span className={isAnon(d) ? 'line-through text-gray-400' : ''}>{d.donor_name || <span className="text-gray-300">ללא שם</span>}</span>
                         {groupName(d.group_id) && (
                           <span className="block text-[11px] text-gray-400 font-normal mt-0.5">{groupName(d.group_id)}</span>
+                        )}
+                        {/* hide the name publicly (shown as "אנונימי") — manager still sees it */}
+                        <label className="flex items-center gap-1 text-[11px] text-gray-400 mt-1 cursor-pointer w-fit" title="הסתר את השם בדף הציבורי">
+                          <input type="checkbox" checked={isAnon(d)} onChange={() => toggleAnonymous(d)} className="w-3 h-3 accent-blue-600" />
+                          אנונימי (מוסתר בחוץ)
+                        </label>
+                        {d.custom_data?.manager_note && (
+                          <span className="block text-[11px] text-amber-600 mt-0.5" title="הערה פנימית">📝 {d.custom_data.manager_note}</span>
                         )}
                         {customEntries(d).length > 0 && (
                           <button
