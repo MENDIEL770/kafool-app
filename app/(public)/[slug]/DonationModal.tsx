@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { X, CreditCard, RefreshCw, Smartphone, Landmark } from 'lucide-react'
+import { track } from '@/lib/track'
 
 interface Group { id: string; name: string; slug: string }
 interface PaymentUrls { one_time: string; hok: string; bit: string; bank: string; one_time_en?: string; hok_en?: string }
@@ -186,6 +187,9 @@ export default function DonationModal({
     document.body.style.overflow = isOpen ? 'hidden' : ''
     return () => { document.body.style.overflow = '' }
   }, [isOpen])
+
+  // Usage funnel: the donor reached the payment step.
+  useEffect(() => { if (isOpen && step === 'payment' && campaign?.id) track(campaign.id, 'donate_payment') }, [isOpen, step, campaign?.id])
 
   // A quantity field (if the active form has one) drives the amount: quantity ×
   // the unit price for the chosen quantity (tiered). Otherwise use the preset/custom amount.

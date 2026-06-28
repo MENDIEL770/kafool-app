@@ -11,6 +11,7 @@ import {
   Group,
   SlidersHorizontal,
   Mail,
+  Activity,
   ChevronLeft,
   ExternalLink,
 } from 'lucide-react'
@@ -35,6 +36,7 @@ export default function CampaignNav({ campaign }: Props) {
     { href: `${base}/settings`, label: 'הגדרות', icon: Settings },
     { href: `${base}/media`, label: 'מדיה', icon: Image },
     { href: `${base}/donors`, label: 'תורמים', icon: Users },
+    { href: `${base}/insights`, label: 'סקירת תנועה', icon: Activity },
     { href: `${base}/groups`, label: 'קבוצות', icon: Group },
     { href: `${base}/custom-forms`, label: 'טפסים בהתאמה אישית', icon: SlidersHorizontal },
     { href: `${base}/email`, label: 'אימייל', icon: Mail },

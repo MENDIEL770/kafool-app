@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, useCallback, useMemo, createContext, useCo
 import { createPortal } from 'react-dom'
 import { createClient } from '@/lib/supabase/client'
 import { sanitizeHtml } from '@/lib/sanitize'
+import { track, trackOnce } from '@/lib/track'
 import type { Campaign, Group } from '@/types'
 import { Search, Share2, Heart, Menu, X, ChevronDown, ChevronLeft, ChevronRight, Globe } from 'lucide-react'
 import { resolveBuilderConfig, activeBlockMap, radiusToButtonClass } from '@/lib/builder-config'
@@ -523,11 +524,11 @@ function HeroSection({ campaign, countdown }: {
       <section className="w-full" aria-label="באנר קמפיין">
         {/* Mobile banner set */}
         <div className="md:hidden">
-          <BannerCarousel banners={mobileBanners} videoEmbed={videoEmbed} onPlayVideo={() => setVideoOpen(true)} />
+          <BannerCarousel banners={mobileBanners} videoEmbed={videoEmbed} onPlayVideo={() => { setVideoOpen(true); track(campaign.id, 'video_play') }} />
         </div>
         {/* Desktop banner set */}
         <div className="hidden md:block">
-          <BannerCarousel banners={banners} videoEmbed={videoEmbed} onPlayVideo={() => setVideoOpen(true)} />
+          <BannerCarousel banners={banners} videoEmbed={videoEmbed} onPlayVideo={() => { setVideoOpen(true); track(campaign.id, 'video_play') }} />
         </div>
 
         {countdown && (
@@ -1118,7 +1119,7 @@ function CampaignVideos({ campaign }: { campaign: Campaign }) {
           {all.map((v, i) => (
             <div key={i} className="space-y-1.5 w-[200px] max-w-full">
               <button
-                onClick={() => setOpenEmbed(v.embed)}
+                onClick={() => { setOpenEmbed(v.embed); track(campaign.id, 'video_play') }}
                 className="w-full rounded-xl overflow-hidden aspect-video shadow relative group block cursor-pointer bg-gray-900"
                 aria-label={v.title || 'הפעל וידאו'}
               >
@@ -1504,6 +1505,9 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
     ? radiusToButtonClass(builderCfg.design.radius)
     : (buttonRadiusMap[settings?.button_radius || 'pill'] || 'rounded-full')
 
+  // Usage tracking: count this visit once per session.
+  useEffect(() => { trackOnce(campaign.id, 'view') }, [campaign.id])
+
   // Realtime
   useEffect(() => {
     const supabase = createClient()
@@ -1523,6 +1527,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
     : `/${campaign.slug}/donate`
 
   function openDonate(amount?: number, groupSlug?: string, method?: 'one_time' | 'hok', months?: number, formMode?: string) {
+    track(campaign.id, 'donate_open')
     setModalAmount(amount)
     setModalGroupSlug(groupSlug || (activeGroup ? activeGroup.slug : undefined))
     setModalMethod(method)

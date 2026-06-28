@@ -3,9 +3,11 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { track } from '@/lib/track'
 
 interface Props {
   slug: string
+  campaignId?: string
   orgName: string
   campaignTitle: string
   primaryColor: string
@@ -16,8 +18,10 @@ interface Props {
   thanksMessage?: string | null
 }
 
-export default function ThanksClient({ slug, orgName, campaignTitle, primaryColor, receiptUrl, transactionNumber, logoUrl, thanksTitle, thanksMessage }: Props) {
+export default function ThanksClient({ slug, campaignId, orgName, campaignTitle, primaryColor, receiptUrl, transactionNumber, logoUrl, thanksTitle, thanksMessage }: Props) {
   const router = useRouter()
+  // Usage funnel: a donation was completed.
+  useEffect(() => { if (campaignId) track(campaignId, 'donate_complete') }, [campaignId])
   const [seconds, setSeconds] = useState(10)
   const [donorName, setDonorName] = useState<string | null>(null)
   const [receipt, setReceipt] = useState<string | null>(receiptUrl)

@@ -117,6 +117,7 @@ export default async function ThanksPage({
   return (
     <ThanksClient
       slug={slug}
+      campaignId={campaign.id}
       orgName={org.name}
       campaignTitle={campaign.title}
       primaryColor={primaryColor}
