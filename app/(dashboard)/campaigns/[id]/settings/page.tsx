@@ -239,7 +239,7 @@ export default function CampaignSettingsPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             <label className="flex items-center gap-2 cursor-pointer bg-gray-50 border border-gray-100 rounded-xl px-3 py-2.5">
-              <input type="checkbox" checked={form.show_timer} onChange={(e) => set('show_timer', e.target.checked)} className="w-4 h-4 accent-blue-600" />
+              <input type="checkbox" checked={form.show_timer} onChange={(e) => setForm(prev => ({ ...prev, show_timer: e.target.checked }))} className="w-4 h-4 accent-blue-600" />
               <span className="text-sm text-gray-700">הצג את הספירה לאחור בדף הציבורי</span>
             </label>
             <div className="space-y-1">
