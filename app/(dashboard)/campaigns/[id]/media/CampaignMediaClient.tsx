@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { uploadVideo, MAX_VIDEO_BYTES } from '@/lib/image-client'
+import { uploadImage, uploadVideo, MAX_VIDEO_BYTES } from '@/lib/image-client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { buttonVariants } from '@/components/ui/button'
@@ -11,6 +11,47 @@ import {
   Upload, ImageIcon, Trash2, X, Monitor, Smartphone,
   LayoutGrid, Plus, Check, ArrowRight, Eye, Palette, Image, Ruler, ChevronUp, ChevronDown, Video, BookOpen
 } from 'lucide-react'
+
+// YouTube thumbnail from a URL (for the editor preview); null for non-YouTube.
+function ytThumb(url: string): string | null {
+  const m = (url || '').match(/(?:youtube\.com\/.*[?&]v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([\w-]{11})/)
+  return m ? `https://img.youtube.com/vi/${m[1]}/hqdefault.jpg` : null
+}
+// An uploaded video file (not a YouTube/Vimeo/Drive link) — supports frame capture.
+function isFileVideo(url: string): boolean {
+  return /\.(mp4|webm|mov|m4v|ogg)(\?|$)/i.test(url || '') || /supabase\.co\/storage/i.test(url || '')
+}
+
+/* ─── Frame grabber: capture a still from an uploaded video ─── */
+function FrameGrabber({ src, onClose, onCapture }: { src: string; onClose: () => void; onCapture: (blob: Blob) => void }) {
+  const ref = useRef<HTMLVideoElement>(null)
+  const [busy, setBusy] = useState(false)
+  function capture() {
+    const video = ref.current; if (!video) return
+    setBusy(true)
+    try {
+      const canvas = document.createElement('canvas')
+      canvas.width = video.videoWidth || 1280
+      canvas.height = video.videoHeight || 720
+      const ctx = canvas.getContext('2d'); if (!ctx) throw new Error()
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+      canvas.toBlob(b => { setBusy(false); if (b) onCapture(b); else alert('לכידת הפריים נכשלה.') }, 'image/jpeg', 0.85)
+    } catch { setBusy(false); alert('לא ניתן ללכוד פריים מהסרטון (בעיית CORS). העלה תמונה במקום.') }
+  }
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl p-4 w-full max-w-lg" onClick={e => e.stopPropagation()} dir="rtl">
+        <h3 className="font-bold text-gray-800 mb-1">בחר פריים מהסרטון</h3>
+        <p className="text-xs text-gray-400 mb-3">הרץ/עצור את הסרטון על הפריים הרצוי ולחץ &quot;צלם פריים זה&quot;.</p>
+        <video ref={ref} src={src} controls crossOrigin="anonymous" playsInline className="w-full rounded-lg bg-black max-h-[55vh]" />
+        <div className="flex gap-2 mt-3">
+          <button onClick={capture} disabled={busy} className="flex-1 py-2.5 rounded-lg text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50">{busy ? 'מעבד…' : 'צלם פריים זה'}</button>
+          <button onClick={onClose} className="px-4 py-2.5 rounded-lg text-sm border border-gray-200 text-gray-600">ביטול</button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 /* ─── Types ─── */
 interface GalleryItem { id: string; image_url: string; caption: string | null; sort_order: number }
@@ -344,6 +385,8 @@ export default function CampaignMediaClient({
   const [logoUrl, setLogoUrl] = useState<string | null>(initialLogoUrl)
   const [uploadingLogo, setUploadingLogo] = useState(false)
   const [shareImage, setShareImage] = useState<string | null>((initialSettings.share_image as string) || null)
+  const [shareText, setShareText] = useState<string>((initialSettings.share_text as string) || '')
+  const [showTimer, setShowTimer] = useState<boolean>((initialSettings.show_timer as boolean) !== false)
   const [uploadingShare, setUploadingShare] = useState(false)
   const initialPopup = (initialSettings.popup_ad as { image_url?: string; link?: string } | undefined) || {}
   const [popupImage, setPopupImage] = useState<string | null>(initialPopup.image_url || null)
@@ -414,11 +457,11 @@ export default function CampaignMediaClient({
 
   // Campaign videos (YouTube/Vimeo) — main video shows on the banner + social
   // preview; all videos show above the donate button and the About section.
-  const initialVideos: { url: string; title: string }[] = (() => {
-    const raw = (initialSettings.videos as (string | { url: string; title?: string })[] | undefined)?.length
-      ? (initialSettings.videos as (string | { url: string; title?: string })[])
+  const initialVideos: { url: string; title: string; thumb: string }[] = (() => {
+    const raw = (initialSettings.videos as (string | { url: string; title?: string; thumb?: string })[] | undefined)?.length
+      ? (initialSettings.videos as (string | { url: string; title?: string; thumb?: string })[])
       : (initialVideoUrl ? [initialVideoUrl] : [])
-    return raw.map(v => typeof v === 'string' ? { url: v, title: '' } : { url: v.url || '', title: v.title || '' })
+    return raw.map(v => typeof v === 'string' ? { url: v, title: '', thumb: '' } : { url: v.url || '', title: v.title || '', thumb: v.thumb || '' })
   })()
   const [videos, setVideos] = useState(initialVideos)
   const [mainVideo, setMainVideo] = useState(Math.max(0, initialVideos.findIndex(v => v.url === initialVideoUrl)))
@@ -445,10 +488,23 @@ export default function CampaignMediaClient({
     setUploadingVideo(null)
   }
 
-  function setVideoField(i: number, field: 'url' | 'title', val: string) {
+  function setVideoField(i: number, field: 'url' | 'title' | 'thumb', val: string) {
     setVideos(v => v.map((x, idx) => (idx === i ? { ...x, [field]: val } : x)))
   }
-  function addVideo() { setVideos(v => [...v, { url: '', title: '' }]) }
+  function addVideo() { setVideos(v => [...v, { url: '', title: '', thumb: '' }]) }
+
+  // upload a custom preview image for a video
+  const [uploadingThumb, setUploadingThumb] = useState<number | null>(null)
+  async function uploadVideoThumb(i: number, file: File) {
+    setUploadingThumb(i)
+    try {
+      const url = await uploadImage(file, `${orgId}/${campaignId}/video-thumb-${i}-${Date.now()}`)
+      setVideoField(i, 'thumb', url)
+    } catch (e) { alert(e instanceof Error ? e.message : 'העלאת התמונה נכשלה') }
+    setUploadingThumb(null)
+  }
+  // frame-grabber modal: pick a frame from an uploaded video file
+  const [framePicker, setFramePicker] = useState<number | null>(null)
   function removeVideo(i: number) {
     setVideos(v => v.filter((_, idx) => idx !== i))
     setMainVideo(m => (i === m ? 0 : i < m ? m - 1 : m))
@@ -457,7 +513,7 @@ export default function CampaignMediaClient({
   async function saveVideos() {
     setSavingVideos(true)
     const mainUrl = (videos[mainVideo]?.url || '').trim()
-    const clean = videos.map(v => ({ url: v.url.trim(), title: v.title.trim() })).filter(v => v.url)
+    const clean = videos.map(v => ({ url: v.url.trim(), title: v.title.trim(), thumb: (v.thumb || '').trim() })).filter(v => v.url)
     const ordered = mainUrl
       ? [...clean.filter(v => v.url === mainUrl), ...clean.filter(v => v.url !== mainUrl)]
       : clean
@@ -562,6 +618,8 @@ export default function CampaignMediaClient({
       mobile_banners: mobileBanners.map((url, i) => ({ url, sort_order: i })),
       banner_video_button: bannerVideoButton,
       share_image: shareImage,
+      share_text: shareText.trim() || null,
+      show_timer: showTimer,
       popup_ad: popupImage ? { image_url: popupImage, link: popupLink.trim() || null } : null,
       primary_color: primaryColor,
       about_text: aboutText || null,
@@ -864,6 +922,19 @@ export default function CampaignMediaClient({
                 aspectClass="aspect-[1200/630]"
               />
 
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-gray-700">טקסט תצוגה מקדימה בשיתוף</label>
+                <p className="text-xs text-gray-400">הטקסט שמופיע מתחת לכותרת כששולחים את הקישור בוואטסאפ / פייסבוק וכו׳. אם ריק — יוצג ה"תיאור קצר" או טקסט אוטומטי.</p>
+                <textarea
+                  value={shareText}
+                  onChange={e => setShareText(e.target.value)}
+                  rows={2}
+                  maxLength={200}
+                  placeholder="למשל: כל תרומה מקרבת אותנו ליעד — הצטרפו עכשיו 💙"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+                />
+              </div>
+
               <UploadZone
                 label="פרסומת פופ-אפ"
                 sublabel="תקפוץ למבקר ל-5 שניות אחרי שגולל מעבר למקטע 'אודות'"
@@ -930,6 +1001,11 @@ export default function CampaignMediaClient({
               <label className="flex items-center gap-2 cursor-pointer bg-gray-50 border border-gray-100 rounded-xl px-3 py-2.5">
                 <input type="checkbox" checked={bannerVideoButton} onChange={e => setBannerVideoButton(e.target.checked)} className="w-4 h-4 accent-blue-600" />
                 <span className="text-sm text-gray-700">הצג כפתור הפעלת סרטון על הבאנר (כשמוגדר סרטון ראשי)</span>
+              </label>
+
+              <label className="flex items-center gap-2 cursor-pointer bg-gray-50 border border-gray-100 rounded-xl px-3 py-2.5">
+                <input type="checkbox" checked={showTimer} onChange={e => setShowTimer(e.target.checked)} className="w-4 h-4 accent-blue-600" />
+                <span className="text-sm text-gray-700">הצג טיימר ספירה לסיום הקמפיין</span>
               </label>
 
               <button onClick={saveBannerSettings} disabled={savingBanner}
@@ -1028,6 +1104,26 @@ export default function CampaignMediaClient({
                       placeholder="כותרת לסרטון (אופציונלי) — מוצגת בסרטונים הנוספים"
                       className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     />
+                    {/* preview image (custom thumbnail or auto YouTube thumb) */}
+                    <div className="flex items-center gap-2 pt-1">
+                      <div className="w-20 h-12 rounded-md overflow-hidden bg-gray-100 border border-gray-200 shrink-0 flex items-center justify-center">
+                        {(v.thumb || ytThumb(v.url))
+                          ? <img src={v.thumb || ytThumb(v.url)!} alt="" className="w-full h-full object-cover" />
+                          : <Image className="w-4 h-4 text-gray-300" />}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
+                        <label className="inline-flex items-center gap-1 text-gray-500 hover:text-blue-600 cursor-pointer">
+                          <Upload className="w-3 h-3" /> {uploadingThumb === i ? 'מעלה…' : 'העלה תמונת תצוגה'}
+                          <input type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) uploadVideoThumb(i, f); e.target.value = '' }} />
+                        </label>
+                        {isFileVideo(v.url) && (
+                          <button type="button" onClick={() => setFramePicker(i)} className="inline-flex items-center gap-1 text-gray-500 hover:text-blue-600">
+                            <Image className="w-3 h-3" /> בחר פריים מהסרטון
+                          </button>
+                        )}
+                        {v.thumb && <button type="button" onClick={() => setVideoField(i, 'thumb', '')} className="text-red-400 hover:text-red-600">הסר</button>}
+                      </div>
+                    </div>
                   </div>
                   <button type="button" onClick={() => removeVideo(i)} title="הסר"
                     className="w-9 h-9 rounded-lg text-red-400 hover:bg-red-50 flex items-center justify-center shrink-0"><X className="w-4 h-4" /></button>
@@ -1262,6 +1358,18 @@ export default function CampaignMediaClient({
             {savedAmounts ? <><Check className="w-4 h-4" /> נשמר!</> : savingAmounts ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> שומר...</> : 'שמור'}
           </button>
         </div>
+      )}
+
+      {framePicker !== null && videos[framePicker] && (
+        <FrameGrabber
+          src={videos[framePicker].url}
+          onClose={() => setFramePicker(null)}
+          onCapture={(blob) => {
+            const idx = framePicker
+            setFramePicker(null)
+            uploadVideoThumb(idx, new File([blob], 'frame.jpg', { type: 'image/jpeg' }))
+          }}
+        />
       )}
     </div>
   )

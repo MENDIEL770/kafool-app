@@ -1103,11 +1103,11 @@ function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCre
 // Campaign videos (main first) shown as centered thumbnails with an optional title.
 function CampaignVideos({ campaign }: { campaign: Campaign }) {
   const [openEmbed, setOpenEmbed] = useState<string | null>(null)
-  const settings = campaign.settings as { videos?: (string | { url: string; title?: string })[]; show_videos?: boolean }
+  const settings = campaign.settings as { videos?: (string | { url: string; title?: string; thumb?: string })[]; show_videos?: boolean }
   const raw = settings?.videos?.length ? settings.videos : (campaign.video_url ? [campaign.video_url] : [])
   const all = raw
-    .map(v => (typeof v === 'string' ? { url: v, title: '' } : { url: v.url, title: v.title || '' }))
-    .map(v => ({ ...v, embed: getVideoEmbed(v.url), thumb: getYoutubeThumbnail(v.url) }))
+    .map(v => (typeof v === 'string' ? { url: v, title: '', thumb: '' } : { url: v.url, title: v.title || '', thumb: v.thumb || '' }))
+    .map(v => ({ ...v, embed: getVideoEmbed(v.url), thumb: v.thumb || getYoutubeThumbnail(v.url) }))
     .filter(v => v.embed)
 
   // hidden from the public page (toggle in the media editor), or nothing to show
@@ -1473,7 +1473,8 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
   const [modalFormMode, setModalFormMode] = useState<string | undefined>()
   const [createGroupOpen, setCreateGroupOpen] = useState(false)
   const countdownEnd = (campaign.settings as { countdown_end?: string })?.countdown_end || campaign.end_at
-  const countdown = useCountdown(countdownEnd)
+  const showTimer = (campaign.settings as { show_timer?: boolean })?.show_timer !== false
+  const countdown = useCountdown(showTimer ? countdownEnd : null)
 
   const settings = campaign.settings as {
     donation_amounts?: number[]

@@ -36,8 +36,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     .single()
 
   const title = `${campaign.title} | ${org?.name ?? 'Kafool'}`
-  const tagline = (campaign.settings as { tagline?: string } | null)?.tagline
-  const description = tagline
+  const s = campaign.settings as { tagline?: string; share_text?: string } | null
+  // manager-defined share text wins; else the tagline; else an auto description
+  const description = s?.share_text?.trim() || s?.tagline
     || `תרמו לקמפיין "${campaign.title}" — ₪${(campaign.raised_amount || 0).toLocaleString()} גויסו עד כה`
   // Use the manager's uploaded social-share image if set; otherwise the auto-generated one.
   const customShare = (campaign.settings as { share_image?: string } | null)?.share_image
