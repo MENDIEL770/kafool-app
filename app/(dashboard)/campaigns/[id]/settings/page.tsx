@@ -33,6 +33,7 @@ export default function CampaignSettingsPage() {
     button_radius: 'pill' as 'pill' | 'rounded' | 'square',
     donation_button_size: 'default' as 'default' | 'large',
     countdown_end: '',
+    show_timer: true,
     whatsapp_phone: '',
     whatsapp_message: '',
     thanks_title: '',
@@ -60,6 +61,7 @@ export default function CampaignSettingsPage() {
           button_radius: data.settings?.button_radius || 'pill',
           donation_button_size: data.settings?.donation_button_size || 'default',
           countdown_end: data.settings?.countdown_end || '',
+          show_timer: data.settings?.show_timer !== false,
           whatsapp_phone: data.settings?.whatsapp_phone || '',
           whatsapp_message: data.settings?.whatsapp_message || '',
           thanks_title: data.settings?.thanks?.title || '',
@@ -110,6 +112,7 @@ export default function CampaignSettingsPage() {
         button_radius: form.button_radius,
         donation_button_size: form.donation_button_size,
         countdown_end: form.countdown_end || null,
+        show_timer: form.show_timer,
         whatsapp_phone: form.whatsapp_phone || null,
         whatsapp_message: form.whatsapp_message || null,
         thanks: {
@@ -235,6 +238,10 @@ export default function CampaignSettingsPage() {
             <p className="text-xs text-gray-400 mt-1">תאריך ושעה שיוצגו בדף הציבורי כספירה לאחור לסיום הקמפיין</p>
           </CardHeader>
           <CardContent className="space-y-3">
+            <label className="flex items-center gap-2 cursor-pointer bg-gray-50 border border-gray-100 rounded-xl px-3 py-2.5">
+              <input type="checkbox" checked={form.show_timer} onChange={(e) => set('show_timer', e.target.checked)} className="w-4 h-4 accent-blue-600" />
+              <span className="text-sm text-gray-700">הצג את הספירה לאחור בדף הציבורי</span>
+            </label>
             <div className="space-y-1">
               <Label>תאריך וזמן סיום</Label>
               <Input
@@ -242,6 +249,7 @@ export default function CampaignSettingsPage() {
                 value={form.countdown_end}
                 onChange={(e) => set('countdown_end', e.target.value)}
                 dir="ltr"
+                disabled={!form.show_timer}
               />
             </div>
             {form.countdown_end && (

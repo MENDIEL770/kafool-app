@@ -386,7 +386,6 @@ export default function CampaignMediaClient({
   const [uploadingLogo, setUploadingLogo] = useState(false)
   const [shareImage, setShareImage] = useState<string | null>((initialSettings.share_image as string) || null)
   const [shareText, setShareText] = useState<string>((initialSettings.share_text as string) || '')
-  const [showTimer, setShowTimer] = useState<boolean>((initialSettings.show_timer as boolean) !== false)
   const [uploadingShare, setUploadingShare] = useState(false)
   const initialPopup = (initialSettings.popup_ad as { image_url?: string; link?: string } | undefined) || {}
   const [popupImage, setPopupImage] = useState<string | null>(initialPopup.image_url || null)
@@ -619,7 +618,6 @@ export default function CampaignMediaClient({
       banner_video_button: bannerVideoButton,
       share_image: shareImage,
       share_text: shareText.trim() || null,
-      show_timer: showTimer,
       popup_ad: popupImage ? { image_url: popupImage, link: popupLink.trim() || null } : null,
       primary_color: primaryColor,
       about_text: aboutText || null,
@@ -1003,10 +1001,6 @@ export default function CampaignMediaClient({
                 <span className="text-sm text-gray-700">הצג כפתור הפעלת סרטון על הבאנר (כשמוגדר סרטון ראשי)</span>
               </label>
 
-              <label className="flex items-center gap-2 cursor-pointer bg-gray-50 border border-gray-100 rounded-xl px-3 py-2.5">
-                <input type="checkbox" checked={showTimer} onChange={e => setShowTimer(e.target.checked)} className="w-4 h-4 accent-blue-600" />
-                <span className="text-sm text-gray-700">הצג טיימר ספירה לסיום הקמפיין</span>
-              </label>
 
               <button onClick={saveBannerSettings} disabled={savingBanner}
                 className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white font-semibold text-sm disabled:opacity-50 transition-colors bg-blue-600 hover:bg-blue-700">
