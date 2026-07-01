@@ -54,11 +54,17 @@ async function handle(body: Record<string, unknown>): Promise<string> {
 
     const { data: existing } = await supabase.from('donations').select('id').eq('kesher_transaction_id', txn).maybeSingle()
     if (!existing && txn) {
-      await supabase.from('donations').insert({
+      const { data: inserted } = await supabase.from('donations').insert({
         campaign_id: campaignId, org_id: campaign.org_id, amount,
         donor_name: donorName, donor_phone: donorPhone, donor_email: donorEmail, group_id: groupId,
         kesher_transaction_id: txn, payment_status: 'completed', kesher_raw: body,
-      })
+      }).select('id').single()
+      // Re-attach the custom-form values + pre-step choice from the intent, and send
+      // the thank-you email (per-button override → per-form → campaign default).
+      if (inserted) {
+        const { attachCustomData } = await import('@/lib/donations')
+        await attachCustomData(supabase, { donationId: inserted.id, campaignId, phone: donorPhone, amount, donorEmail })
+      }
     }
     const { recomputeCampaignRaised } = await import('@/lib/donations')
     await recomputeCampaignRaised(supabase, campaignId)
