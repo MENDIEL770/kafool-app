@@ -687,13 +687,24 @@ export default function DonationModal({
             }
             return (
               <div className="flex flex-col">
-                <iframe
-                  src={payUrl}
-                  className="w-full"
-                  style={{ height: '520px', border: 'none' }}
-                  title={T.securePay}
-                  allow="payment"
-                />
+                {paymentMethod === 'bit' && (
+                  <div className="mx-4 mt-1 mb-2 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2.5 text-[13px] leading-snug text-amber-800">
+                    💬 {en
+                      ? 'Paying with Bit: after you confirm here, you\'ll get an SMS with a Bit link — open it to complete your donation. The donation is recorded once the Bit payment goes through.'
+                      : 'תשלום בביט: לאחר האישור כאן יישלח אליכם קישור ב-SMS — יש להיכנס אליו כדי להשלים את התרומה בביט. התרומה תיקלט אצלנו אוטומטית לאחר ביצוע התשלום.'}
+                  </div>
+                )}
+                {/* taller + scrollable so the provider's buttons are always reachable on mobile */}
+                <div className="w-full overflow-y-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+                  <iframe
+                    src={payUrl}
+                    className="w-full"
+                    style={{ height: 'min(680px, 74vh)', border: 'none' }}
+                    title={T.securePay}
+                    allow="payment"
+                    scrolling="yes"
+                  />
+                </div>
                 <div className="px-5 pb-4 pt-2 text-center">
                   <button onClick={() => setStep('details')} className="text-xs text-gray-400 hover:text-gray-600">
                     {T.backToDetails}
