@@ -20,6 +20,8 @@ export default function CampaignSettingsPage() {
   const [loading, setLoading] = useState(false)
   const [saved, setSaved] = useState(false)
   const [status, setStatus] = useState('')
+  // special "product" (e.g. brick wall) configured on this campaign, if any
+  const [bricks, setBricks] = useState<{ total?: number; price?: number; label?: string } | null>(null)
   const [form, setForm] = useState({
     title: '',
     tagline: '',
@@ -34,6 +36,7 @@ export default function CampaignSettingsPage() {
     donation_button_size: 'default' as 'default' | 'large',
     countdown_end: '',
     show_timer: true,
+    show_bricks: true,
     whatsapp_phone: '',
     whatsapp_message: '',
     thanks_title: '',
@@ -48,6 +51,7 @@ export default function CampaignSettingsPage() {
       const { data } = await supabase.from('campaigns').select('*').eq('id', id).single()
       if (data) {
         setStatus(data.status || 'draft')
+        setBricks(data.settings?.bricks?.total > 0 ? data.settings.bricks : null)
         setForm({
           title: data.title || '',
           tagline: data.settings?.tagline || '',
@@ -62,6 +66,7 @@ export default function CampaignSettingsPage() {
           donation_button_size: data.settings?.donation_button_size || 'default',
           countdown_end: data.settings?.countdown_end || '',
           show_timer: data.settings?.show_timer !== false,
+          show_bricks: data.settings?.show_bricks !== false,
           whatsapp_phone: data.settings?.whatsapp_phone || '',
           whatsapp_message: data.settings?.whatsapp_message || '',
           thanks_title: data.settings?.thanks?.title || '',
@@ -113,6 +118,7 @@ export default function CampaignSettingsPage() {
         donation_button_size: form.donation_button_size,
         countdown_end: form.countdown_end || null,
         show_timer: form.show_timer,
+        show_bricks: form.show_bricks,
         whatsapp_phone: form.whatsapp_phone || null,
         whatsapp_message: form.whatsapp_message || null,
         thanks: {
@@ -268,6 +274,24 @@ export default function CampaignSettingsPage() {
             )}
           </CardContent>
         </Card>
+
+        {/* ── מוצר מיוחד (קיר לבנים) — מוצג רק אם הוגדר לקמפיין ── */}
+        {bricks && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">מוצר מיוחד — קיר לבנים</CardTitle>
+              <p className="text-xs text-gray-400 mt-1">
+                לקמפיין זה הוגדר קיר לבנים ({bricks.total} לבנים · ₪{Number(bricks.price || 0).toLocaleString('he-IL')} ללבנה). אפשר לכבות/להדליק את התצוגה בדף הציבורי.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <label className="flex items-center gap-2 cursor-pointer bg-gray-50 border border-gray-100 rounded-xl px-3 py-2.5">
+                <input type="checkbox" checked={form.show_bricks} onChange={(e) => setForm(prev => ({ ...prev, show_bricks: e.target.checked }))} className="w-4 h-4 accent-blue-600" />
+                <span className="text-sm text-gray-700">הצג את קיר הלבנים בדף הציבורי</span>
+              </label>
+            </CardContent>
+          </Card>
+        )}
 
         {/* ── נדרים פלוס ── */}
         <Card>
