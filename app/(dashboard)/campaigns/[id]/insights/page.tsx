@@ -28,7 +28,14 @@ export default async function InsightsPage({ params }: { params: Promise<{ id: s
   const videoPlays = uniq('video_play')
   const opened = uniq('donate_open')
   const payment = uniq('donate_payment')
-  const completed = uniq('donate_complete')
+  // "Completed" comes from the REAL donations (source of truth) — the browser
+  // 'donate_complete' event is unreliable because most donors never land back on
+  // /thanks (webhook records it; Bit/mobile especially never return). Cap at the
+  // reached-payment count so the funnel stays visually monotonic.
+  const { count: donationCount } = await admin
+    .from('donations').select('*', { count: 'exact', head: true })
+    .eq('campaign_id', id).eq('payment_status', 'completed')
+  const completed = donationCount ?? 0
   const pct = (n: number, of: number) => (of > 0 ? Math.round((n / of) * 100) : 0)
 
   // gate=true → counts toward the strict drop-off chain. The video step is optional
