@@ -657,7 +657,13 @@ export default function DonationModal({
                 })()}
               </button>
 
-              {!form.anonymous && finalAmount > 0 && !detailsValid && (
+              {finalAmount <= 0 && (
+                <p className="text-center text-base font-black text-red-500 -mt-1">
+                  {en ? 'Please enter a donation amount' : 'נא להזין סכום תרומה'}
+                </p>
+              )}
+
+              {finalAmount > 0 && !form.anonymous && !detailsValid && (
                 <p className="text-center text-xs text-amber-600 -mt-1">
                   {T.fillRequired}
                 </p>
