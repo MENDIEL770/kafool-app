@@ -53,8 +53,9 @@ const PAYMENT_METHODS = [
   { value: 'credit', label: 'אשראי' },
   { value: 'bit', label: 'ביט' },
   { value: 'transfer', label: 'העברה' },
+  { value: 'cash', label: 'מזומן' },
 ] as const
-const METHOD_LABEL: Record<string, string> = { credit: 'אשראי', bit: 'ביט', transfer: 'העברה' }
+const METHOD_LABEL: Record<string, string> = { credit: 'אשראי', bit: 'ביט', transfer: 'העברה', cash: 'מזומן' }
 function donationMethod(d: { custom_data?: Record<string, string> | null; kesher_transaction_id?: string | null }): string | null {
   const m = d.custom_data?.payment_method
   if (m && METHOD_LABEL[m]) return METHOD_LABEL[m]
