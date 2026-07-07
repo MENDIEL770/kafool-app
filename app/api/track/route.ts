@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createAdmin } from '@supabase/supabase-js'
+import { rateLimit, clientIp } from '@/lib/rate-limit'
 
 export const dynamic = 'force-dynamic'
 
@@ -9,6 +10,11 @@ const VALID = new Set(['view', 'video_play', 'donate_open', 'donate_payment', 'd
 
 export async function POST(req: NextRequest) {
   try {
+    // A visit fires several events; 200/min per IP is well above real usage and
+    // stops a scripted flood from bloating the analytics table.
+    if (!rateLimit(`track:${clientIp(req)}`, 200, 60_000)) {
+      return NextResponse.json({ ok: false }, { status: 429 })
+    }
     const { campaign_id, session_id, event, step, meta } = await req.json().catch(() => ({}))
     if (!campaign_id || !session_id || !VALID.has(event)) return NextResponse.json({ ok: false }, { status: 400 })
     const admin = createAdmin(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)

@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { webhookAuthorized } from '@/lib/webhook-auth'
 
 // KesherStatus codes = success
 const SUCCESS_CODES = [4, 11]
@@ -114,6 +115,10 @@ async function logAndHandle(body: Record<string, unknown>, ip: string, method: s
 }
 
 export async function POST(req: NextRequest) {
+  if (!webhookAuthorized(req)) {
+    console.warn('Kesher webhook: rejected — bad/missing secret')
+    return NextResponse.json({ ok: true })
+  }
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
   let body: Record<string, unknown> = {}
   try {
@@ -130,9 +135,14 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   if (searchParams.size === 0) return NextResponse.json({ ok: true, service: 'kafool-kesher-webhook' })
+  if (!webhookAuthorized(req)) {
+    console.warn('Kesher webhook (GET): rejected — bad/missing secret')
+    return NextResponse.json({ ok: true })
+  }
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
   const body: Record<string, unknown> = {}
-  searchParams.forEach((value, key) => { body[key] = value })
+  // `key` is our auth secret, not part of the provider's payload — exclude it.
+  searchParams.forEach((value, key) => { if (key !== 'key') body[key] = value })
   await logAndHandle(body, ip, 'GET')
   return NextResponse.json({ ok: true })
 }

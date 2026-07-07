@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { recomputeCampaignRaised, attachCustomData } from '@/lib/donations'
+import { webhookAuthorized } from '@/lib/webhook-auth'
 
 /**
  * Nedarim Plus server callback (CallBack).
@@ -147,6 +148,10 @@ async function handle(body: Record<string, unknown>, ip: string): Promise<string
 }
 
 export async function POST(req: NextRequest) {
+  if (!webhookAuthorized(req)) {
+    console.warn('Nedarim webhook: rejected — bad/missing secret')
+    return NextResponse.json({ ok: true })
+  }
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
   let body: Record<string, unknown> = {}
   try {

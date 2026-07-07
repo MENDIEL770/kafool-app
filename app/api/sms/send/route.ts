@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdmin } from '@supabase/supabase-js'
 import { sendYemotSmsBulk } from '@/lib/sms/yemot'
+import { rateLimit } from '@/lib/rate-limit'
 
 /**
  * Manual SMS blast to an arbitrary list of phone numbers (from the SMS page).
@@ -14,6 +15,11 @@ export async function POST(req: NextRequest) {
 
   const { data: profile } = await supabase.from('profiles').select('org_id').eq('id', user.id).single()
   if (!profile?.org_id) return NextResponse.json({ error: 'אין ארגון משויך' }, { status: 403 })
+
+  // Throttle SMS blasts so a compromised session can't burn the Yemot credit.
+  if (!rateLimit(`sms:${user.id}`, 12, 60_000)) {
+    return NextResponse.json({ error: 'יותר מדי בקשות. נסו שוב בעוד דקה.' }, { status: 429 })
+  }
 
   const { phones, message } = await req.json()
   if (!Array.isArray(phones) || phones.length === 0 || !message?.trim()) {

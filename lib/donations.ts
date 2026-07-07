@@ -43,15 +43,19 @@ export async function attachCustomData(
       .limit(50)
 
     const wantPhone = normPhone(args.phone)
-    const match = (intents || []).find(i => {
+    const strongMatch = (intents || []).find(i => {
       const phoneOk = wantPhone && normPhone(i.phone as string) === wantPhone
       const amountOk = Math.round(Number(i.amount) || 0) === Math.round(args.amount)
       return phoneOk && amountOk
-    }) || (intents || []).find(i => Math.round(Number(i.amount) || 0) === Math.round(args.amount))
+    })
+    const match = strongMatch || (intents || []).find(i => Math.round(Number(i.amount) || 0) === Math.round(args.amount))
 
     if (match) {
       if (match.custom_data) await supabase.from('donations').update({ custom_data: match.custom_data }).eq('id', args.donationId)
-      intentTemplate = (match.email_template as typeof intentTemplate) || null
+      // Only trust the intent's email template on a STRONG (phone+amount) match.
+      // An amount-only match could be a different donor's planted intent, so we
+      // fall back to the campaign's server-side template resolution instead.
+      intentTemplate = strongMatch ? ((match.email_template as typeof intentTemplate) || null) : null
       await supabase.from('donation_intents').delete().eq('id', match.id)
     }
   } catch (e) {

@@ -41,6 +41,15 @@ export async function proxy(request: NextRequest) {
     }
   }
 
+  // Super-admin area requires the super_admin role, not merely being logged in.
+  // (Defense-in-depth alongside the per-route role checks.)
+  if (path.startsWith('/super-admin') && user) {
+    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+    if (profile?.role !== 'super_admin') {
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
+  }
+
   // Redirect logged-in users away from auth pages
   if ((path === '/login' || path === '/register') && user) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
