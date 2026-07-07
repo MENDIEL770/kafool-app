@@ -634,7 +634,7 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
                   }}
                 >
                   {image_url ? (
-                    <img src={image_url} alt={label || `₪${amount}`} className="w-full h-full object-cover" />
+                    <img src={image_url} alt={label || `₪${amount}`} className="w-full h-full object-cover" loading="lazy" decoding="async" />
                   ) : (
                     <div
                       className="w-full h-full flex flex-col items-center justify-center text-center px-2"
@@ -1600,7 +1600,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
                   style={{ backgroundColor: `${primaryColor}1A`, color: primaryColor }}
                 >
                   {activeGroup.image_url
-                    ? <img src={activeGroup.image_url} alt="" className="w-full h-full object-cover" />
+                    ? <img src={activeGroup.image_url} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" />
                     : (activeGroup.name || 'ק')[0]}
                 </div>
                 <div className="min-w-0">

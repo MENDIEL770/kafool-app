@@ -49,9 +49,12 @@ export async function compressImage(file: File, maxDim = 1920, quality = 0.85): 
  * Returns the public URL. Throws on error.
  */
 export async function uploadImage(file: File, path: string): Promise<string> {
-  let toSend = file
+  // Always downscale to a web-friendly size (compressImage is a no-op for small /
+  // vector / animated files) — previously images up to 10MB were uploaded as-is,
+  // so donors downloaded full-resolution photos. 1920px @ 0.82 is plenty for web.
+  let toSend = await compressImage(file, 1920, 0.82)
   if (toSend.size > MAX_UPLOAD_BYTES) {
-    toSend = await compressImage(file, 2560, 0.85)
+    toSend = await compressImage(file, 1600, 0.78)
     if (toSend.size > MAX_UPLOAD_BYTES) {
       throw new Error('הקובץ גדול מ-10MB גם אחרי כיווץ. נסו קובץ קטן יותר.')
     }
