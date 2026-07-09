@@ -504,7 +504,7 @@ export default function CampaignSettingsPage() {
                 ? 'הקמפיין פעיל ודף הגיוס פתוח לתרומות. עצירה תסתיר את הדף הציבורי.'
                 : 'הקמפיין אינו פעיל. הפעלה תפתח את דף הגיוס לתרומות.'}
             </p>
-            <CampaignStatusToggle campaignId={id} currentStatus={status} />
+            <CampaignStatusToggle campaignId={id} currentStatus={status} onStatusChange={setStatus} />
           </CardContent>
         </Card>
       )}
