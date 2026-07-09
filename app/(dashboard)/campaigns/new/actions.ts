@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { getContext } from '@/lib/tenancy'
 import { redirect } from 'next/navigation'
 
 export async function createCampaign(formData: {
@@ -17,18 +18,18 @@ export async function createCampaign(formData: {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'לא מחובר' }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('org_id')
-    .eq('id', user.id)
-    .single()
-
-  if (!profile?.org_id) return { error: 'לא נמצא ארגון' }
+  // Scope to the org currently in context — for a super admin that's the org
+  // they've "entered" (kf_org cookie), NOT their own profile.org_id. Using the
+  // latter created campaigns under the wrong org (invisible in the entered org).
+  const ctx = await getContext(supabase)
+  if (!ctx.orgId) {
+    return { error: ctx.isSuperAdmin ? 'לא נבחר ארגון — היכנס לארגון תחילה' : 'לא נמצא ארגון' }
+  }
 
   const { data, error } = await supabase
     .from('campaigns')
     .insert({
-      org_id: profile.org_id,
+      org_id: ctx.orgId,
       title: formData.title,
       slug: formData.slug,
       description: formData.description || null,
