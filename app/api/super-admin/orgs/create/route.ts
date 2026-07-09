@@ -35,7 +35,9 @@ export async function POST(req: NextRequest) {
   // Create org
   const { data: org, error: orgError } = await adminClient
     .from('organizations')
-    .insert({ name: orgName, slug, status: ownerEmail ? 'pending' : 'active', has_fundraising: true })
+    // payment_provider is NOT-NULL in the DB — default to the main provider;
+    // the org can switch it later in payment settings.
+    .insert({ name: orgName, slug, status: ownerEmail ? 'pending' : 'active', has_fundraising: true, payment_provider: 'kesher' })
     .select()
     .single()
 
