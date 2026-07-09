@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { getContext } from '@/lib/tenancy'
 import { redirect } from 'next/navigation'
 
@@ -26,7 +26,13 @@ export async function createCampaign(formData: {
     return { error: ctx.isSuperAdmin ? 'לא נבחר ארגון — היכנס לארגון תחילה' : 'לא נמצא ארגון' }
   }
 
-  const { data, error } = await supabase
+  // A super admin creates campaigns in an org that isn't their own, which the
+  // user-session client's RLS forbids. Once getContext has confirmed the
+  // super_admin role, use the service-role client for the insert. A regular
+  // admin stays on the RLS-enforced client (ctx.orgId is their own org).
+  const db = ctx.isSuperAdmin ? await createServiceClient() : supabase
+
+  const { data, error } = await db
     .from('campaigns')
     .insert({
       org_id: ctx.orgId,
