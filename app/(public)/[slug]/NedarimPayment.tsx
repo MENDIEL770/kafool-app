@@ -10,7 +10,10 @@ import { useEffect, useRef, useState } from 'react'
 // On success Nedarim also POSTs its server CallBack to our webhook, which is
 // what actually records the donation (routed by Param1 = campaign id).
 const NEDARIM_IFRAME = 'https://www.matara.pro/nedarimplus/iframe'
-const CALLBACK_URL = 'https://www.kafool.com/api/webhooks/nedarim'
+// If the webhook shared-secret is configured, include it so Nedarim's server
+// callback passes the auth gate. No-op until NEXT_PUBLIC_WEBHOOK_KEY is set.
+const WEBHOOK_KEY = process.env.NEXT_PUBLIC_WEBHOOK_KEY || ''
+const CALLBACK_URL = `https://www.kafool.com/api/webhooks/nedarim${WEBHOOK_KEY ? `?key=${WEBHOOK_KEY}` : ''}`
 
 interface Props {
   mosad: string
@@ -75,7 +78,9 @@ export default function NedarimPayment({
                 body: JSON.stringify({ campaignId, groupSlug, amount, isHok, months: tashlumim, donor, comment, transactionId }),
               })
             } catch { /* webhook will still record if configured */ }
-            window.location.href = `/${slug}/thanks`
+            // Pass the transaction id so the thank-you page verifies the payment
+            // actually landed before congratulating.
+            window.location.href = `/${slug}/thanks?tx=${encodeURIComponent(transactionId)}`
           })()
         } else {
           setStatus('error')

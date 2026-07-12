@@ -35,6 +35,9 @@ export default async function ThanksPage({
   const logoUrl = (campaign as { logo_url?: string | null }).logo_url || org.logo_url || null
   const receiptUrl = sp.receiptLink || sp.receipturl || sp.receipt_url || sp.receiptUrl || null
   const transactionNumber = sp.transactionNumber || sp.NumTransaction || null
+  // Nedarim passes ?tx=; Kesher passes transactionNumber. Either way this is the
+  // id the thank-you page verifies actually recorded a completed donation.
+  const pendingTx = transactionNumber || sp.tx || null
 
   // קשר שולח total באגורות (100 = ₪1)
   const totalAgorot = Number(sp.total ?? sp.Sum ?? 0)
@@ -114,6 +117,22 @@ export default async function ThanksPage({
     }
   }
 
+  // Has a completed donation for this transaction already landed? If so the
+  // client can congratulate immediately; otherwise it polls (shows a spinner).
+  let initiallyConfirmed = false
+  if (pendingTx) {
+    const { createServiceClient } = await import('@/lib/supabase/server')
+    const svc = await createServiceClient()
+    const { data: existingDon } = await svc
+      .from('donations')
+      .select('id')
+      .eq('campaign_id', campaign.id)
+      .eq('kesher_transaction_id', pendingTx)
+      .eq('payment_status', 'completed')
+      .maybeSingle()
+    initiallyConfirmed = !!existingDon
+  }
+
   return (
     <ThanksClient
       slug={slug}
@@ -123,6 +142,8 @@ export default async function ThanksPage({
       primaryColor={primaryColor}
       receiptUrl={receiptUrl}
       transactionNumber={transactionNumber}
+      pendingTx={pendingTx}
+      initiallyConfirmed={initiallyConfirmed}
       logoUrl={logoUrl}
       thanksTitle={thanks?.title || null}
       thanksMessage={thanks?.message || null}
