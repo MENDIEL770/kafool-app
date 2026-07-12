@@ -53,14 +53,21 @@ export default function NedarimPayment({
       }
       if (d.Name === 'TransactionResponse') {
         const v = d.Value || {}
-        const ok =
-          String(v.Status ?? v.status ?? '').toLowerCase() === 'ok' ||
-          !!(v.Confirmation || v.ConfirmationNumber || v.TransactionId)
+        // STRICT success: Nedarim must explicitly report OK/Success AND return a
+        // real transaction/approval id. A declined charge can still carry a
+        // TransactionId, so presence-of-id alone is NOT success — otherwise the
+        // donor gets a thank-you for a payment that never went through. Never
+        // fabricate an id: no real id ⇒ treat as failure.
+        const statusStr = String(v.Status ?? v.status ?? '').trim().toLowerCase()
+        const realTxnId = String(v.TransactionId || v.Confirmation || v.ConfirmationNumber || v.Asmachta || '').trim()
+        const explicitOk = statusStr === 'ok' || statusStr === 'success' || statusStr === 'true'
+        const explicitFail = statusStr !== '' && !explicitOk // any other non-empty status = failure/decline
+        const ok = !explicitFail && !!realTxnId
         if (ok) {
           // Record the donation from the client as a reliable backstop to the
           // server CallBack (idempotent — both dedupe on the transaction id),
           // then show the thank-you page.
-          const transactionId = String(v.TransactionId || v.Confirmation || v.ConfirmationNumber || v.Asmachta || `${campaignId}-${Date.now()}`)
+          const transactionId = realTxnId
           ;(async () => {
             try {
               await fetch('/api/donations/nedarim-record', {
