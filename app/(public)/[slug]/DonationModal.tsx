@@ -694,10 +694,18 @@ export default function DonationModal({
             return (
               <div className="flex flex-col">
                 {paymentMethod === 'bit' && (
-                  <div className="mx-4 mt-1 mb-2 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2.5 text-[13px] leading-snug text-amber-800">
-                    💬 {en
-                      ? 'Paying with Bit: after you confirm here, you\'ll get an SMS with a Bit link — open it to complete your donation. The donation is recorded once the Bit payment goes through.'
-                      : 'תשלום בביט: לאחר האישור כאן יישלח אליכם קישור ב-SMS — יש להיכנס אליו כדי להשלים את התרומה בביט. התרומה תיקלט אצלנו אוטומטית לאחר ביצוע התשלום.'}
+                  <div className="mx-4 mt-2 mb-3 rounded-2xl px-4 py-4 text-center shadow-md" style={{ backgroundColor: '#0A2E36', color: '#fff' }}>
+                    <div className="flex items-center justify-center gap-2 mb-2.5">
+                      <BitLogo className="w-8 h-8 rounded" />
+                      <span className="text-lg font-black" style={{ color: '#37E5E0' }}>{en ? 'Paying with Bit' : 'תשלום בביט'}</span>
+                    </div>
+                    <p className="text-lg sm:text-xl font-black leading-snug">
+                      {en ? '📲 An SMS with a Bit payment link will be sent to you' : '📲 יישלח אליך SMS עם קישור לתשלום בביט'}
+                    </p>
+                    <div className="mt-3 space-y-1.5 text-base font-bold leading-relaxed" style={{ color: '#d7fbfa' }}>
+                      <p>{en ? '① Switch to the Bit app and complete the payment there' : '① יש לעבור לאפליקציית ביט ולבצע שם את התשלום'}</p>
+                      <p>{en ? '② Once paid, your donation is recorded on the site' : '② לאחר התשלום — התרומה תיכנס בפועל לאתר ✓'}</p>
+                    </div>
                   </div>
                 )}
                 {/* taller + scrollable so the provider's buttons are always reachable on mobile */}
