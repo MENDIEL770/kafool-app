@@ -694,7 +694,7 @@ export default function DonationModal({
             return (
               <div className="flex flex-col">
                 {paymentMethod === 'bit' && (
-                  <div className="mx-4 mt-2 mb-3 rounded-2xl px-4 py-4 text-center shadow-md" style={{ backgroundColor: '#0A2E36', color: '#fff' }}>
+                  <div className="mx-4 mt-2 mb-3 rounded-2xl px-4 py-4 text-center shadow-md sticky top-0 z-20" style={{ backgroundColor: '#0A2E36', color: '#fff' }}>
                     <div className="flex justify-center mb-3">
                       <div className="bg-white rounded-xl p-2 shadow-sm">
                         <BitLogo className="w-12 h-12 rounded-lg" />
