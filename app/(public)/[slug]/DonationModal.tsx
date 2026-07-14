@@ -695,12 +695,13 @@ export default function DonationModal({
               <div className="flex flex-col">
                 {paymentMethod === 'bit' && (
                   <div className="mx-4 mt-2 mb-3 rounded-2xl px-4 py-4 text-center shadow-md" style={{ backgroundColor: '#0A2E36', color: '#fff' }}>
-                    <div className="flex items-center justify-center gap-2 mb-2.5">
-                      <BitLogo className="w-8 h-8 rounded" />
-                      <span className="text-lg font-black" style={{ color: '#37E5E0' }}>{en ? 'Paying with Bit' : 'תשלום בביט'}</span>
+                    <div className="flex justify-center mb-3">
+                      <div className="bg-white rounded-xl p-2 shadow-sm">
+                        <BitLogo className="w-12 h-12 rounded-lg" />
+                      </div>
                     </div>
                     <p className="text-xl sm:text-2xl font-black leading-snug">
-                      {en ? '📲 A payment link will be sent to you by SMS' : '📲 קישור לתשלום יישלח אליך ב-SMS'}
+                      {en ? 'A payment link will be sent to you by SMS' : 'קישור לתשלום יישלח אליך ב-SMS'}
                     </p>
                     <p className="mt-2.5 text-lg sm:text-xl font-black leading-relaxed" style={{ color: '#37E5E0' }}>
                       {en
