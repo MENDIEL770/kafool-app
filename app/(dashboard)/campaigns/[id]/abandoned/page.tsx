@@ -51,7 +51,7 @@ export default async function AbandonedPage({ params }: { params: Promise<{ id: 
       amount: Math.round(Number(it.amount) || 0),
       group: it.group_slug || '',
       when: timeAgo(it.created_at),
-      inProgress: ageMin < 30,       // may still complete
+      inProgress: ageMin < 5,        // may still complete
       notified: !!cd.__notified,     // manager was SMSed
       emailed: !!cd.__emailed,       // donor recovery email sent
     }
@@ -81,7 +81,7 @@ export default async function AbandonedPage({ params }: { params: Promise<{ id: 
         </div>
         <div className="bg-white rounded-2xl border border-gray-100 p-4">
           <div className="text-2xl font-black text-gray-900">{rows.filter(r => r.inProgress).length}</div>
-          <div className="text-xs text-gray-500 mt-0.5">אולי עדיין בתהליך (30 דק׳)</div>
+          <div className="text-xs text-gray-500 mt-0.5">אולי עדיין בתהליך (5 דק׳)</div>
         </div>
       </div>
 

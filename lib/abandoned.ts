@@ -10,7 +10,7 @@ import { sendPlusEmail } from './email'
 //   • email the donor a gentle "your donation didn't complete" with a link back.
 // The lead is kept either way.
 
-const ABANDON_MINUTES = 30   // wait this long before treating an intent as abandoned
+const ABANDON_MINUTES = 5    // wait this long before treating an intent as abandoned
 const WINDOW_HOURS = 24      // don't look back further than this
 
 const METHOD_LABEL: Record<string, string> = {

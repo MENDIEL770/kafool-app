@@ -376,7 +376,7 @@ export default function CampaignSettingsPage() {
               dir="ltr"
               placeholder="0501234567"
             />
-            <p className="text-[11px] text-gray-400">השאר ריק כדי לא לקבל התראות. ההתראה נשלחת כ-30 דקות לאחר שהתרומה לא הושלמה.</p>
+            <p className="text-[11px] text-gray-400">השאר ריק כדי לא לקבל התראות. ההתראה נשלחת כ-5 דקות לאחר שהתרומה לא הושלמה.</p>
           </CardContent>
         </Card>
 
