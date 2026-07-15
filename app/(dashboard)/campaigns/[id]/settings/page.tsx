@@ -39,6 +39,7 @@ export default function CampaignSettingsPage() {
     show_bricks: true,
     whatsapp_phone: '',
     whatsapp_message: '',
+    manager_phone: '',
     thanks_title: '',
     thanks_message: '',
     logo_url: '',
@@ -69,6 +70,7 @@ export default function CampaignSettingsPage() {
           show_bricks: data.settings?.show_bricks !== false,
           whatsapp_phone: data.settings?.whatsapp_phone || '',
           whatsapp_message: data.settings?.whatsapp_message || '',
+          manager_phone: data.settings?.manager_phone || '',
           thanks_title: data.settings?.thanks?.title || '',
           thanks_message: data.settings?.thanks?.message || '',
           logo_url: data.logo_url || '',
@@ -121,6 +123,7 @@ export default function CampaignSettingsPage() {
         show_bricks: form.show_bricks,
         whatsapp_phone: form.whatsapp_phone || null,
         whatsapp_message: form.whatsapp_message || null,
+        manager_phone: form.manager_phone || null,
         thanks: {
           title: form.thanks_title.trim() || null,
           message: form.thanks_message.trim() || null,
@@ -351,6 +354,29 @@ export default function CampaignSettingsPage() {
                 <span className="text-base"></span> בדוק את הקישור
               </a>
             )}
+          </CardContent>
+        </Card>
+
+        {/* התראות למנהל על תרומות שלא הושלמו */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <span className="text-lg">🔔</span> התראות למנהל — תרומות שלא הושלמו
+            </CardTitle>
+            <p className="text-xs text-gray-400 mt-1">
+              כשתורם ממלא פרטים ובוחר אמצעי תשלום אך לא משלים את התרומה, יישלח אליך SMS עם שם התורם, אמצעי התשלום, הסכום ומספר טלפון לחזרה. הליד יישמר במערכת.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-1">
+            <Label>מספר טלפון לקבלת התראות</Label>
+            <Input
+              type="tel"
+              value={form.manager_phone}
+              onChange={(e) => set('manager_phone', e.target.value.replace(/\s/g, ''))}
+              dir="ltr"
+              placeholder="0501234567"
+            />
+            <p className="text-[11px] text-gray-400">השאר ריק כדי לא לקבל התראות. ההתראה נשלחת כ-30 דקות לאחר שהתרומה לא הושלמה.</p>
           </CardContent>
         </Card>
 

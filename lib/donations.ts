@@ -51,7 +51,14 @@ export async function attachCustomData(
     const match = strongMatch || (intents || []).find(i => Math.round(Number(i.amount) || 0) === Math.round(args.amount))
 
     if (match) {
-      if (match.custom_data) await supabase.from('donations').update({ custom_data: match.custom_data }).eq('id', args.donationId)
+      if (match.custom_data) {
+        // Drop reserved internal keys (__name / __method / __notified) — they're
+        // for the abandoned-donation flow, not part of the donor's real data.
+        const clean = Object.fromEntries(
+          Object.entries(match.custom_data as Record<string, unknown>).filter(([k]) => !k.startsWith('__'))
+        )
+        await supabase.from('donations').update({ custom_data: clean }).eq('id', args.donationId)
+      }
       // Only trust the intent's email template on a STRONG (phone+amount) match.
       // An amount-only match could be a different donor's planted intent, so we
       // fall back to the campaign's server-side template resolution instead.

@@ -240,7 +240,11 @@ export default function DonationModal({
       const emailTemplate = (btnE?.enabled === true && hasContent(btnE)) ? btnE
         : (formE && formE.enabled !== false && hasContent(formE)) ? formE
         : null
-      if (Object.keys(labeled).length || emailTemplate) {
+      // Always record the intent (the "lead") when a donor reaches payment — so
+      // an abandoned donation can be detected and the manager notified — carrying
+      // the donor name + chosen method for that SMS.
+      if (finalAmount > 0) {
+        const donorName = [form.firstName, form.lastName].filter(Boolean).join(' ') || null
         fetch('/api/donations/intent', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -250,6 +254,8 @@ export default function DonationModal({
             amount: finalAmount,
             groupSlug: selectedGroupSlug || null,
             customData: labeled,
+            donorName,
+            paymentMethod,
             donorEmail: form.email || null,
             emailTemplate,
           }),

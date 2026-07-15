@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { rateLimit, clientIp } from '@/lib/rate-limit'
+import { notifyAbandonedIntents } from '@/lib/abandoned'
 
 // Keep only known, string-ish fields and cap their length, so a public caller
 // can't plant a huge or hostile email payload that we'd later send verbatim.
@@ -40,6 +41,14 @@ export async function POST(req: NextRequest) {
   const groupSlug = body.groupSlug ? String(body.groupSlug) : null
   const donorEmail = body.donorEmail ? String(body.donorEmail) : null
   const emailTemplate = sanitizeTemplate(body.emailTemplate)
+  // Donor name + chosen payment method, stashed on the intent under reserved
+  // keys (stripped before attaching to a real donation). Used for the abandoned-
+  // donation SMS to the campaign manager.
+  const donorName = body.donorName ? String(body.donorName).slice(0, 120) : null
+  const paymentMethod = body.paymentMethod ? String(body.paymentMethod).slice(0, 20) : null
+  const storedCustom: Record<string, unknown> = { ...customData }
+  if (donorName) storedCustom.__name = donorName
+  if (paymentMethod) storedCustom.__method = paymentMethod
 
   try {
     const supabase = await createServiceClient()
@@ -48,10 +57,14 @@ export async function POST(req: NextRequest) {
       group_slug: groupSlug,
       phone,
       amount,
-      custom_data: customData,
+      custom_data: storedCustom,
       donor_email: donorEmail,
       email_template: emailTemplate,
     })
+    // Opportunistic sweep: this new payment attempt is a good moment to check
+    // whether EARLIER intents were abandoned and notify the manager. Bounded and
+    // best-effort; never blocks the donor (who has already left for payment).
+    await notifyAbandonedIntents(supabase, campaignId).catch(() => {})
   } catch (e) {
     console.error('donation intent error:', e)
   }
