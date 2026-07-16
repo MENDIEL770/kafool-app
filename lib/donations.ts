@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { sendThankYouEmail } from './email'
+import { sendWhatsAppTemplate } from './whatsapp'
 
 // A campaign's raised_amount is always defined as the sum of its COMPLETED
 // donations — never an incremental add/subtract. This keeps the total drift-free
@@ -69,23 +70,34 @@ export async function attachCustomData(
     console.error('attachCustomData error:', e)
   }
 
-  // Thank-you email. Send when: the intent carried a content override (per-form /
-  // per-button content) → use it; else this button opted-in via its checkbox → use
-  // its content, or the default content; else the master default email is enabled.
+  // Thank-you notifications after a confirmed donation.
   try {
-    if (!args.donorEmail) return
     const { data: c } = await supabase.from('campaigns').select('settings, title').eq('id', args.campaignId).single()
-    type Tpl = { enabled?: boolean; subject?: string; body?: string; image?: string }
-    const s = (c?.settings as { thank_you_email?: Tpl; button_emails?: Record<string, Tpl> } | null) || {}
-    const def = s.thank_you_email || {}
-    const hasContent = (t?: Tpl) => !!(t && (t.subject || t.body || t.image))
-    let tpl: Tpl | null = intentTemplate
-    if (!tpl) {
-      const btnE = s.button_emails?.[String(Math.round(args.amount))]
-      if (btnE?.enabled === true) tpl = hasContent(btnE) ? btnE : (hasContent(def) ? def : {})
-      else if (def.enabled) tpl = def
+    const campaignTitle = c?.title || ''
+
+    // WhatsApp thank-you (Meta Cloud API) — sent when configured + we have a phone.
+    // Template body should take {{1}} = campaign name, {{2}} = amount.
+    const waTemplate = process.env.WHATSAPP_THANKS_TEMPLATE
+    if (waTemplate && args.phone) {
+      await sendWhatsAppTemplate(args.phone, waTemplate, [campaignTitle, `₪${Math.round(args.amount)}`])
     }
-    if (tpl) await sendThankYouEmail(args.donorEmail, tpl, c?.title || '')
+
+    // Thank-you email. Send when: the intent carried a content override (per-form /
+    // per-button content) → use it; else this button opted-in via its checkbox → use
+    // its content, or the default content; else the master default email is enabled.
+    if (args.donorEmail) {
+      type Tpl = { enabled?: boolean; subject?: string; body?: string; image?: string }
+      const s = (c?.settings as { thank_you_email?: Tpl; button_emails?: Record<string, Tpl> } | null) || {}
+      const def = s.thank_you_email || {}
+      const hasContent = (t?: Tpl) => !!(t && (t.subject || t.body || t.image))
+      let tpl: Tpl | null = intentTemplate
+      if (!tpl) {
+        const btnE = s.button_emails?.[String(Math.round(args.amount))]
+        if (btnE?.enabled === true) tpl = hasContent(btnE) ? btnE : (hasContent(def) ? def : {})
+        else if (def.enabled) tpl = def
+      }
+      if (tpl) await sendThankYouEmail(args.donorEmail, tpl, campaignTitle)
+    }
   } catch (e) {
     console.error('thank-you email error:', e)
   }

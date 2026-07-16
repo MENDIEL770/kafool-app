@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { sendYemotSms } from './sms/yemot'
 import { sendPlusEmail } from './email'
+import { sendWhatsAppTemplate } from './whatsapp'
 
 // A donor who filled in details and reached the payment step leaves a
 // donation_intents row (the "lead"). When the payment completes, the callback
@@ -109,9 +110,11 @@ export async function notifyAbandonedIntents(supabase: SupabaseClient, campaignI
     .gt('created_at', floorIso)
     .order('created_at', { ascending: true })
     .limit(100)
+  const waTemplate = process.env.WHATSAPP_ABANDON_TEMPLATE
   const pending = (intents || []).filter(i => {
     const cd = (i.custom_data || {}) as Record<string, unknown>
-    return !(cd.__notified && cd.__emailed) // still needs at least one channel
+    // still needs at least one channel (manager SMS / donor email / donor WhatsApp)
+    return !(cd.__notified && cd.__emailed && (cd.__wa || !waTemplate))
   })
   if (pending.length === 0) return 0
 
@@ -175,6 +178,16 @@ export async function notifyAbandonedIntents(supabase: SupabaseClient, campaignI
         (campaignTitle ? `\n(${campaignTitle})` : '')
       const r = await sendYemotSms(apiKey, managerPhone, msg)
       if (r.success) { next.__notified = true; changed = true; sent++ }
+    }
+
+    // Donor WhatsApp reminder — once per lead (approved template; {{1}}=campaign,
+    // {{2}}=link back). No-op until WHATSAPP_ABANDON_TEMPLATE + WhatsApp are set.
+    if (!cd.__wa && waTemplate && it.phone) {
+      const link = it.group_slug
+        ? `${baseUrl()}/${camp?.slug}/g/${it.group_slug}`
+        : `${baseUrl()}/${camp?.slug}`
+      const r = await sendWhatsAppTemplate(it.phone, waTemplate, [campaignTitle, link])
+      if (r.success) { next.__wa = true; changed = true; sent++ }
     }
 
     if (changed) {
