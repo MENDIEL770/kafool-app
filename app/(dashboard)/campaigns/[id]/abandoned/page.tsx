@@ -1,6 +1,7 @@
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { Phone, MessageCircle, Mail, UserX } from 'lucide-react'
+import { intentCompleted } from '@/lib/abandoned'
 
 export const dynamic = 'force-dynamic'
 
@@ -39,7 +40,25 @@ export default async function AbandonedPage({ params }: { params: Promise<{ id: 
     .order('created_at', { ascending: false })
     .limit(500)
 
-  const rows = (intents || []).map(it => {
+  // Completed donations, to drop any intent whose donation actually landed (e.g.
+  // Bit donations that record no phone) so they never show as "abandoned".
+  const { data: completed } = await admin
+    .from('donations')
+    .select('donor_phone, donor_name, donor_email, amount, created_at')
+    .eq('campaign_id', id)
+    .eq('payment_status', 'completed')
+    .order('created_at', { ascending: false })
+    .limit(1000)
+
+  const openIntents = (intents || []).filter(it => {
+    const cd = (it.custom_data || {}) as Record<string, unknown>
+    return !intentCompleted(
+      { phone: it.phone, donor_email: it.donor_email, name: cd.__name, amount: it.amount, created_at: it.created_at },
+      completed || [],
+    )
+  })
+
+  const rows = openIntents.map(it => {
     const cd = (it.custom_data || {}) as Record<string, unknown>
     const ageMin = (Date.now() - new Date(it.created_at).getTime()) / 60000
     return {

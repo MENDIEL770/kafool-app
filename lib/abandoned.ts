@@ -22,6 +22,52 @@ function normPhone(p: string | null | undefined): string {
   return (p || '').replace(/\D/g, '').slice(-9)
 }
 
+function normName(s: unknown): string {
+  return String(s || '').replace(/\s+/g, ' ').trim().toLowerCase()
+}
+
+function normEmail(s: unknown): string {
+  return String(s || '').trim().toLowerCase()
+}
+
+export type CompletedDonation = {
+  donor_phone?: string | null
+  donor_name?: string | null
+  donor_email?: string | null
+  amount?: number | null
+  created_at: string
+}
+
+/**
+ * Has this lead actually completed? Same amount + ANY identity match
+ * (phone / email / name). Bit donations often record no phone/email, so a
+ * same-amount donation completed close in time (with no identity to compare) also
+ * counts. Shared by the sweep and the abandoned-leads dashboard so they agree.
+ */
+export function intentCompleted(
+  intent: { phone?: string | null; donor_email?: string | null; name?: unknown; amount?: number | null; created_at: string },
+  completed: CompletedDonation[],
+): boolean {
+  const wantPhone = normPhone(intent.phone)
+  const wantEmail = normEmail(intent.donor_email)
+  const wantName = normName(intent.name)
+  const wantAmount = Math.round(Number(intent.amount) || 0)
+  const intentMs = new Date(intent.created_at).getTime()
+  return completed.some(d => {
+    if (Math.round(Number(d.amount) || 0) !== wantAmount) return false
+    const dPhone = normPhone(d.donor_phone)
+    const dEmail = normEmail(d.donor_email)
+    const dName = normName(d.donor_name)
+    if (wantPhone && dPhone && dPhone === wantPhone) return true
+    if (wantEmail && dEmail && dEmail === wantEmail) return true
+    if (wantName && dName && dName === wantName) return true
+    if (!dPhone && !dEmail && !dName) {
+      return Math.abs(new Date(d.created_at).getTime() - intentMs) <= 20 * 60_000
+    }
+    return false
+  })
+}
+
 function baseUrl(): string {
   return (process.env.NEXT_PUBLIC_BASE_URL || 'https://www.kafool.com').replace(/\/$/, '')
 }
@@ -72,7 +118,7 @@ export async function notifyAbandonedIntents(supabase: SupabaseClient, campaignI
   // Completed donations in the window — to tell "completed" from "abandoned".
   const { data: dons } = await supabase
     .from('donations')
-    .select('donor_phone, amount, created_at')
+    .select('donor_phone, donor_name, donor_email, amount, created_at')
     .eq('campaign_id', campaignId)
     .eq('payment_status', 'completed')
     .gt('created_at', floorIso)
@@ -91,15 +137,13 @@ export async function notifyAbandonedIntents(supabase: SupabaseClient, campaignI
   let sent = 0
   for (const it of pending) {
     const cd = (it.custom_data || {}) as Record<string, unknown>
-    const wantPhone = normPhone(it.phone)
     const wantAmount = Math.round(Number(it.amount) || 0)
 
     // Did a matching completed donation actually land? Then it's not abandoned.
-    const matched = completed.some(d => {
-      const amountOk = Math.round(Number(d.amount) || 0) === wantAmount
-      const phoneOk = wantPhone ? normPhone(d.donor_phone) === wantPhone : true
-      return amountOk && phoneOk
-    })
+    const matched = intentCompleted(
+      { phone: it.phone, donor_email: it.donor_email, name: cd.__name, amount: it.amount, created_at: it.created_at },
+      completed,
+    )
     if (matched) {
       await supabase.from('donation_intents').delete().eq('id', it.id)
       continue
