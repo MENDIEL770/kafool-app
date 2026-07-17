@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import {
-  motion, useInView, useMotionValue, useSpring, useTransform, animate, type MotionValue,
+  motion, useInView, useMotionValue, useSpring, useTransform, useScroll,
+  useMotionTemplate, animate,
 } from 'framer-motion'
 import {
   ArrowLeft, Play, LayoutDashboard, Users, CreditCard, BarChart3,
@@ -88,16 +89,113 @@ const PARTICLES = [
 
 /* ───────────────────────── Primitives ───────────────────────── */
 
+const EASE = [0.22, 1, 0.36, 1] as const
+
 function Reveal({ children, delay = 0, y = 26 }: { children: React.ReactNode; delay?: number; y?: number }) {
   return (
     <motion.div
       initial={{ opacity: 0, y }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '-80px' }}
-      transition={{ duration: 0.75, delay, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ duration: 0.75, delay, ease: EASE }}
     >
       {children}
     </motion.div>
+  )
+}
+
+// Apple/Framer signature: each line rises out from behind a mask.
+function MaskLine({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
+  return (
+    <span className="block overflow-hidden pb-[0.12em]">
+      <motion.span
+        className="block"
+        initial={{ y: '110%' }}
+        animate={{ y: '0%' }}
+        transition={{ duration: 1.05, delay, ease: EASE }}
+      >
+        {children}
+      </motion.span>
+    </span>
+  )
+}
+
+function MaskLineInView({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
+  return (
+    <span className="block overflow-hidden pb-[0.12em]">
+      <motion.span
+        className="block"
+        initial={{ y: '110%' }}
+        whileInView={{ y: '0%' }}
+        viewport={{ once: true, margin: '-60px' }}
+        transition={{ duration: 1, delay, ease: EASE }}
+      >
+        {children}
+      </motion.span>
+    </span>
+  )
+}
+
+// Button that leans toward the cursor, then springs back.
+function Magnetic({ children, strength = 0.35 }: { children: React.ReactNode; strength?: number }) {
+  const ref = useRef<HTMLSpanElement>(null)
+  const mx = useMotionValue(0)
+  const my = useMotionValue(0)
+  const x = useSpring(mx, { stiffness: 220, damping: 18, mass: 0.4 })
+  const y = useSpring(my, { stiffness: 220, damping: 18, mass: 0.4 })
+  return (
+    <motion.span
+      ref={ref}
+      className="inline-block"
+      style={{ x, y }}
+      onMouseMove={e => {
+        const r = ref.current?.getBoundingClientRect()
+        if (!r) return
+        mx.set((e.clientX - (r.left + r.width / 2)) * strength)
+        my.set((e.clientY - (r.top + r.height / 2)) * strength)
+      }}
+      onMouseLeave={() => { mx.set(0); my.set(0) }}
+    >
+      {children}
+    </motion.span>
+  )
+}
+
+// Stripe-style: a soft light follows the cursor across the card surface.
+function SpotlightCard({
+  children, className = '', tint = BLUE,
+}: { children: React.ReactNode; className?: string; tint?: string }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const mx = useMotionValue(-200)
+  const my = useMotionValue(-200)
+  const bg = useMotionTemplate`radial-gradient(320px circle at ${mx}px ${my}px, ${tint}1f, transparent 72%)`
+  return (
+    <div
+      ref={ref}
+      onMouseMove={e => {
+        const r = ref.current?.getBoundingClientRect()
+        if (!r) return
+        mx.set(e.clientX - r.left)
+        my.set(e.clientY - r.top)
+      }}
+      onMouseLeave={() => { mx.set(-200); my.set(-200) }}
+      className={`group relative overflow-hidden ${className}`}
+    >
+      <motion.div className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-100" style={{ background: bg }} />
+      <div className="relative">{children}</div>
+    </div>
+  )
+}
+
+// Thin reading-progress line at the very top.
+function ScrollProgress() {
+  const { scrollYProgress } = useScroll()
+  const scaleX = useSpring(scrollYProgress, { stiffness: 120, damping: 28, restDelta: 0.001 })
+  return (
+    <motion.div
+      className="fixed inset-x-0 top-0 z-[60] h-[2px] origin-right"
+      style={{ scaleX, background: `linear-gradient(90deg, ${BLUE}, ${CORAL})` }}
+    />
   )
 }
 
@@ -374,52 +472,85 @@ export default function Landing({ c, logos }: { c: LandingContent; logos: string
     { Icon: Sparkles, value: c.stats_donors, label: 'תורמים פעילים', color: CORAL },
   ]
 
+  const heroRef = useRef<HTMLElement>(null)
+  const { scrollYProgress: heroP } = useScroll({ target: heroRef, offset: ['start start', 'end start'] })
+  // layered depth: copy, devices and atmosphere drift at different speeds
+  const copyY = useTransform(heroP, [0, 1], [0, 110])
+  const devY = useTransform(heroP, [0, 1], [0, -50])
+  const devScale = useTransform(heroP, [0, 1], [1, 0.9])
+  const heroFade = useTransform(heroP, [0, 0.8], [1, 0])
+
   return (
     <div dir="rtl" className="relative">
+      <ScrollProgress />
       <PremiumBackground />
 
       {/* ── HERO ── */}
-      <section className="relative px-5 pt-16 pb-24 sm:pt-24">
+      <section ref={heroRef} className="relative px-5 pt-16 pb-28 sm:pt-24">
         <div className="mx-auto grid max-w-6xl items-center gap-14 lg:grid-cols-2">
           {/* copy */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
-          >
-            <h1 className="text-[2.6rem] font-black leading-[1.08] tracking-tight sm:text-6xl" style={{ color: NAVY }}>
-              {c.hero_line1}
-              <br />
-              <span style={{ color: BLUE }}>{c.hero_line2}</span>
-              <br />
-              <span style={{ color: CORAL }}>{c.hero_line3}</span>
-            </h1>
-            <p className="mt-5 text-xl font-black" style={{ color: BLUE }}>{c.hero_sub}</p>
-            <p className="mt-4 max-w-md text-[15px] leading-relaxed text-slate-500">{c.hero_text}</p>
+          <motion.div style={{ y: copyY, opacity: heroFade }}>
+            <motion.p
+              className="mb-5 inline-flex items-center gap-1.5 rounded-full border border-white/60 bg-white/70 px-3.5 py-1.5 text-[11px] font-bold backdrop-blur-xl"
+              style={{ color: BLUE }}
+              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+            >
+              <Sparkles className="h-3 w-3" strokeWidth={2} />
+              {c.hero_sub}
+            </motion.p>
 
-            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-              <Link
-                href="/contact"
-                className="group inline-flex items-center justify-center gap-2 rounded-2xl px-7 py-4 text-[15px] font-black text-white shadow-[0_16px_36px_-10px_rgba(78,123,239,0.65)] transition-transform hover:-translate-y-0.5"
-                style={{ background: BLUE }}
-              >
-                התחל עכשיו
-                <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
-              </Link>
-              <Link
-                href="/design"
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/60 bg-white/70 px-7 py-4 text-[15px] font-bold text-slate-700 shadow-sm backdrop-blur-xl transition-transform hover:-translate-y-0.5"
-              >
-                צפה בדמו
-                <Play className="h-3.5 w-3.5" style={{ color: BLUE }} />
-              </Link>
-            </div>
+            <h1 className="text-[2.6rem] font-black leading-[1.08] tracking-tight sm:text-6xl" style={{ color: NAVY }}>
+              <MaskLine delay={0.15}>{c.hero_line1}</MaskLine>
+              <MaskLine delay={0.28}><span style={{ color: BLUE }}>{c.hero_line2}</span></MaskLine>
+              <MaskLine delay={0.41}><span style={{ color: CORAL }}>{c.hero_line3}</span></MaskLine>
+            </h1>
+
+            <motion.p
+              className="mt-5 max-w-md text-[15px] leading-relaxed text-slate-500"
+              initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.65, ease: EASE }}
+            >
+              {c.hero_text}
+            </motion.p>
+
+            <motion.div
+              className="mt-9 flex flex-col gap-3 sm:flex-row"
+              initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.8, ease: EASE }}
+            >
+              <Magnetic>
+                <Link
+                  href="/contact"
+                  className="group relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-2xl px-7 py-4 text-[15px] font-black text-white shadow-[0_16px_36px_-10px_rgba(78,123,239,0.65)] transition-shadow hover:shadow-[0_22px_50px_-10px_rgba(78,123,239,0.8)]"
+                  style={{ background: BLUE }}
+                >
+                  {/* sheen sweep */}
+                  <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-l from-transparent via-white/30 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+                  <span className="relative">התחל עכשיו</span>
+                  <ArrowLeft className="relative h-4 w-4 transition-transform duration-300 group-hover:-translate-x-1" />
+                </Link>
+              </Magnetic>
+              <Magnetic strength={0.22}>
+                <Link
+                  href="/design"
+                  className="group inline-flex items-center justify-center gap-2 rounded-2xl border border-white/60 bg-white/70 px-7 py-4 text-[15px] font-bold text-slate-700 shadow-sm backdrop-blur-xl transition-colors hover:bg-white"
+                >
+                  צפה בדמו
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full transition-transform duration-300 group-hover:scale-110" style={{ background: `${BLUE}18` }}>
+                    <Play className="h-2.5 w-2.5" style={{ color: BLUE }} />
+                  </span>
+                </Link>
+              </Magnetic>
+            </motion.div>
           </motion.div>
 
           {/* devices + live cards */}
           <motion.div
             className="relative"
-            initial={{ opacity: 0, scale: 0.94 }} animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 1, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
+            style={{ y: devY, scale: devScale }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            transition={{ duration: 1.1, delay: 0.15, ease: EASE }}
           >
             <Devices />
 
@@ -505,61 +636,100 @@ export default function Landing({ c, logos }: { c: LandingContent; logos: string
             {stats.map((s, i) => (
               <motion.div
                 key={i}
-                className="bg-white/70 p-8 text-center"
-                initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }} transition={{ duration: 0.6, delay: i * 0.1 }}
+                initial={{ opacity: 0, y: 22 }} whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }} transition={{ duration: 0.7, delay: i * 0.09, ease: EASE }}
               >
-                <s.Icon className="mx-auto mb-3 h-5 w-5" style={{ color: s.color }} strokeWidth={1.6} />
-                <div className="text-3xl font-black tracking-tight" style={{ color: s.color }}>{s.value}</div>
-                <div className="mt-1 text-xs font-medium text-slate-400">{s.label}</div>
+                <SpotlightCard className="h-full bg-white/70 transition-colors duration-500 hover:bg-white/90" tint={s.color}>
+                  <div className="p-8 text-center">
+                    <motion.div whileHover={{ scale: 1.18, rotate: -6 }} transition={{ type: 'spring', stiffness: 320, damping: 14 }}>
+                      <s.Icon className="mx-auto mb-3 h-5 w-5" style={{ color: s.color }} strokeWidth={1.6} />
+                    </motion.div>
+                    <div className="text-3xl font-black tracking-tight" style={{ color: s.color }}>
+                      <MaskLineInView delay={i * 0.09 + 0.1}>{s.value}</MaskLineInView>
+                    </div>
+                    <div className="mt-1 text-xs font-medium text-slate-400">{s.label}</div>
+                  </div>
+                </SpotlightCard>
               </motion.div>
             ))}
           </div>
         </Reveal>
       </section>
 
-      {/* ── FEATURES ── */}
-      <section className="px-5 py-24">
-        <div className="mx-auto grid max-w-6xl items-center gap-14 lg:grid-cols-2">
-          <Reveal>
-            <div className="relative overflow-hidden rounded-[28px] border bg-white/60 p-4 shadow-[0_40px_90px_-30px_rgba(16,42,86,0.35)] backdrop-blur-xl"
-              style={{ borderColor: 'rgba(255,255,255,.45)' }}>
-              <div className="overflow-hidden rounded-2xl border border-slate-100">
-                <MiniDashboard />
+      {/* ── FEATURES — the dashboard stays with you while the story scrolls ── */}
+      <section className="px-5 py-32">
+        <div className="mx-auto grid max-w-6xl items-start gap-16 lg:grid-cols-2">
+          <div className="lg:sticky lg:top-28">
+            <motion.div
+              initial={{ opacity: 0, y: 40, rotateY: 10 }}
+              whileInView={{ opacity: 1, y: 0, rotateY: 0 }}
+              viewport={{ once: true, margin: '-80px' }}
+              transition={{ duration: 1.1, ease: EASE }}
+              style={{ perspective: 1200 }}
+            >
+              <div
+                className="relative overflow-hidden rounded-[28px] border bg-white/60 p-4 shadow-[0_50px_110px_-35px_rgba(16,42,86,0.45)] backdrop-blur-xl"
+                style={{ borderColor: 'rgba(255,255,255,.45)' }}
+              >
+                <div
+                  className="pointer-events-none absolute -inset-px rounded-[28px]"
+                  style={{ background: 'linear-gradient(140deg,rgba(255,255,255,.6),transparent 40%)' }}
+                />
+                <div className="relative overflow-hidden rounded-2xl border border-slate-100">
+                  <MiniDashboard />
+                </div>
               </div>
-            </div>
-          </Reveal>
+            </motion.div>
+          </div>
 
-          <div>
-            <Reveal>
-              <p className="mb-2 text-sm font-black" style={{ color: BLUE }}>כל מה שצריך. במקום אחד.</p>
-              <h2 className="mb-9 text-3xl font-black leading-tight tracking-tight sm:text-4xl" style={{ color: NAVY }}>
-                {c.features_title}
-              </h2>
-            </Reveal>
+          <div className="lg:pt-6">
+            <p className="mb-2 overflow-hidden text-sm font-black" style={{ color: BLUE }}>
+              <MaskLineInView>כל מה שצריך. במקום אחד.</MaskLineInView>
+            </p>
+            <h2 className="mb-10 text-3xl font-black leading-[1.15] tracking-tight sm:text-[2.6rem]" style={{ color: NAVY }}>
+              <MaskLineInView delay={0.08}>{c.features_title}</MaskLineInView>
+            </h2>
+
             <div className="space-y-3">
               {FEATURES.map((f, i) => (
-                <Reveal key={i} delay={i * 0.08}>
-                  <div
-                    className="group flex items-start gap-4 rounded-2xl border bg-white/60 p-4 backdrop-blur-xl transition-all duration-300 hover:-translate-y-0.5 hover:bg-white/85 hover:shadow-[0_18px_40px_-14px_rgba(78,123,239,0.35)]"
-                    style={{ borderColor: 'rgba(255,255,255,.55)' }}
-                  >
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ background: `${BLUE}12` }}>
-                      <f.Icon className="h-[18px] w-[18px]" style={{ color: BLUE }} strokeWidth={1.7} />
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, x: 30 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true, margin: '-60px' }}
+                  transition={{ duration: 0.75, delay: i * 0.09, ease: EASE }}
+                >
+                  <SpotlightCard className="rounded-2xl border bg-white/60 backdrop-blur-xl transition-all duration-500 hover:-translate-y-1 hover:bg-white/90 hover:shadow-[0_26px_55px_-18px_rgba(78,123,239,0.42)]">
+                    <div className="flex items-start gap-4 p-5" style={{ borderColor: 'rgba(255,255,255,.55)' }}>
+                      <motion.div
+                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
+                        style={{ background: `${BLUE}12` }}
+                        whileHover={{ scale: 1.12, rotate: -8 }}
+                        transition={{ type: 'spring', stiffness: 320, damping: 14 }}
+                      >
+                        <f.Icon className="h-[18px] w-[18px]" style={{ color: BLUE }} strokeWidth={1.7} />
+                      </motion.div>
+                      <div>
+                        <h3 className="text-[15px] font-black" style={{ color: NAVY }}>{f.title}</h3>
+                        <p className="mt-0.5 text-[13px] leading-relaxed text-slate-500">{f.text}</p>
+                      </div>
+                      <ArrowLeft
+                        className="mr-auto mt-1 h-4 w-4 shrink-0 -translate-x-2 opacity-0 transition-all duration-400 group-hover:translate-x-0 group-hover:opacity-100"
+                        style={{ color: BLUE }}
+                      />
                     </div>
-                    <div>
-                      <h3 className="text-[15px] font-black" style={{ color: NAVY }}>{f.title}</h3>
-                      <p className="mt-0.5 text-[13px] text-slate-500">{f.text}</p>
-                    </div>
-                  </div>
-                </Reveal>
+                  </SpotlightCard>
+                </motion.div>
               ))}
             </div>
-            <Reveal delay={0.35}>
-              <Link href="/about" className="mt-7 inline-flex items-center gap-2 rounded-2xl border border-white/60 bg-white/70 px-6 py-3 text-sm font-bold text-slate-700 backdrop-blur-xl transition-transform hover:-translate-y-0.5">
-                כל התכונות
-                <ArrowLeft className="h-4 w-4" style={{ color: BLUE }} />
-              </Link>
+
+            <Reveal delay={0.3}>
+              <Magnetic strength={0.2}>
+                <Link href="/about" className="group mt-8 inline-flex items-center gap-2 rounded-2xl border border-white/60 bg-white/70 px-6 py-3.5 text-sm font-bold text-slate-700 backdrop-blur-xl transition-colors hover:bg-white">
+                  כל התכונות
+                  <ArrowLeft className="h-4 w-4 transition-transform duration-300 group-hover:-translate-x-1" style={{ color: BLUE }} />
+                </Link>
+              </Magnetic>
             </Reveal>
           </div>
         </div>
@@ -573,18 +743,38 @@ export default function Landing({ c, logos }: { c: LandingContent; logos: string
             style={{ background: `linear-gradient(110deg, ${BLUE}, #6b6fe6 45%, ${CORAL})` }}
           >
             <div className="pointer-events-none absolute inset-0" style={{ background: 'radial-gradient(120% 90% at 15% 0%, rgba(255,255,255,.28), transparent 55%)' }} />
+            {/* slow breathing light */}
+            <motion.div
+              className="pointer-events-none absolute -top-1/2 left-1/4 h-[140%] w-[60%] rounded-full blur-[90px]"
+              style={{ background: 'rgba(255,255,255,.18)' }}
+              animate={{ x: ['-10%', '25%', '-10%'], opacity: [0.35, 0.6, 0.35] }}
+              transition={{ duration: 14, repeat: Infinity, ease: 'easeInOut' }}
+            />
             <div className="relative">
-              <h2 className="text-3xl font-black text-white sm:text-4xl">{c.cta_title}</h2>
-              <p className="mx-auto mt-3 max-w-xl text-[15px] text-white/85">{c.cta_text}</p>
-              <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-                <Link href="/contact" className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-8 py-4 text-[15px] font-black shadow-lg transition-transform hover:-translate-y-0.5" style={{ color: BLUE }}>
-                  התחל עכשיו
-                  <ArrowLeft className="h-4 w-4" />
-                </Link>
-                <Link href="/design" className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/40 px-8 py-4 text-[15px] font-bold text-white transition-colors hover:bg-white/10">
-                  צפה בדמו
-                  <Play className="h-3.5 w-3.5" />
-                </Link>
+              <h2 className="text-3xl font-black text-white sm:text-[2.7rem]">
+                <MaskLineInView>{c.cta_title}</MaskLineInView>
+              </h2>
+              <motion.p
+                className="mx-auto mt-4 max-w-xl text-[15px] text-white/85"
+                initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }} transition={{ duration: 0.8, delay: 0.2, ease: EASE }}
+              >
+                {c.cta_text}
+              </motion.p>
+              <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
+                <Magnetic>
+                  <Link href="/contact" className="group relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-2xl bg-white px-8 py-4 text-[15px] font-black shadow-[0_18px_40px_-12px_rgba(0,0,0,0.35)] transition-shadow hover:shadow-[0_26px_60px_-12px_rgba(0,0,0,0.45)]" style={{ color: BLUE }}>
+                    <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-l from-transparent via-black/5 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+                    <span className="relative">התחל עכשיו</span>
+                    <ArrowLeft className="relative h-4 w-4 transition-transform duration-300 group-hover:-translate-x-1" />
+                  </Link>
+                </Magnetic>
+                <Magnetic strength={0.22}>
+                  <Link href="/design" className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/40 px-8 py-4 text-[15px] font-bold text-white transition-colors hover:bg-white/10">
+                    צפה בדמו
+                    <Play className="h-3.5 w-3.5" />
+                  </Link>
+                </Magnetic>
               </div>
             </div>
           </div>
