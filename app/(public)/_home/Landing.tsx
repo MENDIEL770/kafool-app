@@ -4,13 +4,14 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import {
-  motion, useInView, useMotionValue, useSpring, useTransform, useScroll,
-  useMotionTemplate, animate,
+  motion, AnimatePresence, useInView, useMotionValue, useSpring, useTransform,
+  useScroll, useMotionTemplate, animate,
 } from 'framer-motion'
 import {
   ArrowLeft, Play, LayoutDashboard, Users, CreditCard, BarChart3,
   Palette, ShieldCheck, Zap, HeadphonesIcon, Wallet, Sparkles,
   Phone, ListOrdered, Link2, Handshake, Clock, Trophy, Star,
+  UserX, Mail, Code2,
 } from 'lucide-react'
 
 const BLUE = '#4E7BEF'
@@ -432,6 +433,115 @@ function MiniDonationPage() {
   )
 }
 
+/* ─────────────── Feature story: pinned screen, scrolling chapters ─────────────── */
+
+// The visitor stops; the chapters rise on the left while the screen on the right
+// swaps to match, driven purely by scroll position.
+function FeatureStory({ title }: { title: string }) {
+  const ref = useRef<HTMLElement>(null)
+  const [active, setActive] = useState(0)
+  const n = FEATURES.length
+
+  // Driven by a plain scroll listener rather than a rAF-based scroll spring, so
+  // the chapter always matches the scroll position exactly (and keeps working
+  // when rAF is throttled, e.g. a background tab).
+  useEffect(() => {
+    const onScroll = () => {
+      const el = ref.current
+      if (!el) return
+      const track = el.offsetHeight - window.innerHeight
+      if (track <= 0) return
+      const p = Math.min(1, Math.max(0, -el.getBoundingClientRect().top / track))
+      setActive(Math.max(0, Math.min(n - 1, Math.floor(p * n * 0.999))))
+    }
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('resize', onScroll)
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('resize', onScroll)
+    }
+  }, [n])
+
+  const f = FEATURES[active]
+
+  return (
+    <section ref={ref} className="relative px-5" style={{ height: `${n * 78}vh` }}>
+      <div className="sticky top-0 flex h-screen items-center">
+        <div className="mx-auto w-full max-w-6xl">
+          <p className="mb-8 text-center text-sm font-black lg:text-right" style={{ color: BLUE }}>{title}</p>
+
+          <div className="grid items-center gap-12 lg:grid-cols-2">
+            {/* RIGHT (first in RTL): the screen that changes */}
+            <div className="order-1">
+              <div
+                className="relative rounded-[22px] p-[10px] shadow-[0_50px_100px_-25px_rgba(16,42,86,0.5)]"
+                style={{ background: 'linear-gradient(160deg,#2b3444,#0e1420)' }}
+              >
+                <div className="relative overflow-hidden rounded-[12px] bg-white">
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={active}
+                      initial={{ opacity: 0, scale: 1.04, filter: 'blur(6px)' }}
+                      animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+                      exit={{ opacity: 0, scale: 0.98, filter: 'blur(6px)' }}
+                      transition={{ duration: 0.5, ease: EASE }}
+                    >
+                      <FeatureScreen i={active} />
+                    </motion.div>
+                  </AnimatePresence>
+                </div>
+                <div className="pointer-events-none absolute inset-[10px] rounded-[12px]" style={{ background: 'linear-gradient(120deg,rgba(255,255,255,.18),transparent 45%)' }} />
+              </div>
+              <div className="mx-auto mt-2 h-[10px] w-[70%] rounded-b-[40px] bg-black/10 blur-[6px]" />
+            </div>
+
+            {/* LEFT (second in RTL): the big explanation */}
+            <div className="order-2 flex gap-5">
+              {/* chapter rail */}
+              <div className="hidden shrink-0 flex-col justify-center gap-2 sm:flex">
+                {FEATURES.map((_, i) => (
+                  <div key={i} className="relative h-8 w-[3px] overflow-hidden rounded-full bg-slate-200">
+                    <motion.div
+                      className="absolute inset-x-0 top-0 rounded-full"
+                      style={{ background: BLUE }}
+                      animate={{ height: i === active ? '100%' : i < active ? '100%' : '0%', opacity: i === active ? 1 : 0.35 }}
+                      transition={{ duration: 0.45, ease: EASE }}
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <div className="min-h-[230px] flex-1">
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={active}
+                    initial={{ opacity: 0, y: 26 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ duration: 0.45, ease: EASE }}
+                  >
+                    <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl" style={{ background: `${BLUE}14` }}>
+                      <f.Icon className="h-5 w-5" style={{ color: BLUE }} strokeWidth={1.7} />
+                    </div>
+                    <div className="mb-2 text-[11px] font-black tracking-widest" style={{ color: BLUE }}>
+                      {String(active + 1).padStart(2, '0')} / {String(n).padStart(2, '0')}
+                    </div>
+                    <h3 className="text-[1.9rem] font-black leading-[1.15] tracking-tight sm:text-[2.4rem]" style={{ color: NAVY }}>
+                      {f.title}
+                    </h3>
+                    <p className="mt-3 max-w-sm text-base leading-relaxed text-slate-500">{f.text}</p>
+                  </motion.div>
+                </AnimatePresence>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 /* ───────────────────── Kafool+ ambassador console ───────────────────── */
 
 // The lead card the ambassador sees before dialling — the heart of Kafool+.
@@ -563,9 +673,114 @@ function GlassCard({
 const FEATURES = [
   { Icon: Palette, title: 'דפי תרומה עוצמתיים ומותאמים אישית', text: 'דפים מעוצבים שממירים יותר תורמים.' },
   { Icon: LayoutDashboard, title: 'ניהול חכם של הקמפיין', text: 'כל הנתונים, התורמים והפעילות במקום אחד.' },
+  { Icon: UserX, title: 'דוחות בזמן אמת על לידים שננטשו', text: 'הודעה מיידית למנהל לחזרה ללקוח.' },
   { Icon: BarChart3, title: 'מעקב ונתונים בזמן אמת', text: 'דוחות מתקדמים לקבלת החלטות מדויקות.' },
+  { Icon: Mail, title: 'מערכת שליחת מיילים', text: 'בסיום התרומה ותזכורות נוספות.' },
   { Icon: ShieldCheck, title: 'שקיפות וביטחון לתורמים', text: 'סליקה מאובטחת עם חוויית תרומה חלקה.' },
+  { Icon: Code2, title: 'אפשרויות פיתוח מתקדמות', text: 'לפי דרישת הלקוח.' },
 ]
+
+/* Seven distinct screens — one per chapter of the story. */
+const Panel = ({ children }: { children: React.ReactNode }) => (
+  <div className="h-[300px] space-y-2 bg-[#f7f9fc] p-4 text-[8px]" dir="rtl">{children}</div>
+)
+const Row = ({ n, a, tag, tone }: { n: string; a: string; tag?: string; tone?: string }) => (
+  <div className="flex items-center justify-between rounded-lg bg-white p-2 shadow-sm">
+    <span className="font-black" style={{ color: NAVY }}>{a}</span>
+    <div className="flex items-center gap-1.5">
+      {tag && <span className="rounded px-1.5 py-0.5 text-[7px] font-bold" style={{ background: `${tone}18`, color: tone }}>{tag}</span>}
+      <span className="text-slate-500">{n}</span>
+    </div>
+  </div>
+)
+
+function FeatureScreen({ i }: { i: number }) {
+  if (i === 0) return (
+    <Image src="/mockups/einav-desktop.jpg" alt="דף תרומה" width={1280} height={800} className="h-[300px] w-full object-cover object-top" />
+  )
+  if (i === 1) return <MiniDashboard />
+  if (i === 2) return (
+    <Panel>
+      <div className="rounded-lg p-2.5 text-white" style={{ background: CORAL }}>
+        <div className="text-[7px] opacity-90">התראה מיידית למנהל · SMS</div>
+        <div className="mt-0.5 text-[9px] font-black">אברהם כהן לא השלים תרומה ע״ס ₪1,800</div>
+        <div className="text-[7px] opacity-90">מספר לחזרה: 052-1234567</div>
+      </div>
+      <div className="text-[7px] font-bold text-slate-400">לידים שננטשו</div>
+      <Row n="אברהם כהן · ביט" a="₪1,800" tag="נטש" tone={CORAL} />
+      <Row n="מרים לוי · אשראי" a="₪360" tag="נטש" tone={CORAL} />
+      <Row n="יוסי דהן · ביט" a="₪720" tag="בתהליך" tone={BLUE} />
+    </Panel>
+  )
+  if (i === 3) return (
+    <Panel>
+      <div className="rounded-lg bg-white p-3 shadow-sm">
+        <div className="text-[7px] text-slate-400">גויס החודש</div>
+        <div className="text-[16px] font-black" style={{ color: NAVY }}>₪413,122</div>
+        <svg viewBox="0 0 200 60" className="mt-1 h-[60px] w-full">
+          <motion.path d="M4 52 L40 44 L76 47 L112 28 L148 32 L196 8" fill="none" stroke={BLUE} strokeWidth="2.5" strokeLinecap="round"
+            initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 1.4, ease: 'easeInOut' }} />
+        </svg>
+      </div>
+      <div className="grid grid-cols-3 gap-1.5">
+        {[['1,392', 'צפיות'], ['317', 'פתחו'], ['92', 'תרמו']].map(([v, l]) => (
+          <div key={l} className="rounded-lg bg-white p-2 text-center shadow-sm">
+            <div className="text-[11px] font-black" style={{ color: BLUE }}>{v}</div>
+            <div className="text-[6px] text-slate-400">{l}</div>
+          </div>
+        ))}
+      </div>
+    </Panel>
+  )
+  if (i === 4) return (
+    <Panel>
+      <div className="text-[7px] font-bold text-slate-400">תודה אוטומטית · נשלח</div>
+      <div className="rounded-lg bg-white p-3 shadow-sm">
+        <div className="mb-1.5 border-b border-slate-100 pb-1.5 text-[7px] text-slate-400">אל: donor@mail.com</div>
+        <div className="text-[9px] font-black" style={{ color: NAVY }}>תודה על תרומתך! 💙</div>
+        <div className="mt-1 h-8 rounded" style={{ background: `linear-gradient(120deg,${BLUE}22,${CORAL}22)` }} />
+        <div className="mt-1.5 space-y-1">
+          <div className="h-1 w-full rounded bg-slate-100" /><div className="h-1 w-3/4 rounded bg-slate-100" />
+        </div>
+        <div className="mt-2 rounded py-1 text-center text-[7px] font-black text-white" style={{ background: BLUE }}>קבלה</div>
+      </div>
+      <Row n="תזכורת לנטישה" a="נשלח" tag="אוטומטי" tone={BLUE} />
+    </Panel>
+  )
+  if (i === 5) return (
+    <Panel>
+      <div className="flex h-full flex-col items-center justify-center rounded-lg bg-white p-4 shadow-sm">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full" style={{ background: `${GREEN}14` }}>
+          <ShieldCheck className="h-6 w-6" style={{ color: GREEN }} />
+        </div>
+        <div className="mt-2 text-[10px] font-black" style={{ color: NAVY }}>סליקה מאובטחת</div>
+        <div className="text-[7px] text-slate-400">התורם נשאר בדף שלכם · iFrame</div>
+        <div className="mt-3 w-full space-y-1.5">
+          <div className="h-6 rounded border border-slate-200" />
+          <div className="grid grid-cols-2 gap-1.5"><div className="h-6 rounded border border-slate-200" /><div className="h-6 rounded border border-slate-200" /></div>
+          <div className="rounded py-1.5 text-center text-[8px] font-black text-white" style={{ background: GREEN }}>לתרומה מאובטחת</div>
+        </div>
+      </div>
+    </Panel>
+  )
+  return (
+    <Panel>
+      <div className="h-full rounded-lg bg-[#0f1b33] p-3 font-mono text-[7px] leading-relaxed text-emerald-300">
+        <div className="mb-1.5 flex gap-1">
+          <span className="h-1.5 w-1.5 rounded-full bg-red-400" /><span className="h-1.5 w-1.5 rounded-full bg-amber-400" /><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+        </div>
+        <div className="text-slate-400">{'// פיתוח לפי דרישת הלקוח'}</div>
+        <div><span className="text-sky-300">POST</span> /api/webhooks/custom</div>
+        <div className="text-slate-500">{'{'}</div>
+        <div className="pr-3">&quot;campaign&quot;: <span className="text-amber-300">&quot;einav&quot;</span>,</div>
+        <div className="pr-3">&quot;amount&quot;: <span className="text-amber-300">1800</span>,</div>
+        <div className="pr-3">&quot;integration&quot;: <span className="text-amber-300">&quot;custom&quot;</span></div>
+        <div className="text-slate-500">{'}'}</div>
+        <div className="mt-1.5 text-emerald-400">✓ 200 OK · אינטגרציה פעילה</div>
+      </div>
+    </Panel>
+  )
+}
 
 // Kafool+ — what the ambassador actually gets on the call.
 const PLUS_FLOW = [
@@ -794,84 +1009,8 @@ export default function Landing({ c, logos }: { c: LandingContent; logos: string
         </Reveal>
       </section>
 
-      {/* ── FEATURES — the dashboard stays with you while the story scrolls ── */}
-      <section className="px-5 py-32">
-        <div className="mx-auto grid max-w-6xl items-start gap-16 lg:grid-cols-2">
-          <div className="lg:sticky lg:top-28">
-            <motion.div
-              initial={{ opacity: 0, y: 40, rotateY: 10 }}
-              whileInView={{ opacity: 1, y: 0, rotateY: 0 }}
-              viewport={{ once: true, margin: '-80px' }}
-              transition={{ duration: 1.1, ease: EASE }}
-              style={{ perspective: 1200 }}
-            >
-              <div
-                className="relative overflow-hidden rounded-[28px] border bg-white/60 p-4 shadow-[0_50px_110px_-35px_rgba(16,42,86,0.45)] backdrop-blur-xl"
-                style={{ borderColor: 'rgba(255,255,255,.45)' }}
-              >
-                <div
-                  className="pointer-events-none absolute -inset-px rounded-[28px]"
-                  style={{ background: 'linear-gradient(140deg,rgba(255,255,255,.6),transparent 40%)' }}
-                />
-                <div className="relative overflow-hidden rounded-2xl border border-slate-100">
-                  <MiniDashboard />
-                </div>
-              </div>
-            </motion.div>
-          </div>
-
-          <div className="lg:pt-6">
-            <p className="mb-2 overflow-hidden text-sm font-black" style={{ color: BLUE }}>
-              <MaskLineInView>כל מה שצריך. במקום אחד.</MaskLineInView>
-            </p>
-            <h2 className="mb-10 text-3xl font-black leading-[1.15] tracking-tight sm:text-[2.6rem]" style={{ color: NAVY }}>
-              <MaskLineInView delay={0.08}>{c.features_title}</MaskLineInView>
-            </h2>
-
-            <div className="space-y-3">
-              {FEATURES.map((f, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, x: 30 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true, margin: '-60px' }}
-                  transition={{ duration: 0.75, delay: i * 0.09, ease: EASE }}
-                >
-                  <SpotlightCard className="rounded-2xl border bg-white/60 backdrop-blur-xl transition-all duration-500 hover:-translate-y-1 hover:bg-white/90 hover:shadow-[0_26px_55px_-18px_rgba(78,123,239,0.42)]">
-                    <div className="flex items-start gap-4 p-5" style={{ borderColor: 'rgba(255,255,255,.55)' }}>
-                      <motion.div
-                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
-                        style={{ background: `${BLUE}12` }}
-                        whileHover={{ scale: 1.12, rotate: -8 }}
-                        transition={{ type: 'spring', stiffness: 320, damping: 14 }}
-                      >
-                        <f.Icon className="h-[18px] w-[18px]" style={{ color: BLUE }} strokeWidth={1.7} />
-                      </motion.div>
-                      <div>
-                        <h3 className="text-[15px] font-black" style={{ color: NAVY }}>{f.title}</h3>
-                        <p className="mt-0.5 text-[13px] leading-relaxed text-slate-500">{f.text}</p>
-                      </div>
-                      <ArrowLeft
-                        className="mr-auto mt-1 h-4 w-4 shrink-0 -translate-x-2 opacity-0 transition-all duration-400 group-hover:translate-x-0 group-hover:opacity-100"
-                        style={{ color: BLUE }}
-                      />
-                    </div>
-                  </SpotlightCard>
-                </motion.div>
-              ))}
-            </div>
-
-            <Reveal delay={0.3}>
-              <Magnetic strength={0.2}>
-                <Link href="/about" className="group mt-8 inline-flex items-center gap-2 rounded-2xl border border-white/60 bg-white/70 px-6 py-3.5 text-sm font-bold text-slate-700 backdrop-blur-xl transition-colors hover:bg-white">
-                  כל התכונות
-                  <ArrowLeft className="h-4 w-4 transition-transform duration-300 group-hover:-translate-x-1" style={{ color: BLUE }} />
-                </Link>
-              </Magnetic>
-            </Reveal>
-          </div>
-        </div>
-      </section>
+      {/* ── FEATURES — pinned screen, scrolling chapters ── */}
+      <FeatureStory title={c.features_title} />
 
       {/* ── KAFOOL+ — telephony console for ambassadors ── */}
       <section className="relative px-5 py-32">
