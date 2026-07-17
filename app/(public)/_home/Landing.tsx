@@ -466,7 +466,7 @@ function FeatureStory({ title }: { title: string }) {
   const f = FEATURES[active]
 
   return (
-    <section ref={ref} className="relative px-5" style={{ height: `${n * 78}vh` }}>
+    <section ref={ref} className="relative px-5" style={{ height: `${n * 42}vh` }}>
       <div className="sticky top-0 flex h-screen items-center">
         <div className="mx-auto w-full max-w-6xl">
           <p className="mb-8 text-center text-sm font-black lg:text-right" style={{ color: BLUE }}>{title}</p>
@@ -524,7 +524,7 @@ function FeatureStory({ title }: { title: string }) {
                     <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl" style={{ background: `${BLUE}14` }}>
                       <f.Icon className="h-5 w-5" style={{ color: BLUE }} strokeWidth={1.7} />
                     </div>
-                    <div className="mb-2 text-[11px] font-black tracking-widest" style={{ color: BLUE }}>
+                    <div dir="ltr" className="mb-2 text-right text-[11px] font-black tracking-widest" style={{ color: BLUE }}>
                       {String(active + 1).padStart(2, '0')} / {String(n).padStart(2, '0')}
                     </div>
                     <h3 className="text-[1.9rem] font-black leading-[1.15] tracking-tight sm:text-[2.4rem]" style={{ color: NAVY }}>
