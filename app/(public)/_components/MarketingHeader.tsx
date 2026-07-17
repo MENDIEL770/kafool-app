@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import AccessibilityWidget from './AccessibilityWidget'
 import { Menu, X } from 'lucide-react'
 
@@ -43,11 +43,30 @@ const ALL_NAV_LINKS = [
 export default function MarketingHeader({ hiddenPages = [] }: { hiddenPages?: string[] }) {
   const pathname = usePathname()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [scrolled, setScrolled] = useState(false)
   const navLinks = ALL_NAV_LINKS.filter(l => !hiddenPages.includes(l.key))
+
+  // On the landing page the header floats transparent over the hero and turns
+  // into blurred glass once you scroll. Other marketing pages stay solid.
+  const isLanding = pathname === '/'
+  useEffect(() => {
+    if (!isLanding) return
+    const onScroll = () => setScrolled(window.scrollY > 8)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [isLanding])
+
+  const shell =
+    isLanding && !scrolled
+      ? 'bg-transparent border-transparent'
+      : isLanding
+        ? 'bg-white/70 backdrop-blur-xl border-white/50 shadow-[0_8px_30px_-12px_rgba(16,42,86,0.18)]'
+        : 'bg-white border-gray-200 shadow-sm'
 
   return (
     <>
-    <header className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm" dir="rtl">
+    <header className={`sticky top-0 z-50 border-b transition-all duration-500 ${shell}`} dir="rtl">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
         <Link href="/" className="flex items-center shrink-0">
           <KafoolLogo />
