@@ -72,7 +72,13 @@ export default function MarketingHeader({ hiddenPages = [] }: { hiddenPages?: st
           })}
         </nav>
 
-        <div className="hidden md:flex items-center">
+        <div className="hidden md:flex items-center gap-2">
+          <Link
+            href="/login"
+            className="text-sm font-bold text-gray-600 hover:text-blue-600 px-4 py-2.5 rounded-2xl border border-gray-200 hover:border-blue-200 transition-colors"
+          >
+            כניסה למערכת
+          </Link>
           <Link
             href="/dashboard"
             className="bg-blue-600 text-white text-sm font-bold px-5 py-2.5 rounded-2xl hover:bg-blue-700 transition-colors shadow-sm"
@@ -109,6 +115,13 @@ export default function MarketingHeader({ hiddenPages = [] }: { hiddenPages?: st
               </Link>
             )
           })}
+          <Link
+            href="/login"
+            onClick={() => setMenuOpen(false)}
+            className="block text-sm font-bold text-center text-gray-700 px-5 py-2.5 rounded-2xl border border-gray-200 hover:bg-gray-50 transition-colors"
+          >
+            כניסה למערכת
+          </Link>
           <Link
             href="/dashboard"
             onClick={() => setMenuOpen(false)}

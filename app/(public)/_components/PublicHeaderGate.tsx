@@ -8,6 +8,7 @@ import MarketingHeader from './MarketingHeader'
 // render their own dedicated header and accessibility widget, so we must NOT add
 // the marketing header on top of them — otherwise the header/widget appear twice.
 const MARKETING_PATHS = [
+  '/',            // the landing page (exact match only — campaign slugs never equal '/')
   '/about',
   '/design',
   '/faq',
