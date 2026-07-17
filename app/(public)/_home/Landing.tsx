@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import {
   motion, useInView, useMotionValue, useSpring, useTransform, useScroll,
   useMotionTemplate, animate,
@@ -260,7 +261,16 @@ function Devices() {
           style={{ background: 'linear-gradient(160deg,#2b3444,#0e1420)' }}
         >
           <div className="overflow-hidden rounded-[10px] bg-white">
-            <MiniDashboard />
+            {/* the real campaign page, captured live */}
+            <Image
+              src="/mockups/einav-desktop.jpg"
+              alt="דף גיוס לדוגמה במערכת כפול"
+              width={1280}
+              height={800}
+              priority
+              sizes="(max-width: 1024px) 90vw, 640px"
+              className="h-auto w-full"
+            />
           </div>
           {/* glass reflection */}
           <div
@@ -290,7 +300,16 @@ function Devices() {
           <div className="relative overflow-hidden rounded-[21px] bg-white">
             {/* dynamic island */}
             <div className="absolute left-1/2 top-1.5 z-10 h-[14px] w-[46px] -translate-x-1/2 rounded-full bg-black" />
-            <MiniDonationPage />
+            {/* the real campaign page on mobile, captured live */}
+            <Image
+              src="/mockups/einav-mobile.jpg"
+              alt="דף גיוס לדוגמה בנייד"
+              width={390}
+              height={844}
+              priority
+              sizes="180px"
+              className="h-auto w-full"
+            />
           </div>
           <div
             className="pointer-events-none absolute inset-[5px] rounded-[21px]"
