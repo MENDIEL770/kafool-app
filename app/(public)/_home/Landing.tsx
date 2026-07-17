@@ -10,11 +10,14 @@ import {
 import {
   ArrowLeft, Play, LayoutDashboard, Users, CreditCard, BarChart3,
   Palette, ShieldCheck, Zap, HeadphonesIcon, Wallet, Sparkles,
+  Phone, ListOrdered, Link2, Handshake, Clock, Trophy, Star,
 } from 'lucide-react'
 
 const BLUE = '#4E7BEF'
 const CORAL = '#F46B5F'
 const NAVY = '#102A56'
+const AMBER = '#F59E0B'   // Kafool+ (ambassadors)
+const GREEN = '#16A34A'   // positive actions
 
 /* ───────────────────────── Atmosphere ───────────────────────── */
 
@@ -429,6 +432,111 @@ function MiniDonationPage() {
   )
 }
 
+/* ───────────────────── Kafool+ ambassador console ───────────────────── */
+
+// The lead card the ambassador sees before dialling — the heart of Kafool+.
+function AmbassadorConsole() {
+  return (
+    <div className="relative mx-auto w-[290px] sm:w-[320px]" style={{ perspective: 1200 }}>
+      <motion.div
+        animate={{ y: [0, -12, 0] }}
+        transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut' }}
+        className="relative rounded-[38px] p-[6px] shadow-[0_50px_100px_-22px_rgba(16,42,86,0.5)]"
+        style={{ background: 'linear-gradient(160deg,#3a4354,#0e1420)' }}
+      >
+        <div className="relative overflow-hidden rounded-[32px] bg-[#f7f9fc]" dir="rtl">
+          <div className="absolute left-1/2 top-2 z-20 h-[18px] w-[64px] -translate-x-1/2 rounded-full bg-black" />
+
+          {/* header */}
+          <div className="px-4 pb-3 pt-8 text-white" style={{ background: `linear-gradient(140deg, ${AMBER}, #EA8C0B)` }}>
+            <div className="flex items-center justify-between">
+              <span className="rounded-full bg-white/25 px-2 py-0.5 text-[9px] font-black">שגריר</span>
+              <span className="text-[11px] font-black">צבאות השם תשפ״ו</span>
+            </div>
+            <div className="mt-3">
+              <div className="flex justify-between text-[9px] font-bold text-white/90">
+                <span>25%</span><span>היעד האישי שלי</span>
+              </div>
+              <div className="mt-1 h-1.5 w-full rounded-full bg-white/25">
+                <motion.div
+                  className="h-1.5 rounded-full bg-white"
+                  initial={{ width: 0 }} whileInView={{ width: '25%' }} viewport={{ once: true }}
+                  transition={{ duration: 1.4, delay: 0.4, ease: EASE }}
+                />
+              </div>
+              <div className="mt-1 text-left text-[10px] font-black">₪12,400 <span className="font-medium text-white/70">מתוך ₪50,000</span></div>
+            </div>
+          </div>
+
+          {/* lead card */}
+          <div className="p-3">
+            <div className="rounded-2xl bg-white p-3.5 shadow-sm">
+              <div className="flex items-center gap-1.5">
+                <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                <span className="text-[17px] font-black" style={{ color: NAVY }}>אברהם כהן</span>
+              </div>
+              <div className="mt-0.5 text-[11px] text-slate-400" dir="ltr">052-1234567</div>
+
+              <div className="mt-2.5 flex flex-wrap gap-1">
+                {[['פ״ה', '6,000'], ['פ״ד', '4,200'], ['פ״ג', '4,000']].map(([y, a]) => (
+                  <span key={y} className="rounded-lg px-2 py-1 text-[9px] font-black" style={{ background: `${GREEN}14`, color: GREEN }}>
+                    {y}: ₪{a}
+                  </span>
+                ))}
+              </div>
+              <div className="mt-1.5 inline-block rounded-lg bg-slate-100 px-2 py-1 text-[9px] font-medium text-slate-500">
+                📁 סעודת שבת פרשת לך לך
+              </div>
+            </div>
+
+            {/* call button */}
+            <motion.div
+              className="mt-3 flex items-center justify-center gap-2 rounded-2xl py-3.5 text-[15px] font-black text-white shadow-lg"
+              style={{ background: GREEN }}
+              animate={{ scale: [1, 1.03, 1] }}
+              transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+            >
+              <Phone className="h-4 w-4" strokeWidth={2.4} />
+              התקשר
+            </motion.div>
+
+            {/* actions */}
+            <div className="mt-2 grid grid-cols-2 gap-1.5">
+              {[
+                { t: 'רישום הבטחה', c: GREEN }, { t: 'שליחת קישור', c: BLUE },
+                { t: 'חיוב אשראי', c: NAVY }, { t: 'קביעת חזרה', c: AMBER },
+              ].map(a => (
+                <div key={a.t} className="rounded-xl border border-slate-100 bg-white py-2 text-center text-[10px] font-bold" style={{ color: a.c }}>
+                  {a.t}
+                </div>
+              ))}
+            </div>
+            <div className="mt-1.5 flex justify-center gap-1 text-[8px] text-slate-400">
+              <span className="rounded-md bg-slate-100 px-1.5 py-0.5">לא ענה</span>
+              <span className="rounded-md bg-slate-100 px-1.5 py-0.5">תפוס</span>
+              <span className="rounded-md bg-slate-100 px-1.5 py-0.5">לא מעוניין</span>
+            </div>
+          </div>
+        </div>
+        <div className="pointer-events-none absolute inset-[6px] rounded-[32px]" style={{ background: 'linear-gradient(130deg,rgba(255,255,255,.22),transparent 42%)' }} />
+      </motion.div>
+
+      {/* floating proof card */}
+      <GlassCard className="-bottom-5 -left-4" delay={0.9} dur={6}>
+        <div className="flex items-center gap-2">
+          <div className="flex h-7 w-7 items-center justify-center rounded-full" style={{ background: `${GREEN}1a` }}>
+            <Handshake className="h-3.5 w-3.5" style={{ color: GREEN }} />
+          </div>
+          <div>
+            <div className="text-[10px] font-bold text-slate-400">הבטחה נרשמה</div>
+            <div className="text-sm font-black" style={{ color: NAVY }}>₪1,800</div>
+          </div>
+        </div>
+      </GlassCard>
+    </div>
+  )
+}
+
 /* ───────────────────────── Floating live cards ───────────────────────── */
 
 function GlassCard({
@@ -457,6 +565,17 @@ const FEATURES = [
   { Icon: LayoutDashboard, title: 'ניהול חכם של הקמפיין', text: 'כל הנתונים, התורמים והפעילות במקום אחד.' },
   { Icon: BarChart3, title: 'מעקב ונתונים בזמן אמת', text: 'דוחות מתקדמים לקבלת החלטות מדויקות.' },
   { Icon: ShieldCheck, title: 'שקיפות וביטחון לתורמים', text: 'סליקה מאובטחת עם חוויית תרומה חלקה.' },
+]
+
+// Kafool+ — what the ambassador actually gets on the call.
+const PLUS_FLOW = [
+  { Icon: ListOrdered, tint: AMBER, title: 'תור חכם לפי גובה התרומה', text: 'המערכת מסדרת את התורמים — הגדולים ראשונים. בלי לחפש למי להתקשר.' },
+  { Icon: Star, tint: AMBER, title: 'הוא יודע למי הוא מדבר', text: 'לפני החיוג רואים כמה תרם בכל שנה, מאיזו רשימה הגיע והאם הוא VIP. שיחה ממוקדת, לא עיוורת.' },
+  { Icon: Phone, tint: GREEN, title: 'חיוג בלחיצה — ומענה לכל תרחיש', text: 'לא ענה? הליד חוזר לתור אוטומטית. תפוס, מספר שגוי, לא מעוניין — הכל בקליק.' },
+  { Icon: Link2, tint: BLUE, title: 'קישור תרומה אישי ב-SMS / וואטסאפ', text: 'לכל שגריר קישור משלו — כל תרומה נזקפת לזכותו ונספרת בזמן אמת.' },
+  { Icon: Handshake, tint: GREEN, title: 'הבטחה או חיוב אשראי בשיחה', text: 'רישום סכום ותאריך גבייה, או סליקה מאובטחת תוך כדי השיחה — התרומה נסגרת עכשיו.' },
+  { Icon: Clock, tint: BLUE, title: 'קביעת חזרה ותזכורות', text: 'בוחרים תאריך ושעה — המערכת מזכירה. שום ליד לא נופל בין הכיסאות.' },
+  { Icon: Trophy, tint: AMBER, title: 'יעד אישי, דירוג ותסריט שיחה', text: 'הוא רואה את ההתקדמות שלו מול שאר השגרירים, ומקבל תסריט מוכן מהמנהל.' },
 ]
 
 const TRUST_ITEMS = [
@@ -750,6 +869,82 @@ export default function Landing({ c, logos }: { c: LandingContent; logos: string
                 </Link>
               </Magnetic>
             </Reveal>
+          </div>
+        </div>
+      </section>
+
+      {/* ── KAFOOL+ — telephony console for ambassadors ── */}
+      <section className="relative px-5 py-32">
+        {/* warm seam so the section reads as its own world */}
+        <div className="pointer-events-none absolute inset-0 -z-10" style={{ background: `radial-gradient(80% 55% at 50% 40%, ${AMBER}0f, transparent 70%)` }} />
+        <div className="mx-auto max-w-6xl">
+          <div className="mb-14 text-center">
+            <Reveal>
+              <span className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-white/60 bg-white/70 px-3.5 py-1.5 text-[11px] font-black backdrop-blur-xl" style={{ color: AMBER }}>
+                <Phone className="h-3 w-3" strokeWidth={2.2} />
+                Kafool+ · טלפניה לשגרירים ומגייסים
+              </span>
+            </Reveal>
+            <h2 className="mx-auto max-w-2xl text-3xl font-black leading-[1.15] tracking-tight sm:text-[2.6rem]" style={{ color: NAVY }}>
+              <MaskLineInView>השגריר לא מחפש למי להתקשר.</MaskLineInView>
+              <MaskLineInView delay={0.1}><span style={{ color: AMBER }}>המערכת מגישה לו.</span></MaskLineInView>
+            </h2>
+            <Reveal delay={0.2}>
+              <p className="mx-auto mt-5 max-w-xl text-[15px] leading-relaxed text-slate-500">
+                במקום רשימת אקסל מבולגנת — תור חכם שמסדר את התורמים לפי גודל התרומה בעבר. הגדולים ראשונים. השגריר רק לוחץ &quot;התקשר&quot; ומתקדם.
+              </p>
+            </Reveal>
+          </div>
+
+          <div className="grid items-center gap-16 lg:grid-cols-2">
+            <Reveal>
+              <AmbassadorConsole />
+            </Reveal>
+
+            <div className="space-y-3">
+              {PLUS_FLOW.map((f, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, x: 30 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true, margin: '-60px' }}
+                  transition={{ duration: 0.7, delay: i * 0.07, ease: EASE }}
+                >
+                  <SpotlightCard
+                    tint={AMBER}
+                    className="rounded-2xl border bg-white/60 backdrop-blur-xl transition-all duration-500 hover:-translate-y-1 hover:bg-white/90 hover:shadow-[0_26px_55px_-18px_rgba(245,158,11,0.35)]"
+                  >
+                    <div className="flex items-start gap-4 p-5" style={{ borderColor: 'rgba(255,255,255,.55)' }}>
+                      <motion.div
+                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
+                        style={{ background: `${f.tint}14` }}
+                        whileHover={{ scale: 1.12, rotate: -8 }}
+                        transition={{ type: 'spring', stiffness: 320, damping: 14 }}
+                      >
+                        <f.Icon className="h-[18px] w-[18px]" style={{ color: f.tint }} strokeWidth={1.7} />
+                      </motion.div>
+                      <div>
+                        <h3 className="text-[15px] font-black" style={{ color: NAVY }}>{f.title}</h3>
+                        <p className="mt-0.5 text-[13px] leading-relaxed text-slate-500">{f.text}</p>
+                      </div>
+                    </div>
+                  </SpotlightCard>
+                </motion.div>
+              ))}
+
+              <Reveal delay={0.3}>
+                <Magnetic strength={0.2}>
+                  <a
+                    href="https://plus.kafool.com/"
+                    className="group mt-6 inline-flex items-center gap-2 rounded-2xl px-6 py-3.5 text-sm font-black text-white shadow-[0_16px_36px_-10px_rgba(245,158,11,0.6)] transition-shadow hover:shadow-[0_22px_50px_-10px_rgba(245,158,11,0.75)]"
+                    style={{ background: AMBER }}
+                  >
+                    למערכת השגרירים Kafool+
+                    <ArrowLeft className="h-4 w-4 transition-transform duration-300 group-hover:-translate-x-1" />
+                  </a>
+                </Magnetic>
+              </Reveal>
+            </div>
           </div>
         </div>
       </section>
