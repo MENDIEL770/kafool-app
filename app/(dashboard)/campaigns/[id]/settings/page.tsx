@@ -40,6 +40,7 @@ export default function CampaignSettingsPage() {
     whatsapp_phone: '',
     whatsapp_message: '',
     manager_phone: '',
+    kafool_plus_sync: false,
     thanks_title: '',
     thanks_message: '',
     logo_url: '',
@@ -71,6 +72,7 @@ export default function CampaignSettingsPage() {
           whatsapp_phone: data.settings?.whatsapp_phone || '',
           whatsapp_message: data.settings?.whatsapp_message || '',
           manager_phone: data.settings?.manager_phone || '',
+          kafool_plus_sync: data.settings?.kafool_plus_sync === true,
           thanks_title: data.settings?.thanks?.title || '',
           thanks_message: data.settings?.thanks?.message || '',
           logo_url: data.logo_url || '',
@@ -124,6 +126,7 @@ export default function CampaignSettingsPage() {
         whatsapp_phone: form.whatsapp_phone || null,
         whatsapp_message: form.whatsapp_message || null,
         manager_phone: form.manager_phone || null,
+        kafool_plus_sync: form.kafool_plus_sync,
         thanks: {
           title: form.thanks_title.trim() || null,
           message: form.thanks_message.trim() || null,
@@ -377,6 +380,29 @@ export default function CampaignSettingsPage() {
               placeholder="0501234567"
             />
             <p className="text-[11px] text-gray-400">השאר ריק כדי לא לקבל התראות. ההתראה נשלחת כ-5 דקות לאחר שהתרומה לא הושלמה.</p>
+          </CardContent>
+        </Card>
+
+        {/* סנכרון עם Kafool+ (מערכת השגרירים) */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <span className="text-lg">📞</span> סנכרון עם Kafool+ (מערכת השגרירים)
+            </CardTitle>
+            <p className="text-xs text-gray-400 mt-1">
+              כשמופעל — כל תרומה מוצלחת בקמפיין זה (אשראי / ביט / הוראת קבע) תישלח אוטומטית למערכת השגרירים Kafool+ לפי מספר הטלפון של התורם.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.kafool_plus_sync}
+                onChange={(e) => setForm(prev => ({ ...prev, kafool_plus_sync: e.target.checked }))}
+                className="w-4 h-4 accent-blue-600"
+              />
+              שלח תרומות מקמפיין זה ל-Kafool+
+            </label>
           </CardContent>
         </Card>
 

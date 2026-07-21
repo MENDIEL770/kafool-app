@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { sendThankYouEmail } from './email'
 import { sendWhatsAppTemplate } from './whatsapp'
+import { syncDonationToKafoolPlus } from './kafool-plus'
 
 // A campaign's raised_amount is always defined as the sum of its COMPLETED
 // donations — never an incremental add/subtract. This keeps the total drift-free
@@ -101,6 +102,14 @@ export async function attachCustomData(
   } catch (e) {
     console.error('thank-you email error:', e)
   }
+
+  // Outgoing sync to Kafool+ (only for campaigns flagged for sync; no-op until
+  // KAFOOL_WEBHOOK_SECRET is set). Best-effort — never blocks the callback.
+  await syncDonationToKafoolPlus(supabase, {
+    donationId: args.donationId,
+    campaignId: args.campaignId,
+    phone: args.phone,
+  })
 }
 
 /** Recompute campaign.raised_amount (and every affected group) from donations. */
