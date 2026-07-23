@@ -1537,6 +1537,20 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
     setModalOpen(true)
   }
 
+  // Prefill from a payment link the manager sent (e.g. to recover an abandoned
+  // donation): ?amt=200 opens the modal with that amount; &m=hok picks a standing
+  // order. The donor still chooses the payment method on the page.
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search)
+    const amt = Number(sp.get('amt'))
+    if (!amt || amt <= 0) return
+    const method = sp.get('m') === 'hok' ? 'hok' : 'one_time'
+    const t = setTimeout(() => openDonate(amt, undefined, method), 400)
+    return () => clearTimeout(t)
+    // run once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // Coordinated anchor for every floating control (WhatsApp, scroll-to-top,
   // accessibility). When the bottom donate bar is showing they all lift above
   // it; otherwise they tuck into the page corners. One source of truth so they

@@ -2,6 +2,7 @@ import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { Phone, MessageCircle, Mail, UserX } from 'lucide-react'
 import { intentCompleted } from '@/lib/abandoned'
+import SendPaymentLink from './SendPaymentLink'
 
 export const dynamic = 'force-dynamic'
 
@@ -28,7 +29,7 @@ export default async function AbandonedPage({ params }: { params: Promise<{ id: 
   const { id } = await params
   const supabase = await createClient()
   // access gate — the manager can only read their own campaign (RLS)
-  const { data: campaign } = await supabase.from('campaigns').select('id, title').eq('id', id).single()
+  const { data: campaign } = await supabase.from('campaigns').select('id, title, slug').eq('id', id).single()
   if (!campaign) redirect('/campaigns')
 
   // donation_intents is RLS-locked → read with the service client
@@ -64,6 +65,7 @@ export default async function AbandonedPage({ params }: { params: Promise<{ id: 
     return {
       id: it.id,
       name: String(cd.__name || '').trim() || '—',
+      rawMethod: String(cd.__method || ''),
       method: METHOD_LABEL[String(cd.__method || '')] || String(cd.__method || '') || '—',
       phone: it.phone || '',
       email: it.donor_email || '',
@@ -147,6 +149,15 @@ export default async function AbandonedPage({ params }: { params: Promise<{ id: 
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1.5">
+                        {r.phone && (
+                          <SendPaymentLink
+                            slug={campaign.slug}
+                            campaignTitle={campaign.title}
+                            phone={r.phone}
+                            defaultAmount={r.amount}
+                            method={r.rawMethod}
+                          />
+                        )}
                         {r.phone && (
                           <>
                             <a href={`tel:${r.phone}`} className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700" title="חייג">
