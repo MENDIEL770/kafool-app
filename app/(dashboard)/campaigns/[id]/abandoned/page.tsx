@@ -70,7 +70,8 @@ export default async function AbandonedPage({ params }: { params: Promise<{ id: 
       amount: Math.round(Number(it.amount) || 0),
       group: it.group_slug || '',
       when: timeAgo(it.created_at),
-      inProgress: ageMin < 5,        // may still complete
+      // Bit completes in the app minutes later, so it stays "in progress" longer
+      inProgress: ageMin < (String(cd.__method || '') === 'bit' ? 30 : 5),
       notified: !!cd.__notified,     // manager was SMSed
       emailed: !!cd.__emailed,       // donor recovery email sent
     }

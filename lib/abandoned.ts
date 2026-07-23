@@ -11,8 +11,14 @@ import { sendWhatsAppTemplate } from './whatsapp'
 //   • email the donor a gentle "your donation didn't complete" with a link back.
 // The lead is kept either way.
 
-const ABANDON_MINUTES = 5    // wait this long before treating an intent as abandoned
-const WINDOW_HOURS = 24      // don't look back further than this
+const ABANDON_MINUTES = 5      // on-page methods (credit / hok) finish in seconds
+const BIT_ABANDON_MINUTES = 30 // Bit is async — SMS → open the Bit app → pay — so wait much longer
+const WINDOW_HOURS = 24        // don't look back further than this
+
+// How long to wait before treating a lead of this method as abandoned.
+function abandonMinutesFor(method: string): number {
+  return method === 'bit' ? BIT_ABANDON_MINUTES : ABANDON_MINUTES
+}
 
 const METHOD_LABEL: Record<string, string> = {
   bit: 'ביט', credit: 'אשראי', hok: 'הוראת קבע',
@@ -40,10 +46,12 @@ export type CompletedDonation = {
 }
 
 /**
- * Has this lead actually completed? Same amount + ANY identity match
- * (phone / email / name). Bit donations often record no phone/email, so a
- * same-amount donation completed close in time (with no identity to compare) also
- * counts. Shared by the sweep and the abandoned-leads dashboard so they agree.
+ * Has this lead actually completed? A confirmed donation counts when it shares
+ * an identity with the intent (phone / email / name) AND either the amount
+ * matches OR it landed close in time — because Bit donations frequently record a
+ * DIFFERENT amount than the intent (fees / the donor edits it in the Bit app) and
+ * sometimes no phone/email. When the donation carries no identity at all, fall
+ * back to same-amount close-in-time. Shared by the sweep and the leads dashboard.
  */
 export function intentCompleted(
   intent: { phone?: string | null; donor_email?: string | null; name?: unknown; amount?: number | null; created_at: string },
@@ -55,16 +63,19 @@ export function intentCompleted(
   const wantAmount = Math.round(Number(intent.amount) || 0)
   const intentMs = new Date(intent.created_at).getTime()
   return completed.some(d => {
-    if (Math.round(Number(d.amount) || 0) !== wantAmount) return false
     const dPhone = normPhone(d.donor_phone)
     const dEmail = normEmail(d.donor_email)
     const dName = normName(d.donor_name)
-    if (wantPhone && dPhone && dPhone === wantPhone) return true
-    if (wantEmail && dEmail && dEmail === wantEmail) return true
-    if (wantName && dName && dName === wantName) return true
-    if (!dPhone && !dEmail && !dName) {
-      return Math.abs(new Date(d.created_at).getTime() - intentMs) <= 20 * 60_000
-    }
+    const amountOk = Math.round(Number(d.amount) || 0) === wantAmount
+    const dMs = new Date(d.created_at).getTime()
+    // donation completed around/after the intent (Bit can take a while)
+    const closeInTime = dMs >= intentMs - 5 * 60_000 && dMs <= intentMs + 90 * 60_000
+    const identity =
+      (!!wantPhone && dPhone === wantPhone) ||
+      (!!wantEmail && dEmail === wantEmail) ||
+      (!!wantName && !!dName && dName === wantName)
+    if (identity && (amountOk || closeInTime)) return true
+    if (!dPhone && !dEmail && !dName && amountOk && closeInTime) return true
     return false
   })
 }
@@ -151,6 +162,12 @@ export async function notifyAbandonedIntents(supabase: SupabaseClient, campaignI
       await supabase.from('donation_intents').delete().eq('id', it.id)
       continue
     }
+
+    // Not abandoned yet if it hasn't waited long enough for its method. Bit is
+    // async (SMS → open the app → pay), so it gets a much longer grace window —
+    // this is what stopped the false "not completed" alerts on Bit donations.
+    const ageMin = (nowMs - new Date(it.created_at).getTime()) / 60_000
+    if (ageMin < abandonMinutesFor(String(cd.__method || ''))) continue
 
     const next: Record<string, unknown> = { ...cd }
     let changed = false
