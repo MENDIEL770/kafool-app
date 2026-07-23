@@ -63,19 +63,23 @@ export function intentCompleted(
   const wantAmount = Math.round(Number(intent.amount) || 0)
   const intentMs = new Date(intent.created_at).getTime()
   return completed.some(d => {
+    const dMs = new Date(d.created_at).getTime()
+    // A donation can only be THIS intent's completion if it landed around/after
+    // it — never a months-old donation of the same amount from the same donor
+    // (e.g. a repeated ₪1 test from the same phone). Time link is mandatory.
+    const closeInTime = dMs >= intentMs - 5 * 60_000 && dMs <= intentMs + 120 * 60_000
+    if (!closeInTime) return false
     const dPhone = normPhone(d.donor_phone)
     const dEmail = normEmail(d.donor_email)
     const dName = normName(d.donor_name)
-    const amountOk = Math.round(Number(d.amount) || 0) === wantAmount
-    const dMs = new Date(d.created_at).getTime()
-    // donation completed around/after the intent (Bit can take a while)
-    const closeInTime = dMs >= intentMs - 5 * 60_000 && dMs <= intentMs + 90 * 60_000
+    // same person (amount may drift for Bit: intent ₪104 → charged ₪100)…
     const identity =
       (!!wantPhone && dPhone === wantPhone) ||
       (!!wantEmail && dEmail === wantEmail) ||
       (!!wantName && !!dName && dName === wantName)
-    if (identity && (amountOk || closeInTime)) return true
-    if (!dPhone && !dEmail && !dName && amountOk && closeInTime) return true
+    if (identity) return true
+    // …or an identity-less donation with the same amount in the same window
+    if (!dPhone && !dEmail && !dName && Math.round(Number(d.amount) || 0) === wantAmount) return true
     return false
   })
 }
