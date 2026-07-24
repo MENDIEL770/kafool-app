@@ -1,36 +1,53 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Kafool — כפול
 
-## Getting Started
+פלטפורמת גיוס תרומות לעמותות, בתי חב״ד, מוסדות חינוך וקהילות: דפי גיוס מעוצבים,
+סליקה מאובטחת בתוך האתר (iFrame), ניהול קמפיינים, טלפנים וקבוצות, אוטומציות
+(תודות ותזכורות ב-SMS/מייל/WhatsApp), וסקירת תנועה בזמן אמת.
 
-First, run the development server:
+A fundraising platform (Next.js + Supabase, RTL Hebrew). Campaign pages, in-page
+secure checkout (Kesher / Nedarim Plus), donor & lead management, and messaging
+automations.
+
+## Tech
+
+- **Next.js 16** (App Router, Turbopack) — note: a modified build; see `AGENTS.md`.
+- **Supabase** (Postgres + Auth + Storage)
+- **Tailwind CSS v4**, RTL
+- Deployed on **Vercel**
+
+## Getting started
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install            # or: npm ci
+cp .env.example .env.local   # then fill in real values
+npm run dev            # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Other scripts: `npm run build`, `npm run start`, `npm run lint`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environment variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Copy `.env.example` to `.env.local` and fill in the values. Required to boot:
 
-## Learn More
+| Variable | Purpose |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key (client) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role (server only) |
+| `NEXT_PUBLIC_BASE_URL` | Public site URL (e.g. https://www.kafool.com) |
 
-To learn more about Next.js, take a look at the following resources:
+Optional, per feature (see `.env.example` for the full grouped list):
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **Email** (thank-you / recovery): `RESEND_API_KEY`, `EMAIL_FROM`
+- **SMS** (Yemot): `YEMOT_API_KEY`, `SMS_SENDER`, …
+- **WhatsApp** (Meta Cloud API): `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_THANKS_TEMPLATE`, `WHATSAPP_ABANDON_TEMPLATE`, `NEXT_PUBLIC_WEBHOOK_KEY`
+- **Incoming payment-webhook auth**: `WEBHOOK_SECRET` (+ `?key=` on the provider callback URLs), `CRON_SECRET`
+- **Kafool+ outgoing sync**: `KAFOOL_WEBHOOK_SECRET`
+- **Payment providers**: `KESHER_*`, `GROW_*`
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Notes
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `AGENTS.md` / `CLAUDE.md` — repo conventions (this is a modified Next.js; read the
+  bundled docs before changing framework behavior). Routing is via `proxy.ts`.
+- DB schema changes are applied via SQL run against Supabase (see `supabase/`).
+- `.env.local` is gitignored and must never be committed.
