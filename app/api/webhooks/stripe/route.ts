@@ -1,26 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
-import { getStripe } from '@/lib/stripe'
+import { stripeFromKey, getOrgStripe } from '@/lib/stripe'
 import { attachCustomData, recomputeCampaignRaised } from '@/lib/donations'
 import type Stripe from 'stripe'
 
 export const runtime = 'nodejs'
 
 /**
- * Stripe webhook. Verifies the signature (whsec_… secret) against the RAW body,
- * then on checkout.session.completed records the donation — like the Kesher /
- * Nedarim webhooks. Idempotent by the session id.
+ * Stripe webhook (single URL for every org). We read the campaign id from the
+ * UNVERIFIED body only to pick which org's webhook secret to verify against —
+ * trust comes solely from constructEvent passing. Then, on
+ * checkout.session.completed, records the donation like Kesher / Nedarim.
+ * Idempotent by the session id.
  */
 export async function POST(req: NextRequest) {
-  const stripe = getStripe()
-  const secret = process.env.STRIPE_WEBHOOK_SECRET
-  if (!stripe || !secret) return NextResponse.json({ ok: true }) // not configured yet
-
   const sig = req.headers.get('stripe-signature') || ''
   const raw = await req.text()
+  const supabase = await createServiceClient()
+
+  // Untrusted peek → campaign → org, to select the right signing secret.
+  let orgId: string | null = null
+  try {
+    const cid = JSON.parse(raw)?.data?.object?.metadata?.campaignId
+    if (cid) {
+      const { data } = await supabase.from('campaigns').select('org_id').eq('id', String(cid)).maybeSingle()
+      orgId = (data?.org_id as string) || null
+    }
+  } catch { /* fall through to env secret */ }
+
+  const org = orgId ? await getOrgStripe(supabase, orgId) : { secretKey: null, webhookSecret: null }
+  const webhookSecret = org.webhookSecret || process.env.STRIPE_WEBHOOK_SECRET
+  const stripe = stripeFromKey(org.secretKey)
+  if (!stripe || !webhookSecret) return NextResponse.json({ ok: true }) // not configured
+
   let event: Stripe.Event
   try {
-    event = stripe.webhooks.constructEvent(raw, sig, secret)
+    event = stripe.webhooks.constructEvent(raw, sig, webhookSecret)
   } catch (e) {
     console.error('stripe signature verification failed:', e instanceof Error ? e.message : e)
     return NextResponse.json({ error: 'bad signature' }, { status: 400 })
@@ -30,7 +45,6 @@ export async function POST(req: NextRequest) {
 
   const session = event.data.object as Stripe.Checkout.Session
   try {
-    const supabase = await createServiceClient()
     const campaignId = session.metadata?.campaignId
     if (!campaignId || session.payment_status !== 'paid') return NextResponse.json({ ok: true })
 

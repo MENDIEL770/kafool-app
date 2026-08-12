@@ -1,13 +1,33 @@
 import 'server-only'
 import Stripe from 'stripe'
+import type { SupabaseClient } from '@supabase/supabase-js'
 
-// Lazily-built Stripe client. Returns null until STRIPE_SECRET_KEY is set, so the
-// app keeps working (Stripe just stays off) until it's configured.
-let client: Stripe | null = null
+// Build a Stripe client for a specific secret key (per-organization). Falls back
+// to the platform env key when an org hasn't set its own. Returns null when
+// neither is configured, so the app keeps working with Stripe simply off.
+export function stripeFromKey(key?: string | null): Stripe | null {
+  const k = (key || '').trim() || process.env.STRIPE_SECRET_KEY || ''
+  if (!k) return null
+  return new Stripe(k)
+}
 
+// Env-only client (kept for backward compatibility).
 export function getStripe(): Stripe | null {
-  const key = process.env.STRIPE_SECRET_KEY
-  if (!key) return null
-  if (!client) client = new Stripe(key)
-  return client
+  return stripeFromKey(null)
+}
+
+/** An org's Stripe credentials, stored on the organizations row (server-only). */
+export async function getOrgStripe(
+  supabase: SupabaseClient,
+  orgId: string,
+): Promise<{ secretKey: string | null; webhookSecret: string | null }> {
+  const { data } = await supabase
+    .from('organizations')
+    .select('stripe_secret_key, stripe_webhook_secret')
+    .eq('id', orgId)
+    .maybeSingle()
+  return {
+    secretKey: ((data?.stripe_secret_key as string) || '').trim() || null,
+    webhookSecret: ((data?.stripe_webhook_secret as string) || '').trim() || null,
+  }
 }

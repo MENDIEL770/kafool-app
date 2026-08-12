@@ -425,7 +425,7 @@ export default function CampaignSettingsPage() {
               <span className="text-lg">🌍</span> Stripe — תרומות מחו״ל
             </CardTitle>
             <p className="text-xs text-gray-400 mt-1">
-              כפתור נוסף בדף הגיוס לתרומות מחו״ל דרך Stripe. התורם מועבר לדף תשלום מאובטח של Stripe, ובסיום התרומה נקלטת אוטומטית (webhook). דורש הגדרת מפתחות Stripe בשרת.
+              כפתור נוסף בדף הגיוס לתרומות מחו״ל דרך Stripe. התורם מועבר לדף תשלום מאובטח של Stripe, ובסיום התרומה נקלטת אוטומטית (webhook). תחילה יש לחבר את חשבון ה-Stripe בהגדרות → חיבור לתשלום.
             </p>
           </CardHeader>
           <CardContent className="space-y-3">

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { getClientOrgId } from '@/lib/tenancy-client'
 import { Check, Copy, Info, ExternalLink } from 'lucide-react'
+import StripeConnectCard from './StripeConnectCard'
 
 // Generic payment-link fields. Each provider keeps its own copy of these,
 // stored in provider-specific DB columns (see COLUMNS below).
@@ -303,6 +304,9 @@ export default function KesherSettingsPage() {
         </button>
       </form>
       </>)}
+
+      {/* Stripe — independent of the Israeli provider choice (runs alongside it) */}
+      <StripeConnectCard />
     </div>
   )
 }
