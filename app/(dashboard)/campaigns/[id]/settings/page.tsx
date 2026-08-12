@@ -41,6 +41,10 @@ export default function CampaignSettingsPage() {
     whatsapp_message: '',
     manager_phone: '',
     kafool_plus_sync: false,
+    stripe_enabled: false,
+    stripe_currency: 'usd',
+    stripe_amounts: '18, 36, 100, 180',
+    stripe_ils_rate: '3.7',
     thanks_title: '',
     thanks_message: '',
     logo_url: '',
@@ -73,6 +77,10 @@ export default function CampaignSettingsPage() {
           whatsapp_message: data.settings?.whatsapp_message || '',
           manager_phone: data.settings?.manager_phone || '',
           kafool_plus_sync: data.settings?.kafool_plus_sync === true,
+          stripe_enabled: data.settings?.stripe_enabled === true,
+          stripe_currency: data.settings?.stripe_currency || 'usd',
+          stripe_amounts: Array.isArray(data.settings?.stripe_amounts) ? data.settings.stripe_amounts.join(', ') : '18, 36, 100, 180',
+          stripe_ils_rate: String(data.settings?.stripe_ils_rate || '3.7'),
           thanks_title: data.settings?.thanks?.title || '',
           thanks_message: data.settings?.thanks?.message || '',
           logo_url: data.logo_url || '',
@@ -127,6 +135,10 @@ export default function CampaignSettingsPage() {
         whatsapp_message: form.whatsapp_message || null,
         manager_phone: form.manager_phone || null,
         kafool_plus_sync: form.kafool_plus_sync,
+        stripe_enabled: form.stripe_enabled,
+        stripe_currency: form.stripe_currency || 'usd',
+        stripe_amounts: form.stripe_amounts.split(',').map(a => Math.round(Number(a.trim())) || 0).filter(a => a > 0),
+        stripe_ils_rate: Number(form.stripe_ils_rate) || 3.7,
         thanks: {
           title: form.thanks_title.trim() || null,
           message: form.thanks_message.trim() || null,
@@ -403,6 +415,55 @@ export default function CampaignSettingsPage() {
               />
               שלח תרומות מקמפיין זה ל-Kafool+
             </label>
+          </CardContent>
+        </Card>
+
+        {/* Stripe — תרומות מחו״ל */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <span className="text-lg">🌍</span> Stripe — תרומות מחו״ל
+            </CardTitle>
+            <p className="text-xs text-gray-400 mt-1">
+              כפתור נוסף בדף הגיוס לתרומות מחו״ל דרך Stripe. התורם מועבר לדף תשלום מאובטח של Stripe, ובסיום התרומה נקלטת אוטומטית (webhook). דורש הגדרת מפתחות Stripe בשרת.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.stripe_enabled}
+                onChange={(e) => setForm(prev => ({ ...prev, stripe_enabled: e.target.checked }))}
+                className="w-4 h-4 accent-blue-600"
+              />
+              הפעל תרומות מחו״ל (Stripe)
+            </label>
+            {form.stripe_enabled && (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                <div className="space-y-1">
+                  <Label>מטבע</Label>
+                  <select
+                    value={form.stripe_currency}
+                    onChange={(e) => set('stripe_currency', e.target.value)}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white"
+                    dir="ltr"
+                  >
+                    <option value="usd">USD ($)</option>
+                    <option value="eur">EUR (€)</option>
+                    <option value="gbp">GBP (£)</option>
+                    <option value="ils">ILS (₪)</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <Label>סכומים מוצעים</Label>
+                  <Input value={form.stripe_amounts} onChange={(e) => set('stripe_amounts', e.target.value)} dir="ltr" placeholder="18, 36, 100, 180" />
+                </div>
+                <div className="space-y-1">
+                  <Label>שער המרה ל-₪ (לסך שגויס)</Label>
+                  <Input type="number" step="0.1" value={form.stripe_ils_rate} onChange={(e) => set('stripe_ils_rate', e.target.value)} dir="ltr" placeholder="3.7" />
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 

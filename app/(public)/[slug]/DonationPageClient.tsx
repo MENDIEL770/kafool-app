@@ -136,6 +136,7 @@ function useT() {
   return (key: keyof typeof STR) => STR[key][lang === 'en' ? 1 : 0]
 }
 import DonationModal from './DonationModal'
+import StripeDonate from './StripeDonate'
 import CreateGroupModal from './CreateGroupModal'
 import AccessibilityWidget from '../_components/AccessibilityWidget'
 import Footer from '../_components/Footer'
@@ -1506,6 +1507,11 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
     ? radiusToButtonClass(builderCfg.design.radius)
     : (buttonRadiusMap[settings?.button_radius || 'pill'] || 'rounded-full')
 
+  // Stripe "donate from abroad" (foreign currency) — shown only when enabled.
+  const stripeCfg = settings as unknown as { stripe_enabled?: boolean; stripe_currency?: string; stripe_amounts?: number[] }
+  const stripeEnabled = stripeCfg?.stripe_enabled === true
+  const stripeAmounts = Array.isArray(stripeCfg?.stripe_amounts) && stripeCfg.stripe_amounts.length ? stripeCfg.stripe_amounts : [18, 36, 100, 180]
+
   // Usage tracking: count this visit once per session.
   useEffect(() => { trackOnce(campaign.id, 'view') }, [campaign.id])
 
@@ -1684,6 +1690,19 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
 
       {/* 3. Donation Plans */}
       {isOn('amounts') && <DonationPlans plans={donationPlans} primaryColor={primaryColor} campaignSlug={campaign.slug} groups={groups} buttonRadius={buttonRadius} buttonSize={buttonSize} otherAmountImage={(settings as { other_amount_design?: string })?.other_amount_design || null} otherAmountPlacement={(settings as { other_amount_placement?: 'grid' | 'cta' })?.other_amount_placement === 'cta' ? 'cta' : 'grid'} defaultCta={(settings as { donate_cta?: string })?.donate_cta || ''} onDonate={openDonate} />}
+
+      {isOn('amounts') && stripeEnabled && (
+        <div className="mx-auto max-w-md px-4 pb-6 -mt-2">
+          <StripeDonate
+            campaignId={campaign.id}
+            groupSlug={modalGroupSlug}
+            currency={stripeCfg?.stripe_currency || 'usd'}
+            amounts={stripeAmounts}
+            primaryColor={primaryColor}
+            buttonRadius={buttonRadius}
+          />
+        </div>
+      )}
 
       {/* 4. Progress */}
       {isOn('goal') && <ProgressSection raised={raisedAmount} goal={campaign.goal_amount} donorsCount={donations.length} primaryColor={primaryColor} bricks={(campaign.settings as { show_bricks?: boolean })?.show_bricks === false ? undefined : (campaign.settings as { bricks?: { total: number; price: number; label?: string } })?.bricks} />}
