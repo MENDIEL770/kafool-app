@@ -1465,7 +1465,9 @@ function PopupAd({ ad, campaignId }: { ad?: { image_url?: string; link?: string 
 export default function DonationPageClient({ org, campaign, donations: initialDonations, groups, gallery, activeGroup, donationUrl = '', paymentUrls, paymentProvider, nedarim }: Props) {
   const [donations, setDonations] = useState<Donation[]>(initialDonations)
   const [raisedAmount, setRaisedAmount] = useState(campaign.raised_amount)
-  const [lang, setLang] = useState<Lang>('he')
+  const [lang, setLang] = useState<Lang>(
+    (campaign.settings as { default_lang?: string })?.default_lang === 'en' ? 'en' : 'he'
+  )
   const [modalOpen, setModalOpen] = useState(false)
   const [modalAmount, setModalAmount] = useState<number | undefined>()
   const [modalGroupSlug, setModalGroupSlug] = useState<string | undefined>()
@@ -1508,8 +1510,10 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
     : (buttonRadiusMap[settings?.button_radius || 'pill'] || 'rounded-full')
 
   // Stripe "donate from abroad" (foreign currency) — shown only when enabled.
-  const stripeCfg = settings as unknown as { stripe_enabled?: boolean; stripe_currency?: string; stripe_amounts?: number[] }
-  const stripeEnabled = stripeCfg?.stripe_enabled === true
+  const stripeCfg = settings as unknown as { stripe_enabled?: boolean; stripe_currency?: string; stripe_amounts?: number[]; stripe_en_only?: boolean }
+  // Foreign-currency (Stripe) donations. When stripe_en_only is set, the button
+  // shows only while the site is in English (for overseas donors).
+  const stripeEnabled = stripeCfg?.stripe_enabled === true && (!stripeCfg?.stripe_en_only || lang === 'en')
   const stripeAmounts = Array.isArray(stripeCfg?.stripe_amounts) && stripeCfg.stripe_amounts.length ? stripeCfg.stripe_amounts : [18, 36, 100, 180]
 
   // Usage tracking: count this visit once per session.

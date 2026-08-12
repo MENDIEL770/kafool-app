@@ -1,6 +1,7 @@
 import 'server-only'
 import Stripe from 'stripe'
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { decryptSecret } from './crypto'
 
 // Build a Stripe client for a specific secret key (per-organization). Falls back
 // to the platform env key when an org hasn't set its own. Returns null when
@@ -27,7 +28,7 @@ export async function getOrgStripe(
     .eq('id', orgId)
     .maybeSingle()
   return {
-    secretKey: ((data?.stripe_secret_key as string) || '').trim() || null,
-    webhookSecret: ((data?.stripe_webhook_secret as string) || '').trim() || null,
+    secretKey: (decryptSecret(data?.stripe_secret_key as string) || '').trim() || null,
+    webhookSecret: (decryptSecret(data?.stripe_webhook_secret as string) || '').trim() || null,
   }
 }

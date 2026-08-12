@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { getContext } from '@/lib/tenancy'
+import { encryptSecret } from '@/lib/crypto'
 
 export const runtime = 'nodejs'
 
@@ -47,14 +48,14 @@ export async function POST(req: NextRequest) {
     if (v && !/^sk_(test|live)_/.test(v) && !/^rk_(test|live)_/.test(v)) {
       return NextResponse.json({ error: 'מפתח סודי לא תקין (מתחיל ב-sk_)' }, { status: 400 })
     }
-    update.stripe_secret_key = v || null
+    update.stripe_secret_key = v ? encryptSecret(v) : null
   }
   if (typeof body.webhookSecret === 'string') {
     const v = body.webhookSecret.trim()
     if (v && !/^whsec_/.test(v)) {
       return NextResponse.json({ error: 'סוד Webhook לא תקין (מתחיל ב-whsec_)' }, { status: 400 })
     }
-    update.stripe_webhook_secret = v || null
+    update.stripe_webhook_secret = v ? encryptSecret(v) : null
   }
   if (Object.keys(update).length === 0) return NextResponse.json({ ok: true })
 

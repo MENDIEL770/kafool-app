@@ -42,9 +42,11 @@ export default function CampaignSettingsPage() {
     manager_phone: '',
     kafool_plus_sync: false,
     stripe_enabled: false,
+    stripe_en_only: false,
     stripe_currency: 'usd',
     stripe_amounts: '18, 36, 100, 180',
     stripe_ils_rate: '3.7',
+    default_lang: 'he',
     thanks_title: '',
     thanks_message: '',
     logo_url: '',
@@ -78,9 +80,11 @@ export default function CampaignSettingsPage() {
           manager_phone: data.settings?.manager_phone || '',
           kafool_plus_sync: data.settings?.kafool_plus_sync === true,
           stripe_enabled: data.settings?.stripe_enabled === true,
+          stripe_en_only: data.settings?.stripe_en_only === true,
           stripe_currency: data.settings?.stripe_currency || 'usd',
           stripe_amounts: Array.isArray(data.settings?.stripe_amounts) ? data.settings.stripe_amounts.join(', ') : '18, 36, 100, 180',
           stripe_ils_rate: String(data.settings?.stripe_ils_rate || '3.7'),
+          default_lang: data.settings?.default_lang === 'en' ? 'en' : 'he',
           thanks_title: data.settings?.thanks?.title || '',
           thanks_message: data.settings?.thanks?.message || '',
           logo_url: data.logo_url || '',
@@ -136,9 +140,11 @@ export default function CampaignSettingsPage() {
         manager_phone: form.manager_phone || null,
         kafool_plus_sync: form.kafool_plus_sync,
         stripe_enabled: form.stripe_enabled,
+        stripe_en_only: form.stripe_en_only,
         stripe_currency: form.stripe_currency || 'usd',
         stripe_amounts: form.stripe_amounts.split(',').map(a => Math.round(Number(a.trim())) || 0).filter(a => a > 0),
         stripe_ils_rate: Number(form.stripe_ils_rate) || 3.7,
+        default_lang: form.default_lang === 'en' ? 'en' : 'he',
         thanks: {
           title: form.thanks_title.trim() || null,
           message: form.thanks_message.trim() || null,
@@ -418,6 +424,29 @@ export default function CampaignSettingsPage() {
           </CardContent>
         </Card>
 
+        {/* שפת ברירת מחדל של דף הגיוס */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <span className="text-lg">🌐</span> שפת ברירת מחדל
+            </CardTitle>
+            <p className="text-xs text-gray-400 mt-1">באיזו שפה ייפתח דף הגיוס למבקרים. הם תמיד יוכלו להחליף שפה בעצמם.</p>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-1 max-w-xs">
+              <Label>שפת ברירת מחדל</Label>
+              <select
+                value={form.default_lang}
+                onChange={(e) => set('default_lang', e.target.value)}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white"
+              >
+                <option value="he">עברית</option>
+                <option value="en">אנגלית (English)</option>
+              </select>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Stripe — תרומות מחו״ל */}
         <Card>
           <CardHeader>
@@ -438,6 +467,17 @@ export default function CampaignSettingsPage() {
               />
               הפעל תרומות מחו״ל (Stripe)
             </label>
+            {form.stripe_enabled && (
+              <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.stripe_en_only}
+                  onChange={(e) => setForm(prev => ({ ...prev, stripe_en_only: e.target.checked }))}
+                  className="w-4 h-4 accent-blue-600"
+                />
+                הצג את כפתור התרומה מחו״ל רק כשהאתר באנגלית
+              </label>
+            )}
             {form.stripe_enabled && (
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
                 <div className="space-y-1">
