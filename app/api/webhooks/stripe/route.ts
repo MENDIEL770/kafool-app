@@ -7,7 +7,7 @@ import type Stripe from 'stripe'
 
 export const runtime = 'nodejs'
 
-type Meta = { campaignId?: string; groupSlug?: string; phone?: string; name?: string }
+type Meta = { campaignId?: string; groupSlug?: string; phone?: string; name?: string; installments?: string }
 
 // campaignId can live on the session (one-time) or, for a standing order, on the
 // invoice's subscription metadata. Read from the UNVERIFIED body only to pick the
@@ -26,7 +26,7 @@ function peekCampaignId(obj: unknown): string | null {
 // ₪ for the campaign total, then attach custom data + recompute.
 async function recordDonation(
   supabase: SupabaseClient,
-  args: { campaignId: string; txnId: string; paid: number; currency: string; meta: Meta; email: string | null; phone: string | null; name: string | null; raw: unknown },
+  args: { campaignId: string; txnId: string; paid: number; currency: string; meta: Meta; email: string | null; phone: string | null; name: string | null; raw: unknown; subscriptionId?: string | null },
 ): Promise<void> {
   const { data: campaign } = await supabase
     .from('campaigns').select('org_id, settings').eq('id', args.campaignId).maybeSingle()
@@ -54,7 +54,7 @@ async function recordDonation(
       group_id: groupId,
       kesher_transaction_id: args.txnId,
       payment_status: 'completed',
-      custom_data: { payment_method: 'stripe', stripe_currency: args.currency, stripe_amount: args.paid },
+      custom_data: { payment_method: 'stripe', stripe_currency: args.currency, stripe_amount: args.paid, ...(args.subscriptionId ? { stripe_subscription: args.subscriptionId } : {}) },
       kesher_raw: args.raw as Record<string, unknown>,
     }).select('id').single()
 
@@ -118,10 +118,13 @@ export async function POST(req: NextRequest) {
     else if (event.type === 'invoice.paid') {
       const invoice = event.data.object as unknown as {
         id: string; amount_paid: number; currency: string; customer_email?: string | null; customer_name?: string | null
-        subscription_details?: { metadata?: Meta }; parent?: { subscription_details?: { metadata?: Meta } }
+        subscription?: string | null
+        subscription_details?: { metadata?: Meta }
+        parent?: { subscription_details?: { subscription?: string | null; metadata?: Meta } }
       }
       const meta: Meta = invoice.subscription_details?.metadata || invoice.parent?.subscription_details?.metadata || {}
       const campaignId = meta.campaignId
+      const subId = invoice.subscription || invoice.parent?.subscription_details?.subscription || null
       if (!campaignId || !(invoice.amount_paid > 0)) return NextResponse.json({ ok: true })
       await recordDonation(supabase, {
         campaignId,
@@ -133,7 +136,22 @@ export async function POST(req: NextRequest) {
         phone: meta.phone || null,
         name: meta.name || invoice.customer_name || null,
         raw: invoice,
+        subscriptionId: subId,
       })
+
+      // Charge limit: cancel the standing order once it reaches the configured
+      // number of monthly charges (Stripe has no native "cancel after N").
+      const maxN = Number(meta.installments) || 0
+      if (maxN > 0 && subId) {
+        try {
+          const { count } = await supabase
+            .from('donations').select('id', { count: 'exact', head: true })
+            .eq('custom_data->>stripe_subscription', subId)
+          if ((count || 0) >= maxN) await stripe.subscriptions.cancel(subId)
+        } catch (e) {
+          console.error('stripe standing-order cancel error:', e)
+        }
+      }
     }
   } catch (e) {
     console.error('stripe webhook handling error:', e)

@@ -25,6 +25,7 @@ export default function StripeDonate({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [recurring, setRecurring] = useState(false) // false = one-time, true = monthly standing order
+  const [months, setMonths] = useState<number | ''>('') // recurring only; '' / 0 = until cancelled
   const sym = SYMBOL[currency] || currency.toUpperCase()
 
   async function pay() {
@@ -35,7 +36,7 @@ export default function StripeDonate({
       const res = await fetch('/api/donations/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ campaignId, groupSlug, amount: amt, name, email, recurring }),
+        body: JSON.stringify({ campaignId, groupSlug, amount: amt, name, email, recurring, months: recurring ? Math.round(Number(months) || 0) : 0 }),
       })
       const d = await res.json().catch(() => ({}))
       if (d?.url) { window.location.href = d.url; return }
@@ -81,6 +82,20 @@ export default function StripeDonate({
               ))}
             </div>
 
+            {recurring && (
+              <div className="mb-3">
+                <label className="mb-1 block text-xs font-medium text-gray-500">מספר חודשים לחיוב</label>
+                <select
+                  value={months}
+                  onChange={e => setMonths(e.target.value === '' ? '' : Number(e.target.value))}
+                  className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm bg-white outline-none focus:ring-2 focus:ring-blue-400"
+                >
+                  <option value="">ללא הגבלה (עד ביטול)</option>
+                  {[3, 6, 10, 12, 18, 24, 36].map(m => <option key={m} value={m}>{m} חודשים</option>)}
+                </select>
+              </div>
+            )}
+
             <div className="mb-3 grid grid-cols-4 gap-2">
               {amounts.map(a => (
                 <button
@@ -116,7 +131,11 @@ export default function StripeDonate({
               {busy ? 'מעביר לתשלום…' : recurring ? `הוראת קבע ${sym}${Math.round(Number(amount) || 0)} לחודש` : 'המשך לתשלום מאובטח'}
             </button>
             <p className="mt-2 text-center text-[11px] text-gray-400">
-              {recurring ? 'חיוב חודשי מתחדש בכרטיס אשראי · ניתן לביטול בכל עת' : 'התשלום מתבצע בעמוד מאובטח של Stripe'}
+              {recurring
+                ? (Number(months) > 0
+                    ? `${months} חיובים חודשיים בכרטיס אשראי · ניתן לביטול בכל עת`
+                    : 'חיוב חודשי מתחדש בכרטיס אשראי · ניתן לביטול בכל עת')
+                : 'התשלום מתבצע בעמוד מאובטח של Stripe'}
             </p>
           </div>
         </div>

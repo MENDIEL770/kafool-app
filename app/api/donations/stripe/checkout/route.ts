@@ -42,8 +42,10 @@ export async function POST(req: NextRequest) {
   const email = body.email ? String(body.email).slice(0, 200) : ''
   const groupSlug = body.groupSlug ? String(body.groupSlug).slice(0, 120) : ''
   const recurring = body.recurring === true // monthly standing order (הו"ק)
+  const months = Math.round(Number(body.months) || 0) // recurring charge limit (0 = until cancelled)
 
-  const meta = { campaignId, groupSlug, phone, name }
+  const meta: Record<string, string> = { campaignId, groupSlug, phone, name }
+  if (recurring && months > 0) meta.installments = String(months)
   const productName = `תרומה — ${campaign.title || ''}`.trim()
   const emailOpt = email && /.+@.+\..+/.test(email) ? { customer_email: email } : {}
   const successUrl = `${base}/${campaign.slug}/thanks?tx={CHECKOUT_SESSION_ID}`
