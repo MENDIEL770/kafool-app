@@ -1,18 +1,70 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { stripeFromKey, getOrgStripe } from '@/lib/stripe'
 import { attachCustomData, recomputeCampaignRaised } from '@/lib/donations'
 import type Stripe from 'stripe'
 
 export const runtime = 'nodejs'
 
-/**
- * Stripe webhook (single URL for every org). We read the campaign id from the
- * UNVERIFIED body only to pick which org's webhook secret to verify against —
- * trust comes solely from constructEvent passing. Then, on
- * checkout.session.completed, records the donation like Kesher / Nedarim.
- * Idempotent by the session id.
- */
+type Meta = { campaignId?: string; groupSlug?: string; phone?: string; name?: string }
+
+// campaignId can live on the session (one-time) or, for a standing order, on the
+// invoice's subscription metadata. Read from the UNVERIFIED body only to pick the
+// signing secret — trust comes solely from constructEvent passing.
+function peekCampaignId(obj: unknown): string | null {
+  const o = obj as { metadata?: Meta; subscription_details?: { metadata?: Meta }; parent?: { subscription_details?: { metadata?: Meta } } }
+  return (
+    o?.metadata?.campaignId ||
+    o?.subscription_details?.metadata?.campaignId ||
+    o?.parent?.subscription_details?.metadata?.campaignId ||
+    null
+  )
+}
+
+// Record one confirmed donation (idempotent by txnId), convert foreign currency to
+// ₪ for the campaign total, then attach custom data + recompute.
+async function recordDonation(
+  supabase: SupabaseClient,
+  args: { campaignId: string; txnId: string; paid: number; currency: string; meta: Meta; email: string | null; phone: string | null; name: string | null; raw: unknown },
+): Promise<void> {
+  const { data: campaign } = await supabase
+    .from('campaigns').select('org_id, settings').eq('id', args.campaignId).maybeSingle()
+  if (!campaign) return
+
+  const { data: existing } = await supabase
+    .from('donations').select('id').eq('kesher_transaction_id', args.txnId).maybeSingle()
+  if (!existing) {
+    const rate = Number((campaign.settings as { stripe_ils_rate?: number } | null)?.stripe_ils_rate) || (args.currency === 'ils' ? 1 : 3.7)
+    const ilsAmount = args.currency === 'ils' ? Math.round(args.paid) : Math.round(args.paid * rate)
+
+    let groupId: string | null = null
+    if (args.meta.groupSlug) {
+      const { data: g } = await supabase.from('groups').select('id').eq('campaign_id', args.campaignId).eq('slug', args.meta.groupSlug).maybeSingle()
+      groupId = g?.id ?? null
+    }
+
+    const { data: inserted } = await supabase.from('donations').insert({
+      campaign_id: args.campaignId,
+      org_id: campaign.org_id,
+      amount: ilsAmount,
+      donor_name: args.name,
+      donor_phone: args.phone,
+      donor_email: args.email,
+      group_id: groupId,
+      kesher_transaction_id: args.txnId,
+      payment_status: 'completed',
+      custom_data: { payment_method: 'stripe', stripe_currency: args.currency, stripe_amount: args.paid },
+      kesher_raw: args.raw as Record<string, unknown>,
+    }).select('id').single()
+
+    if (inserted) {
+      await attachCustomData(supabase, { donationId: inserted.id, campaignId: args.campaignId, phone: args.phone, amount: ilsAmount, donorEmail: args.email })
+    }
+  }
+  await recomputeCampaignRaised(supabase, args.campaignId)
+}
+
 export async function POST(req: NextRequest) {
   const sig = req.headers.get('stripe-signature') || ''
   const raw = await req.text()
@@ -21,7 +73,7 @@ export async function POST(req: NextRequest) {
   // Untrusted peek → campaign → org, to select the right signing secret.
   let orgId: string | null = null
   try {
-    const cid = JSON.parse(raw)?.data?.object?.metadata?.campaignId
+    const cid = peekCampaignId(JSON.parse(raw)?.data?.object)
     if (cid) {
       const { data } = await supabase.from('campaigns').select('org_id').eq('id', String(cid)).maybeSingle()
       orgId = (data?.org_id as string) || null
@@ -41,56 +93,48 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'bad signature' }, { status: 400 })
   }
 
-  if (event.type !== 'checkout.session.completed') return NextResponse.json({ ok: true })
-
-  const session = event.data.object as Stripe.Checkout.Session
   try {
-    const campaignId = session.metadata?.campaignId
-    if (!campaignId || session.payment_status !== 'paid') return NextResponse.json({ ok: true })
-
-    const { data: campaign } = await supabase
-      .from('campaigns').select('org_id, settings').eq('id', campaignId).maybeSingle()
-    if (!campaign) return NextResponse.json({ ok: true })
-
-    const txn = String(session.id)
-    const { data: existing } = await supabase
-      .from('donations').select('id').eq('kesher_transaction_id', txn).maybeSingle()
-    if (!existing) {
-      const currency = String(session.currency || 'usd').toLowerCase()
-      const paid = (Number(session.amount_total) || 0) / 100
-      // The campaign total is in ₪ — convert foreign currency at the configured rate.
-      const rate = Number((campaign.settings as { stripe_ils_rate?: number } | null)?.stripe_ils_rate) || (currency === 'ils' ? 1 : 3.7)
-      const ilsAmount = currency === 'ils' ? Math.round(paid) : Math.round(paid * rate)
-
-      const groupSlug = session.metadata?.groupSlug || ''
-      let groupId: string | null = null
-      if (groupSlug) {
-        const { data: g } = await supabase.from('groups').select('id').eq('campaign_id', campaignId).eq('slug', groupSlug).maybeSingle()
-        groupId = g?.id ?? null
-      }
-      const phone = session.metadata?.phone || session.customer_details?.phone || null
-      const email = session.customer_details?.email || session.customer_email || null
-      const name = session.metadata?.name || session.customer_details?.name || null
-
-      const { data: inserted } = await supabase.from('donations').insert({
-        campaign_id: campaignId,
-        org_id: campaign.org_id,
-        amount: ilsAmount,
-        donor_name: name,
-        donor_phone: phone,
-        donor_email: email,
-        group_id: groupId,
-        kesher_transaction_id: txn,
-        payment_status: 'completed',
-        custom_data: { payment_method: 'stripe', stripe_currency: currency, stripe_amount: paid },
-        kesher_raw: session as unknown as Record<string, unknown>,
-      }).select('id').single()
-
-      if (inserted) {
-        await attachCustomData(supabase, { donationId: inserted.id, campaignId, phone, amount: ilsAmount, donorEmail: email })
-      }
+    // One-time donation. Subscriptions (standing orders) are recorded per charge
+    // via invoice.paid instead, so skip the subscription's initial session here.
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object as Stripe.Checkout.Session
+      if (session.mode === 'subscription') return NextResponse.json({ ok: true })
+      const campaignId = session.metadata?.campaignId
+      if (!campaignId || session.payment_status !== 'paid') return NextResponse.json({ ok: true })
+      await recordDonation(supabase, {
+        campaignId,
+        txnId: String(session.id),
+        paid: (Number(session.amount_total) || 0) / 100,
+        currency: String(session.currency || 'usd').toLowerCase(),
+        meta: (session.metadata as Meta) || {},
+        email: session.customer_details?.email || session.customer_email || null,
+        phone: session.metadata?.phone || session.customer_details?.phone || null,
+        name: session.metadata?.name || session.customer_details?.name || null,
+        raw: session,
+      })
     }
-    await recomputeCampaignRaised(supabase, campaignId)
+
+    // Recurring standing-order charge (first month + every renewal).
+    else if (event.type === 'invoice.paid') {
+      const invoice = event.data.object as unknown as {
+        id: string; amount_paid: number; currency: string; customer_email?: string | null; customer_name?: string | null
+        subscription_details?: { metadata?: Meta }; parent?: { subscription_details?: { metadata?: Meta } }
+      }
+      const meta: Meta = invoice.subscription_details?.metadata || invoice.parent?.subscription_details?.metadata || {}
+      const campaignId = meta.campaignId
+      if (!campaignId || !(invoice.amount_paid > 0)) return NextResponse.json({ ok: true })
+      await recordDonation(supabase, {
+        campaignId,
+        txnId: String(invoice.id),
+        paid: (Number(invoice.amount_paid) || 0) / 100,
+        currency: String(invoice.currency || 'usd').toLowerCase(),
+        meta,
+        email: invoice.customer_email || null,
+        phone: meta.phone || null,
+        name: meta.name || invoice.customer_name || null,
+        raw: invoice,
+      })
+    }
   } catch (e) {
     console.error('stripe webhook handling error:', e)
   }

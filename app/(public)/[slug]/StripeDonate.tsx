@@ -24,6 +24,7 @@ export default function StripeDonate({
   const [email, setEmail] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [recurring, setRecurring] = useState(false) // false = one-time, true = monthly standing order
   const sym = SYMBOL[currency] || currency.toUpperCase()
 
   async function pay() {
@@ -34,7 +35,7 @@ export default function StripeDonate({
       const res = await fetch('/api/donations/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ campaignId, groupSlug, amount: amt, name, email }),
+        body: JSON.stringify({ campaignId, groupSlug, amount: amt, name, email, recurring }),
       })
       const d = await res.json().catch(() => ({}))
       if (d?.url) { window.location.href = d.url; return }
@@ -62,6 +63,22 @@ export default function StripeDonate({
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-lg font-black text-gray-900">תרומה מחו״ל</h3>
               <button onClick={() => setOpen(false)} className="text-gray-300 hover:text-gray-500"><X className="w-5 h-5" /></button>
+            </div>
+
+            {/* one-time vs monthly standing order */}
+            <div className="mb-3 grid grid-cols-2 gap-2">
+              {[{ v: false, l: 'חד-פעמי' }, { v: true, l: 'הוראת קבע (חודשי)' }].map(o => (
+                <button
+                  key={o.l}
+                  onClick={() => setRecurring(o.v)}
+                  className="rounded-xl border py-2 text-sm font-bold transition-colors"
+                  style={recurring === o.v
+                    ? { background: primaryColor, color: '#fff', borderColor: primaryColor }
+                    : { borderColor: '#e5e7eb', color: '#374151' }}
+                >
+                  {o.l}
+                </button>
+              ))}
             </div>
 
             <div className="mb-3 grid grid-cols-4 gap-2">
@@ -96,9 +113,11 @@ export default function StripeDonate({
               style={{ background: primaryColor }}
             >
               {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-              {busy ? 'מעביר לתשלום…' : 'המשך לתשלום מאובטח'}
+              {busy ? 'מעביר לתשלום…' : recurring ? `הוראת קבע ${sym}${Math.round(Number(amount) || 0)} לחודש` : 'המשך לתשלום מאובטח'}
             </button>
-            <p className="mt-2 text-center text-[11px] text-gray-400">התשלום מתבצע בעמוד מאובטח של Stripe</p>
+            <p className="mt-2 text-center text-[11px] text-gray-400">
+              {recurring ? 'חיוב חודשי מתחדש בכרטיס אשראי · ניתן לביטול בכל עת' : 'התשלום מתבצע בעמוד מאובטח של Stripe'}
+            </p>
           </div>
         </div>
       )}

@@ -41,24 +41,52 @@ export async function POST(req: NextRequest) {
   const phone = body.phone ? String(body.phone).slice(0, 30) : ''
   const email = body.email ? String(body.email).slice(0, 200) : ''
   const groupSlug = body.groupSlug ? String(body.groupSlug).slice(0, 120) : ''
+  const recurring = body.recurring === true // monthly standing order (הו"ק)
+
+  const meta = { campaignId, groupSlug, phone, name }
+  const productName = `תרומה — ${campaign.title || ''}`.trim()
+  const emailOpt = email && /.+@.+\..+/.test(email) ? { customer_email: email } : {}
+  const successUrl = `${base}/${campaign.slug}/thanks?tx={CHECKOUT_SESSION_ID}`
+  const cancelUrl = `${base}/${campaign.slug}`
 
   try {
-    const session = await stripe.checkout.sessions.create({
-      mode: 'payment',
-      submit_type: 'donate',
-      line_items: [{
-        price_data: {
-          currency,
-          unit_amount: amount * 100, // smallest currency unit (cents / agorot)
-          product_data: { name: `תרומה — ${campaign.title || ''}`.trim() },
-        },
-        quantity: 1,
-      }],
-      ...(email && /.+@.+\..+/.test(email) ? { customer_email: email } : {}),
-      metadata: { campaignId, groupSlug, phone, name },
-      success_url: `${base}/${campaign.slug}/thanks?tx={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${base}/${campaign.slug}`,
-    })
+    const session = recurring
+      ? await stripe.checkout.sessions.create({
+          mode: 'subscription',
+          // A standing order is billed monthly; restrict to card (wallets like
+          // Cash App / some methods don't support recurring anyway).
+          payment_method_types: ['card'],
+          line_items: [{
+            price_data: {
+              currency,
+              unit_amount: amount * 100,
+              recurring: { interval: 'month' },
+              product_data: { name: `${productName} (הוראת קבע חודשית)` },
+            },
+            quantity: 1,
+          }],
+          subscription_data: { metadata: meta }, // so recurring invoices carry it
+          ...emailOpt,
+          metadata: meta,
+          success_url: successUrl,
+          cancel_url: cancelUrl,
+        })
+      : await stripe.checkout.sessions.create({
+          mode: 'payment',
+          submit_type: 'donate',
+          line_items: [{
+            price_data: {
+              currency,
+              unit_amount: amount * 100, // smallest currency unit (cents / agorot)
+              product_data: { name: productName },
+            },
+            quantity: 1,
+          }],
+          ...emailOpt,
+          metadata: meta,
+          success_url: successUrl,
+          cancel_url: cancelUrl,
+        })
     return NextResponse.json({ url: session.url })
   } catch (e) {
     console.error('stripe checkout error:', e)
