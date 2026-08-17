@@ -504,16 +504,19 @@ function HeroSection({ campaign, countdown }: {
   const settings = campaign.settings as {
     banners?: { url: string; sort_order: number }[]
     mobile_banners?: { url: string; sort_order: number }[]
+    banners_en?: { url: string; sort_order: number }[]
+    mobile_banners_en?: { url: string; sort_order: number }[]
     banner_video_button?: boolean
   }
-  const banners = settings?.banners?.length
-    ? [...settings.banners].sort((a, b) => a.sort_order - b.sort_order).map(b => b.url)
-    : campaign.cover_image_url ? [campaign.cover_image_url] : []
+  const urls = (v?: { url: string; sort_order: number }[]) =>
+    v?.length ? [...v].sort((a, b) => a.sort_order - b.sort_order).map(b => b.url) : []
+  // In English use the EN banner set when uploaded, else fall back to the Hebrew set.
+  const heBanners = urls(settings?.banners).length ? urls(settings?.banners) : (campaign.cover_image_url ? [campaign.cover_image_url] : [])
+  const banners = (lang === 'en' && urls(settings?.banners_en).length) ? urls(settings?.banners_en) : heBanners
 
   // Dedicated mobile banner set; falls back to the desktop banners when none uploaded.
-  const mobileBanners = settings?.mobile_banners?.length
-    ? [...settings.mobile_banners].sort((a, b) => a.sort_order - b.sort_order).map(b => b.url)
-    : banners
+  const heMobile = urls(settings?.mobile_banners).length ? urls(settings?.mobile_banners) : banners
+  const mobileBanners = (lang === 'en' && urls(settings?.mobile_banners_en).length) ? urls(settings?.mobile_banners_en) : heMobile
 
   const [videoOpen, setVideoOpen] = useState(false)
   // The play button on the banner can be turned off in the campaign media settings.

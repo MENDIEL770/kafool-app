@@ -382,6 +382,24 @@ export default function CampaignMediaClient({
   const [mobileBanners, setMobileBanners] = useState<string[]>(initialMobileBanners)
   const [uploadingMobileBanner, setUploadingMobileBanner] = useState(false)
   const mobileBannerRef = useRef<HTMLInputElement>(null)
+
+  // Parallel English banner sets — shown on the public page when the site is in
+  // English (falls back to the Hebrew banners when none uploaded). One language
+  // toggle drives all the banner uploaders below.
+  const urlsFrom = (v: unknown): string[] =>
+    (v as { url: string; sort_order: number }[] | undefined)?.length
+      ? [...(v as { url: string; sort_order: number }[])].sort((a, b) => a.sort_order - b.sort_order).map(b => b.url)
+      : []
+  const [bannersEn, setBannersEn] = useState<string[]>(urlsFrom(initialSettings.banners_en))
+  const [mobileBannersEn, setMobileBannersEn] = useState<string[]>(urlsFrom(initialSettings.mobile_banners_en))
+  const [bannerLang, setBannerLang] = useState<'he' | 'en'>('he')
+  // Active sets the uploaders/lists below operate on.
+  const isEn = bannerLang === 'en'
+  const curBanners = isEn ? bannersEn : banners
+  const setCurBanners = isEn ? setBannersEn : setBanners
+  const curMobileBanners = isEn ? mobileBannersEn : mobileBanners
+  const setCurMobileBanners = isEn ? setMobileBannersEn : setMobileBanners
+
   const [logoUrl, setLogoUrl] = useState<string | null>(initialLogoUrl)
   const [uploadingLogo, setUploadingLogo] = useState(false)
   const [shareImage, setShareImage] = useState<string | null>((initialSettings.share_image as string) || null)
@@ -538,18 +556,18 @@ export default function CampaignMediaClient({
     return url
   }
 
-  /* ─── Banners (multiple, auto-rotating) ─── */
+  /* ─── Banners (multiple, auto-rotating) — operate on the active language set ─── */
   async function handleBannerUpload(files: FileList) {
     setUploadingBanner(true)
     for (let i = 0; i < files.length; i++) {
-      const url = await uploadFile(files[i], `${orgId}/${campaignId}/banner-${Date.now()}-${i}`)
-      if (url) setBanners(p => [...p, url])
+      const url = await uploadFile(files[i], `${orgId}/${campaignId}/banner-${bannerLang}-${Date.now()}-${i}`)
+      if (url) setCurBanners(p => [...p, url])
     }
     setUploadingBanner(false)
   }
-  function removeBanner(i: number) { setBanners(p => p.filter((_, idx) => idx !== i)) }
+  function removeBanner(i: number) { setCurBanners(p => p.filter((_, idx) => idx !== i)) }
   function moveBanner(i: number, dir: -1 | 1) {
-    setBanners(p => {
+    setCurBanners(p => {
       const j = i + dir
       if (j < 0 || j >= p.length) return p
       const next = [...p]
@@ -558,18 +576,18 @@ export default function CampaignMediaClient({
     })
   }
 
-  /* ─── Mobile banners (optional) ─── */
+  /* ─── Mobile banners (optional) — active language set ─── */
   async function handleMobileBannerUpload(files: FileList) {
     setUploadingMobileBanner(true)
     for (let i = 0; i < files.length; i++) {
-      const url = await uploadFile(files[i], `${orgId}/${campaignId}/banner-mobile-${Date.now()}-${i}`)
-      if (url) setMobileBanners(p => [...p, url])
+      const url = await uploadFile(files[i], `${orgId}/${campaignId}/banner-mobile-${bannerLang}-${Date.now()}-${i}`)
+      if (url) setCurMobileBanners(p => [...p, url])
     }
     setUploadingMobileBanner(false)
   }
-  function removeMobileBanner(i: number) { setMobileBanners(p => p.filter((_, idx) => idx !== i)) }
+  function removeMobileBanner(i: number) { setCurMobileBanners(p => p.filter((_, idx) => idx !== i)) }
   function moveMobileBanner(i: number, dir: -1 | 1) {
-    setMobileBanners(p => {
+    setCurMobileBanners(p => {
       const j = i + dir
       if (j < 0 || j >= p.length) return p
       const next = [...p]
@@ -615,6 +633,8 @@ export default function CampaignMediaClient({
       ...(initialSettings as object),
       banners: banners.map((url, i) => ({ url, sort_order: i })),
       mobile_banners: mobileBanners.map((url, i) => ({ url, sort_order: i })),
+      banners_en: bannersEn.map((url, i) => ({ url, sort_order: i })),
+      mobile_banners_en: mobileBannersEn.map((url, i) => ({ url, sort_order: i })),
       banner_video_button: bannerVideoButton,
       share_image: shareImage,
       share_text: shareText.trim() || null,
@@ -770,6 +790,23 @@ export default function CampaignMediaClient({
 
           {/* Left: controls */}
           <div className="space-y-6">
+            {/* language toggle — which language's banners you're editing */}
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-flex rounded-xl border border-gray-200 bg-gray-50 p-1 text-sm font-semibold">
+                {(['he', 'en'] as const).map(l => (
+                  <button
+                    key={l}
+                    onClick={() => setBannerLang(l)}
+                    className={`px-4 py-1.5 rounded-lg transition-colors ${bannerLang === l ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                  >
+                    {l === 'he' ? 'עברית' : 'English'}
+                  </button>
+                ))}
+              </div>
+              <span className="text-xs text-gray-400">
+                {bannerLang === 'en' ? 'באנרים למבקרים באנגלית (אם ריק — יוצגו באנרי העברית)' : 'ברירת המחדל'}
+              </span>
+            </div>
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-6">
               <h2 className="font-bold text-gray-800 flex items-center gap-2">
                 <Monitor className="w-4 h-4 text-gray-400" />
@@ -793,7 +830,7 @@ export default function CampaignMediaClient({
                     onChange={e => e.target.files && handleBannerUpload(e.target.files)} />
                 </div>
 
-                {banners.length === 0 ? (
+                {curBanners.length === 0 ? (
                   <button onClick={() => bannerRef.current?.click()}
                     className="w-full aspect-video border-2 border-dashed border-gray-200 rounded-2xl flex flex-col items-center justify-center text-gray-400 hover:border-blue-300 hover:bg-blue-50/30 transition-all">
                     <Upload className="w-7 h-7 mb-2 opacity-40" />
@@ -801,12 +838,12 @@ export default function CampaignMediaClient({
                   </button>
                 ) : (
                   <div className="space-y-2">
-                    {banners.map((url, i) => (
+                    {curBanners.map((url, i) => (
                       <div key={i} className="flex items-center gap-2 border border-gray-100 rounded-xl p-2 bg-gray-50/50">
                         <div className="flex flex-col gap-0.5 shrink-0">
                           <button onClick={() => moveBanner(i, -1)} disabled={i === 0} title="העבר למעלה"
                             className="text-gray-300 hover:text-blue-600 disabled:opacity-20 transition-colors"><ChevronUp className="w-4 h-4" /></button>
-                          <button onClick={() => moveBanner(i, 1)} disabled={i === banners.length - 1} title="העבר למטה"
+                          <button onClick={() => moveBanner(i, 1)} disabled={i === curBanners.length - 1} title="העבר למטה"
                             className="text-gray-300 hover:text-blue-600 disabled:opacity-20 transition-colors"><ChevronDown className="w-4 h-4" /></button>
                         </div>
                         <img src={url} alt="" className="h-14 flex-1 min-w-0 object-cover rounded-lg" />
@@ -851,7 +888,7 @@ export default function CampaignMediaClient({
                     onChange={e => e.target.files && handleMobileBannerUpload(e.target.files)} />
                 </div>
 
-                {mobileBanners.length === 0 ? (
+                {curMobileBanners.length === 0 ? (
                   <button onClick={() => mobileBannerRef.current?.click()}
                     className="w-full aspect-[4/5] max-w-[180px] mx-auto border-2 border-dashed border-gray-200 rounded-2xl flex flex-col items-center justify-center text-gray-400 hover:border-blue-300 hover:bg-blue-50/30 transition-all">
                     <Upload className="w-7 h-7 mb-2 opacity-40" />
@@ -859,12 +896,12 @@ export default function CampaignMediaClient({
                   </button>
                 ) : (
                   <div className="space-y-2">
-                    {mobileBanners.map((url, i) => (
+                    {curMobileBanners.map((url, i) => (
                       <div key={i} className="flex items-center gap-2 border border-gray-100 rounded-xl p-2 bg-gray-50/50">
                         <div className="flex flex-col gap-0.5 shrink-0">
                           <button onClick={() => moveMobileBanner(i, -1)} disabled={i === 0} title="העבר למעלה"
                             className="text-gray-300 hover:text-blue-600 disabled:opacity-20 transition-colors"><ChevronUp className="w-4 h-4" /></button>
-                          <button onClick={() => moveMobileBanner(i, 1)} disabled={i === mobileBanners.length - 1} title="העבר למטה"
+                          <button onClick={() => moveMobileBanner(i, 1)} disabled={i === curMobileBanners.length - 1} title="העבר למטה"
                             className="text-gray-300 hover:text-blue-600 disabled:opacity-20 transition-colors"><ChevronDown className="w-4 h-4" /></button>
                         </div>
                         <img src={url} alt="" className="h-20 w-16 object-cover rounded-lg shrink-0" />
@@ -1027,8 +1064,8 @@ export default function CampaignMediaClient({
               </div>
 
               <BannerPreview
-                coverUrl={banners[0] || null}
-                mobileCoverUrl={mobileBanners[0] || null}
+                coverUrl={curBanners[0] || null}
+                mobileCoverUrl={curMobileBanners[0] || null}
                 logoUrl={logoUrl}
                 orgLogoUrl={orgLogoUrl}
                 title={campaignTitle}
@@ -1037,13 +1074,13 @@ export default function CampaignMediaClient({
                 viewMode={viewMode}
               />
 
-              {banners.length === 0 ? (
+              {curBanners.length === 0 ? (
                 <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700 text-center">
                   העלה באנר כדי לראות את התצוגה המלאה
                 </div>
-              ) : banners.length > 1 && (
+              ) : curBanners.length > 1 && (
                 <div className="mt-4 p-3 bg-blue-50 border border-blue-100 rounded-xl text-xs text-blue-700 text-center">
-                  {banners.length} באנרים — יתחלפו אוטומטית כל 4 שניות בעמוד הגיוס
+                  {curBanners.length} באנרים — יתחלפו אוטומטית כל 4 שניות בעמוד הגיוס
                 </div>
               )}
             </div>
