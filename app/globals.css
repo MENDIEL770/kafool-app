@@ -96,6 +96,15 @@
   }
 }
 
+/* About text (public render `.kf-about` + its editor `.kf-rte`) always uses the
+   page font (Rubik). Content pasted from Word / Google Docs carries an inline
+   font-family that would otherwise override it — force every node to re-inherit.
+   The editor has no font-family picker, so no intentional choice is lost. */
+.kf-about, .kf-about *,
+.kf-rte, .kf-rte * {
+  font-family: inherit !important;
+}
+
 /* Smooth transitions */
 @layer utilities {
   .transition-smooth {
