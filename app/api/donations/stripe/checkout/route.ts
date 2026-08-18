@@ -96,6 +96,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ clientSecret: session.client_secret, publishableKey: pk })
   } catch (e) {
     console.error('stripe checkout error:', e)
-    return NextResponse.json({ error: 'checkout failed' }, { status: 500 })
+    // Surface Stripe's own message/code so a manager can see WHY it failed
+    // (e.g. inactive account, bad key, unsupported currency) instead of a blank error.
+    const err = e as { message?: string; code?: string; type?: string }
+    const detail = err?.message || err?.code || err?.type || 'checkout failed'
+    return NextResponse.json({ error: `Stripe: ${detail}` }, { status: 500 })
   }
 }
