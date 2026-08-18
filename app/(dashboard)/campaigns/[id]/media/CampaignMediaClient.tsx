@@ -55,7 +55,7 @@ function FrameGrabber({ src, onClose, onCapture }: { src: string; onClose: () =>
 
 /* ─── Types ─── */
 interface GalleryItem { id: string; image_url: string; caption: string | null; sort_order: number }
-interface DonationPlan { amount: number; label?: string | null; image_url?: string | null; payment_type?: 'one_time' | 'hok'; months?: number | null; form?: string | null; cta?: string | null }
+interface DonationPlan { amount: number; label?: string | null; image_url?: string | null; image_url_en?: string | null; payment_type?: 'one_time' | 'hok'; months?: number | null; form?: string | null; cta?: string | null }
 interface FormOption { id: string; name: string }
 
 interface Props {
@@ -233,8 +233,9 @@ function UploadZone({
 }
 
 /* ─── Donation button (plan) editor row ─── */
-function PlanEditor({ plan, uploading, isFirst, isLast, customForms, preStepEnabled, onChange, onUpload, onRemove, onMoveUp, onMoveDown }: {
+function PlanEditor({ plan, lang, uploading, isFirst, isLast, customForms, preStepEnabled, onChange, onUpload, onRemove, onMoveUp, onMoveDown }: {
   plan: DonationPlan
+  lang: 'he' | 'en'
   uploading: boolean
   isFirst: boolean
   isLast: boolean
@@ -247,6 +248,8 @@ function PlanEditor({ plan, uploading, isFirst, isLast, customForms, preStepEnab
   onMoveDown: () => void
 }) {
   const ref = useRef<HTMLInputElement>(null)
+  const imgKey = lang === 'en' ? 'image_url_en' : 'image_url'
+  const img = lang === 'en' ? plan.image_url_en : plan.image_url
   return (
     <div className="flex items-center gap-3 border border-gray-100 rounded-2xl p-3 bg-gray-50/50">
       {/* reorder */}
@@ -263,9 +266,9 @@ function PlanEditor({ plan, uploading, isFirst, isLast, customForms, preStepEnab
         className="w-16 h-16 rounded-full overflow-hidden shrink-0 cursor-pointer relative border-2 border-dashed border-gray-200 hover:border-blue-300 bg-white flex items-center justify-center group"
         title="העלה עיצוב לכפתור"
       >
-        {plan.image_url ? (
+        {img ? (
           <>
-            <img src={plan.image_url} alt="" className="w-full h-full object-cover" />
+            <img src={img} alt="" className="w-full h-full object-cover" />
             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
               <Upload className="w-4 h-4 text-white" />
             </div>
@@ -341,8 +344,8 @@ function PlanEditor({ plan, uploading, isFirst, isLast, customForms, preStepEnab
       </div>
 
       <div className="flex flex-col items-center gap-1 shrink-0">
-        {plan.image_url && (
-          <button onClick={() => onChange({ image_url: null })} className="text-[10px] text-gray-400 hover:text-red-500" title="הסר עיצוב">הסר עיצוב</button>
+        {img && (
+          <button onClick={() => onChange({ [imgKey]: null })} className="text-[10px] text-gray-400 hover:text-red-500" title="הסר עיצוב">הסר עיצוב</button>
         )}
         <button onClick={onRemove} className="w-8 h-8 rounded-lg text-red-400 hover:bg-red-50 flex items-center justify-center" title="מחק כפתור">
           <Trash2 className="w-4 h-4" />
@@ -453,6 +456,7 @@ export default function CampaignMediaClient({
     (initialSettings.donation_plans as DonationPlan[] | undefined) ||
     (((initialSettings.donation_amounts as number[]) || [180, 360, 720, 1800, 3600]).map(amount => ({ amount })))
   const [plans, setPlans] = useState<DonationPlan[]>(initialPlans)
+  const [buttonLang, setButtonLang] = useState<'he' | 'en'>('he')
   const [uploadingPlan, setUploadingPlan] = useState<number | null>(null)
   const [otherAmountImage, setOtherAmountImage] = useState<string | null>((initialSettings.other_amount_design as string) || null)
   // how the "other amount" button appears: in the buttons grid, or beside the donate CTA
@@ -692,8 +696,8 @@ export default function CampaignMediaClient({
 
   async function uploadPlanImage(i: number, file: File) {
     setUploadingPlan(i)
-    const url = await uploadFile(file, `${orgId}/${campaignId}/plan-${i}-${Date.now()}`)
-    if (url) updatePlan(i, { image_url: url })
+    const url = await uploadFile(file, `${orgId}/${campaignId}/plan-${i}-${buttonLang}-${Date.now()}`)
+    if (url) updatePlan(i, buttonLang === 'en' ? { image_url_en: url } : { image_url: url })
     setUploadingPlan(null)
   }
 
@@ -714,6 +718,7 @@ export default function CampaignMediaClient({
     setSavingAmounts(true)
     const clean = plans.filter(p => p.amount > 0).map(p => ({
       amount: p.amount, label: p.label?.trim() || null, image_url: p.image_url || null,
+      image_url_en: p.image_url_en || null,
       payment_type: p.payment_type || 'one_time',
       months: p.payment_type === 'hok' ? (Number(p.months) || null) : null,
       form: p.form || null,
@@ -1300,10 +1305,28 @@ export default function CampaignMediaClient({
               className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm bg-white outline-none focus:ring-2 focus:ring-blue-400" />
           </div>
 
+          {/* language toggle — which language's button designs you're editing */}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex rounded-xl border border-gray-200 bg-gray-50 p-1 text-sm font-semibold">
+              {(['he', 'en'] as const).map(l => (
+                <button
+                  key={l}
+                  onClick={() => setButtonLang(l)}
+                  className={`px-4 py-1.5 rounded-lg transition-colors ${buttonLang === l ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                  {l === 'he' ? 'עברית' : 'English'}
+                </button>
+              ))}
+            </div>
+            <span className="text-[11px] text-gray-400">
+              {buttonLang === 'en' ? 'עיצובי הכפתורים למבקרים באנגלית (אם ריק — יוצג עיצוב העברית)' : 'עיצוב ברירת המחדל'}
+            </span>
+          </div>
+
           {/* Plan editors */}
           <div className="space-y-3">
             {plans.map((plan, i) => (
-              <PlanEditor key={i} plan={plan}
+              <PlanEditor key={i} plan={plan} lang={buttonLang}
                 uploading={uploadingPlan === i}
                 isFirst={i === 0} isLast={i === plans.length - 1}
                 customForms={campaignCustomForms}

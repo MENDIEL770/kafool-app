@@ -577,7 +577,7 @@ function HeroSection({ campaign, countdown }: {
 }
 
 function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius, buttonSize = 'default', otherAmountImage, otherAmountPlacement = 'grid', defaultCta, onDonate }: {
-  plans: { amount: number; label?: string; image_url?: string | null; payment_type?: 'one_time' | 'hok'; months?: number | null; form?: string | null; cta?: string | null }[]
+  plans: { amount: number; label?: string; image_url?: string | null; image_url_en?: string | null; payment_type?: 'one_time' | 'hok'; months?: number | null; form?: string | null; cta?: string | null }[]
   primaryColor: string
   campaignSlug: string
   groups: Group[]
@@ -627,8 +627,10 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
 
         {/* Grid: 3 columns on mobile, scrollable row on md+ (or large 1:1 buttons) */}
         <div className={gridCls} style={{ overflowY: 'visible' }}>
-          {plans.map(({ amount, label, image_url, payment_type, months }, i) => {
+          {plans.map(({ amount, label, image_url, image_url_en, payment_type, months }, i) => {
             const isActive = selected === i
+            // English visitors see the EN button design when one was uploaded.
+            const img = lang === 'en' ? (image_url_en || image_url) : image_url
             return (
               <button
                 key={i}
@@ -652,8 +654,8 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
                     transform: isActive ? 'scale(1.08)' : 'scale(1)',
                   }}
                 >
-                  {image_url ? (
-                    <img src={image_url} alt={label || `₪${amount}`} className="w-full h-full object-cover" loading="lazy" decoding="async" />
+                  {img ? (
+                    <img src={img} alt={label || `₪${amount}`} className="w-full h-full object-cover" loading="lazy" decoding="async" />
                   ) : (
                     <div
                       className="w-full h-full flex flex-col items-center justify-center text-center px-2"
@@ -1499,7 +1501,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
 
   const settings = campaign.settings as {
     donation_amounts?: number[]
-    donation_plans?: { amount: number; label?: string; image_url?: string | null; payment_type?: 'one_time' | 'hok'; months?: number | null; form?: string | null; cta?: string | null }[]
+    donation_plans?: { amount: number; label?: string; image_url?: string | null; image_url_en?: string | null; payment_type?: 'one_time' | 'hok'; months?: number | null; form?: string | null; cta?: string | null }[]
     primary_color?: string
     button_radius?: string
     donation_button_size?: 'default' | 'large'
