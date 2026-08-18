@@ -61,9 +61,9 @@ export async function POST(req: NextRequest) {
       ? await stripe.checkout.sessions.create({
           mode: 'subscription',
           ui_mode: 'embedded_page', // Stripe renamed 'embedded' → 'embedded_page'
-          // A standing order is billed monthly; restrict to card (wallets like
-          // Cash App / some methods don't support recurring anyway).
-          payment_method_types: ['card'],
+          // No payment_method_types → Stripe uses the account's automatic methods
+          // and shows only those that support recurring (card, Apple/Google Pay,
+          // Link), while filtering out ones that don't (e.g. Cash App Pay).
           line_items: [{
             price_data: {
               currency,
