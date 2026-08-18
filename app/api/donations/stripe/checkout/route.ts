@@ -27,9 +27,12 @@ export async function POST(req: NextRequest) {
     .from('campaigns').select('id, title, slug, settings, org_id').eq('id', campaignId).maybeSingle()
   if (!campaign) return NextResponse.json({ error: 'campaign not found' }, { status: 404 })
 
-  const s = (campaign.settings as { stripe_enabled?: boolean; stripe_currency?: string } | null) || {}
+  const s = (campaign.settings as { stripe_enabled?: boolean; stripe_currency?: string; allowed_currencies?: string[] } | null) || {}
   if (!s.stripe_enabled) return NextResponse.json({ error: 'stripe disabled' }, { status: 400 })
-  const currency = String(s.stripe_currency || 'usd').toLowerCase()
+  // Use the requested currency if the manager allows it; else the campaign default.
+  const allowed = (s.allowed_currencies?.length ? s.allowed_currencies : ['ils', s.stripe_currency || 'usd']).map(c => c.toLowerCase())
+  const reqCurrency = String(body.currency || '').toLowerCase()
+  const currency = (reqCurrency && reqCurrency !== 'ils' && allowed.includes(reqCurrency)) ? reqCurrency : String(s.stripe_currency || 'usd').toLowerCase()
 
   // This org's own Stripe account (falls back to the platform env key).
   const { secretKey, publishableKey } = await getOrgStripe(supabase, campaign.org_id)

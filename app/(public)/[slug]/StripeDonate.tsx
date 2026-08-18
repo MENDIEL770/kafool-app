@@ -46,7 +46,7 @@ export default function StripeDonate({
       const res = await fetch('/api/donations/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ campaignId, groupSlug, amount: amt, name, email, recurring, months: recurring ? Math.round(Number(months) || 0) : 0 }),
+        body: JSON.stringify({ campaignId, groupSlug, amount: amt, name, email, recurring, months: recurring ? Math.round(Number(months) || 0) : 0, currency }),
       })
       const d = await res.json().catch(() => ({}))
       if (d?.clientSecret && d?.publishableKey) {

@@ -42,11 +42,14 @@ export default function CampaignSettingsPage() {
     manager_phone: '',
     kafool_plus_sync: false,
     stripe_enabled: false,
-    stripe_en_only: false,
     stripe_currency: 'usd',
     stripe_amounts: '18, 36, 100, 180',
     stripe_ils_rate: '3.7',
     default_lang: 'he',
+    default_currency: 'ils',
+    allow_usd: true,
+    allow_eur: false,
+    allow_gbp: false,
     thanks_title: '',
     thanks_message: '',
     logo_url: '',
@@ -80,11 +83,14 @@ export default function CampaignSettingsPage() {
           manager_phone: data.settings?.manager_phone || '',
           kafool_plus_sync: data.settings?.kafool_plus_sync === true,
           stripe_enabled: data.settings?.stripe_enabled === true,
-          stripe_en_only: data.settings?.stripe_en_only === true,
           stripe_currency: data.settings?.stripe_currency || 'usd',
           stripe_amounts: Array.isArray(data.settings?.stripe_amounts) ? data.settings.stripe_amounts.join(', ') : '18, 36, 100, 180',
           stripe_ils_rate: String(data.settings?.stripe_ils_rate || '3.7'),
           default_lang: data.settings?.default_lang === 'en' ? 'en' : 'he',
+          default_currency: data.settings?.default_currency || 'ils',
+          allow_usd: Array.isArray(data.settings?.allowed_currencies) ? data.settings.allowed_currencies.includes('usd') : true,
+          allow_eur: Array.isArray(data.settings?.allowed_currencies) ? data.settings.allowed_currencies.includes('eur') : false,
+          allow_gbp: Array.isArray(data.settings?.allowed_currencies) ? data.settings.allowed_currencies.includes('gbp') : false,
           thanks_title: data.settings?.thanks?.title || '',
           thanks_message: data.settings?.thanks?.message || '',
           logo_url: data.logo_url || '',
@@ -140,11 +146,12 @@ export default function CampaignSettingsPage() {
         manager_phone: form.manager_phone || null,
         kafool_plus_sync: form.kafool_plus_sync,
         stripe_enabled: form.stripe_enabled,
-        stripe_en_only: form.stripe_en_only,
         stripe_currency: form.stripe_currency || 'usd',
         stripe_amounts: form.stripe_amounts.split(',').map(a => Math.round(Number(a.trim())) || 0).filter(a => a > 0),
         stripe_ils_rate: Number(form.stripe_ils_rate) || 3.7,
         default_lang: form.default_lang === 'en' ? 'en' : 'he',
+        default_currency: form.default_currency || 'ils',
+        allowed_currencies: ['ils', ...(form.allow_usd ? ['usd'] : []), ...(form.allow_eur ? ['eur'] : []), ...(form.allow_gbp ? ['gbp'] : [])],
         thanks: {
           title: form.thanks_title.trim() || null,
           message: form.thanks_message.trim() || null,
@@ -468,15 +475,36 @@ export default function CampaignSettingsPage() {
               הפעל תרומות מחו״ל (Stripe)
             </label>
             {form.stripe_enabled && (
-              <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={form.stripe_en_only}
-                  onChange={(e) => setForm(prev => ({ ...prev, stripe_en_only: e.target.checked }))}
-                  className="w-4 h-4 accent-blue-600"
-                />
-                הצג את כפתור התרומה מחו״ל רק כשהאתר באנגלית
-              </label>
+              <div className="space-y-2 rounded-xl bg-gray-50 border border-gray-100 p-3">
+                <p className="text-xs font-bold text-gray-600">מטבעות</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label>מטבע ברירת מחדל</Label>
+                    <select
+                      value={form.default_currency}
+                      onChange={(e) => set('default_currency', e.target.value)}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white"
+                    >
+                      <option value="ils">₪ שקל (קשר)</option>
+                      {form.allow_usd && <option value="usd">$ דולר (Stripe)</option>}
+                      {form.allow_eur && <option value="eur">€ אירו (Stripe)</option>}
+                      {form.allow_gbp && <option value="gbp">£ ליש״ט (Stripe)</option>}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label>מטבעות מותרים לחיוב (בנוסף ל-₪)</Label>
+                    <div className="flex flex-wrap gap-3 pt-1.5">
+                      {([['allow_usd', '$ USD'], ['allow_eur', '€ EUR'], ['allow_gbp', '£ GBP']] as const).map(([k, l]) => (
+                        <label key={k} className="flex items-center gap-1.5 text-sm text-gray-700 cursor-pointer">
+                          <input type="checkbox" checked={form[k]} onChange={(e) => setForm(prev => ({ ...prev, [k]: e.target.checked }))} className="w-4 h-4 accent-blue-600" />
+                          {l}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <p className="text-[11px] text-gray-400">₪ מחייב דרך קשר. מטבע זר מחייב דרך Stripe (בתוך הדף). האתר באנגלית עובר אוטומטית למטבע זר. כפתור התרומה מחו״ל מופיע רק כשבוחרים מטבע זר.</p>
+              </div>
             )}
             {form.stripe_enabled && (
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">

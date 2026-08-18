@@ -257,7 +257,8 @@ const NAV_LINKS: { key: 'about' | 'faq' | 'wantPage'; href: string }[] = [
   { key: 'wantPage', href: '/contact' },
 ]
 
-function StickyHeader({ org, campaign, primaryColor, onDonate, lang, onToggleLang }: { org: Org; campaign: Campaign; primaryColor: string; onDonate: () => void; lang: Lang; onToggleLang: () => void }) {
+const CURRENCY_SYMBOL: Record<string, string> = { ils: '₪', usd: '$', eur: '€', gbp: '£' }
+function StickyHeader({ org, campaign, primaryColor, onDonate, lang, onToggleLang, currency, currencies, onCurrency }: { org: Org; campaign: Campaign; primaryColor: string; onDonate: () => void; lang: Lang; onToggleLang: () => void; currency: string; currencies: string[]; onCurrency: (c: string) => void }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const t = useT()
   const settings = campaign.settings as { tagline?: string | null }
@@ -316,6 +317,20 @@ function StickyHeader({ org, campaign, primaryColor, onDonate, lang, onToggleLan
             <Globe className="w-3.5 h-3.5" />
             {lang === 'he' ? 'EN' : 'עב'}
           </button>
+          {currencies.length > 1 && (
+            <div className="inline-flex rounded-full border border-gray-200 overflow-hidden" title="מטבע לחיוב">
+              {currencies.map(c => (
+                <button
+                  key={c}
+                  onClick={() => onCurrency(c)}
+                  className={`px-2.5 py-1.5 text-sm font-bold transition-colors ${currency === c ? 'text-white' : 'text-gray-500 hover:bg-gray-50'}`}
+                  style={currency === c ? { backgroundColor: primaryColor } : undefined}
+                >
+                  {CURRENCY_SYMBOL[c] || c.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          )}
           <button
             onClick={() => navigator.share?.({ title: campaign.title, url: window.location.href }) ?? navigator.clipboard.writeText(window.location.href)}
             className="hidden sm:flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-full border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all"
@@ -1512,12 +1527,32 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
     ? radiusToButtonClass(builderCfg.design.radius)
     : (buttonRadiusMap[settings?.button_radius || 'pill'] || 'rounded-full')
 
-  // Stripe "donate from abroad" (foreign currency) — shown only when enabled.
-  const stripeCfg = settings as unknown as { stripe_enabled?: boolean; stripe_currency?: string; stripe_amounts?: number[]; stripe_en_only?: boolean }
-  // Foreign-currency (Stripe) donations. When stripe_en_only is set, the button
-  // shows only while the site is in English (for overseas donors).
-  const stripeEnabled = stripeCfg?.stripe_enabled === true && (!stripeCfg?.stripe_en_only || lang === 'en')
+  // Stripe "donate from abroad" (foreign currency).
+  const stripeCfg = settings as unknown as {
+    stripe_enabled?: boolean; stripe_currency?: string; stripe_amounts?: number[]
+    default_currency?: string; allowed_currencies?: string[]
+  }
+  const stripeEnabled = stripeCfg?.stripe_enabled === true
   const stripeAmounts = Array.isArray(stripeCfg?.stripe_amounts) && stripeCfg.stripe_amounts.length ? stripeCfg.stripe_amounts : [18, 36, 100, 180]
+
+  // Currency model: ₪ → Kesher/Nedarim, any foreign currency → Stripe. The manager
+  // sets a default + the allowed set; the donor can switch; English defaults to a
+  // foreign currency (USD) so overseas donors get the Stripe flow automatically.
+  const foreignDefault = stripeCfg?.stripe_currency || 'usd'
+  const allowedCurrencies: string[] = (stripeCfg?.allowed_currencies?.length
+    ? stripeCfg.allowed_currencies
+    : (stripeEnabled ? ['ils', foreignDefault] : ['ils']))
+  const defaultCurrency = stripeCfg?.default_currency || 'ils'
+  const firstForeign = allowedCurrencies.find(c => c !== 'ils') || foreignDefault
+  const [currency, setCurrency] = useState<string>(
+    (lang === 'en' && stripeEnabled) ? firstForeign : (allowedCurrencies.includes(defaultCurrency) ? defaultCurrency : 'ils')
+  )
+  // English → foreign (USD) automatically; Hebrew → back to the default currency.
+  useEffect(() => {
+    if (!stripeEnabled) return
+    setCurrency(lang === 'en' ? firstForeign : (allowedCurrencies.includes(defaultCurrency) ? defaultCurrency : 'ils'))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lang])
 
   // Usage tracking: count this visit once per session.
   useEffect(() => { trackOnce(campaign.id, 'view') }, [campaign.id])
@@ -1606,7 +1641,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
     <LangCtx.Provider value={lang}>
     <div className="min-h-screen bg-gray-50 overflow-x-clip" dir="rtl" style={pageBg ? { backgroundColor: pageBg } : undefined}>
       {/* 1. Sticky Header */}
-      <StickyHeader org={org} campaign={campaign} primaryColor={primaryColor} onDonate={openDonate} lang={lang} onToggleLang={() => setLang(l => l === 'he' ? 'en' : 'he')} />
+      <StickyHeader org={org} campaign={campaign} primaryColor={primaryColor} onDonate={openDonate} lang={lang} onToggleLang={() => setLang(l => l === 'he' ? 'en' : 'he')} currency={currency} currencies={stripeEnabled ? allowedCurrencies : []} onCurrency={setCurrency} />
 
       {/* Group stats strip */}
       {activeGroup && (
@@ -1698,12 +1733,14 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
       {/* 3. Donation Plans */}
       {isOn('amounts') && <DonationPlans plans={donationPlans} primaryColor={primaryColor} campaignSlug={campaign.slug} groups={groups} buttonRadius={buttonRadius} buttonSize={buttonSize} otherAmountImage={(settings as { other_amount_design?: string })?.other_amount_design || null} otherAmountPlacement={(settings as { other_amount_placement?: 'grid' | 'cta' })?.other_amount_placement === 'cta' ? 'cta' : 'grid'} defaultCta={(settings as { donate_cta?: string })?.donate_cta || ''} onDonate={openDonate} />}
 
-      {isOn('amounts') && stripeEnabled && (
+      {/* Foreign-currency (Stripe) donation — shows only when a non-₪ currency
+          is selected (the currency switcher / English default reveals it). */}
+      {isOn('amounts') && stripeEnabled && currency !== 'ils' && (
         <div className="mx-auto max-w-md px-4 pb-6 -mt-2">
           <StripeDonate
             campaignId={campaign.id}
             groupSlug={modalGroupSlug}
-            currency={stripeCfg?.stripe_currency || 'usd'}
+            currency={currency}
             amounts={stripeAmounts}
             primaryColor={primaryColor}
             buttonRadius={buttonRadius}
