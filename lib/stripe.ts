@@ -21,14 +21,16 @@ export function getStripe(): Stripe | null {
 export async function getOrgStripe(
   supabase: SupabaseClient,
   orgId: string,
-): Promise<{ secretKey: string | null; webhookSecret: string | null }> {
+): Promise<{ secretKey: string | null; webhookSecret: string | null; publishableKey: string | null }> {
   const { data } = await supabase
     .from('organizations')
-    .select('stripe_secret_key, stripe_webhook_secret')
+    .select('stripe_secret_key, stripe_webhook_secret, stripe_publishable_key')
     .eq('id', orgId)
     .maybeSingle()
   return {
     secretKey: (decryptSecret(data?.stripe_secret_key as string) || '').trim() || null,
     webhookSecret: (decryptSecret(data?.stripe_webhook_secret as string) || '').trim() || null,
+    // publishable key is public (used in the browser) — stored/returned as-is.
+    publishableKey: ((data?.stripe_publishable_key as string) || '').trim() || null,
   }
 }

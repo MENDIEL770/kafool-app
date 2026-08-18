@@ -32,9 +32,11 @@ export async function POST(req: NextRequest) {
   const currency = String(s.stripe_currency || 'usd').toLowerCase()
 
   // This org's own Stripe account (falls back to the platform env key).
-  const { secretKey } = await getOrgStripe(supabase, campaign.org_id)
+  const { secretKey, publishableKey } = await getOrgStripe(supabase, campaign.org_id)
   const stripe = stripeFromKey(secretKey)
   if (!stripe) return NextResponse.json({ error: 'Stripe not configured' }, { status: 400 })
+  const pk = publishableKey || process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || ''
+  if (!pk) return NextResponse.json({ error: 'חסר מפתח ציבורי של Stripe' }, { status: 400 })
 
   const base = (process.env.NEXT_PUBLIC_BASE_URL || 'https://www.kafool.com').replace(/\/$/, '')
   const name = body.name ? String(body.name).slice(0, 120) : ''
@@ -48,13 +50,14 @@ export async function POST(req: NextRequest) {
   if (recurring && months > 0) meta.installments = String(months)
   const productName = `תרומה — ${campaign.title || ''}`.trim()
   const emailOpt = email && /.+@.+\..+/.test(email) ? { customer_email: email } : {}
-  const successUrl = `${base}/${campaign.slug}/thanks?tx={CHECKOUT_SESSION_ID}`
-  const cancelUrl = `${base}/${campaign.slug}`
+  // Embedded Checkout loads inside our page (iframe) and returns to this URL.
+  const returnUrl = `${base}/${campaign.slug}/thanks?tx={CHECKOUT_SESSION_ID}`
 
   try {
     const session = recurring
       ? await stripe.checkout.sessions.create({
           mode: 'subscription',
+          ui_mode: 'embedded',
           // A standing order is billed monthly; restrict to card (wallets like
           // Cash App / some methods don't support recurring anyway).
           payment_method_types: ['card'],
@@ -70,12 +73,11 @@ export async function POST(req: NextRequest) {
           subscription_data: { metadata: meta }, // so recurring invoices carry it
           ...emailOpt,
           metadata: meta,
-          success_url: successUrl,
-          cancel_url: cancelUrl,
+          return_url: returnUrl,
         })
       : await stripe.checkout.sessions.create({
           mode: 'payment',
-          submit_type: 'donate',
+          ui_mode: 'embedded',
           line_items: [{
             price_data: {
               currency,
@@ -86,10 +88,9 @@ export async function POST(req: NextRequest) {
           }],
           ...emailOpt,
           metadata: meta,
-          success_url: successUrl,
-          cancel_url: cancelUrl,
+          return_url: returnUrl,
         })
-    return NextResponse.json({ url: session.url })
+    return NextResponse.json({ clientSecret: session.client_secret, publishableKey: pk })
   } catch (e) {
     console.error('stripe checkout error:', e)
     return NextResponse.json({ error: 'checkout failed' }, { status: 500 })

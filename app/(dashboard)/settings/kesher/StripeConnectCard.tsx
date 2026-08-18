@@ -8,9 +8,11 @@ import { Check, Copy } from 'lucide-react'
 export default function StripeConnectCard() {
   const [connected, setConnected] = useState(false)
   const [hasWebhook, setHasWebhook] = useState(false)
+  const [hasPublishable, setHasPublishable] = useState(false)
   const [webhookUrl, setWebhookUrl] = useState('')
   const [secretKey, setSecretKey] = useState('')
   const [webhookSecret, setWebhookSecret] = useState('')
+  const [publishableKey, setPublishableKey] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -22,6 +24,7 @@ export default function StripeConnectCard() {
       const d = await r.json()
       setConnected(!!d.connected)
       setHasWebhook(!!d.hasWebhook)
+      setHasPublishable(!!d.hasPublishable)
       setWebhookUrl(d.webhookUrl || '')
     } catch { /* ignore */ }
   }
@@ -33,13 +36,14 @@ export default function StripeConnectCard() {
       const payload: Record<string, string> = {}
       if (secretKey.trim()) payload.secretKey = secretKey.trim()
       if (webhookSecret.trim()) payload.webhookSecret = webhookSecret.trim()
+      if (publishableKey.trim()) payload.publishableKey = publishableKey.trim()
       if (Object.keys(payload).length === 0) { setSaving(false); return }
       const r = await fetch('/api/org/stripe', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
       })
       const d = await r.json().catch(() => ({}))
       if (!r.ok) { setError(d.error || 'השמירה נכשלה'); setSaving(false); return }
-      setSecretKey(''); setWebhookSecret(''); setSaved(true)
+      setSecretKey(''); setWebhookSecret(''); setPublishableKey(''); setSaved(true)
       await loadStatus()
       setTimeout(() => setSaved(false), 2500)
     } catch {
@@ -87,12 +91,24 @@ export default function StripeConnectCard() {
             className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-400"
           />
         </div>
+        <div className="space-y-1">
+          <label className="text-sm font-medium text-gray-600">מפתח ציבורי (Publishable key)</label>
+          <input
+            type="text"
+            value={publishableKey}
+            onChange={e => setPublishableKey(e.target.value)}
+            dir="ltr"
+            placeholder={hasPublishable ? '•••••••••• (שמור — הזן חדש כדי להחליף)' : 'pk_live_...'}
+            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-400"
+          />
+          <p className="text-[11px] text-gray-400">ציבורי (לא סודי) — נדרש כדי לטעון את דף התשלום בתוך האתר.</p>
+        </div>
       </div>
 
       {/* Webhook URL to register in Stripe */}
       <div className="bg-blue-50/60 border border-blue-100 rounded-xl p-3 space-y-1.5">
         <div className="text-xs font-bold text-blue-700">כתובת ה-Webhook לרישום ב-Stripe</div>
-        <div className="text-[11px] text-gray-500">Stripe → Developers → Webhooks → Add endpoint · אירוע: <code>checkout.session.completed</code></div>
+        <div className="text-[11px] text-gray-500">Stripe → Developers → Webhooks → Add endpoint · אירועים: <code>checkout.session.completed</code> + <code>invoice.paid</code> (להו״ק)</div>
         <div className="flex items-center gap-2">
           <input readOnly value={webhookUrl} dir="ltr" className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-600" />
           <button
@@ -110,7 +126,7 @@ export default function StripeConnectCard() {
       <button
         type="button"
         onClick={save}
-        disabled={saving || (!secretKey.trim() && !webhookSecret.trim())}
+        disabled={saving || (!secretKey.trim() && !webhookSecret.trim() && !publishableKey.trim())}
         className="w-full py-3 rounded-2xl font-bold text-white text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50"
         style={{ background: 'linear-gradient(135deg, #635bff, #4f46e5)' }}
       >
