@@ -1,7 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { X, CreditCard, RefreshCw, Smartphone, Landmark } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { X, CreditCard, RefreshCw, Smartphone, Landmark, Loader2 } from 'lucide-react'
+import { loadStripe, type Stripe } from '@stripe/stripe-js'
+import { EmbeddedCheckoutProvider, EmbeddedCheckout } from '@stripe/react-stripe-js'
 import { track } from '@/lib/track'
 
 interface Group { id: string; name: string; slug: string }
@@ -33,6 +35,9 @@ const PAYMENT_METHODS = [
 
 type PaymentMethod = typeof PAYMENT_METHODS[number]['key']
 
+// ₪ goes through Kesher/Nedarim; any foreign currency is charged via Stripe.
+const CURRENCY_SYMBOL: Record<string, string> = { ils: '₪', usd: '$', eur: '€', gbp: '£' }
+
 const METHOD_LABEL: Record<PaymentMethod, [string, string]> = {
   one_time: ['חיוב חד-פעמי', 'One-time'],
   hok:      ['הוראת קבע', 'Monthly'],
@@ -63,6 +68,11 @@ interface Props {
   formEmails?: Record<string, { subject?: string; body?: string; image?: string; enabled?: boolean }>
   buttonEmails?: Record<string, { subject?: string; body?: string; image?: string; enabled?: boolean }>
   preStep?: PreStepDef | null
+  // Foreign-currency (Stripe) support: whether it's on, which currencies are
+  // allowed, and which one the form should start on (₪ default, or $ in English).
+  stripeEnabled?: boolean
+  currencies?: string[]
+  defaultCurrency?: string
 }
 
 export default function DonationModal({
@@ -87,6 +97,9 @@ export default function DonationModal({
   formEmails,
   buttonEmails,
   preStep,
+  stripeEnabled = false,
+  currencies = [],
+  defaultCurrency = 'ils',
 }: Props) {
   // The pre-step is available once configured (choice/info/consent). It is NEVER
   // applied globally — only when a button's form setting is explicitly 'choice'.
@@ -139,16 +152,31 @@ export default function DonationModal({
   const [months, setMonths] = useState<number>(presetMonths ?? 12)
   const [customValues, setCustomValues] = useState<Record<string, string>>({})
 
+  // Currency: ₪ → Kesher/Nedarim iframe; any foreign currency → Stripe (in-modal).
+  const allowedCurrencies = stripeEnabled && currencies.length ? currencies : ['ils']
+  const [currency, setCurrency] = useState<string>(defaultCurrency || 'ils')
+  const isForeign = currency !== 'ils'
+  const sym = CURRENCY_SYMBOL[currency] || currency.toUpperCase()
+  // In-modal Stripe embedded checkout (shown at the payment step when foreign).
+  const [clientSecret, setClientSecret] = useState<string | null>(null)
+  const [stripePromise, setStripePromise] = useState<Promise<Stripe | null> | null>(null)
+  const [stripeError, setStripeError] = useState<string | null>(null)
+  const fetchClientSecret = useCallback(() => Promise.resolve(clientSecret || ''), [clientSecret])
+
   // A donation button configured as a standing order locks the modal to הו"ק —
   // the donor can't switch to Bit / bank / one-time, only choose the duration.
   const lockedToHok = presetMethod === 'hok'
   // Available methods = only those with a URL configured. Bit shows alongside the
   // others when a Bit link is set (it opens in a new tab rather than the iframe).
-  const availableMethods = PAYMENT_METHODS.filter(m =>
-    lockedToHok ? m.key === 'hok'
-      : m.key === 'one_time' ? !!donationUrl
-      : !!(paymentUrls?.[m.key])
-  )
+  // Foreign currency goes through Stripe, which only does one-time / monthly (no
+  // Bit / bank transfer) — so those two are hidden when a foreign currency is set.
+  const availableMethods = isForeign
+    ? PAYMENT_METHODS.filter(m => lockedToHok ? m.key === 'hok' : (m.key === 'one_time' || m.key === 'hok'))
+    : PAYMENT_METHODS.filter(m =>
+        lockedToHok ? m.key === 'hok'
+          : m.key === 'one_time' ? !!donationUrl
+          : !!(paymentUrls?.[m.key])
+      )
   const bitUrl = paymentUrls?.bit || ''
   const hasMultipleMethods = availableMethods.length > 1
 
@@ -173,6 +201,8 @@ export default function DonationModal({
       setCustomValues({})
       setChoice('')
       setConsented(false)
+      setCurrency(defaultCurrency || 'ils')
+      setClientSecret(null); setStripePromise(null); setStripeError(null)
       const mode = resolveMode()
       if (mode === 'choice' && hasPreStep) {
         setStep('choice'); setActiveFormId('')
@@ -180,7 +210,12 @@ export default function DonationModal({
         setStep('details'); setActiveFormId(mode === 'regular' || mode === 'choice' ? '' : mode)
       }
     }
-  }, [isOpen, presetAmount, presetGroupSlug, presetMethod, presetMonths, hasPreStep, presetFormMode, defaultFormId])
+  }, [isOpen, presetAmount, presetGroupSlug, presetMethod, presetMonths, hasPreStep, presetFormMode, defaultFormId, defaultCurrency])
+
+  // Bit / bank aren't available in a foreign currency (Stripe) — fall back to one-time.
+  useEffect(() => {
+    if (isForeign && (paymentMethod === 'bit' || paymentMethod === 'bank')) setPaymentMethod('one_time')
+  }, [isForeign, paymentMethod])
 
   // Prevent body scroll when open
   useEffect(() => {
@@ -242,8 +277,10 @@ export default function DonationModal({
         : null
       // Always record the intent (the "lead") when a donor reaches payment — so
       // an abandoned donation can be detected and the manager notified — carrying
-      // the donor name + chosen method for that SMS.
-      if (finalAmount > 0) {
+      // the donor name + chosen method for that SMS. Skipped for foreign (Stripe)
+      // donations: their amount is in $/€ while the recorded gift lands in ₪, which
+      // would break abandonment matching and risk false "abandoned" alerts.
+      if (finalAmount > 0 && !isForeign) {
         const donorName = [form.firstName, form.lastName].filter(Boolean).join(' ') || null
         fetch('/api/donations/intent', {
           method: 'POST',
@@ -262,6 +299,39 @@ export default function DonationModal({
           keepalive: true,
         }).catch(() => {})
       }
+    }
+  }
+
+  // Foreign currency → create a Stripe embedded Checkout Session on the org's
+  // account and show it inline at the payment step (no separate form / redirect).
+  async function startStripe() {
+    setStripeError(null); setClientSecret(null); setStripePromise(null)
+    setStep('payment')
+    try {
+      const res = await fetch('/api/donations/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          campaignId: campaign.id,
+          groupSlug: selectedGroupSlug || undefined,
+          amount: finalAmount,
+          name: [form.firstName, form.lastName].filter(Boolean).join(' '),
+          phone: form.phone,
+          email: form.email,
+          recurring: paymentMethod === 'hok',
+          months: paymentMethod === 'hok' ? months : 0,
+          currency,
+        }),
+      })
+      const d = await res.json().catch(() => ({}))
+      if (d?.clientSecret && d?.publishableKey) {
+        setStripePromise(loadStripe(d.publishableKey))
+        setClientSecret(d.clientSecret)
+      } else {
+        setStripeError(d?.error || (en ? 'Something went wrong, please try again' : 'אירעה שגיאה, נסו שוב'))
+      }
+    } catch {
+      setStripeError(en ? 'Something went wrong, please try again' : 'אירעה שגיאה, נסו שוב')
     }
   }
 
@@ -364,7 +434,7 @@ export default function DonationModal({
           <div className="flex items-center gap-3">
             {finalAmount > 0 && (
               <span className="font-black text-base text-left leading-tight" style={{ color: primaryColor }}>
-                ₪{finalAmount.toLocaleString()}
+                {sym}{finalAmount.toLocaleString()}
                 {paymentMethod === 'hok' && months > 0 && (
                   <span className="block text-[10px] font-bold opacity-80">{T.perMonth} × {months}</span>
                 )}
@@ -459,6 +529,33 @@ export default function DonationModal({
                 </button>
               )}
 
+              {/* מטבע לתרומה — ₪ עובר בקשר/נדרים, מטבע חוץ עובר ב-Stripe */}
+              {stripeEnabled && allowedCurrencies.length > 1 && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-gray-500">{en ? 'Currency' : 'מטבע לתרומה'}</label>
+                  <div className="flex gap-2">
+                    {allowedCurrencies.map(c => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => setCurrency(c)}
+                        className={`flex-1 px-3 py-2.5 rounded-xl border-2 text-sm font-bold transition-all ${
+                          currency === c ? 'border-current' : 'border-gray-200 text-gray-500 hover:border-gray-300'
+                        }`}
+                        style={currency === c ? { borderColor: primaryColor, color: primaryColor, backgroundColor: `${primaryColor}10` } : {}}
+                      >
+                        {(CURRENCY_SYMBOL[c] || c.toUpperCase())} {c.toUpperCase()}
+                      </button>
+                    ))}
+                  </div>
+                  {isForeign && (
+                    <p className="text-[11px] text-gray-400">
+                      {en ? 'Paid securely by card via Stripe.' : 'התשלום בכרטיס אשראי דרך Stripe (מאובטח).'}
+                    </p>
+                  )}
+                </div>
+              )}
+
               {/* אמצעי תשלום — מתחת לשדה סכום התרומה */}
               {hasMultipleMethods && (
                 <div className="space-y-1.5">
@@ -497,7 +594,7 @@ export default function DonationModal({
                   </select>
                   {finalAmount > 0 && months > 0 && (
                     <p className="text-xs text-gray-600 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2 text-center">
-                      ₪{finalAmount.toLocaleString()} {T.perMonth} × {months} {T.months} = <strong className="text-gray-900">₪{(finalAmount * months).toLocaleString()}</strong> {T.total}
+                      {sym}{finalAmount.toLocaleString()} {T.perMonth} × {months} {T.months} = <strong className="text-gray-900">{sym}{(finalAmount * months).toLocaleString()}</strong> {T.total}
                     </p>
                   )}
                 </div>
@@ -645,8 +742,10 @@ export default function DonationModal({
               <button
                 onClick={() => {
                   persistDonor()
-                  // All methods (incl. Bit) load in the in-page payment iframe.
-                  setStep('payment')
+                  // Foreign currency → Stripe embedded checkout; ₪ (incl. Bit/bank)
+                  // → the provider's page in the in-modal iframe.
+                  if (isForeign) startStripe()
+                  else setStep('payment')
                 }}
                 disabled={!canProceed}
                 className={`w-full py-4 font-black text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all ${buttonRadius}`}
@@ -657,7 +756,7 @@ export default function DonationModal({
                   return (
                     <span className="flex items-center justify-center gap-2">
                       <span className="text-sm font-bold opacity-90">{T.continueToPay}</span>
-                      {total > 0 && <span className="text-xl font-black">₪{total.toLocaleString()}</span>}
+                      {total > 0 && <span className="text-xl font-black">{sym}{total.toLocaleString()}</span>}
                     </span>
                   )
                 })()}
@@ -676,13 +775,41 @@ export default function DonationModal({
               )}
 
               <p className="text-center text-xs text-gray-400 flex items-center justify-center gap-1">
-                <span></span> {T.securePay} — {paymentProvider === 'nedarim' ? 'נדרים פלוס' : 'קשר'}
+                <span></span> {T.securePay} — {isForeign ? 'Stripe' : paymentProvider === 'nedarim' ? 'נדרים פלוס' : 'קשר'}
               </p>
             </div>
           )}
 
-          {/* Step: Payment — the provider's payment page loads in an iframe */}
-          {step === 'payment' && (() => {
+          {/* Step: Payment (foreign) — Stripe embedded checkout, inline */}
+          {step === 'payment' && isForeign && (
+            <div className="px-5 py-4 space-y-3">
+              <button
+                onClick={() => { setStep('details'); setClientSecret(null); setStripePromise(null); setStripeError(null) }}
+                className="text-xs text-gray-400 hover:text-gray-600"
+              >
+                {T.backToDetails}
+              </button>
+              {stripeError ? (
+                <div className="py-8 text-center space-y-3">
+                  <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-3">{stripeError}</p>
+                  <button onClick={startStripe} className="text-sm font-bold" style={{ color: primaryColor }}>
+                    {en ? 'Try again' : 'נסו שוב'}
+                  </button>
+                </div>
+              ) : clientSecret && stripePromise ? (
+                <EmbeddedCheckoutProvider stripe={stripePromise} options={{ fetchClientSecret }}>
+                  <EmbeddedCheckout />
+                </EmbeddedCheckoutProvider>
+              ) : (
+                <div className="py-12 flex items-center justify-center text-gray-400">
+                  <Loader2 className="w-6 h-6 animate-spin" />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Step: Payment (₪) — the provider's payment page loads in an iframe */}
+          {step === 'payment' && !isForeign && (() => {
             const payUrl = buildPaymentUrl()
             const isValid = payUrl.startsWith('http://') || payUrl.startsWith('https://')
             if (!isValid) {

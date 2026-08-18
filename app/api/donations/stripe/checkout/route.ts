@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
     const session = recurring
       ? await stripe.checkout.sessions.create({
           mode: 'subscription',
-          ui_mode: 'embedded',
+          ui_mode: 'embedded_page', // Stripe renamed 'embedded' → 'embedded_page'
           // A standing order is billed monthly; restrict to card (wallets like
           // Cash App / some methods don't support recurring anyway).
           payment_method_types: ['card'],
@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
         })
       : await stripe.checkout.sessions.create({
           mode: 'payment',
-          ui_mode: 'embedded',
+          ui_mode: 'embedded_page', // Stripe renamed 'embedded' → 'embedded_page'
           line_items: [{
             price_data: {
               currency,

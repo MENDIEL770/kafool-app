@@ -550,6 +550,31 @@ export default function CampaignMediaClient({
   }
 
   /* ─── Upload helper — uses server-side API to bypass RLS ─── */
+  // Shrink oversized images in the browser before upload. Banners are often
+  // multi-MB photos that blow past the serverless upload limit (~4.5MB) and fail
+  // silently; capping the width (keeping the aspect ratio) and re-encoding as JPEG
+  // keeps them small enough to upload reliably and matches the recommended width.
+  async function downscaleImage(file: File, maxW: number): Promise<File> {
+    if (!file.type.startsWith('image/') || file.type === 'image/gif') return file
+    try {
+      const url = URL.createObjectURL(file)
+      const img = document.createElement('img')
+      await new Promise<void>((res, rej) => { img.onload = () => res(); img.onerror = rej; img.src = url })
+      URL.revokeObjectURL(url)
+      if (!img.naturalWidth || img.naturalWidth <= maxW) return file
+      const scale = maxW / img.naturalWidth
+      const canvas = document.createElement('canvas')
+      canvas.width = maxW
+      canvas.height = Math.round(img.naturalHeight * scale)
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return file
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+      const blob = await new Promise<Blob | null>(r => canvas.toBlob(r, 'image/jpeg', 0.9))
+      if (!blob) return file
+      return new File([blob], file.name.replace(/\.\w+$/, '.jpg'), { type: 'image/jpeg' })
+    } catch { return file }
+  }
+
   async function uploadFile(file: File, path: string): Promise<string | null> {
     const fd = new FormData()
     fd.append('file', file)
@@ -563,11 +588,14 @@ export default function CampaignMediaClient({
   /* ─── Banners (multiple, auto-rotating) — operate on the active language set ─── */
   async function handleBannerUpload(files: FileList) {
     setUploadingBanner(true)
+    let failed = 0
     for (let i = 0; i < files.length; i++) {
-      const url = await uploadFile(files[i], `${orgId}/${campaignId}/banner-${bannerLang}-${Date.now()}-${i}`)
-      if (url) setCurBanners(p => [...p, url])
+      const file = await downscaleImage(files[i], 1920)
+      const url = await uploadFile(file, `${orgId}/${campaignId}/banner-${bannerLang}-${Date.now()}-${i}`)
+      if (url) setCurBanners(p => [...p, url]); else failed++
     }
     setUploadingBanner(false)
+    if (failed) alert(`העלאת ${failed} תמונות נכשלה. נסו שוב, או ודאו שמדובר בקובץ תמונה תקין.`)
   }
   function removeBanner(i: number) { setCurBanners(p => p.filter((_, idx) => idx !== i)) }
   function moveBanner(i: number, dir: -1 | 1) {
@@ -583,11 +611,14 @@ export default function CampaignMediaClient({
   /* ─── Mobile banners (optional) — active language set ─── */
   async function handleMobileBannerUpload(files: FileList) {
     setUploadingMobileBanner(true)
+    let failed = 0
     for (let i = 0; i < files.length; i++) {
-      const url = await uploadFile(files[i], `${orgId}/${campaignId}/banner-mobile-${bannerLang}-${Date.now()}-${i}`)
-      if (url) setCurMobileBanners(p => [...p, url])
+      const file = await downscaleImage(files[i], 1080)
+      const url = await uploadFile(file, `${orgId}/${campaignId}/banner-mobile-${bannerLang}-${Date.now()}-${i}`)
+      if (url) setCurMobileBanners(p => [...p, url]); else failed++
     }
     setUploadingMobileBanner(false)
+    if (failed) alert(`העלאת ${failed} תמונות נכשלה. נסו שוב, או ודאו שמדובר בקובץ תמונה תקין.`)
   }
   function removeMobileBanner(i: number) { setCurMobileBanners(p => p.filter((_, idx) => idx !== i)) }
   function moveMobileBanner(i: number, dir: -1 | 1) {
@@ -832,12 +863,12 @@ export default function CampaignMediaClient({
                     הוסף באנר
                   </button>
                   <input ref={bannerRef} type="file" accept="image/*" multiple className="hidden"
-                    onChange={e => e.target.files && handleBannerUpload(e.target.files)} />
+                    onChange={e => { if (e.target.files) handleBannerUpload(e.target.files); e.target.value = '' }} />
                 </div>
 
                 {curBanners.length === 0 ? (
                   <button onClick={() => bannerRef.current?.click()}
-                    className="w-full aspect-video border-2 border-dashed border-gray-200 rounded-2xl flex flex-col items-center justify-center text-gray-400 hover:border-blue-300 hover:bg-blue-50/30 transition-all">
+                    className="w-full aspect-[1920/400] border-2 border-dashed border-gray-200 rounded-2xl flex flex-col items-center justify-center text-gray-400 hover:border-blue-300 hover:bg-blue-50/30 transition-all">
                     <Upload className="w-7 h-7 mb-2 opacity-40" />
                     <p className="text-xs font-medium">גרור תמונות או לחץ להוספת באנרים</p>
                   </button>
@@ -864,7 +895,7 @@ export default function CampaignMediaClient({
                   <div className="flex items-center gap-1.5 text-[11px] font-bold text-blue-700">
                     <Ruler className="w-3.5 h-3.5" /> מפרט כל באנר
                   </div>
-                  {[['מידות מומלצות', '1920 × 640 px'], ['יחס', '3:1 (פנורמי, רחב)'], ['פורמט', 'JPG / WebP'], ['משקל מקסימלי', 'עד 2MB']].map(([l, v]) => (
+                  {[['מידות מומלצות', '1920 × 400 px'], ['יחס', '4.8:1 (פנורמי, רחב)'], ['פורמט', 'JPG / WebP'], ['משקל מקסימלי', 'עד 2MB']].map(([l, v]) => (
                     <div key={l} className="flex items-center justify-between text-[11px]">
                       <span className="text-gray-500">{l}</span><span className="font-semibold text-gray-700">{v}</span>
                     </div>
@@ -890,7 +921,7 @@ export default function CampaignMediaClient({
                     הוסף באנר לנייד
                   </button>
                   <input ref={mobileBannerRef} type="file" accept="image/*" multiple className="hidden"
-                    onChange={e => e.target.files && handleMobileBannerUpload(e.target.files)} />
+                    onChange={e => { if (e.target.files) handleMobileBannerUpload(e.target.files); e.target.value = '' }} />
                 </div>
 
                 {curMobileBanners.length === 0 ? (
