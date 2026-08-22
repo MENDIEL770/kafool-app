@@ -73,6 +73,7 @@ interface Props {
   stripeEnabled?: boolean
   currencies?: string[]
   defaultCurrency?: string
+  ilsRate?: number   // ₪ per 1 unit of foreign currency (manager-set), for conversion
 }
 
 export default function DonationModal({
@@ -100,6 +101,7 @@ export default function DonationModal({
   stripeEnabled = false,
   currencies = [],
   defaultCurrency = 'ils',
+  ilsRate = 3.7,
 }: Props) {
   // The pre-step is available once configured (choice/info/consent). It is NEVER
   // applied globally — only when a button's form setting is explicitly 'choice'.
@@ -193,8 +195,15 @@ export default function DonationModal({
   // Reset when opened with new preset
   useEffect(() => {
     if (isOpen) {
-      setAmount(typeof presetAmount === 'number' ? presetAmount : 0)
-      setCustomAmount(presetAmount ? '' : '')
+      // Preset amounts are defined in ₪; if the form opens in a foreign currency
+      // (e.g. English → $), convert the preset by the manager's rate on open.
+      {
+        const openCur = defaultCurrency || 'ils'
+        const rate0 = ilsRate > 0 ? ilsRate : 3.7
+        const presetIls = typeof presetAmount === 'number' ? presetAmount : 0
+        setAmount(openCur !== 'ils' && presetIls ? Math.round(presetIls / rate0) : presetIls)
+        setCustomAmount('')
+      }
       setSelectedGroupSlug(presetGroupSlug || '')
       setPaymentMethod(presetMethod ?? 'one_time')
       setMonths(presetMonths ?? 12)
@@ -210,7 +219,7 @@ export default function DonationModal({
         setStep('details'); setActiveFormId(mode === 'regular' || mode === 'choice' ? '' : mode)
       }
     }
-  }, [isOpen, presetAmount, presetGroupSlug, presetMethod, presetMonths, hasPreStep, presetFormMode, defaultFormId, defaultCurrency])
+  }, [isOpen, presetAmount, presetGroupSlug, presetMethod, presetMonths, hasPreStep, presetFormMode, defaultFormId, defaultCurrency, ilsRate])
 
   // Bit / bank aren't available in a foreign currency (Stripe) — fall back to one-time.
   useEffect(() => {
@@ -333,6 +342,24 @@ export default function DonationModal({
     } catch {
       setStripeError(en ? 'Something went wrong, please try again' : 'אירעה שגיאה, נסו שוב')
     }
+  }
+
+  // Switching currency converts the amount by the manager's ₪ rate, both ways:
+  // ₪ → foreign divides by the rate, foreign → ₪ multiplies. Two foreign
+  // currencies share the same ₪ rate, so the number is unchanged between them.
+  function changeCurrency(next: string) {
+    if (next === currency) return
+    const rate = ilsRate > 0 ? ilsRate : 3.7
+    let v = finalAmount
+    if (currency === 'ils' && next !== 'ils') v = finalAmount / rate
+    else if (currency !== 'ils' && next === 'ils') v = finalAmount * rate
+    v = Math.round(v)
+    // Quantity-driven forms price in ₪ per unit — leave those to the ₪ flow.
+    if (!qtyField) {
+      if (amount > 0) setAmount(v)
+      else setCustomAmount(v > 0 ? String(v) : '')
+    }
+    setCurrency(next)
   }
 
   function buildPaymentUrl(baseUrl?: string) {
@@ -538,7 +565,7 @@ export default function DonationModal({
                       <button
                         key={c}
                         type="button"
-                        onClick={() => setCurrency(c)}
+                        onClick={() => changeCurrency(c)}
                         className={`flex-1 px-3 py-2.5 rounded-xl border-2 text-sm font-bold transition-all ${
                           currency === c ? 'border-current' : 'border-gray-200 text-gray-500 hover:border-gray-300'
                         }`}

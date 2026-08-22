@@ -1809,6 +1809,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
         stripeEnabled={stripeEnabled}
         currencies={allowedCurrencies}
         defaultCurrency={modalDefaultCurrency}
+        ilsRate={Number((stripeCfg as { stripe_ils_rate?: number })?.stripe_ils_rate) || 3.7}
       />
 
       {/* Bottom padding for floating bar */}
