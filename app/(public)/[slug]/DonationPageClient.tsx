@@ -571,7 +571,7 @@ function HeroSection({ campaign, countdown }: {
   )
 }
 
-function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius, buttonSize = 'default', otherAmountImage, otherAmountPlacement = 'grid', defaultCta, onDonate }: {
+function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius, buttonSize = 'default', otherAmountImage, otherAmountPlacement = 'grid', defaultCta, onDonate, displayCurrency = 'ils', fxRate }: {
   plans: { amount: number; label?: string; image_url?: string | null; image_url_en?: string | null; payment_type?: 'one_time' | 'hok'; months?: number | null; form?: string | null; cta?: string | null }[]
   primaryColor: string
   campaignSlug: string
@@ -582,7 +582,17 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
   otherAmountPlacement?: 'grid' | 'cta'
   defaultCta?: string
   onDonate: (amount?: number, groupSlug?: string, method?: 'one_time' | 'hok', months?: number, formMode?: string) => void
+  displayCurrency?: string
+  fxRate?: number
 }) {
+  // When the page is in a foreign currency (e.g. English → $ with Stripe on), the
+  // ₪ button amounts are shown converted by the live rate. The amount passed on
+  // click stays ₪ — the donation modal re-converts it to the same figure on open.
+  const foreignDisplay = displayCurrency !== 'ils' && !!fxRate && fxRate > 0
+  const curSym = ({ usd: '$', eur: '€', gbp: '£' } as Record<string, string>)[displayCurrency] || (displayCurrency.toUpperCase() + ' ')
+  const fmtAmt = (ils: number) => foreignDisplay
+    ? `${curSym}${Math.round(ils / (fxRate as number)).toLocaleString()}`
+    : `₪${ils.toLocaleString()}`
   const [selected, setSelected] = useState<number | null>(null)
   const [selectedMethod, setSelectedMethod] = useState<'one_time' | 'hok'>('one_time')
   const [selectedMonths, setSelectedMonths] = useState<number | undefined>()
@@ -656,7 +666,7 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
                       className="w-full h-full flex flex-col items-center justify-center text-center px-2"
                       style={{ background: `linear-gradient(135deg, ${primaryColor}dd, ${primaryColor}88)` }}
                     >
-                      <span className={amountTextCls}>₪{amount.toLocaleString()}</span>
+                      <span className={amountTextCls}>{fmtAmt(amount)}</span>
                       {large && label && <span className="text-white/90 text-xs font-medium mt-1">{label}</span>}
                     </div>
                   )}
@@ -671,7 +681,7 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
                 {/* טקסט מתחת */}
                 <div className="text-center">
                   <div className="text-xs md:text-sm font-bold text-gray-800">
-                    ₪{amount.toLocaleString()}{payment_type === 'hok' ? ` ${t('perMonth')}` : ''}
+                    {fmtAmt(amount)}{payment_type === 'hok' ? ` ${t('perMonth')}` : ''}
                   </div>
                   {label && <div className="text-[10px] md:text-[11px] text-gray-400 mt-0.5">{label}</div>}
                 </div>
@@ -754,9 +764,9 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
               return finalAmount
                 ? (selectedMethod === 'hok' && selectedMonths
                     ? (lang === 'en'
-                        ? `Donate ₪${finalAmount.toLocaleString()} × ${selectedMonths} months (₪${(finalAmount * selectedMonths).toLocaleString()})`
-                        : `תרום ₪${finalAmount.toLocaleString()} × ${selectedMonths} חודשים (₪${(finalAmount * selectedMonths).toLocaleString()})`)
-                    : `${t('donate')} ₪${finalAmount.toLocaleString()}`)
+                        ? `Donate ${fmtAmt(finalAmount)} × ${selectedMonths} months (${fmtAmt(finalAmount * selectedMonths)})`
+                        : `תרום ${fmtAmt(finalAmount)} × ${selectedMonths} חודשים (${fmtAmt(finalAmount * selectedMonths)})`)
+                    : `${t('donate')} ${fmtAmt(finalAmount)}`)
                 : t('donate')
             })()}
           </button>
@@ -1555,6 +1565,20 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
     ? firstForeign
     : (allowedCurrencies.includes(defaultCurrency) ? defaultCurrency : 'ils')
 
+  // When the page is in a foreign currency, fetch the live ₪ rate so the donation
+  // buttons can be shown in that currency (e.g. $260 instead of ₪780).
+  const [pageRate, setPageRate] = useState<number | undefined>()
+  const manualRate = Number((stripeCfg as { stripe_ils_rate?: number })?.stripe_ils_rate) || 3.7
+  useEffect(() => {
+    if (modalDefaultCurrency === 'ils') { setPageRate(undefined); return }
+    let cancelled = false
+    fetch(`/api/fx?currency=${modalDefaultCurrency}&fallback=${manualRate}`)
+      .then(r => r.json())
+      .then(d => { if (!cancelled) setPageRate(Number(d?.rate) > 0 ? Number(d.rate) : manualRate) })
+      .catch(() => { if (!cancelled) setPageRate(manualRate) })
+    return () => { cancelled = true }
+  }, [modalDefaultCurrency, manualRate])
+
   // Usage tracking: count this visit once per session.
   useEffect(() => { trackOnce(campaign.id, 'view') }, [campaign.id])
 
@@ -1734,7 +1758,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
       )}
 
       {/* 3. Donation Plans */}
-      {isOn('amounts') && <DonationPlans plans={donationPlans} primaryColor={primaryColor} campaignSlug={campaign.slug} groups={groups} buttonRadius={buttonRadius} buttonSize={buttonSize} otherAmountImage={(settings as { other_amount_design?: string })?.other_amount_design || null} otherAmountPlacement={(settings as { other_amount_placement?: 'grid' | 'cta' })?.other_amount_placement === 'cta' ? 'cta' : 'grid'} defaultCta={(settings as { donate_cta?: string })?.donate_cta || ''} onDonate={openDonate} />}
+      {isOn('amounts') && <DonationPlans plans={donationPlans} primaryColor={primaryColor} campaignSlug={campaign.slug} groups={groups} buttonRadius={buttonRadius} buttonSize={buttonSize} otherAmountImage={(settings as { other_amount_design?: string })?.other_amount_design || null} otherAmountPlacement={(settings as { other_amount_placement?: 'grid' | 'cta' })?.other_amount_placement === 'cta' ? 'cta' : 'grid'} defaultCta={(settings as { donate_cta?: string })?.donate_cta || ''} onDonate={openDonate} displayCurrency={modalDefaultCurrency} fxRate={pageRate} />}
 
       {/* 4. Progress */}
       {isOn('goal') && <ProgressSection raised={raisedAmount} goal={campaign.goal_amount} donorsCount={donations.length} primaryColor={primaryColor} bricks={(campaign.settings as { show_bricks?: boolean })?.show_bricks === false ? undefined : (campaign.settings as { bricks?: { total: number; price: number; label?: string } })?.bricks} />}
