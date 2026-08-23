@@ -35,5 +35,12 @@ export default async function CampaignDonorsPage({ params }: { params: Promise<{
     .eq('campaign_id', id)
     .order('created_at')
 
-  return <DonorsClient campaign={campaign} donations={donations || []} groups={groups || []} plans={plans} />
+  // Org payment provider — distinguishes Kesher vs Nedarim as the donation source.
+  const { data: org } = await supabase
+    .from('organizations')
+    .select('payment_provider')
+    .eq('id', campaign.org_id)
+    .maybeSingle()
+
+  return <DonorsClient campaign={campaign} donations={donations || []} groups={groups || []} plans={plans} paymentProvider={(org?.payment_provider as string) || 'kesher'} />
 }

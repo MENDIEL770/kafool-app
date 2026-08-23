@@ -63,6 +63,20 @@ function donationMethod(d: { custom_data?: Record<string, string> | null; kesher
   return null
 }
 
+// Where a donation came in FROM: Stripe (foreign card), Kesher / Nedarim (online
+// via the site), or manual (entered by a manager). Stripe donations also carry a
+// transaction id, so check the Stripe marker first, then online vs manual.
+function donationSource(
+  d: { custom_data?: Record<string, string> | null; kesher_transaction_id?: string | null },
+  provider: string,
+): { label: string; cls: string } {
+  if (d.custom_data?.payment_method === 'stripe') return { label: 'סטרייפ', cls: 'bg-indigo-50 text-indigo-700' }
+  if (!d.kesher_transaction_id) return { label: 'ידני', cls: 'bg-blue-50 text-blue-700' }
+  return provider === 'nedarim'
+    ? { label: 'נדרים', cls: 'bg-green-50 text-green-700' }
+    : { label: 'קשר', cls: 'bg-green-50 text-green-700' }
+}
+
 interface GroupOption { id: string; name: string }
 interface PlanOption { amount: number; label: string | null }
 
@@ -75,7 +89,7 @@ interface Campaign {
   org_id: string
 }
 
-export default function DonorsClient({ campaign, donations: initial, groups, plans }: { campaign: Campaign; donations: Donation[]; groups: GroupOption[]; plans: PlanOption[] }) {
+export default function DonorsClient({ campaign, donations: initial, groups, plans, paymentProvider = 'kesher' }: { campaign: Campaign; donations: Donation[]; groups: GroupOption[]; plans: PlanOption[]; paymentProvider?: string }) {
   const router = useRouter()
   const [donations, setDonations] = useState(initial)
   const [search, setSearch] = useState('')
@@ -167,7 +181,7 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
       'הקדשה': d.dedication || '',
       'סטטוס': d.payment_status === 'completed' ? 'הושלם' : d.payment_status,
       'אמצעי תשלום': donationMethod(d) || '',
-      'מקור': d.kesher_transaction_id ? 'אונליין' : 'ידני',
+      'מקור': donationSource(d, paymentProvider).label,
       'מזהה עסקה': d.kesher_transaction_id || '',
       'תאריך': new Date(d.created_at).toLocaleString('he-IL'),
       // custom-form fields (shipping etc.) become their own columns, keyed by label
@@ -922,9 +936,9 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
                       </td>
                       <td className="px-4 py-3 text-gray-400 text-xs max-w-[120px] truncate">{d.dedication || '—'}</td>
                       <td className="px-4 py-3">
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${d.kesher_transaction_id ? 'bg-green-50 text-green-700' : 'bg-blue-50 text-blue-700'}`}>
-                          {d.kesher_transaction_id ? 'אתר' : 'ידני'}
-                        </span>
+                        {(() => { const s = donationSource(d, paymentProvider); return (
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${s.cls}`}>{s.label}</span>
+                        ) })()}
                       </td>
                       <td className="px-4 py-3">
                         <span className={`text-xs px-2 py-0.5 rounded-full ${d.payment_status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>

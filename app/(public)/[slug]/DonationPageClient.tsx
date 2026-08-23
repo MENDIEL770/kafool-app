@@ -87,7 +87,7 @@ function DonorCard({ d, donorGroup, primaryColor, campaignSlug, liked, onToggleL
             <span className="text-xs text-gray-400" suppressHydrationWarning>{relativeTime(d.created_at, lang)}</span>
             <div className="flex items-center gap-1.5 shrink-0">
               <div className="flex flex-col items-end leading-none">
-                <span className="text-lg font-black leading-none" style={{ color: primaryColor }}>₪{d.amount.toLocaleString()}</span>
+                <span className="text-lg font-black leading-none" style={{ color: primaryColor }}>{donationAmount(d)}</span>
                 {d.payment_type === 'hok' && d.monthly_amount && d.installments ? (
                   <span className="text-[10px] font-semibold text-gray-400 mt-0.5" dir="ltr">₪{d.monthly_amount.toLocaleString()}×{d.installments}</span>
                 ) : null}
@@ -142,12 +142,23 @@ import Footer from '../_components/Footer'
 
 /* ─── Types ─── */
 interface Org { id: string; name: string; slug: string; logo_url: string | null }
-interface Donation { id: string; donor_name: string | null; amount: number; dedication: string | null; created_at: string; group_id?: string | null; payment_type?: 'one_time' | 'hok' | null; monthly_amount?: number | null; installments?: number | null }
+interface Donation { id: string; donor_name: string | null; amount: number; dedication: string | null; created_at: string; group_id?: string | null; payment_type?: 'one_time' | 'hok' | null; monthly_amount?: number | null; installments?: number | null; currency?: string; orig_amount?: number | null }
+
+// A donation's public amount label — in its ORIGINAL currency when it came in as
+// foreign (e.g. $50), otherwise ₪. `amount` is always ₪ (used for campaign totals).
+function donationAmount(d: Donation): string {
+  const cur = (d.currency || 'ils').toLowerCase()
+  if (cur !== 'ils' && d.orig_amount) {
+    const s = ({ usd: '$', eur: '€', gbp: '£' } as Record<string, string>)[cur] || cur.toUpperCase() + ' '
+    return `${s}${d.orig_amount.toLocaleString()}`
+  }
+  return `₪${d.amount.toLocaleString()}`
+}
 interface GalleryItem { id: string; image_url: string; caption: string | null }
 interface ActiveGroup { id: string; name: string; slug: string; goal_amount: number; raised_amount: number; manager_name: string | null; image_url?: string | null; donorCount?: number }
 interface PaymentUrls { one_time: string; hok: string; bit: string; bank: string; one_time_en?: string; hok_en?: string }
 interface NedarimConfig { mosad: string; apiValid: string; active: boolean }
-interface Props { org: Org; campaign: Campaign; donations: Donation[]; groups: Group[]; gallery: GalleryItem[]; activeGroup?: ActiveGroup; donationUrl?: string; paymentUrls?: PaymentUrls; paymentProvider?: string; nedarim?: NedarimConfig | null }
+interface Props { org: Org; campaign: Campaign; donations: Donation[]; groups: Group[]; gallery: GalleryItem[]; activeGroup?: ActiveGroup; donationUrl?: string; paymentUrls?: PaymentUrls; paymentProvider?: string; nedarim?: NedarimConfig | null; initialLang?: Lang }
 
 /* ─── Helpers ─── */
 // Matches a YouTube video id across every common URL shape: watch?v=, youtu.be/,
@@ -1402,7 +1413,7 @@ function DonationToasts({ donations, groups, primaryColor }: { donations: Donati
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-base font-black leading-tight" style={{ color: primaryColor }}>
-                ₪{d.amount.toLocaleString()}
+                {donationAmount(d)}
                 {d.payment_type === 'hok' && d.monthly_amount && d.installments ? (
                   <span className="text-[10px] font-semibold text-gray-400" dir="ltr"> ₪{d.monthly_amount.toLocaleString()}×{d.installments}</span>
                 ) : null}
@@ -1466,11 +1477,11 @@ function PopupAd({ ad, campaignId }: { ad?: { image_url?: string; link?: string 
 }
 
 /* ─── Main Page ─── */
-export default function DonationPageClient({ org, campaign, donations: initialDonations, groups, gallery, activeGroup, donationUrl = '', paymentUrls, paymentProvider, nedarim }: Props) {
+export default function DonationPageClient({ org, campaign, donations: initialDonations, groups, gallery, activeGroup, donationUrl = '', paymentUrls, paymentProvider, nedarim, initialLang }: Props) {
   const [donations, setDonations] = useState<Donation[]>(initialDonations)
   const [raisedAmount, setRaisedAmount] = useState(campaign.raised_amount)
   const [lang, setLang] = useState<Lang>(
-    (campaign.settings as { default_lang?: string })?.default_lang === 'en' ? 'en' : 'he'
+    initialLang || ((campaign.settings as { default_lang?: string })?.default_lang === 'en' ? 'en' : 'he')
   )
   const [modalOpen, setModalOpen] = useState(false)
   const [modalAmount, setModalAmount] = useState<number | undefined>()

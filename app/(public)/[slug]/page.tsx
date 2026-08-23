@@ -67,8 +67,11 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export const revalidate = 60 // ISR — cache for 60 seconds
 
-export default async function PublicDonationPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function PublicDonationPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ lang?: string }> }) {
   const slug = dec((await params).slug)
+  // ?lang=en / ?lang=he lets a manager share a link that opens in a set language.
+  const rawLang = (await searchParams)?.lang
+  const urlLang: 'he' | 'en' | undefined = rawLang === 'en' ? 'en' : rawLang === 'he' ? 'he' : undefined
   const supabase = adminClient()
 
   // Resolve campaign by slug
@@ -114,7 +117,11 @@ export default async function PublicDonationPage({ params }: { params: Promise<{
   const donations = (donationsRes.data ?? []).map(({ custom_data, ...d }) => {
     const cd = custom_data as Record<string, unknown> | null
     const anon = !!cd && (cd.anonymous === true || cd.anonymous === 'true')
-    return { ...d, donor_name: anon ? null : d.donor_name }
+    // Foreign (Stripe) donations carry their original currency + amount so the
+    // public feed can show them as e.g. $50 (while `amount` stays ₪ for totals).
+    const currency = (typeof cd?.stripe_currency === 'string' ? cd.stripe_currency : 'ils').toLowerCase()
+    const origAmount = Number(cd?.stripe_amount) || null
+    return { ...d, donor_name: anon ? null : d.donor_name, currency, orig_amount: origAmount }
   })
   const groups   = groupsRes.data
   const gallery  = galleryRes.data
@@ -166,6 +173,7 @@ export default async function PublicDonationPage({ params }: { params: Promise<{
     <DonationPageClient
       org={org}
       campaign={campaign}
+      initialLang={urlLang}
       donations={donations || []}
       groups={(groups || []) as Parameters<typeof DonationPageClient>[0]['groups']}
       gallery={gallery || []}
