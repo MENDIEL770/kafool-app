@@ -930,7 +930,7 @@ function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCre
 
   const allTabs: { key: CommunityTab; label: string; count?: number; show: boolean }[] = [
     { key: 'donors' as CommunityTab, label: t('donorsTab'), count: byGroup.length, show: true },
-    { key: 'groups' as CommunityTab, label: t('groups'), count: groups.length, show: groups.length > 0 },
+    { key: 'groups' as CommunityTab, label: t('groups'), count: groups.length, show: true },
     { key: 'communities' as CommunityTab, label: 'קהילות', show: false },
   ]
   const tabs = allTabs.filter(t => t.show)
@@ -1057,8 +1057,16 @@ function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCre
               style={{ background: `linear-gradient(135deg, ${primaryColor}18 0%, ${primaryColor}08 100%)`, border: `1.5px dashed ${primaryColor}60`, color: primaryColor }}
             >
               <span className="text-lg leading-none">+</span>
-              <span>פתח קבוצת גיוס משלך</span>
+              <span>{lang === 'en' ? 'Open your own fundraising group' : 'פתח קבוצת גיוס משלך'}</span>
             </button>
+
+            {groups.length === 0 && (
+              <div className="text-center py-8 text-gray-400">
+                <p className="text-sm font-medium">
+                  {lang === 'en' ? 'No groups yet — be the first to open one!' : 'עדיין אין קבוצות — היו הראשונים לפתוח קבוצת גיוס!'}
+                </p>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               {groups.map(g => {
