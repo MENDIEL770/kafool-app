@@ -159,24 +159,26 @@ export default function DonationModal({
   const [currency, setCurrency] = useState<string>(defaultCurrency || 'ils')
   const isForeign = currency !== 'ils'
   const sym = CURRENCY_SYMBOL[currency] || currency.toUpperCase()
+  // Live ₪-per-unit rates fetched from /api/fx on open; the manual rate is only a
+  // fallback. rateFor returns ₪ per 1 unit of the currency (₪ itself = 1).
+  const [liveRates, setLiveRates] = useState<Record<string, number>>({})
+  const rateFor = (c: string) => (c === 'ils' ? 1 : (liveRates[c] || (ilsRate > 0 ? ilsRate : 3.7)))
   // In-modal Stripe embedded checkout (shown at the payment step when foreign).
   const [clientSecret, setClientSecret] = useState<string | null>(null)
   const [stripePromise, setStripePromise] = useState<Promise<Stripe | null> | null>(null)
   const [stripeError, setStripeError] = useState<string | null>(null)
   const fetchClientSecret = useCallback(() => Promise.resolve(clientSecret || ''), [clientSecret])
 
-  // A donation button configured as a standing order locks the modal to הו"ק —
-  // the donor can't switch to Bit / bank / one-time, only choose the duration.
-  const lockedToHok = presetMethod === 'hok'
-  // Available methods = only those with a URL configured. Bit shows alongside the
-  // others when a Bit link is set (it opens in a new tab rather than the iframe).
-  // Foreign currency goes through Stripe, which only does one-time / monthly (no
-  // Bit / bank transfer) — so those two are hidden when a foreign currency is set.
+  // The donor can always choose one-time vs monthly (הו"ק); a plan's configured
+  // method is only the DEFAULT selection, never a lock. In ₪ both run through the
+  // Kesher URL (הו"ק falls back to the one-time base), and Bit / bank appear when
+  // their link is set. Foreign currency goes through Stripe (one-time / monthly
+  // only — no Bit / bank), so those two are hidden when a foreign currency is set.
   const availableMethods = isForeign
-    ? PAYMENT_METHODS.filter(m => lockedToHok ? m.key === 'hok' : (m.key === 'one_time' || m.key === 'hok'))
+    ? PAYMENT_METHODS.filter(m => m.key === 'one_time' || m.key === 'hok')
     : PAYMENT_METHODS.filter(m =>
-        lockedToHok ? m.key === 'hok'
-          : m.key === 'one_time' ? !!donationUrl
+        m.key === 'one_time' ? !!donationUrl
+          : m.key === 'hok' ? !!(paymentUrls?.hok || donationUrl)
           : !!(paymentUrls?.[m.key])
       )
   const bitUrl = paymentUrls?.bit || ''
@@ -225,6 +227,33 @@ export default function DonationModal({
   useEffect(() => {
     if (isForeign && (paymentMethod === 'bit' || paymentMethod === 'bank')) setPaymentMethod('one_time')
   }, [isForeign, paymentMethod])
+
+  // On open, pull the LIVE ₪ rate for each allowed foreign currency.
+  useEffect(() => {
+    if (!isOpen || !stripeEnabled) return
+    const foreign = allowedCurrencies.filter(c => c !== 'ils')
+    if (!foreign.length) return
+    let cancelled = false
+    Promise.all(foreign.map(async c => {
+      try {
+        const r = await fetch(`/api/fx?currency=${c}&fallback=${ilsRate || 3.7}`)
+        const d = await r.json()
+        return [c, Number(d?.rate) > 0 ? Number(d.rate) : (ilsRate || 3.7)] as const
+      } catch { return [c, ilsRate || 3.7] as const }
+    })).then(pairs => { if (!cancelled) setLiveRates(Object.fromEntries(pairs)) })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, stripeEnabled])
+
+  // Once live rates arrive, re-convert a foreign preset from its ₪ value so the
+  // shown amount uses the live rate (the reset effect seeded it with the fallback).
+  useEffect(() => {
+    if (!isForeign || qtyField) return
+    const presetIls = typeof presetAmount === 'number' ? presetAmount : 0
+    if (!presetIls || customAmount) return
+    setAmount(Math.round(presetIls / rateFor(currency)))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveRates])
 
   // Prevent body scroll when open
   useEffect(() => {
@@ -344,16 +373,12 @@ export default function DonationModal({
     }
   }
 
-  // Switching currency converts the amount by the manager's ₪ rate, both ways:
-  // ₪ → foreign divides by the rate, foreign → ₪ multiplies. Two foreign
-  // currencies share the same ₪ rate, so the number is unchanged between them.
+  // Switching currency converts the amount by the LIVE ₪ rate, both ways: value in
+  // ₪ = amount × (₪ per current unit), then ÷ (₪ per next unit). Works ₪⇄foreign
+  // and foreign⇄foreign. rateFor returns 1 for ₪.
   function changeCurrency(next: string) {
     if (next === currency) return
-    const rate = ilsRate > 0 ? ilsRate : 3.7
-    let v = finalAmount
-    if (currency === 'ils' && next !== 'ils') v = finalAmount / rate
-    else if (currency !== 'ils' && next === 'ils') v = finalAmount * rate
-    v = Math.round(v)
+    const v = Math.round(finalAmount * rateFor(currency) / rateFor(next))
     // Quantity-driven forms price in ₪ per unit — leave those to the ₪ flow.
     if (!qtyField) {
       if (amount > 0) setAmount(v)

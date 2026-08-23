@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { stripeFromKey, getOrgStripe } from '@/lib/stripe'
+import { getIlsPerUnit } from '@/lib/fx'
 import { attachCustomData, recomputeCampaignRaised } from '@/lib/donations'
 import type Stripe from 'stripe'
 
@@ -35,7 +36,10 @@ async function recordDonation(
   const { data: existing } = await supabase
     .from('donations').select('id').eq('kesher_transaction_id', args.txnId).maybeSingle()
   if (!existing) {
-    const rate = Number((campaign.settings as { stripe_ils_rate?: number } | null)?.stripe_ils_rate) || (args.currency === 'ils' ? 1 : 3.7)
+    // Record the donation's ₪ value using the LIVE FX rate at charge time; the
+    // campaign's manual rate is only a fallback when the live source is down.
+    const manualRate = Number((campaign.settings as { stripe_ils_rate?: number } | null)?.stripe_ils_rate) || 3.7
+    const rate = args.currency === 'ils' ? 1 : await getIlsPerUnit(args.currency, manualRate)
     const ilsAmount = args.currency === 'ils' ? Math.round(args.paid) : Math.round(args.paid * rate)
 
     let groupId: string | null = null
