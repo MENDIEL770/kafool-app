@@ -13,7 +13,7 @@ interface Props {
 
 export default function CreateGroupModal({ isOpen, onClose, campaignId, primaryColor }: Props) {
   const [form, setForm] = useState({
-    name: '', managerName: '', managerPhone: '', goalAmount: '', imageUrl: '',
+    name: '', managerName: '', managerPhone: '', goalAmount: '', imageUrl: '', lang: 'he',
   })
   const [uploading, setUploading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -51,6 +51,7 @@ export default function CreateGroupModal({ isOpen, onClose, campaignId, primaryC
           managerPhone: form.managerPhone,
           goalAmount: form.goalAmount,
           imageUrl: form.imageUrl,
+          lang: form.lang,
         }),
       })
       const data = await res.json()
@@ -64,7 +65,7 @@ export default function CreateGroupModal({ isOpen, onClose, campaignId, primaryC
   }
 
   function handleClose() {
-    setForm({ name: '', managerName: '', managerPhone: '', goalAmount: '', imageUrl: '' })
+    setForm({ name: '', managerName: '', managerPhone: '', goalAmount: '', imageUrl: '', lang: 'he' })
     setResult(null)
     setError('')
     onClose()
@@ -168,6 +169,20 @@ export default function CreateGroupModal({ isOpen, onClose, campaignId, primaryC
                 <input type="number" value={form.goalAmount} onChange={e => set('goalAmount', e.target.value)}
                   required dir="ltr" placeholder="5000" min="1"
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-400" />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-gray-600">שפת ברירת מחדל של עמוד הקבוצה</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {([['he', 'עברית'], ['en', 'English']] as const).map(([val, lbl]) => (
+                    <button key={val} type="button" onClick={() => set('lang', val)}
+                      className={`rounded-xl border py-2.5 text-sm font-bold transition-colors ${form.lang === val ? 'text-white' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}
+                      style={form.lang === val ? { backgroundColor: primaryColor, borderColor: primaryColor } : {}}>
+                      {lbl}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[11px] text-gray-400">העמוד ייפתח בשפה זו למי שנכנס לקישור הקבוצה.</p>
               </div>
 
               {error && (

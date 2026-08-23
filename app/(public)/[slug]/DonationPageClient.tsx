@@ -1586,7 +1586,9 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
     const amt = Number(sp.get('amt'))
     if (!amt || amt <= 0) return
     const method = sp.get('m') === 'hok' ? 'hok' : 'one_time'
-    const t = setTimeout(() => openDonate(amt, undefined, method), 400)
+    // ?months=N sets the standing-order duration (for a custom hok link).
+    const months = method === 'hok' ? (Number(sp.get('months')) || undefined) : undefined
+    const t = setTimeout(() => openDonate(amt, sp.get('g') || undefined, method, months), 400)
     return () => clearTimeout(t)
     // run once on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps

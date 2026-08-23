@@ -16,10 +16,12 @@ export const revalidate = 60 // ISR — cache for 60 seconds
 // before matching them against the stored slug.
 function dec(s: string): string { try { return decodeURIComponent(s) } catch { return s } }
 
-export default async function GroupPage({ params }: { params: Promise<{ slug: string; groupSlug: string }> }) {
+export default async function GroupPage({ params, searchParams }: { params: Promise<{ slug: string; groupSlug: string }>; searchParams: Promise<{ lang?: string }> }) {
   const p = await params
   const slug = dec(p.slug)
   const groupSlug = dec(p.groupSlug)
+  const rawLang = (await searchParams)?.lang
+  const urlLang: 'he' | 'en' | undefined = rawLang === 'en' ? 'en' : rawLang === 'he' ? 'he' : undefined
   const supabase = adminClient()
 
   const { data: campaign } = await supabase
@@ -56,7 +58,7 @@ export default async function GroupPage({ params }: { params: Promise<{ slug: st
   ] = await Promise.all([
     supabase
       .from('donations')
-      .select('id, donor_name, amount, dedication, created_at, group_id, payment_type, monthly_amount, installments')
+      .select('id, donor_name, amount, dedication, created_at, group_id, payment_type, monthly_amount, installments, custom_data')
       .eq('campaign_id', campaign.id)
       .eq('payment_status', 'completed')
       .order('created_at', { ascending: false })
@@ -77,6 +79,21 @@ export default async function GroupPage({ params }: { params: Promise<{ slug: st
       .eq('group_id', group.id)
       .eq('payment_status', 'completed'),
   ])
+
+  // Surface each donation's original currency (foreign donations show as $/€/£),
+  // and hide anonymous names — same shape the campaign page uses.
+  const feedDonations = (donations || []).map(({ custom_data, ...d }) => {
+    const cd = custom_data as Record<string, unknown> | null
+    const anon = !!cd && (cd.anonymous === true || cd.anonymous === 'true')
+    const currency = (typeof cd?.stripe_currency === 'string' ? cd.stripe_currency : 'ils').toLowerCase()
+    const origAmount = Number(cd?.stripe_amount) || null
+    return { ...d, donor_name: anon ? null : d.donor_name, currency, orig_amount: origAmount }
+  })
+
+  // Per-group default language: ?lang override → the group's setting → (client
+  // falls back to the campaign default when neither is set).
+  const gLang = (group as { default_lang?: string }).default_lang
+  const initialLang = urlLang || (gLang === 'en' ? 'en' : gLang === 'he' ? 'he' : undefined)
 
   const o = org as Record<string, string>
   const paymentUrls = {
@@ -115,7 +132,8 @@ export default async function GroupPage({ params }: { params: Promise<{ slug: st
     <DonationPageClient
       org={org}
       campaign={campaign}
-      donations={donations || []}
+      initialLang={initialLang}
+      donations={feedDonations}
       groups={(groups || []) as Parameters<typeof DonationPageClient>[0]['groups']}
       gallery={gallery || []}
       donationUrl={paymentUrls.one_time}

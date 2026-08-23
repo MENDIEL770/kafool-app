@@ -9,7 +9,7 @@ import { buttonVariants } from '@/components/ui/button'
 import RichTextEditor from '@/components/RichTextEditor'
 import {
   Upload, ImageIcon, Trash2, X, Monitor, Smartphone,
-  LayoutGrid, Plus, Check, ArrowRight, Eye, Palette, Image, Ruler, ChevronUp, ChevronDown, Video, BookOpen
+  LayoutGrid, Plus, Check, ArrowRight, Eye, Palette, Image, Ruler, ChevronUp, ChevronDown, Video, BookOpen, Copy, Link2
 } from 'lucide-react'
 
 // YouTube thumbnail from a URL (for the editor preview); null for non-YouTube.
@@ -356,6 +356,68 @@ function PlanEditor({ plan, lang, uploading, isFirst, isLast, customForms, preSt
 }
 
 /* ─── Main Component ─── */
+/* ─── Custom (hidden) donation link builder ───
+   Produces a shareable URL that opens the donation form pre-filled with a set
+   amount / type / duration — WITHOUT adding a button to the public page. E.g. a
+   credit-card standing-order link to hand out privately. Relies on the public
+   page's ?amt= / &m=hok / &months= prefill. */
+function CustomLinkBuilder({ slug }: { slug: string }) {
+  const [amount, setAmount] = useState('')
+  const [type, setType] = useState<'one_time' | 'hok'>('one_time')
+  const [months, setMonths] = useState('12')
+  const [copied, setCopied] = useState(false)
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://kafool.com'
+  const amt = Math.round(Number(amount) || 0)
+  const params = new URLSearchParams()
+  if (amt > 0) params.set('amt', String(amt))
+  if (type === 'hok') { params.set('m', 'hok'); if (Number(months) >= 1) params.set('months', String(Math.round(Number(months)))) }
+  const link = amt > 0 ? `${origin}/${slug}?${params.toString()}` : ''
+  return (
+    <div className="border border-gray-100 rounded-2xl p-4 bg-gray-50/50 space-y-3">
+      <div className="flex items-center gap-2">
+        <Link2 className="w-4 h-4 text-gray-400" />
+        <p className="text-sm font-bold text-gray-800">קישור תרומה מותאם אישית</p>
+      </div>
+      <p className="text-[11px] text-gray-400 leading-snug">
+        צור קישור שפותח ישירות טופס תרומה בסכום ובסוג שתבחר — <strong>בלי להופיע ככפתור בדף הציבורי</strong>. שימושי למשל לחיוב אשראי בהוראת קבע שנשלח באופן פרטי.
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className="text-[11px] text-gray-400">סכום (₪)</label>
+          <input type="number" value={amount} onChange={e => setAmount(e.target.value)} dir="ltr" placeholder="180"
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400" />
+        </div>
+        <div>
+          <label className="text-[11px] text-gray-400">סוג</label>
+          <select value={type} onChange={e => setType(e.target.value as 'one_time' | 'hok')}
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white outline-none focus:ring-2 focus:ring-blue-400">
+            <option value="one_time">חד-פעמי</option>
+            <option value="hok">הוראת קבע (חודשי)</option>
+          </select>
+        </div>
+      </div>
+      {type === 'hok' && (
+        <div>
+          <label className="text-[11px] text-gray-400">מספר חודשים</label>
+          <input type="number" min="1" value={months} onChange={e => setMonths(e.target.value)} dir="ltr" placeholder="12"
+            className="w-32 border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400" />
+        </div>
+      )}
+      {link
+        ? (
+          <div className="flex items-center gap-2">
+            <input readOnly value={link} dir="ltr" className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-600" />
+            <button type="button" onClick={() => { navigator.clipboard.writeText(link); setCopied(true); setTimeout(() => setCopied(false), 1500) }}
+              className="shrink-0 inline-flex items-center gap-1 text-xs font-bold text-blue-600 bg-white border border-blue-200 rounded-lg px-3 py-2 hover:bg-blue-50">
+              {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />} {copied ? 'הועתק' : 'העתק'}
+            </button>
+          </div>
+        )
+        : <p className="text-[11px] text-gray-300">הזן סכום כדי לקבל קישור.</p>}
+    </div>
+  )
+}
+
 export default function CampaignMediaClient({
   campaignId, campaignTitle, campaignSlug, orgId, orgName, orgLogoUrl,
   initialCoverUrl, initialLogoUrl, initialVideoUrl, initialGallery, initialSettings,
@@ -1442,6 +1504,8 @@ export default function CampaignMediaClient({
             className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors">
             {savedAmounts ? <><Check className="w-4 h-4" /> נשמר!</> : savingAmounts ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> שומר...</> : 'שמור'}
           </button>
+
+          <CustomLinkBuilder slug={campaignSlug} />
         </div>
       )}
 

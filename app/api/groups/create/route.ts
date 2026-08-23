@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
     slug = String(n)
   }
 
-  const { data: group, error } = await adminClient.from('groups').insert({
+  const baseRow = {
     campaign_id: campaignId,
     org_id: campaign.org_id,
     name,
@@ -75,7 +75,15 @@ export async function POST(req: NextRequest) {
     manager_name: managerName || null,
     manager_phone: managerPhone,
     image_url: imageUrl || null,
-  }).select().single()
+  }
+  // Per-group default language; if the column isn't present yet, retry without it
+  // so group creation never breaks before the migration is run.
+  const lang = body.lang === 'en' ? 'en' : 'he'
+  let ins = await adminClient.from('groups').insert({ ...baseRow, default_lang: lang }).select().single()
+  if (ins.error && /default_lang/i.test(ins.error.message)) {
+    ins = await adminClient.from('groups').insert(baseRow).select().single()
+  }
+  const { data: group, error } = ins
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
