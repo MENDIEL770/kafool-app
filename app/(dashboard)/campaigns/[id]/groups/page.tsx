@@ -166,6 +166,7 @@ function EditModal({ group, onClose, onSaved }: { group: Group; onClose: () => v
     goal_amount: String(group.goal_amount || ''),
     manager_name: group.manager_name || '',
     manager_phone: group.manager_phone || '',
+    default_lang: (group as { default_lang?: string }).default_lang || 'he',
   })
   const [saving, setSaving] = useState(false)
   const [slugError, setSlugError] = useState('')
@@ -211,14 +212,19 @@ function EditModal({ group, onClose, onSaved }: { group: Group; onClose: () => v
       .maybeSingle()
     if (taken) { setSlugError('הכתובת (slug) כבר תפוסה בקמפיין — בחר אחרת'); setSaving(false); return }
 
-    const { error } = await supabase.from('groups').update({
+    const upd = {
       name: form.name,
       slug,
       goal_amount: Number(form.goal_amount) || 0,
       manager_name: form.manager_name || null,
       manager_phone: form.manager_phone || null,
       image_url: imageUrl,
-    }).eq('id', group.id)
+    }
+    const lang = form.default_lang === 'en' ? 'en' : 'he'
+    let { error } = await supabase.from('groups').update({ ...upd, default_lang: lang }).eq('id', group.id)
+    if (error && /default_lang/i.test(error.message)) {
+      ;({ error } = await supabase.from('groups').update(upd).eq('id', group.id))
+    }
     setSaving(false)
     if (error) { setSlugError(error.message); return }
     onSaved()
@@ -290,6 +296,17 @@ function EditModal({ group, onClose, onSaved }: { group: Group; onClose: () => v
             <div className="space-y-1">
               <Label>טלפון</Label>
               <Input type="tel" value={form.manager_phone} onChange={e => set('manager_phone', e.target.value)} dir="ltr" />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label>שפת ברירת מחדל של הקבוצה</Label>
+            <div className="grid grid-cols-2 gap-2">
+              {([['he', 'עברית'], ['en', 'English']] as const).map(([val, lbl]) => (
+                <button key={val} type="button" onClick={() => set('default_lang', val)}
+                  className={`rounded-xl border py-2 text-sm font-bold transition-colors ${form.default_lang === val ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+                  {lbl}
+                </button>
+              ))}
             </div>
           </div>
           <div className="flex gap-2 pt-1">
@@ -647,7 +664,7 @@ export default function GroupsPage() {
   const [bulkSms, setBulkSms] = useState(false)
   const [showWelcome, setShowWelcome] = useState(false)
   const [welcomeSms, setWelcomeSms] = useState('')
-  const [form, setForm] = useState({ name: '', slug: randomSlug(), goal_amount: '', manager_name: '', manager_phone: '' })
+  const [form, setForm] = useState({ name: '', slug: randomSlug(), goal_amount: '', manager_name: '', manager_phone: '', default_lang: 'he' })
 
   async function load() {
     const supabase = createClient()
@@ -691,7 +708,7 @@ export default function GroupsPage() {
     const { data: { user } } = await supabase.auth.getUser()
     const { data: profile } = await supabase.from('profiles').select('org_id').eq('id', user!.id).single()
 
-    await supabase.from('groups').insert({
+    const row = {
       campaign_id: campaignId,
       org_id: profile!.org_id,
       name: form.name,
@@ -699,9 +716,15 @@ export default function GroupsPage() {
       goal_amount: Number(form.goal_amount) || 0,
       manager_name: form.manager_name || null,
       manager_phone: form.manager_phone || null,
-    })
+    }
+    // Per-group default language; retry without it if the column isn't present yet.
+    const lang = form.default_lang === 'en' ? 'en' : 'he'
+    const { error } = await supabase.from('groups').insert({ ...row, default_lang: lang })
+    if (error && /default_lang/i.test(error.message)) {
+      await supabase.from('groups').insert(row)
+    }
 
-    setForm({ name: '', slug: randomSlug(), goal_amount: '', manager_name: '', manager_phone: '' })
+    setForm({ name: '', slug: randomSlug(), goal_amount: '', manager_name: '', manager_phone: '', default_lang: 'he' })
     setShowForm(false)
     setLoading(false)
     load()
@@ -770,9 +793,22 @@ export default function GroupsPage() {
                 <p className="text-[11px] text-gray-400">ברירת מחדל: מספר אקראי. אפשר לשנות לכתובת קריאה (עברית/אנגלית).</p>
               </div>
             </div>
-            <div className="space-y-1">
-              <Label>יעד גיוס (₪) *</Label>
-              <Input type="number" value={form.goal_amount} onChange={e => set('goal_amount', e.target.value)} dir="ltr" required min="1" />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>יעד גיוס (₪) *</Label>
+                <Input type="number" value={form.goal_amount} onChange={e => set('goal_amount', e.target.value)} dir="ltr" required min="1" />
+              </div>
+              <div className="space-y-1">
+                <Label>שפת ברירת מחדל של הקבוצה</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {([['he', 'עברית'], ['en', 'English']] as const).map(([val, lbl]) => (
+                    <button key={val} type="button" onClick={() => set('default_lang', val)}
+                      className={`rounded-xl border py-2 text-sm font-bold transition-colors ${form.default_lang === val ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+                      {lbl}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
