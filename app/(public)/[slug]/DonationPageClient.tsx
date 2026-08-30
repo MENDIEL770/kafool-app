@@ -171,16 +171,17 @@ function normalizeWaPhone(raw?: string): string {
   return d
 }
 
-type PlanForAvatar = { amount: number; image_url?: string | null; image_url_en?: string | null; payment_type?: 'one_time' | 'hok' }
+type PlanForAvatar = { amount: number; months?: number | null; image_url?: string | null; image_url_en?: string | null; payment_type?: 'one_time' | 'hok' }
 
-// When a donation's amount matches a donation button that has a custom graphic,
-// use that graphic as the donor's avatar. The compared amount is the standing
-// order's MONTHLY amount (which is what the button shows) or the one-time amount.
+// When a donation's TOTAL matches a donation button that has a custom graphic,
+// use that graphic as the donor's avatar. A button's total is monthly × months
+// for a standing order, else its one-time amount; the donation's total is `amount`
+// (already the full commitment for a הו"ק). So a 180×12 gift won't borrow a
+// 180×24 button's graphic — only an exact total match wins.
 function planAvatarImage(d: Donation, plans: PlanForAvatar[] | undefined, lang: Lang): string | null {
-  if (!plans?.length) return null
-  const amt = (d.payment_type === 'hok' ? d.monthly_amount : d.amount) || d.amount
-  if (!amt) return null
-  const matches = plans.filter(p => p.amount === amt && (p.image_url || p.image_url_en))
+  if (!plans?.length || !d.amount) return null
+  const planTotal = (p: PlanForAvatar) => (p.payment_type === 'hok' ? p.amount * (Number(p.months) || 1) : p.amount)
+  const matches = plans.filter(p => planTotal(p) === d.amount && (p.image_url || p.image_url_en))
   if (!matches.length) return null
   const p = matches.find(m => (m.payment_type || 'one_time') === (d.payment_type || 'one_time')) || matches[0]
   return (lang === 'en' ? (p.image_url_en || p.image_url) : p.image_url) || null
