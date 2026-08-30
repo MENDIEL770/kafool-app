@@ -296,6 +296,22 @@ export default function DonationModal({
     setForm(p => ({ ...p, [key]: value }))
   }
 
+  // Enter jumps to the next field so the form flows top-to-bottom on one hand.
+  // Textareas keep Enter for newlines; checkboxes/radios are skipped.
+  function advanceOnEnter(e: React.KeyboardEvent<HTMLDivElement>) {
+    if (e.key !== 'Enter') return
+    const el = e.target as HTMLElement
+    if (el.tagName === 'TEXTAREA') return
+    const nodes = Array.from(
+      e.currentTarget.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>('input, select, textarea')
+    ).filter(n => !n.disabled && n.offsetParent !== null && !((n as HTMLInputElement).type === 'checkbox' || (n as HTMLInputElement).type === 'radio'))
+    const i = nodes.indexOf(el as HTMLInputElement)
+    if (i >= 0 && i < nodes.length - 1) {
+      e.preventDefault()
+      nodes[i + 1].focus()
+    }
+  }
+
   // Save donor details locally so the thanks page can attach them to the donation.
   function persistDonor() {
     localStorage.setItem('kafool_donor', JSON.stringify({
@@ -514,7 +530,7 @@ export default function DonationModal({
         </div>
 
         {/* Content */}
-        <div className="overflow-y-auto flex-1">
+        <div className="overflow-y-auto flex-1" onKeyDown={advanceOnEnter}>
 
           {/* Step: Choice (before the form) */}
           {step === 'choice' && preStep && preStepType === 'choice' && (
