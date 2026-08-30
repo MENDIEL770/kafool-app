@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { X, CreditCard, RefreshCw, Smartphone, Landmark, Loader2 } from 'lucide-react'
 import { loadStripe, type Stripe } from '@stripe/stripe-js'
 import { EmbeddedCheckoutProvider, EmbeddedCheckout } from '@stripe/react-stripe-js'
@@ -149,6 +149,7 @@ export default function DonationModal({
   const activeForm = allForms.find(f => f.id === activeFormId) || null
   const [amount, setAmount] = useState(typeof presetAmount === 'number' ? presetAmount : 0)
   const [customAmount, setCustomAmount] = useState('')
+  const amountRef = useRef<HTMLInputElement>(null)
   const [selectedGroupSlug, setSelectedGroupSlug] = useState(presetGroupSlug || '')
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(presetMethod ?? 'one_time')
   const [months, setMonths] = useState<number>(presetMonths ?? 12)
@@ -260,6 +261,17 @@ export default function DonationModal({
     document.body.style.overflow = isOpen ? 'hidden' : ''
     return () => { document.body.style.overflow = '' }
   }, [isOpen])
+
+  // When the modal opens without a preset amount, put the cursor straight in the
+  // amount field (so "Other amount" / a plain donate click lands ready to type).
+  useEffect(() => {
+    // amountRef is null when the input isn't shown (preset / quantity form), so
+    // this safely no-ops in those cases.
+    if (isOpen && step === 'details' && !presetAmount) {
+      const id = setTimeout(() => amountRef.current?.focus(), 120)
+      return () => clearTimeout(id)
+    }
+  }, [isOpen, step, presetAmount])
 
   // Usage funnel: the donor reached the payment step.
   useEffect(() => { if (isOpen && step === 'payment' && campaign?.id) track(campaign.id, 'donate_payment') }, [isOpen, step, campaign?.id])
@@ -556,7 +568,11 @@ export default function DonationModal({
             <div className="px-5 py-4 border-b border-gray-100">
               <label className="text-xs font-medium text-gray-500 block mb-2">{T.amountLabel}</label>
               <input
+                ref={amountRef}
                 type="number"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                autoFocus
                 value={customAmount}
                 onChange={e => setCustomAmount(e.target.value)}
                 placeholder={T.amountPh}

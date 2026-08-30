@@ -610,7 +610,6 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
   const [selectedMonths, setSelectedMonths] = useState<number | undefined>()
   const [custom, setCustom] = useState('')
   const [selectedGroup] = useState<string>('')
-  const customInputRef = useRef<HTMLInputElement>(null)
 
   // selected holds the chosen plan INDEX (not the amount) so two plans with the
   // same amount (e.g. 180 monthly vs 180 one-time) don't both highlight.
@@ -701,54 +700,28 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
             )
           })}
 
-          {/* סכום אחר — מוצג כאן רק כשהמנהל בחר "ברשימת הכפתורים" (אחרת ליד כפתור התרומה) */}
-          {otherAmountPlacement === 'grid' && (() => {
-            const customActive = !selected && !!custom && Number(custom) > 0
-            return (
-              <button
-                type="button"
-                onClick={() => { customInputRef.current?.focus(); setSelected(null); setSelectedMethod('one_time'); setSelectedMonths(undefined) }}
-                className={itemCls}
-                aria-pressed={customActive}
+          {/* סכום אחר — פותח ישירות את חלון פרטי-התורם, שם מזינים את הסכום */}
+          {otherAmountPlacement === 'grid' && (
+            <button
+              type="button"
+              onClick={() => onDonate(undefined, selectedGroup || undefined, 'one_time', undefined, undefined)}
+              className={itemCls}
+            >
+              <div
+                className={otherAmountImage
+                  ? `${shapeCls} flex items-center justify-center`
+                  : `${large ? `w-full aspect-square md:w-[180px] md:h-[180px] md:aspect-auto ${planShape}` : `w-[90px] h-[90px] md:w-[110px] md:h-[110px] ${planShape}`} border-2 border-dashed border-gray-300 flex flex-col items-center justify-center bg-gray-50 transition-all duration-200`}
+                style={{ boxShadow: otherAmountImage ? '0 2px 10px rgba(0,0,0,0.08)' : undefined }}
               >
-                <div
-                  className={otherAmountImage
-                    ? `${shapeCls} flex items-end justify-center`
-                    : `${large ? `w-full aspect-square md:w-[180px] md:h-[180px] md:aspect-auto ${planShape}` : `w-[90px] h-[90px] md:w-[110px] md:h-[110px] ${planShape}`} border-2 border-dashed border-gray-300 flex flex-col items-center justify-center bg-gray-50 transition-all duration-200`}
-                  style={{
-                    boxShadow: customActive
-                      ? `0 0 0 4px white, 0 0 0 7px ${primaryColor}, 0 6px 20px ${primaryColor}44`
-                      : otherAmountImage ? '0 2px 10px rgba(0,0,0,0.08)' : undefined,
-                    transform: customActive ? 'scale(1.08)' : 'scale(1)',
-                  }}
-                >
-                  {otherAmountImage && (
-                    <img src={otherAmountImage} alt={t('otherAmount')} className="absolute inset-0 w-full h-full object-cover" />
-                  )}
-                  {!otherAmountImage && (
-                    <span className="text-[10px] md:text-xs text-gray-400 mb-1">{t('otherAmount')}</span>
-                  )}
-                  <div className={`flex items-center gap-0.5 ${otherAmountImage ? 'relative z-10 mb-2 bg-white/90 rounded-full px-2 py-0.5 shadow-sm backdrop-blur-sm' : ''}`}>
-                    <span className="text-sm font-bold text-gray-500">₪</span>
-                    <input
-                      ref={customInputRef}
-                      type="number"
-                      value={custom}
-                      onChange={(e) => { setCustom(e.target.value); setSelected(null); setSelectedMethod('one_time'); setSelectedMonths(undefined) }}
-                      onClick={(e) => e.stopPropagation()}
-                      placeholder="0"
-                      min="1"
-                      className="w-12 md:w-14 text-center text-sm font-bold outline-none bg-transparent"
-                      dir="ltr"
-                    />
-                  </div>
-                </div>
-                <div className="text-center">
-                  <div className="text-xs md:text-sm font-bold text-gray-400">{t('otherAmount')}</div>
-                </div>
-              </button>
-            )
-          })()}
+                {otherAmountImage
+                  ? <img src={otherAmountImage} alt={t('otherAmount')} className="absolute inset-0 w-full h-full object-cover" />
+                  : <span className="text-2xl md:text-3xl font-light text-gray-400 leading-none">+</span>}
+              </div>
+              <div className="text-center">
+                <div className="text-xs md:text-sm font-bold text-gray-400">{t('otherAmount')}</div>
+              </div>
+            </button>
+          )}
         </div>
 
         {/* Payment actions */}
