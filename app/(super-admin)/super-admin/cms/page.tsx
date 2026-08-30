@@ -1,7 +1,8 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import CmsClient, { type PageContentRow, type FaqItem, type ContactSettingsData } from './CmsClient'
 import type { Submission } from './SubmissionModal'
+import FeaturedCampaignsAdmin, { type FeatureRow } from './FeaturedCampaignsAdmin'
 
 export default async function CmsPage() {
   const supabase = await createClient()
@@ -75,13 +76,35 @@ export default async function CmsPage() {
     submissions = []
   }
 
+  // All campaigns, for the home-page showcase picker (guarded so a missing
+  // show_on_homepage column just renders every campaign as "hidden").
+  let featureRows: FeatureRow[] = []
+  try {
+    const admin = await createServiceClient()
+    const { data } = await admin
+      .from('campaigns')
+      .select('id, title, slug, cover_image_url, show_on_homepage')
+      .order('created_at', { ascending: false })
+    featureRows = (data ?? []).map(c => ({
+      id: c.id, title: c.title, slug: c.slug, cover_image_url: c.cover_image_url ?? null,
+      show_on_homepage: (c as { show_on_homepage?: boolean }).show_on_homepage === true,
+    }))
+  } catch {
+    featureRows = []
+  }
+
   return (
-    <CmsClient
-      aboutContent={aboutContent}
-      faqItems={faqItems}
-      contactSettings={contactSettings}
-      submissions={submissions}
-      hiddenPages={hiddenPages}
-    />
+    <>
+      <CmsClient
+        aboutContent={aboutContent}
+        faqItems={faqItems}
+        contactSettings={contactSettings}
+        submissions={submissions}
+        hiddenPages={hiddenPages}
+      />
+      <div className="mx-auto max-w-4xl px-4 pb-16">
+        <FeaturedCampaignsAdmin campaigns={featureRows} />
+      </div>
+    </>
   )
 }

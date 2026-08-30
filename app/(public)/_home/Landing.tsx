@@ -758,7 +758,13 @@ export interface LandingContent {
   cta_text: string
 }
 
-export default function Landing({ c, logos }: { c: LandingContent; logos: string[] }) {
+export interface HomeCampaign {
+  title: string
+  slug: string
+  cover_image_url: string | null
+}
+
+export default function Landing({ c, logos, campaigns = [] }: { c: LandingContent; logos: string[]; campaigns?: HomeCampaign[] }) {
   const stats = [
     { Icon: Sparkles, value: c.stats_raised, label: 'גויסו עד היום', color: BLUE },
     { Icon: CreditCard, value: c.stats_campaigns, label: 'קמפיינים מצליחים', color: NAVY },
@@ -950,7 +956,39 @@ export default function Landing({ c, logos }: { c: LandingContent; logos: string
         </Reveal>
       </section>
 
-      {/* ── FEATURES — pinned screen, scrolling chapters ── */}
+      {/* ── SHOWCASE CAMPAIGNS (chosen by the super-admin) ── */}
+      {campaigns.length > 0 && (
+        <section className="px-5 py-16">
+          <div className="mx-auto max-w-6xl">
+            <Reveal>
+              <h2 className="mb-3 text-center text-3xl font-black tracking-tight sm:text-4xl" style={{ color: NAVY }}>קמפיינים שגייסו איתנו</h2>
+              <p className="mb-10 text-center text-slate-500">הצצה לקמפיינים שרצו על כפול</p>
+            </Reveal>
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {campaigns.map((cam, i) => (
+                <Reveal key={cam.slug} delay={i * 0.05}>
+                  <a
+                    href={`/${cam.slug}`}
+                    className="group block overflow-hidden rounded-3xl border border-white/60 bg-white/70 shadow-sm backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_26px_55px_-18px_rgba(16,42,86,0.35)]"
+                  >
+                    <div className="relative aspect-[16/9] overflow-hidden bg-slate-100">
+                      {cam.cover_image_url
+                        ? <img src={cam.cover_image_url} alt={cam.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
+                        : <div className="flex h-full w-full items-center justify-center px-4 text-center text-sm font-bold text-slate-300">{cam.title}</div>}
+                    </div>
+                    <div className="flex items-center justify-between gap-2 p-4">
+                      <span className="line-clamp-1 font-black text-slate-800">{cam.title}</span>
+                      <ArrowLeft className="h-4 w-4 shrink-0 transition-transform duration-300 group-hover:-translate-x-1" style={{ color: BLUE }} />
+                    </div>
+                  </a>
+                </Reveal>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── FEATURES — stacked feature blocks ── */}
       <FeatureStory title={c.features_title} />
 
       {/* ── KAFOOL+ — telephony console for ambassadors ── */}

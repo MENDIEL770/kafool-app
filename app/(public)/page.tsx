@@ -1,7 +1,8 @@
 import { Heebo } from 'next/font/google'
+import { createClient as createAdmin } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 import Footer from './_components/Footer'
-import Landing, { type LandingContent } from './_home/Landing'
+import Landing, { type LandingContent, type HomeCampaign } from './_home/Landing'
 
 // Scoped to the landing page only — the rest of the app keeps its own font.
 const heebo = Heebo({ subsets: ['hebrew', 'latin'], weight: ['400', '500', '700', '800', '900'], display: 'swap' })
@@ -48,11 +49,30 @@ async function getContent(): Promise<{ c: LandingContent; logos: string[] }> {
   }
 }
 
+// Campaigns the super-admin chose to showcase on the home page (past + present),
+// each shown as a banner card linking to its page. Service-role read (bypasses
+// RLS); guarded so a missing `show_on_homepage` column just yields none.
+async function getShowcaseCampaigns(): Promise<HomeCampaign[]> {
+  try {
+    const admin = createAdmin(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+    const { data, error } = await admin
+      .from('campaigns')
+      .select('title, slug, cover_image_url')
+      .eq('show_on_homepage', true)
+      .order('created_at', { ascending: false })
+      .limit(24)
+    if (error) return []
+    return (data || []).filter((c): c is HomeCampaign => !!c.slug)
+  } catch {
+    return []
+  }
+}
+
 export default async function HomePage() {
-  const { c, logos } = await getContent()
+  const [{ c, logos }, campaigns] = await Promise.all([getContent(), getShowcaseCampaigns()])
   return (
     <div className={`${heebo.className} min-h-screen`}>
-      <Landing c={c} logos={logos} />
+      <Landing c={c} logos={logos} campaigns={campaigns} />
       <Footer />
     </div>
   )
