@@ -40,6 +40,7 @@ export default function CampaignSettingsPage() {
     whatsapp_phone: '',
     whatsapp_message: '',
     manager_phone: '',
+    manager_email: '',
     kafool_plus_sync: false,
     stripe_enabled: false,
     stripe_currency: 'usd',
@@ -81,6 +82,7 @@ export default function CampaignSettingsPage() {
           whatsapp_phone: data.settings?.whatsapp_phone || '',
           whatsapp_message: data.settings?.whatsapp_message || '',
           manager_phone: data.settings?.manager_phone || '',
+          manager_email: data.settings?.manager_email || '',
           kafool_plus_sync: data.settings?.kafool_plus_sync === true,
           stripe_enabled: data.settings?.stripe_enabled === true,
           stripe_currency: data.settings?.stripe_currency || 'usd',
@@ -144,6 +146,7 @@ export default function CampaignSettingsPage() {
         whatsapp_phone: form.whatsapp_phone || null,
         whatsapp_message: form.whatsapp_message || null,
         manager_phone: form.manager_phone || null,
+        manager_email: form.manager_email || null,
         kafool_plus_sync: form.kafool_plus_sync,
         stripe_enabled: form.stripe_enabled,
         stripe_currency: form.stripe_currency || 'usd',
@@ -401,16 +404,28 @@ export default function CampaignSettingsPage() {
               כשתורם ממלא פרטים ובוחר אמצעי תשלום אך לא משלים את התרומה, יישלח אליך SMS עם שם התורם, אמצעי התשלום, הסכום ומספר טלפון לחזרה. הליד יישמר במערכת.
             </p>
           </CardHeader>
-          <CardContent className="space-y-1">
-            <Label>מספר טלפון לקבלת התראות</Label>
-            <Input
-              type="tel"
-              value={form.manager_phone}
-              onChange={(e) => set('manager_phone', e.target.value.replace(/\s/g, ''))}
-              dir="ltr"
-              placeholder="0501234567"
-            />
-            <p className="text-[11px] text-gray-400">השאר ריק כדי לא לקבל התראות. ההתראה נשלחת כ-5 דקות לאחר שהתרומה לא הושלמה (בביט — כ-30 דקות, כי התשלום מתבצע באפליקציה).</p>
+          <CardContent className="space-y-4">
+            <div className="space-y-1">
+              <Label>מספר טלפון לקבלת התראות (SMS)</Label>
+              <Input
+                type="tel"
+                value={form.manager_phone}
+                onChange={(e) => set('manager_phone', e.target.value.replace(/\s/g, ''))}
+                dir="ltr"
+                placeholder="0501234567"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>כתובת מייל לקבלת התראות</Label>
+              <Input
+                type="email"
+                value={form.manager_email}
+                onChange={(e) => set('manager_email', e.target.value.trim())}
+                dir="ltr"
+                placeholder="manager@example.com"
+              />
+            </div>
+            <p className="text-[11px] text-gray-400">אפשר למלא טלפון, מייל, או שניהם — השאר ריק כדי לא לקבל התראה בערוץ זה. ההתראה נשלחת כ-5 דקות לאחר שהתרומה לא הושלמה (בביט — כ-30 דקות, כי התשלום מתבצע באפליקציה).</p>
           </CardContent>
         </Card>
 

@@ -106,6 +106,21 @@ function recoveryEmailHtml(args: { campaignTitle: string; orgName: string; link:
     <p>בברכה,<br/>${orgName} ומערכת ׳כפול׳</p>`
 }
 
+// The alert the campaign manager receives about an abandoned lead.
+function managerAlertHtml(args: { name: string; method: string; amount: number; phone: string | null; campaignTitle: string }): string {
+  const { name, method, amount, phone, campaignTitle } = args
+  return `
+    <p><strong>${name}</strong> התחיל/ה תרומה אך לא השלים/ה אותה.</p>
+    <table style="border-collapse:collapse;margin:12px 0;font-size:15px;">
+      <tr><td style="padding:4px 12px 4px 0;color:#64748b;">סכום</td><td style="padding:4px 0;font-weight:bold;">₪${amount.toLocaleString()}</td></tr>
+      <tr><td style="padding:4px 12px 4px 0;color:#64748b;">אמצעי</td><td style="padding:4px 0;font-weight:bold;">${method}</td></tr>
+      ${phone ? `<tr><td style="padding:4px 12px 4px 0;color:#64748b;">טלפון לחזרה</td><td style="padding:4px 0;font-weight:bold;" dir="ltr">${phone}</td></tr>` : ''}
+      ${campaignTitle ? `<tr><td style="padding:4px 12px 4px 0;color:#64748b;">קמפיין</td><td style="padding:4px 0;font-weight:bold;">${campaignTitle}</td></tr>` : ''}
+    </table>
+    <p>מומלץ ליצור קשר עם התורם/ת ולעזור להשלים את התרומה.</p>
+    <p style="color:#94a3b8;font-size:13px;">מערכת ׳כפול׳</p>`
+}
+
 /**
  * Sweep one campaign's abandoned intents. Idempotent per channel (each lead gets
  * at most one manager SMS via __notified and one donor email via __emailed).
@@ -125,11 +140,21 @@ export async function notifyAbandonedIntents(supabase: SupabaseClient, campaignI
     .gt('created_at', floorIso)
     .order('created_at', { ascending: true })
     .limit(100)
+  const { data: camp } = await supabase
+    .from('campaigns').select('title, slug, settings, org_id').eq('id', campaignId).single()
+  const managerPhone = String((camp?.settings as { manager_phone?: string } | null)?.manager_phone || '').trim()
+  const managerEmail = String((camp?.settings as { manager_email?: string } | null)?.manager_email || '').trim()
+  const { data: org } = camp?.org_id
+    ? await supabase.from('organizations').select('name').eq('id', camp.org_id).single()
+    : { data: null }
+  const orgName = org?.name || camp?.title || 'הארגון'
+  const campaignTitle = camp?.title || ''
+
   const waTemplate = process.env.WHATSAPP_ABANDON_TEMPLATE
   const pending = (intents || []).filter(i => {
     const cd = (i.custom_data || {}) as Record<string, unknown>
-    // still needs at least one channel (manager SMS / donor email / donor WhatsApp)
-    return !(cd.__notified && cd.__emailed && (cd.__wa || !waTemplate))
+    // still needs at least one channel (manager SMS/email / donor email / donor WhatsApp)
+    return !(cd.__notified && cd.__emailed && (cd.__wa || !waTemplate) && (cd.__mgrEmailed || !managerEmail))
   })
   if (pending.length === 0) return 0
 
@@ -142,15 +167,6 @@ export async function notifyAbandonedIntents(supabase: SupabaseClient, campaignI
     .gt('created_at', floorIso)
     .limit(500)
   const completed = dons || []
-
-  const { data: camp } = await supabase
-    .from('campaigns').select('title, slug, settings, org_id').eq('id', campaignId).single()
-  const managerPhone = String((camp?.settings as { manager_phone?: string } | null)?.manager_phone || '').trim()
-  const { data: org } = camp?.org_id
-    ? await supabase.from('organizations').select('name').eq('id', camp.org_id).single()
-    : { data: null }
-  const orgName = org?.name || camp?.title || 'הארגון'
-  const campaignTitle = camp?.title || ''
 
   let sent = 0
   for (const it of pending) {
@@ -199,6 +215,18 @@ export async function notifyAbandonedIntents(supabase: SupabaseClient, campaignI
         (campaignTitle ? `\n(${campaignTitle})` : '')
       const r = await sendYemotSms(apiKey, managerPhone, msg)
       if (r.success) { next.__notified = true; changed = true; sent++ }
+    }
+
+    // Manager email alert — once per lead (independent of the SMS).
+    if (!cd.__mgrEmailed && managerEmail) {
+      const name = String(cd.__name || 'תורם/ת')
+      const method = METHOD_LABEL[String(cd.__method || '')] || String(cd.__method || 'תשלום')
+      const ok = await sendPlusEmail(
+        managerEmail,
+        `ליד שלא הושלם — ${campaignTitle || 'קמפיין'}`,
+        managerAlertHtml({ name, method, amount: wantAmount, phone: it.phone, campaignTitle }),
+      )
+      if (ok) { next.__mgrEmailed = true; changed = true; sent++ }
     }
 
     // Donor WhatsApp reminder — once per lead (approved template; {{1}}=campaign,
