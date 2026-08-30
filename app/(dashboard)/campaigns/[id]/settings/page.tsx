@@ -22,6 +22,8 @@ export default function CampaignSettingsPage() {
   const [status, setStatus] = useState('')
   // special "product" (e.g. brick wall) configured on this campaign, if any
   const [bricks, setBricks] = useState<{ total?: number; price?: number; label?: string } | null>(null)
+  // which settings tab is open (the page has many sections — grouped into a menu)
+  const [tab, setTab] = useState<'general' | 'design' | 'payments' | 'alerts' | 'status'>('general')
   const [form, setForm] = useState({
     title: '',
     tagline: '',
@@ -174,8 +176,29 @@ export default function CampaignSettingsPage() {
     <div className="max-w-2xl mx-auto space-y-6">
       <h1 className="text-2xl font-bold text-gray-900">הגדרות קמפיין</h1>
 
+      {/* Section menu — grouped so it's easy to jump between all the settings */}
+      <div className="sticky top-0 z-10 -mx-1 flex gap-2 overflow-x-auto bg-gray-50/90 px-1 py-2 backdrop-blur [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {([
+          ['general', '📋 כללי'],
+          ['design', '🎨 עיצוב ושפה'],
+          ['payments', '💳 תשלומים ומטבעות'],
+          ['alerts', '🔔 התראות'],
+          ['status', '⚙️ סטטוס'],
+        ] as const).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setTab(id)}
+            className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${tab === id ? 'bg-blue-600 text-white shadow' : 'border border-gray-200 bg-white text-gray-500 hover:bg-gray-50'}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       <form onSubmit={handleSave} className="space-y-6">
 
+        {tab === 'general' && (<>
         {/* פרטים */}
         <Card>
           <CardHeader><CardTitle className="text-base">פרטים</CardTitle></CardHeader>
@@ -327,6 +350,9 @@ export default function CampaignSettingsPage() {
           </Card>
         )}
 
+        </>)}
+
+        {tab === 'payments' && (<>
         {/* ── נדרים פלוס ── */}
         <Card>
           <CardHeader>
@@ -346,6 +372,9 @@ export default function CampaignSettingsPage() {
           </CardContent>
         </Card>
 
+        </>)}
+
+        {tab === 'alerts' && (<>
         {/* ── וואטסאפ ── */}
         <Card>
           <CardHeader>
@@ -429,6 +458,9 @@ export default function CampaignSettingsPage() {
           </CardContent>
         </Card>
 
+        </>)}
+
+        {tab === 'payments' && (<>
         {/* סנכרון עם Kafool+ (מערכת השגרירים) */}
         <Card>
           <CardHeader>
@@ -452,6 +484,9 @@ export default function CampaignSettingsPage() {
           </CardContent>
         </Card>
 
+        </>)}
+
+        {tab === 'design' && (<>
         {/* שפת ברירת מחדל של דף הגיוס */}
         <Card>
           <CardHeader>
@@ -475,6 +510,9 @@ export default function CampaignSettingsPage() {
           </CardContent>
         </Card>
 
+        </>)}
+
+        {tab === 'payments' && (<>
         {/* Stripe — תרומות מחו״ל */}
         <Card>
           <CardHeader>
@@ -556,6 +594,9 @@ export default function CampaignSettingsPage() {
           </CardContent>
         </Card>
 
+        </>)}
+
+        {tab === 'design' && (<>
         {/* ── עיצוב כפתורים ── */}
         <Card>
           <CardHeader><CardTitle className="text-base">עיצוב</CardTitle></CardHeader>
@@ -688,16 +729,20 @@ export default function CampaignSettingsPage() {
           </CardContent>
         </Card>
 
-        <div className="flex gap-3">
-          <Button type="submit" disabled={loading}>
-            {saved ? '✓ נשמר' : loading ? 'שומר...' : 'שמור שינויים'}
-          </Button>
-          <Button type="button" variant="outline" onClick={() => router.back()}>חזרה</Button>
-        </div>
+        </>)}
+
+        {tab !== 'status' && (
+          <div className="flex gap-3">
+            <Button type="submit" disabled={loading}>
+              {saved ? '✓ נשמר' : loading ? 'שומר...' : 'שמור שינויים'}
+            </Button>
+            <Button type="button" variant="outline" onClick={() => router.back()}>חזרה</Button>
+          </div>
+        )}
       </form>
 
       {/* סטטוס קמפיין — הפעלה / עצירה */}
-      {status && (
+      {tab === 'status' && status && (
         <Card>
           <CardHeader><CardTitle className="text-base">סטטוס הקמפיין</CardTitle></CardHeader>
           <CardContent className="flex items-center justify-between gap-4">
