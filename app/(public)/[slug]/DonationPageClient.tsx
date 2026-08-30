@@ -154,6 +154,18 @@ function donationAmount(d: Donation): string {
   }
   return `₪${d.amount.toLocaleString()}`
 }
+
+// Normalize a phone number for a wa.me link: digits only, international format.
+// A malformed number (e.g. a local "05…") makes WhatsApp open an "invalid number"
+// page that flashes and closes — so convert a local Israeli 0-prefix to 972, and
+// strip a 00 international prefix. Anything already in country-code form is kept.
+function normalizeWaPhone(raw?: string): string {
+  let d = (raw || '').replace(/\D/g, '')
+  if (!d) return ''
+  if (d.startsWith('00')) d = d.slice(2)
+  else if (d.startsWith('0')) d = '972' + d.slice(1)
+  return d
+}
 interface GalleryItem { id: string; image_url: string; caption: string | null }
 interface ActiveGroup { id: string; name: string; slug: string; goal_amount: number; raised_amount: number; manager_name: string | null; image_url?: string | null; donorCount?: number }
 interface PaymentUrls { one_time: string; hok: string; bit: string; bank: string; one_time_en?: string; hok_en?: string }
@@ -1531,7 +1543,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
   const isOn = (id: string) => !blockOn || blockOn[id] !== false
   const pageBg = builderCfg?.design.bg
   const primaryColor = builderCfg?.design.primary || settings?.primary_color || '#2563eb'
-  const whatsappPhone = settings?.whatsapp_phone?.replace(/\D/g, '')
+  const whatsappPhone = normalizeWaPhone(settings?.whatsapp_phone)
   const whatsappUrl = whatsappPhone
     ? `https://wa.me/${whatsappPhone}${settings?.whatsapp_message ? `?text=${encodeURIComponent(settings.whatsapp_message)}` : ''}`
     : null

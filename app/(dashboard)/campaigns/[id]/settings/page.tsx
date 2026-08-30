@@ -372,16 +372,22 @@ export default function CampaignSettingsPage() {
                 placeholder="שלום, אשמח לקבל מידע נוסף על הקמפיין..."
               />
             </div>
-            {form.whatsapp_phone && (
-              <a
-                href={`https://wa.me/${form.whatsapp_phone.replace(/\D/g, '')}${form.whatsapp_message ? `?text=${encodeURIComponent(form.whatsapp_message)}` : ''}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 text-xs text-green-600 hover:underline"
-              >
-                <span className="text-base"></span> בדוק את הקישור
-              </a>
-            )}
+            {form.whatsapp_phone && (() => {
+              // Same normalization the public page uses: local 0-prefix → 972, 00 → strip.
+              let d = form.whatsapp_phone.replace(/\D/g, '')
+              if (d.startsWith('00')) d = d.slice(2)
+              else if (d.startsWith('0')) d = '972' + d.slice(1)
+              const href = `https://wa.me/${d}${form.whatsapp_message ? `?text=${encodeURIComponent(form.whatsapp_message)}` : ''}`
+              return (
+                <div className="space-y-1">
+                  <a href={href} target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-xs text-green-600 hover:underline">
+                    <span className="text-base"></span> בדוק את הקישור
+                  </a>
+                  <p className="text-[11px] text-gray-400" dir="ltr">wa.me/{d}</p>
+                </div>
+              )
+            })()}
           </CardContent>
         </Card>
 
