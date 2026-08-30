@@ -1195,6 +1195,15 @@ function AboutSection({ campaign, gallery }: { campaign: Campaign; gallery: Gall
   const aboutText = (lang === 'en' && settings?.about_text_en?.trim()) ? settings.about_text_en : settings?.about_text
   const aboutImage = settings?.about_image || null
   const [idx, setIdx] = useState(0)               // inline carousel position
+  // On mobile the About text is collapsed behind a "read more" so the donor
+  // reaches the donors list without a long scroll. Desktop always shows it in full.
+  const [aboutExpanded, setAboutExpanded] = useState(false)
+  const [aboutClamped, setAboutClamped] = useState(false)
+  const aboutRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = aboutRef.current
+    if (el) setAboutClamped(el.scrollHeight > 280)
+  }, [aboutText, lang])
   // The lightbox shows ONE set at a time — either just the about image, or the
   // gallery — so the two aren't mixed into a single navigation.
   const [lbImages, setLbImages] = useState<{ url: string; caption?: string | null }[]>([])
@@ -1322,10 +1331,26 @@ function AboutSection({ campaign, gallery }: { campaign: Campaign; gallery: Gall
         )}
 
         {aboutText && (
-          <div
-            className="kf-about text-gray-600 leading-relaxed text-base whitespace-pre-wrap break-words [&_a]:text-blue-600 [&_a]:underline"
-            dangerouslySetInnerHTML={{ __html: sanitizeHtml(aboutText) }}
-          />
+          <div className="relative">
+            <div
+              ref={aboutRef}
+              className={`kf-about text-gray-600 leading-relaxed text-base whitespace-pre-wrap break-words [&_a]:text-blue-600 [&_a]:underline overflow-hidden ${aboutExpanded ? '' : 'max-h-64 md:max-h-none'}`}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(aboutText) }}
+            />
+            {/* Mobile: fade + "read more" while collapsed. Desktop shows full text. */}
+            {aboutClamped && !aboutExpanded && (
+              <div className="md:hidden pointer-events-none absolute inset-x-0 bottom-9 h-16 bg-gradient-to-t from-white to-transparent" />
+            )}
+            {aboutClamped && (
+              <button
+                type="button"
+                onClick={() => setAboutExpanded(v => !v)}
+                className="md:hidden mt-2 text-sm font-bold text-blue-600 hover:underline"
+              >
+                {aboutExpanded ? (lang === 'en' ? 'Show less' : 'הצג פחות') : (lang === 'en' ? 'Read more' : 'קרא עוד')}
+              </button>
+            )}
+          </div>
         )}
     </div>
   )
@@ -1643,6 +1668,10 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
   // it; otherwise they tuck into the page corners. One source of truth so they
   // never overlap each other or the bar.
   const [barVisible, setBarVisible] = useState(false)
+  // Portal the floating WhatsApp button to <body> so no ancestor transform can
+  // reparent its fixed positioning (which would throw it to the other side).
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
   useEffect(() => {
     const fn = () => setBarVisible(window.scrollY > 400)
     window.addEventListener('scroll', fn, { passive: true })
@@ -1798,8 +1827,8 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
       )}
 
       {/* 8. Floating bar */}
-      {/* WhatsApp floating button */}
-      {whatsappUrl && (
+      {/* WhatsApp floating button — portaled to <body> (see `mounted`) */}
+      {mounted && whatsappUrl && createPortal((
         // Anchored inside a full-viewport LTR layer so `left` is a real physical
         // edge. Pinning a `dir=rtl` fixed element with left/right proved fragile —
         // on tap it could fall back to RTL's right-edge static position and jump to
@@ -1827,7 +1856,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
           </svg>
         </a>
         </div>
-      )}
+      ), document.body)}
 
       <FloatingBar campaign={campaign} primaryColor={primaryColor} buttonRadius={buttonRadius} onDonate={() => openDonate()} />
 
