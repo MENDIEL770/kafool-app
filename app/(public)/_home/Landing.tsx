@@ -433,109 +433,50 @@ function MiniDonationPage() {
   )
 }
 
-/* ─────────────── Feature story: pinned screen, scrolling chapters ─────────────── */
+/* ─────────────── Feature list: normal-scroll stacked chapters ─────────────── */
 
-// The visitor stops; the chapters rise on the left while the screen on the right
-// swaps to match, driven purely by scroll position.
+// Each feature is a plain block in the normal document flow — a screen mockup
+// beside its explanation. No pinning, no scroll-jacking; the visitor just scrolls
+// past them like any page (they alternate sides on desktop for rhythm).
 function FeatureStory({ title }: { title: string }) {
-  const ref = useRef<HTMLElement>(null)
-  const [active, setActive] = useState(0)
   const n = FEATURES.length
-
-  // Driven by a plain scroll listener rather than a rAF-based scroll spring, so
-  // the chapter always matches the scroll position exactly (and keeps working
-  // when rAF is throttled, e.g. a background tab).
-  useEffect(() => {
-    const onScroll = () => {
-      const el = ref.current
-      if (!el) return
-      const track = el.offsetHeight - window.innerHeight
-      if (track <= 0) return
-      const p = Math.min(1, Math.max(0, -el.getBoundingClientRect().top / track))
-      setActive(Math.max(0, Math.min(n - 1, Math.floor(p * n * 0.999))))
-    }
-    onScroll()
-    window.addEventListener('scroll', onScroll, { passive: true })
-    window.addEventListener('resize', onScroll)
-    return () => {
-      window.removeEventListener('scroll', onScroll)
-      window.removeEventListener('resize', onScroll)
-    }
-  }, [n])
-
-  const f = FEATURES[active]
-
   return (
-    <section ref={ref} className="relative px-5" style={{ height: `${n * 42}vh` }}>
-      <div className="sticky top-0 flex h-screen items-center">
-        <div className="mx-auto w-full max-w-6xl">
-          <p className="mb-8 text-center text-sm font-black lg:text-right" style={{ color: BLUE }}>{title}</p>
+    <section className="px-5 py-16 sm:py-24">
+      <div className="mx-auto w-full max-w-6xl">
+        <p className="mb-12 text-center text-sm font-black lg:text-right" style={{ color: BLUE }}>{title}</p>
 
-          <div className="grid items-center gap-12 lg:grid-cols-2">
-            {/* RIGHT (first in RTL): the screen that changes */}
-            <div className="order-1">
-              <div
-                className="relative rounded-[22px] p-[10px] shadow-[0_50px_100px_-25px_rgba(16,42,86,0.5)]"
-                style={{ background: 'linear-gradient(160deg,#2b3444,#0e1420)' }}
-              >
-                <div className="relative overflow-hidden rounded-[12px] bg-white">
-                  <AnimatePresence mode="wait">
-                    <motion.div
-                      key={active}
-                      initial={{ opacity: 0, scale: 1.04, filter: 'blur(6px)' }}
-                      animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
-                      exit={{ opacity: 0, scale: 0.98, filter: 'blur(6px)' }}
-                      transition={{ duration: 0.5, ease: EASE }}
-                    >
-                      <FeatureScreen i={active} />
-                    </motion.div>
-                  </AnimatePresence>
-                </div>
-                <div className="pointer-events-none absolute inset-[10px] rounded-[12px]" style={{ background: 'linear-gradient(120deg,rgba(255,255,255,.18),transparent 45%)' }} />
-              </div>
-              <div className="mx-auto mt-2 h-[10px] w-[70%] rounded-b-[40px] bg-black/10 blur-[6px]" />
-            </div>
-
-            {/* LEFT (second in RTL): the big explanation */}
-            <div className="order-2 flex gap-5">
-              {/* chapter rail */}
-              <div className="hidden shrink-0 flex-col justify-center gap-2 sm:flex">
-                {FEATURES.map((_, i) => (
-                  <div key={i} className="relative h-8 w-[3px] overflow-hidden rounded-full bg-slate-200">
-                    <motion.div
-                      className="absolute inset-x-0 top-0 rounded-full"
-                      style={{ background: BLUE }}
-                      animate={{ height: i === active ? '100%' : i < active ? '100%' : '0%', opacity: i === active ? 1 : 0.35 }}
-                      transition={{ duration: 0.45, ease: EASE }}
-                    />
+        <div className="space-y-20 sm:space-y-28">
+          {FEATURES.map((f, i) => (
+            <div key={i} className="grid items-center gap-10 lg:grid-cols-2 lg:gap-14">
+              {/* screen mockup */}
+              <div className={i % 2 === 1 ? 'lg:order-2' : 'lg:order-1'}>
+                <div
+                  className="relative rounded-[22px] p-[10px] shadow-[0_50px_100px_-25px_rgba(16,42,86,0.5)]"
+                  style={{ background: 'linear-gradient(160deg,#2b3444,#0e1420)' }}
+                >
+                  <div className="relative overflow-hidden rounded-[12px] bg-white">
+                    <FeatureScreen i={i} />
                   </div>
-                ))}
+                  <div className="pointer-events-none absolute inset-[10px] rounded-[12px]" style={{ background: 'linear-gradient(120deg,rgba(255,255,255,.18),transparent 45%)' }} />
+                </div>
+                <div className="mx-auto mt-2 h-[10px] w-[70%] rounded-b-[40px] bg-black/10 blur-[6px]" />
               </div>
 
-              <div className="min-h-[230px] flex-1">
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={active}
-                    initial={{ opacity: 0, y: 26 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                    transition={{ duration: 0.45, ease: EASE }}
-                  >
-                    <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl" style={{ background: `${BLUE}14` }}>
-                      <f.Icon className="h-5 w-5" style={{ color: BLUE }} strokeWidth={1.7} />
-                    </div>
-                    <div dir="ltr" className="mb-2 text-right text-[11px] font-black tracking-widest" style={{ color: BLUE }}>
-                      {String(active + 1).padStart(2, '0')} / {String(n).padStart(2, '0')}
-                    </div>
-                    <h3 className="text-[1.9rem] font-black leading-[1.15] tracking-tight sm:text-[2.4rem]" style={{ color: NAVY }}>
-                      {f.title}
-                    </h3>
-                    <p className="mt-3 max-w-sm text-base leading-relaxed text-slate-500">{f.text}</p>
-                  </motion.div>
-                </AnimatePresence>
+              {/* explanation */}
+              <div className={i % 2 === 1 ? 'lg:order-1' : 'lg:order-2'}>
+                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl" style={{ background: `${BLUE}14` }}>
+                  <f.Icon className="h-5 w-5" style={{ color: BLUE }} strokeWidth={1.7} />
+                </div>
+                <div dir="ltr" className="mb-2 text-right text-[11px] font-black tracking-widest" style={{ color: BLUE }}>
+                  {String(i + 1).padStart(2, '0')} / {String(n).padStart(2, '0')}
+                </div>
+                <h3 className="text-[1.9rem] font-black leading-[1.15] tracking-tight sm:text-[2.4rem]" style={{ color: NAVY }}>
+                  {f.title}
+                </h3>
+                <p className="mt-3 max-w-sm text-base leading-relaxed text-slate-500">{f.text}</p>
               </div>
             </div>
-          </div>
+          ))}
         </div>
       </div>
     </section>
