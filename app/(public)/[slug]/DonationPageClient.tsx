@@ -54,16 +54,18 @@ const STR = {
 // Donor card — fixed uniform height regardless of dedication length (up to 3
 // lines fit). Long dedications show a bold "show more" at the end of the last
 // line; clicking it expands just that card to reveal the full text.
-function DonorCard({ d, donorGroup, primaryColor, campaignSlug, liked, onToggleLike }: {
+function DonorCard({ d, donorGroup, primaryColor, campaignSlug, liked, onToggleLike, plans }: {
   d: Donation
   donorGroup: Group | null | undefined
   primaryColor: string
   campaignSlug: string
   liked: boolean
   onToggleLike: () => void
+  plans?: PlanForAvatar[]
 }) {
   const t = useT()
   const lang = useLang()
+  const avatarImg = planAvatarImage(d, plans, lang)
   const [expanded, setExpanded] = useState(false)
   const ded = d.dedication
   // "Long" = would exceed 3 lines, by character count OR by explicit line breaks.
@@ -75,11 +77,13 @@ function DonorCard({ d, donorGroup, primaryColor, campaignSlug, liked, onToggleL
     >
       <div className="flex items-start gap-3">
         <div
-          className="w-10 h-10 rounded-full flex items-center justify-center text-base font-black shrink-0"
-          style={{ backgroundColor: `${primaryColor}1A`, color: primaryColor }}
+          className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center text-base font-black shrink-0"
+          style={avatarImg ? undefined : { backgroundColor: `${primaryColor}1A`, color: primaryColor }}
           aria-hidden
         >
-          {donorInitials(d.donor_name || t('anonymous'))}
+          {avatarImg
+            ? <img src={avatarImg} alt="" className="w-full h-full object-cover" loading="lazy" />
+            : donorInitials(d.donor_name || t('anonymous'))}
         </div>
         <div className="flex-1 min-w-0">
           <div className="font-bold text-base text-gray-900 leading-tight line-clamp-1">{d.donor_name || t('anonymous')}</div>
@@ -165,6 +169,21 @@ function normalizeWaPhone(raw?: string): string {
   if (d.startsWith('00')) d = d.slice(2)
   else if (d.startsWith('0')) d = '972' + d.slice(1)
   return d
+}
+
+type PlanForAvatar = { amount: number; image_url?: string | null; image_url_en?: string | null; payment_type?: 'one_time' | 'hok' }
+
+// When a donation's amount matches a donation button that has a custom graphic,
+// use that graphic as the donor's avatar. The compared amount is the standing
+// order's MONTHLY amount (which is what the button shows) or the one-time amount.
+function planAvatarImage(d: Donation, plans: PlanForAvatar[] | undefined, lang: Lang): string | null {
+  if (!plans?.length) return null
+  const amt = (d.payment_type === 'hok' ? d.monthly_amount : d.amount) || d.amount
+  if (!amt) return null
+  const matches = plans.filter(p => p.amount === amt && (p.image_url || p.image_url_en))
+  if (!matches.length) return null
+  const p = matches.find(m => (m.payment_type || 'one_time') === (d.payment_type || 'one_time')) || matches[0]
+  return (lang === 'en' ? (p.image_url_en || p.image_url) : p.image_url) || null
 }
 interface GalleryItem { id: string; image_url: string; caption: string | null }
 interface ActiveGroup { id: string; name: string; slug: string; goal_amount: number; raised_amount: number; manager_name: string | null; image_url?: string | null; donorCount?: number }
@@ -898,7 +917,7 @@ function ProgressSection({ raised, goal, donorsCount, primaryColor, bricks }: { 
 type SortBy = 'recent' | 'amount_desc' | 'amount_asc'
 type CommunityTab = 'donors' | 'groups' | 'communities'
 
-function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCreateGroup, initialGroupId }: { donations: Donation[]; groups: Group[]; primaryColor: string; campaignSlug: string; onCreateGroup: () => void; initialGroupId?: string | null }) {
+function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCreateGroup, initialGroupId, plans }: { donations: Donation[]; groups: Group[]; primaryColor: string; campaignSlug: string; onCreateGroup: () => void; initialGroupId?: string | null; plans?: PlanForAvatar[] }) {
   const [tab, setTab] = useState<CommunityTab>('donors')
   const [search, setSearch] = useState('')
   const [sortBy, setSortBy] = useState<SortBy>('recent')
@@ -1023,6 +1042,7 @@ function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCre
                       campaignSlug={campaignSlug}
                       liked={liked.has(d.id)}
                       onToggleLike={() => setLiked(s => { const n = new Set(s); n.has(d.id) ? n.delete(d.id) : n.add(d.id); return n })}
+                      plans={plans}
                     />
                   ))}
                 </div>
@@ -1393,7 +1413,7 @@ function FloatingBar({ primaryColor, buttonRadius, onDonate }: { campaign: Campa
 
 // Social-proof popups (top of page): cycles through the latest donations, 1–2 visible
 // at a time, to make a visitor feel others just donated.
-function DonationToasts({ donations, groups, primaryColor }: { donations: Donation[]; groups: Group[]; primaryColor: string }) {
+function DonationToasts({ donations, groups, primaryColor, plans }: { donations: Donation[]; groups: Group[]; primaryColor: string; plans?: PlanForAvatar[] }) {
   const lang = useLang()
   const t = useT()
   const recent = useMemo(() => donations.slice(0, 5), [donations])
@@ -1459,10 +1479,17 @@ function DonationToasts({ donations, groups, primaryColor }: { donations: Donati
         return (
           <div key={key} className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-white/60 px-4 py-3 flex items-center gap-3 select-none"
             style={{ animation: 'kfToastIn .35s ease-out' }}>
-            <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-black shrink-0"
-              style={{ backgroundColor: `${primaryColor}1A`, color: primaryColor }}>
-              {donorInitials(d.donor_name || t('anonymous'))}
-            </div>
+            {(() => {
+              const img = planAvatarImage(d, plans, lang)
+              return (
+                <div className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center text-xs font-black shrink-0"
+                  style={img ? undefined : { backgroundColor: `${primaryColor}1A`, color: primaryColor }}>
+                  {img
+                    ? <img src={img} alt="" className="w-full h-full object-cover" loading="lazy" />
+                    : donorInitials(d.donor_name || t('anonymous'))}
+                </div>
+              )
+            })()}
             <div className="min-w-0 flex-1">
               <p className="text-base font-black leading-tight" style={{ color: primaryColor }}>
                 {donationAmount(d)}
@@ -1815,7 +1842,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
             {/* תורמים — שמאל בעברית, ימין באנגלית */}
             {isOn('donors') && (
             <div className="flex-1 min-w-0">
-              <CommunitySection donations={donations} groups={groups} primaryColor={primaryColor} campaignSlug={campaign.slug} onCreateGroup={() => setCreateGroupOpen(true)} initialGroupId={activeGroup?.id ?? null} />
+              <CommunitySection donations={donations} groups={groups} primaryColor={primaryColor} campaignSlug={campaign.slug} onCreateGroup={() => setCreateGroupOpen(true)} initialGroupId={activeGroup?.id ?? null} plans={donationPlans} />
             </div>
             )}
           </div>
@@ -1829,7 +1856,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
       <FloatingBar campaign={campaign} primaryColor={primaryColor} buttonRadius={buttonRadius} onDonate={() => openDonate()} />
 
 
-      <DonationToasts donations={donations} groups={groups} primaryColor={primaryColor} />
+      <DonationToasts donations={donations} groups={groups} primaryColor={primaryColor} plans={donationPlans} />
 
       <PopupAd ad={(campaign.settings as { popup_ad?: { image_url?: string; link?: string | null } })?.popup_ad} campaignId={campaign.id} />
       {/* מורם בתיאום עם שאר הכפתורים הצפים */}
