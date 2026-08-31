@@ -58,6 +58,7 @@ export default function JoinClient({
         onClose={() => setOpen(false)}
         campaignId={campaign.id}
         primaryColor={primaryColor}
+        preLaunch
       />
     </div>
   )

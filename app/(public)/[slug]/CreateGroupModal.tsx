@@ -9,9 +9,11 @@ interface Props {
   onClose: () => void
   campaignId: string
   primaryColor: string
+  // Pre-launch context (/join): don't surface a link to the group's campaign page.
+  preLaunch?: boolean
 }
 
-export default function CreateGroupModal({ isOpen, onClose, campaignId, primaryColor }: Props) {
+export default function CreateGroupModal({ isOpen, onClose, campaignId, primaryColor, preLaunch = false }: Props) {
   const [form, setForm] = useState({
     name: '', managerName: '', managerPhone: '', goalAmount: '', imageUrl: '', lang: 'he',
   })
@@ -101,16 +103,24 @@ export default function CreateGroupModal({ isOpen, onClose, campaignId, primaryC
                 <h3 className="font-black text-xl text-gray-900">הקבוצה נוצרה!</h3>
                 <p className="text-sm text-gray-500 mt-1">נשלח SMS עם הקישור למספר שהוזן</p>
               </div>
-              <div className="bg-gray-50 rounded-2xl p-4 space-y-2">
-                <p className="text-xs text-gray-500">הקישור לקבוצה שלך:</p>
-                <p className="text-sm font-mono text-blue-600 break-all">{result.groupUrl}</p>
-                <a href={result.groupUrl} target="_blank" rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold mt-2 px-4 py-2 rounded-xl text-white transition-colors"
-                  style={{ backgroundColor: primaryColor }}>
-                  <ExternalLink className="w-3.5 h-3.5" />
-                  פתח עמוד הקבוצה
-                </a>
-              </div>
+              {preLaunch ? (
+                <div className="bg-gray-50 rounded-2xl p-4">
+                  <p className="text-sm text-gray-500 leading-relaxed">
+                    שמרו את ה-SMS ששלחנו — הקישור לשיתוף ולניהול הקבוצה יהיה פעיל ברגע שהקמפיין יעלה לאוויר.
+                  </p>
+                </div>
+              ) : (
+                <div className="bg-gray-50 rounded-2xl p-4 space-y-2">
+                  <p className="text-xs text-gray-500">הקישור לקבוצה שלך:</p>
+                  <p className="text-sm font-mono text-blue-600 break-all">{result.groupUrl}</p>
+                  <a href={result.groupUrl} target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold mt-2 px-4 py-2 rounded-xl text-white transition-colors"
+                    style={{ backgroundColor: primaryColor }}>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    פתח עמוד הקבוצה
+                  </a>
+                </div>
+              )}
               <button onClick={handleClose} className="w-full py-3 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
                 סגור
               </button>
