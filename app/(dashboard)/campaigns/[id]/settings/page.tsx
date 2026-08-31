@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import RichTextEditor from '@/components/RichTextEditor'
 import CampaignStatusToggle from '../CampaignStatusToggle'
+import { SlidersHorizontal, Palette, CreditCard, Bell, Power, MessageCircle, Phone, Languages, Globe } from 'lucide-react'
 
 export default function CampaignSettingsPage() {
   const router = useRouter()
@@ -179,18 +180,19 @@ export default function CampaignSettingsPage() {
       {/* Section menu — grouped so it's easy to jump between all the settings */}
       <div className="sticky top-0 z-10 -mx-1 flex gap-2 overflow-x-auto bg-gray-50/90 px-1 py-2 backdrop-blur [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {([
-          ['general', '📋 כללי'],
-          ['design', '🎨 עיצוב ושפה'],
-          ['payments', '💳 תשלומים ומטבעות'],
-          ['alerts', '🔔 התראות'],
-          ['status', '⚙️ סטטוס'],
-        ] as const).map(([id, label]) => (
+          ['general', 'כללי', SlidersHorizontal],
+          ['design', 'עיצוב ושפה', Palette],
+          ['payments', 'תשלומים ומטבעות', CreditCard],
+          ['alerts', 'התראות', Bell],
+          ['status', 'סטטוס', Power],
+        ] as const).map(([id, label, Icon]) => (
           <button
             key={id}
             type="button"
             onClick={() => setTab(id)}
-            className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${tab === id ? 'bg-blue-600 text-white shadow' : 'border border-gray-200 bg-white text-gray-500 hover:bg-gray-50'}`}
+            className={`shrink-0 inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${tab === id ? 'bg-blue-600 text-white shadow' : 'border border-gray-200 bg-white text-gray-500 hover:bg-gray-50'}`}
           >
+            <Icon className="w-4 h-4" />
             {label}
           </button>
         ))}
@@ -379,7 +381,7 @@ export default function CampaignSettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <span className="text-lg"></span> כפתור WhatsApp
+              <MessageCircle className="w-4 h-4 text-gray-500" /> כפתור WhatsApp
             </CardTitle>
             <p className="text-xs text-gray-400 mt-1">כפתור צף בדף הגיוס שפותח שיחת WhatsApp עם מנהל הקמפיין</p>
           </CardHeader>
@@ -427,7 +429,7 @@ export default function CampaignSettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <span className="text-lg">🔔</span> התראות למנהל — תרומות שלא הושלמו
+              <Bell className="w-4 h-4 text-amber-500" /> התראות למנהל — תרומות שלא הושלמו
             </CardTitle>
             <p className="text-xs text-gray-400 mt-1">
               כשתורם ממלא פרטים ובוחר אמצעי תשלום אך לא משלים את התרומה, יישלח אליך SMS עם שם התורם, אמצעי התשלום, הסכום ומספר טלפון לחזרה. הליד יישמר במערכת.
@@ -465,7 +467,7 @@ export default function CampaignSettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <span className="text-lg">📞</span> סנכרון עם Kafool+ (מערכת השגרירים)
+              <Phone className="w-4 h-4 text-gray-500" /> סנכרון עם Kafool+ (מערכת השגרירים)
             </CardTitle>
             <p className="text-xs text-gray-400 mt-1">
               כשמופעל — כל תרומה מוצלחת בקמפיין זה (אשראי / ביט / הוראת קבע) תישלח אוטומטית למערכת השגרירים Kafool+ לפי מספר הטלפון של התורם.
@@ -491,7 +493,7 @@ export default function CampaignSettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <span className="text-lg">🌐</span> שפת ברירת מחדל
+              <Languages className="w-4 h-4 text-gray-500" /> שפת ברירת מחדל
             </CardTitle>
             <p className="text-xs text-gray-400 mt-1">באיזו שפה ייפתח דף הגיוס למבקרים. הם תמיד יוכלו להחליף שפה בעצמם.</p>
           </CardHeader>
@@ -517,7 +519,7 @@ export default function CampaignSettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <span className="text-lg">🌍</span> Stripe — תרומות מחו״ל
+              <Globe className="w-4 h-4 text-gray-500" /> Stripe — תרומות מחו״ל
             </CardTitle>
             <p className="text-xs text-gray-400 mt-1">
               כפתור נוסף בדף הגיוס לתרומות מחו״ל דרך Stripe. התורם מועבר לדף תשלום מאובטח של Stripe, ובסיום התרומה נקלטת אוטומטית (webhook). תחילה יש לחבר את חשבון ה-Stripe בהגדרות → חיבור לתשלום.
