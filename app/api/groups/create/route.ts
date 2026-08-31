@@ -28,12 +28,12 @@ export async function POST(req: NextRequest) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  // Get campaign + org
+  // Get campaign + org. No status filter — groups can be opened before the
+  // campaign goes live (the pre-launch /join page).
   const { data: campaign } = await adminClient
     .from('campaigns')
     .select('id, org_id, slug, group_welcome_sms')
     .eq('id', campaignId)
-    .eq('status', 'active')
     .single()
 
   if (!campaign) return NextResponse.json({ error: 'קמפיין לא נמצא' }, { status: 404 })

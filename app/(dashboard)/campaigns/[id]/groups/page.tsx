@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { ExternalLink, Pencil, MessageSquare, Send, X, Check, Loader2, ChevronDown, ChevronUp, Trash2, AlertTriangle, TrendingUp, TrendingDown } from 'lucide-react'
+import { ExternalLink, Pencil, MessageSquare, Send, X, Check, Loader2, ChevronDown, ChevronUp, Trash2, AlertTriangle, TrendingUp, TrendingDown, Copy, Link2 } from 'lucide-react'
 import type { Group } from '@/types'
 
 interface CampaignInfo { slug: string; campaign_slug: string }
@@ -650,6 +650,36 @@ function WelcomeSmsModal({ campaignId, campaignInfo, initialValue, onClose, onSa
 }
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
+// Shareable pre-launch link: recipients see only the main banner + a form to open
+// their own fundraising group (not the campaign itself). Works before launch.
+function JoinLinkCard({ slug }: { slug?: string }) {
+  const [copied, setCopied] = useState(false)
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://kafool.com'
+  const link = slug ? `${origin}/${slug}/join` : ''
+  if (!slug) return null
+  return (
+    <div className="bg-blue-50/60 border border-blue-100 rounded-2xl p-4 space-y-2" dir="rtl">
+      <div className="flex items-center gap-2">
+        <Link2 className="w-4 h-4 text-blue-600" />
+        <span className="text-sm font-bold text-blue-800">קישור לפתיחת קבוצות (טרום-קמפיין)</span>
+      </div>
+      <p className="text-[11px] text-gray-500 leading-snug">
+        שתף את הקישור עם הקהילה עוד לפני שהקמפיין יוצא לדרך. הנכנסים יראו <strong>רק את הבאנר הראשי וטופס לפתיחת קבוצת גיוס</strong> — לא את הקמפיין עצמו.
+      </p>
+      <div className="flex items-center gap-2">
+        <input readOnly value={link} dir="ltr" className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-600" />
+        <button
+          type="button"
+          onClick={() => { navigator.clipboard.writeText(link); setCopied(true); setTimeout(() => setCopied(false), 1500) }}
+          className="shrink-0 inline-flex items-center gap-1 text-xs font-bold text-blue-600 bg-white border border-blue-200 rounded-lg px-3 py-2 hover:bg-blue-50"
+        >
+          {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />} {copied ? 'הועתק' : 'העתק'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function GroupsPage() {
   const params = useParams()
   const campaignId = params.id as string
@@ -776,6 +806,9 @@ export default function GroupsPage() {
           </button>
         </div>
       </div>
+
+      {/* Pre-launch share link — community opens their own groups before launch */}
+      <JoinLinkCard slug={campaignInfo?.campaign_slug} />
 
       {/* Create form */}
       {showForm && (
