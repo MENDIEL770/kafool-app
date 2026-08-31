@@ -783,6 +783,11 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
             {t('share')}
           </button>
         </div>
+
+        {/* Tax-deductibility note (IL section 46 / US 501(c)(3)) */}
+        <p className="mt-4 text-center text-xs text-gray-400">
+          {lang === 'en' ? 'Donations are tax-deductible under section 501(c)(3)' : 'התרומות מוכרות לפי סעיף 46'}
+        </p>
       </div>
     </section>
   )
