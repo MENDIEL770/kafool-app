@@ -921,6 +921,7 @@ type CommunityTab = 'donors' | 'groups' | 'communities'
 function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCreateGroup, initialGroupId, plans }: { donations: Donation[]; groups: Group[]; primaryColor: string; campaignSlug: string; onCreateGroup: () => void; initialGroupId?: string | null; plans?: PlanForAvatar[] }) {
   const [tab, setTab] = useState<CommunityTab>('donors')
   const [search, setSearch] = useState('')
+  const [groupSearch, setGroupSearch] = useState('')
   const [sortBy, setSortBy] = useState<SortBy>('recent')
   const [liked, setLiked] = useState<Set<string>>(new Set())
   const [visible, setVisible] = useState(12)
@@ -1084,8 +1085,31 @@ function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCre
               </div>
             )}
 
+            {/* group search */}
+            {groups.length > 3 && (
+              <div className="relative">
+                <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden />
+                <input
+                  type="search"
+                  value={groupSearch}
+                  onChange={e => setGroupSearch(e.target.value)}
+                  placeholder={lang === 'en' ? 'Search group...' : 'חיפוש קבוצה...'}
+                  aria-label={lang === 'en' ? 'Search group' : 'חיפוש קבוצה'}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-2xl pr-9 pl-4 py-2.5 text-sm outline-none focus:ring-2 focus:border-transparent"
+                  style={{ '--tw-ring-color': primaryColor } as React.CSSProperties}
+                />
+              </div>
+            )}
+
+            {(() => {
+              const q = groupSearch.trim()
+              const shown = q ? groups.filter(g => (g.name || '').includes(q) || (g.manager_name || '').includes(q)) : groups
+              if (q && shown.length === 0) {
+                return <p className="text-center py-6 text-sm text-gray-400">{lang === 'en' ? 'No matching groups' : 'לא נמצאו קבוצות תואמות'}</p>
+              }
+              return (
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-              {groups.map(g => {
+              {shown.map(g => {
                 const pct = g.goal_amount > 0 ? Math.min(100, Math.round((g.raised_amount / g.goal_amount) * 100)) : 0
                 const initials = (g.manager_name || g.name || 'א')[0]
                 return (
@@ -1133,6 +1157,8 @@ function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCre
                 )
               })}
             </div>
+              )
+            })()}
           </div>
         )}
       </div>
