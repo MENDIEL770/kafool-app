@@ -74,6 +74,7 @@ interface Props {
   currencies?: string[]
   defaultCurrency?: string
   ilsRate?: number   // ₪ per 1 unit of foreign currency (manager-set), for conversion
+  presetForeignAmount?: number   // explicit foreign amount (e.g. a button's $ price), skips conversion
 }
 
 export default function DonationModal({
@@ -102,6 +103,7 @@ export default function DonationModal({
   currencies = [],
   defaultCurrency = 'ils',
   ilsRate = 3.7,
+  presetForeignAmount,
 }: Props) {
   // The pre-step is available once configured (choice/info/consent). It is NEVER
   // applied globally — only when a button's form setting is explicitly 'choice'.
@@ -204,7 +206,13 @@ export default function DonationModal({
         const openCur = defaultCurrency || 'ils'
         const rate0 = ilsRate > 0 ? ilsRate : 3.7
         const presetIls = typeof presetAmount === 'number' ? presetAmount : 0
-        setAmount(openCur !== 'ils' && presetIls ? Math.round(presetIls / rate0) : presetIls)
+        // In a foreign currency, prefer the button's explicit foreign price (no
+        // conversion); otherwise convert the ₪ preset by the rate.
+        if (openCur !== 'ils' && presetForeignAmount && presetForeignAmount > 0) {
+          setAmount(Math.round(presetForeignAmount))
+        } else {
+          setAmount(openCur !== 'ils' && presetIls ? Math.round(presetIls / rate0) : presetIls)
+        }
         setCustomAmount('')
       }
       setSelectedGroupSlug(presetGroupSlug || '')
@@ -222,7 +230,7 @@ export default function DonationModal({
         setStep('details'); setActiveFormId(mode === 'regular' || mode === 'choice' ? '' : mode)
       }
     }
-  }, [isOpen, presetAmount, presetGroupSlug, presetMethod, presetMonths, hasPreStep, presetFormMode, defaultFormId, defaultCurrency, ilsRate])
+  }, [isOpen, presetAmount, presetGroupSlug, presetMethod, presetMonths, hasPreStep, presetFormMode, defaultFormId, defaultCurrency, ilsRate, presetForeignAmount])
 
   // Bit / bank aren't available in a foreign currency (Stripe) — fall back to one-time.
   useEffect(() => {
@@ -250,6 +258,7 @@ export default function DonationModal({
   // shown amount uses the live rate (the reset effect seeded it with the fallback).
   useEffect(() => {
     if (!isForeign || qtyField) return
+    if (presetForeignAmount && presetForeignAmount > 0) return // explicit $ price — don't convert
     const presetIls = typeof presetAmount === 'number' ? presetAmount : 0
     if (!presetIls || customAmount) return
     setAmount(Math.round(presetIls / rateFor(currency)))

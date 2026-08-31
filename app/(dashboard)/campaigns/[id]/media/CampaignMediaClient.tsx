@@ -55,7 +55,7 @@ function FrameGrabber({ src, onClose, onCapture }: { src: string; onClose: () =>
 
 /* ─── Types ─── */
 interface GalleryItem { id: string; image_url: string; caption: string | null; sort_order: number }
-interface DonationPlan { amount: number; label?: string | null; image_url?: string | null; image_url_en?: string | null; payment_type?: 'one_time' | 'hok'; months?: number | null; form?: string | null; cta?: string | null }
+interface DonationPlan { amount: number; amount_usd?: number | null; label?: string | null; image_url?: string | null; image_url_en?: string | null; payment_type?: 'one_time' | 'hok'; months?: number | null; form?: string | null; cta?: string | null }
 interface FormOption { id: string; name: string }
 
 interface Props {
@@ -298,6 +298,14 @@ function PlanEditor({ plan, lang, uploading, isFirst, isLast, customForms, preSt
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400" />
           </div>
         </div>
+        {lang === 'en' && (
+          <div>
+            <label className="text-[11px] text-gray-400">סכום בדולרים ($) — לתצוגה באנגלית</label>
+            <input type="number" value={plan.amount_usd ?? ''} onChange={e => onChange({ amount_usd: e.target.value === '' ? null : (Number(e.target.value) || 0) })}
+              placeholder="למשל 50 — אם ריק, יומר אוטומטית מהשקל" dir="ltr"
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400" />
+          </div>
+        )}
         <div className="flex items-center gap-1.5 flex-wrap">
           <span className="text-[11px] text-gray-400 shrink-0">סוג תשלום:</span>
           {([['one_time', 'תרומה חד-פעמית'], ['hok', 'הוראת קבע']] as const).map(([val, lbl]) => {
@@ -812,6 +820,7 @@ export default function CampaignMediaClient({
     const clean = plans.filter(p => p.amount > 0).map(p => ({
       amount: p.amount, label: p.label?.trim() || null, image_url: p.image_url || null,
       image_url_en: p.image_url_en || null,
+      amount_usd: Number(p.amount_usd) > 0 ? Number(p.amount_usd) : null,
       payment_type: p.payment_type || 'one_time',
       months: p.payment_type === 'hok' ? (Number(p.months) || null) : null,
       form: p.form || null,

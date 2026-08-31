@@ -604,7 +604,7 @@ function HeroSection({ campaign, countdown }: {
 }
 
 function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius, buttonSize = 'default', otherAmountImage, otherAmountPlacement = 'grid', defaultCta, onDonate, displayCurrency = 'ils', fxRate }: {
-  plans: { amount: number; label?: string; image_url?: string | null; image_url_en?: string | null; payment_type?: 'one_time' | 'hok'; months?: number | null; form?: string | null; cta?: string | null }[]
+  plans: { amount: number; amount_usd?: number | null; label?: string; image_url?: string | null; image_url_en?: string | null; payment_type?: 'one_time' | 'hok'; months?: number | null; form?: string | null; cta?: string | null }[]
   primaryColor: string
   campaignSlug: string
   groups: Group[]
@@ -613,7 +613,7 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
   otherAmountImage?: string | null
   otherAmountPlacement?: 'grid' | 'cta'
   defaultCta?: string
-  onDonate: (amount?: number, groupSlug?: string, method?: 'one_time' | 'hok', months?: number, formMode?: string) => void
+  onDonate: (amount?: number, groupSlug?: string, method?: 'one_time' | 'hok', months?: number, formMode?: string, foreignAmount?: number) => void
   displayCurrency?: string
   fxRate?: number
 }) {
@@ -625,6 +625,10 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
   const fmtAmt = (ils: number) => foreignDisplay
     ? `${curSym}${Math.round(ils / (fxRate as number)).toLocaleString()}`
     : `₪${ils.toLocaleString()}`
+  // A button's shown amount: in foreign mode, prefer the manager's explicit $ amount
+  // for that button; otherwise convert the ₪ amount by the live rate.
+  const planAmt = (ils: number, usd?: number | null) =>
+    (foreignDisplay && usd && usd > 0) ? `${curSym}${usd.toLocaleString()}` : fmtAmt(ils)
   const [selected, setSelected] = useState<number | null>(null)
   const [selectedMethod, setSelectedMethod] = useState<'one_time' | 'hok'>('one_time')
   const [selectedMonths, setSelectedMonths] = useState<number | undefined>()
@@ -663,7 +667,7 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
 
         {/* Grid: 3 columns on mobile, scrollable row on md+ (or large 1:1 buttons) */}
         <div className={gridCls} style={{ overflowY: 'visible' }}>
-          {plans.map(({ amount, label, image_url, image_url_en, payment_type, months }, i) => {
+          {plans.map(({ amount, amount_usd, label, image_url, image_url_en, payment_type, months }, i) => {
             const isActive = selected === i
             // English visitors see the EN button design when one was uploaded.
             const img = lang === 'en' ? (image_url_en || image_url) : image_url
@@ -697,7 +701,7 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
                       className="w-full h-full flex flex-col items-center justify-center text-center px-2"
                       style={{ background: `linear-gradient(135deg, ${primaryColor}dd, ${primaryColor}88)` }}
                     >
-                      <span className={amountTextCls}>{fmtAmt(amount)}</span>
+                      <span className={amountTextCls}>{planAmt(amount, amount_usd)}</span>
                       {large && label && <span className="text-white/90 text-xs font-medium mt-1">{label}</span>}
                     </div>
                   )}
@@ -712,7 +716,7 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
                 {/* טקסט מתחת */}
                 <div className="text-center">
                   <div className="text-xs md:text-sm font-bold text-gray-800">
-                    {fmtAmt(amount)}{payment_type === 'hok' ? ` ${t('perMonth')}` : ''}
+                    {planAmt(amount, amount_usd)}{payment_type === 'hok' ? ` ${t('perMonth')}` : ''}
                   </div>
                   {label && <div className="text-[10px] md:text-[11px] text-gray-400 mt-0.5">{label}</div>}
                 </div>
@@ -758,7 +762,7 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
             </button>
           )}
           <button
-            onClick={() => onDonate(finalAmount ?? undefined, selectedGroup || undefined, selectedMethod, selectedMethod === 'hok' ? selectedMonths : undefined, selected != null ? (plans[selected]?.form ?? undefined) : undefined)}
+            onClick={() => onDonate(finalAmount ?? undefined, selectedGroup || undefined, selectedMethod, selectedMethod === 'hok' ? selectedMonths : undefined, selected != null ? (plans[selected]?.form ?? undefined) : undefined, (foreignDisplay && selected != null && Number(plans[selected]?.amount_usd) > 0) ? Number(plans[selected]?.amount_usd) : undefined)}
             className={`flex-1 py-2.5 sm:py-3.5 text-white font-black text-sm sm:text-base text-center shadow-lg hover:opacity-90 active:scale-95 transition-all ${buttonRadius}`}
             style={{ backgroundColor: primaryColor }}
           >
@@ -766,12 +770,18 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
               // Per-button CTA override → campaign default → the amount-based label.
               const override = ((selected != null ? plans[selected]?.cta : null) || defaultCta || '').trim()
               if (override) return override
+              const selUsd = selected != null ? plans[selected]?.amount_usd : null
+              const fa = finalAmount || 0
+              const one = planAmt(fa, selUsd)
+              const total = (foreignDisplay && Number(selUsd) > 0)
+                ? `${curSym}${(Number(selUsd) * (selectedMonths || 1)).toLocaleString()}`
+                : fmtAmt(fa * (selectedMonths || 1))
               return finalAmount
                 ? (selectedMethod === 'hok' && selectedMonths
                     ? (lang === 'en'
-                        ? `Donate ${fmtAmt(finalAmount)} × ${selectedMonths} months (${fmtAmt(finalAmount * selectedMonths)})`
-                        : `תרום ${fmtAmt(finalAmount)} × ${selectedMonths} חודשים (${fmtAmt(finalAmount * selectedMonths)})`)
-                    : `${t('donate')} ${fmtAmt(finalAmount)}`)
+                        ? `Donate ${one} × ${selectedMonths} months (${total})`
+                        : `תרום ${one} × ${selectedMonths} חודשים (${total})`)
+                    : `${t('donate')} ${one}`)
                 : t('donate')
             })()}
           </button>
@@ -1587,6 +1597,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
   )
   const [modalOpen, setModalOpen] = useState(false)
   const [modalAmount, setModalAmount] = useState<number | undefined>()
+  const [modalForeignAmount, setModalForeignAmount] = useState<number | undefined>()
   const [modalGroupSlug, setModalGroupSlug] = useState<string | undefined>()
   const [modalMethod, setModalMethod] = useState<'one_time' | 'hok' | undefined>()
   const [modalMonths, setModalMonths] = useState<number | undefined>()
@@ -1598,7 +1609,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
 
   const settings = campaign.settings as {
     donation_amounts?: number[]
-    donation_plans?: { amount: number; label?: string; image_url?: string | null; image_url_en?: string | null; payment_type?: 'one_time' | 'hok'; months?: number | null; form?: string | null; cta?: string | null }[]
+    donation_plans?: { amount: number; amount_usd?: number | null; label?: string; image_url?: string | null; image_url_en?: string | null; payment_type?: 'one_time' | 'hok'; months?: number | null; form?: string | null; cta?: string | null }[]
     primary_color?: string
     button_radius?: string
     donation_button_size?: 'default' | 'large'
@@ -1684,9 +1695,10 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
     ? `/${campaign.slug}/donate?group=${activeGroup.id}`
     : `/${campaign.slug}/donate`
 
-  function openDonate(amount?: number, groupSlug?: string, method?: 'one_time' | 'hok', months?: number, formMode?: string) {
+  function openDonate(amount?: number, groupSlug?: string, method?: 'one_time' | 'hok', months?: number, formMode?: string, foreignAmount?: number) {
     track(campaign.id, 'donate_open')
     setModalAmount(amount)
+    setModalForeignAmount(foreignAmount)
     setModalGroupSlug(groupSlug || (activeGroup ? activeGroup.slug : undefined))
     setModalMethod(method)
     setModalMonths(months)
@@ -1893,6 +1905,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
         presetGroupSlug={modalGroupSlug}
         presetMethod={modalMethod}
         presetMonths={modalMonths}
+        presetForeignAmount={modalForeignAmount}
         donationUrl={donationUrl}
         paymentUrls={paymentUrls}
         paymentProvider={paymentProvider}
