@@ -1,26 +1,28 @@
 import { ImageResponse } from 'next/og'
 
+// Apple touch icon (used by iOS home-screen and some link-preview scrapers). Same
+// Kafool mark as the favicon, at 180×180.
 export const runtime = 'nodejs'
-export const size = { width: 32, height: 32 }
+export const size = { width: 180, height: 180 }
 export const contentType = 'image/png'
 
-export default function Icon() {
+export default function AppleIcon() {
   return new ImageResponse(
     (
       <div
         style={{
-          width: 32,
-          height: 32,
+          width: 180,
+          height: 180,
           background: 'white',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          borderRadius: 8,
+          borderRadius: 40,
         }}
       >
         <svg
-          width="26"
-          height="26"
+          width="150"
+          height="150"
           viewBox="276 251 152 80"
           xmlns="http://www.w3.org/2000/svg"
         >
