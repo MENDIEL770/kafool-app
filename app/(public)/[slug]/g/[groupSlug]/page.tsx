@@ -1,5 +1,6 @@
 import { createClient as createAdmin } from '@supabase/supabase-js'
 import { notFound } from 'next/navigation'
+import { type Metadata } from 'next'
 import DonationPageClient from '../../DonationPageClient'
 
 // Cookie-less service-role client so the page can be cached (ISR) under load
@@ -10,11 +11,54 @@ function adminClient() {
   )
 }
 
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://kafool.com'
+
 export const revalidate = 60 // ISR — cache for 60 seconds
 
 // Route params can arrive percent-encoded (Hebrew slugs), so decode defensively
 // before matching them against the stored slug.
 function dec(s: string): string { try { return decodeURIComponent(s) } catch { return s } }
+
+// Social-share preview for a GROUP link — same image the campaign uses so a shared
+// group URL shows a rich card (with the group's name in the title).
+export async function generateMetadata({ params }: { params: Promise<{ slug: string; groupSlug: string }> }): Promise<Metadata> {
+  const p = await params
+  const slug = dec(p.slug)
+  const groupSlug = dec(p.groupSlug)
+  const supabase = adminClient()
+
+  const { data: campaign } = await supabase
+    .from('campaigns').select('id, title, settings, org_id').eq('slug', slug).maybeSingle()
+  if (!campaign) return { title: 'Kafool' }
+
+  const [{ data: org }, { data: group }] = await Promise.all([
+    supabase.from('organizations').select('name').eq('id', campaign.org_id).maybeSingle(),
+    supabase.from('groups').select('name, image_url').eq('campaign_id', campaign.id).eq('slug', groupSlug).maybeSingle(),
+  ])
+
+  const groupName = group?.name?.trim()
+  const title = groupName
+    ? `${groupName} · ${campaign.title} | ${org?.name ?? 'Kafool'}`
+    : `${campaign.title} | ${org?.name ?? 'Kafool'}`
+  const s = campaign.settings as { tagline?: string; share_text?: string; share_image?: string } | null
+  const description = s?.share_text?.trim() || s?.tagline
+    || (groupName ? `הצטרפו לקבוצת "${groupName}" בקמפיין "${campaign.title}"` : `תרמו לקמפיין "${campaign.title}"`)
+  // Prefer the campaign's uploaded social image, then the group's own image, then
+  // the auto-generated campaign OG image.
+  const ogImageUrl = s?.share_image || group?.image_url || `${BASE_URL}/${slug}/opengraph-image`
+  const url = `${BASE_URL}/${slug}/g/${groupSlug}`
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title, description, url, siteName: 'Kafool',
+      images: [{ url: ogImageUrl, width: 1200, height: 630, alt: groupName || campaign.title }],
+      locale: 'he_IL', type: 'website',
+    },
+    twitter: { card: 'summary_large_image', title, description, images: [ogImageUrl] },
+  }
+}
 
 export default async function GroupPage({ params, searchParams }: { params: Promise<{ slug: string; groupSlug: string }>; searchParams: Promise<{ lang?: string }> }) {
   const p = await params
