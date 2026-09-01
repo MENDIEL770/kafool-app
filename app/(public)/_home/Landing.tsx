@@ -964,17 +964,21 @@ export default function Landing({ c, logos, campaigns = [] }: { c: LandingConten
               <h2 className="mb-3 text-center text-3xl font-black tracking-tight sm:text-4xl" style={{ color: NAVY }}>קמפיינים שגייסו איתנו</h2>
               <p className="mb-10 text-center text-slate-500">הצצה לקמפיינים שרצו על כפול</p>
             </Reveal>
-            <div className="grid grid-cols-1 items-start gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {campaigns.map((cam, i) => (
                 <Reveal key={cam.slug} delay={i * 0.05}>
                   <a
                     href={`/${cam.slug}`}
                     className="group block overflow-hidden rounded-3xl border border-white/60 bg-white/70 shadow-sm backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_26px_55px_-18px_rgba(16,42,86,0.35)]"
                   >
-                    <div className="relative overflow-hidden bg-slate-100">
+                    <div className="relative aspect-[16/9] overflow-hidden bg-slate-100">
                       {cam.cover_image_url
-                        ? <img src={cam.cover_image_url} alt={cam.title} className="block w-full h-auto object-contain transition-transform duration-500 group-hover:scale-105" loading="lazy" />
-                        : <div className="flex aspect-[16/9] w-full items-center justify-center px-4 text-center text-sm font-bold text-slate-300">{cam.title}</div>}
+                        ? <>
+                            {/* blurred fill so every banner shows in full at a uniform size */}
+                            <img src={cam.cover_image_url} alt="" aria-hidden className="absolute inset-0 h-full w-full scale-110 object-cover opacity-40 blur-xl" loading="lazy" />
+                            <img src={cam.cover_image_url} alt={cam.title} className="relative h-full w-full object-contain transition-transform duration-500 group-hover:scale-105" loading="lazy" />
+                          </>
+                        : <div className="flex h-full w-full items-center justify-center px-4 text-center text-sm font-bold text-slate-300">{cam.title}</div>}
                     </div>
                     <div className="flex items-center justify-between gap-2 p-4">
                       <span className="line-clamp-1 font-black text-slate-800">{cam.title}</span>
