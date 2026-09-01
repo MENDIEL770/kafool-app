@@ -90,9 +90,15 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* Never let the page slide sideways on mobile. A stray fixed/absolute element
+       that overflows the viewport would otherwise shift the whole page right
+       (content cut off on the edge). `clip` stops it without breaking the sticky
+       header (unlike `hidden`, it doesn't create a scroll container). */
+    overflow-x: clip;
   }
   html {
     @apply font-sans;
+    overflow-x: clip;
   }
 }
 
