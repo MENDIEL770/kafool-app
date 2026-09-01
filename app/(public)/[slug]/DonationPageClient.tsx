@@ -932,8 +932,8 @@ function ProgressSection({ raised, goal, donorsCount, primaryColor, bricks }: { 
 
 // Compact goal/donors card shown ABOVE the donor list on a group page, so the
 // group's target + progress stays visible once the top strip scrolls out of view.
-function GroupStatsCard({ name, raised, goal, donors, pct, primaryColor }: {
-  name: string; raised: number; goal: number; donors: number; pct: number; primaryColor: string
+function GroupStatsCard({ name, raised, goal, donors, pct, primaryColor, campaignSlug }: {
+  name: string; raised: number; goal: number; donors: number; pct: number; primaryColor: string; campaignSlug: string
 }) {
   const lang = useLang()
   return (
@@ -943,9 +943,20 @@ function GroupStatsCard({ name, raised, goal, donors, pct, primaryColor }: {
           <p className="text-[11px] font-semibold text-gray-400">{lang === 'en' ? "Group's goal" : 'היעד של הקבוצה'}</p>
           <h3 className="text-base font-black text-gray-900 truncate">{name}</h3>
         </div>
-        <div className="text-center shrink-0">
-          <div className="text-lg font-black text-gray-700 tabular-nums leading-none">{donors}</div>
-          <div className="text-[11px] text-gray-400 mt-0.5">{lang === 'en' ? 'donors' : 'תורמים'}</div>
+        <div className="flex items-center gap-3 shrink-0">
+          <div className="text-center">
+            <div className="text-lg font-black text-gray-700 tabular-nums leading-none">{donors}</div>
+            <div className="text-[11px] text-gray-400 mt-0.5">{lang === 'en' ? 'donors' : 'תורמים'}</div>
+          </div>
+          {/* יציאה מהקבוצה → דף הקמפיין הכללי */}
+          <a
+            href={`/${campaignSlug}`}
+            aria-label={lang === 'en' ? 'Back to the campaign' : 'חזרה לדף הקמפיין'}
+            title={lang === 'en' ? 'Back to the main campaign page' : 'חזרה לדף הקמפיין הכללי'}
+            className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </a>
         </div>
       </div>
       <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-2">
@@ -1910,6 +1921,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
                   donors={groupDonors}
                   pct={groupPct}
                   primaryColor={primaryColor}
+                  campaignSlug={campaign.slug}
                 />
               )}
               <CommunitySection donations={donations} groups={groups} primaryColor={primaryColor} campaignSlug={campaign.slug} onCreateGroup={() => setCreateGroupOpen(true)} initialGroupId={activeGroup?.id ?? null} plans={donationPlans} />
