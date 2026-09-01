@@ -4,6 +4,7 @@ import CmsClient, { type PageContentRow, type FaqItem, type ContactSettingsData 
 import type { Submission } from './SubmissionModal'
 import FeaturedCampaignsAdmin, { type FeatureRow } from './FeaturedCampaignsAdmin'
 import SmsTestAdmin from './SmsTestAdmin'
+import RecoverHoksAdmin from './RecoverHoksAdmin'
 
 export default async function CmsPage() {
   const supabase = await createClient()
@@ -105,6 +106,7 @@ export default async function CmsPage() {
       />
       <div className="mx-auto max-w-4xl px-4 pb-16">
         <FeaturedCampaignsAdmin campaigns={featureRows} />
+        <RecoverHoksAdmin />
         <SmsTestAdmin />
       </div>
     </>

@@ -919,12 +919,21 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
                       <td className="px-4 py-3 font-bold text-gray-900">₪{(d.amount || 0).toLocaleString()}</td>
                       <td className="px-4 py-3">
                         {d.payment_type === 'hok' ? (
-                          <span
-                            title={d.monthly_amount ? `₪${Number(d.monthly_amount).toLocaleString()} לחודש × ${d.installments ?? '?'}` : undefined}
-                            className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 whitespace-nowrap"
-                          >
-                            הו״ק{d.installments ? ` · ${d.installments} ח׳` : ''}
-                          </span>
+                          <div className="space-y-0.5">
+                            <span
+                              title={d.monthly_amount ? `₪${Number(d.monthly_amount).toLocaleString()} לחודש × ${d.installments ?? '?'}` : undefined}
+                              className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 whitespace-nowrap"
+                            >
+                              הו״ק{d.installments ? ` · ${d.installments} ח׳` : ''}
+                            </span>
+                            {(d.custom_data?.__charge_day || d.custom_data?.__starts_at) && (
+                              <div className="text-[10px] text-gray-400 whitespace-nowrap">
+                                {d.custom_data?.__charge_day ? `מחויב ב-${d.custom_data.__charge_day} לחודש` : ''}
+                                {d.custom_data?.__charge_day && d.custom_data?.__starts_at ? ' · ' : ''}
+                                {d.custom_data?.__starts_at ? `מתחיל ${d.custom_data.__starts_at}` : ''}
+                              </div>
+                            )}
+                          </div>
                         ) : (
                           <span className="text-xs px-2 py-0.5 rounded-full bg-gray-50 text-gray-500">חד״פ</span>
                         )}
