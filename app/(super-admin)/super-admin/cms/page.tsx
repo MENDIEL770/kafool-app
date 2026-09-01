@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import CmsClient, { type PageContentRow, type FaqItem, type ContactSettingsData } from './CmsClient'
 import type { Submission } from './SubmissionModal'
 import FeaturedCampaignsAdmin, { type FeatureRow } from './FeaturedCampaignsAdmin'
+import SmsTestAdmin from './SmsTestAdmin'
 
 export default async function CmsPage() {
   const supabase = await createClient()
@@ -104,6 +105,7 @@ export default async function CmsPage() {
       />
       <div className="mx-auto max-w-4xl px-4 pb-16">
         <FeaturedCampaignsAdmin campaigns={featureRows} />
+        <SmsTestAdmin />
       </div>
     </>
   )
