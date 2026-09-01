@@ -930,6 +930,35 @@ function ProgressSection({ raised, goal, donorsCount, primaryColor, bricks }: { 
   )
 }
 
+// Compact goal/donors card shown ABOVE the donor list on a group page, so the
+// group's target + progress stays visible once the top strip scrolls out of view.
+function GroupStatsCard({ name, raised, goal, donors, pct, primaryColor }: {
+  name: string; raised: number; goal: number; donors: number; pct: number; primaryColor: string
+}) {
+  const lang = useLang()
+  return (
+    <div className="mb-6 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold text-gray-400">{lang === 'en' ? "Group's goal" : 'היעד של הקבוצה'}</p>
+          <h3 className="text-base font-black text-gray-900 truncate">{name}</h3>
+        </div>
+        <div className="text-center shrink-0">
+          <div className="text-lg font-black text-gray-700 tabular-nums leading-none">{donors}</div>
+          <div className="text-[11px] text-gray-400 mt-0.5">{lang === 'en' ? 'donors' : 'תורמים'}</div>
+        </div>
+      </div>
+      <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-2">
+        <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${pct}%`, backgroundColor: primaryColor }} />
+      </div>
+      <div className="flex items-baseline justify-between gap-2">
+        <div className="text-xl font-black tabular-nums" style={{ color: primaryColor }}>₪{Math.ceil(raised).toLocaleString('he-IL')}</div>
+        <div className="text-[11px] text-gray-400">{lang === 'en' ? 'of' : 'מתוך'} ₪{goal.toLocaleString('he-IL')} {lang === 'en' ? 'goal' : 'יעד'}</div>
+      </div>
+    </div>
+  )
+}
+
 type SortBy = 'recent' | 'amount_desc' | 'amount_asc'
 type CommunityTab = 'donors' | 'groups' | 'communities'
 
@@ -1873,6 +1902,16 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
             {/* תורמים — שמאל בעברית, ימין באנגלית */}
             {isOn('donors') && (
             <div className="flex-1 min-w-0">
+              {activeGroup && (
+                <GroupStatsCard
+                  name={activeGroup.name}
+                  raised={groupRaised}
+                  goal={activeGroup.goal_amount}
+                  donors={groupDonors}
+                  pct={groupPct}
+                  primaryColor={primaryColor}
+                />
+              )}
               <CommunitySection donations={donations} groups={groups} primaryColor={primaryColor} campaignSlug={campaign.slug} onCreateGroup={() => setCreateGroupOpen(true)} initialGroupId={activeGroup?.id ?? null} plans={donationPlans} />
             </div>
             )}
