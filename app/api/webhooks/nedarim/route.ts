@@ -101,9 +101,31 @@ async function handle(body: Record<string, unknown>, ip: string): Promise<string
   const months = Number(pick(body, 'Tashloumim', 'Tashlumim', 'Payments')) || 0
   const recordedAmount = isHok && months > 1 ? monthly * months : monthly
 
-  const donorName  = pick(body, 'ClientName', 'Name') || null
-  const donorPhone = pick(body, 'Phone', 'Tel') || null
-  const donorEmail = pick(body, 'Mail', 'Email') || null
+  let donorName  = pick(body, 'ClientName', 'Name') || null
+  let donorPhone = pick(body, 'Phone', 'Tel') || null
+  let donorEmail = pick(body, 'Mail', 'Email') || null
+
+  // Fallback: if Nedarim didn't include the donor name, recover it from the intent
+  // the donor filled right before paying (match by monthly amount, recent window).
+  if (!donorName) {
+    const sinceIso = new Date(Date.now() - 90 * 60_000).toISOString()
+    const { data: cands } = await supabase
+      .from('donation_intents')
+      .select('phone, donor_email, custom_data, amount, created_at')
+      .eq('campaign_id', campaignId)
+      .gt('created_at', sinceIso)
+      .order('created_at', { ascending: false })
+      .limit(30)
+    const named = (cands ?? []).filter(c => String((c.custom_data as Record<string, unknown> | null)?.__name || '').trim())
+    const recent12 = named.filter(c => new Date(c.created_at).getTime() > Date.now() - 12 * 60_000)
+    const match = named.find(c => Math.round(Number(c.amount)) === Math.round(monthly)) || (recent12.length === 1 ? recent12[0] : null)
+    if (match) {
+      const cd = (match.custom_data as Record<string, unknown>) || {}
+      donorName = String(cd.__name || '').trim() || null
+      donorPhone = donorPhone || (match.phone as string) || null
+      donorEmail = donorEmail || (match.donor_email as string) || null
+    }
+  }
 
   // optional group attribution — the iframe passes the group slug in Param2
   const groupSlug = pick(body, 'Param2', 'param2')

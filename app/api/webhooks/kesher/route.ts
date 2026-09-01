@@ -47,6 +47,33 @@ async function handle(body: Record<string, unknown>): Promise<string> {
       }
     }
 
+    // Fallback: Kesher's Format-B obligation event (with the Customer block) often
+    // doesn't arrive — or not in time — which left the donation nameless (shown as
+    // "אנונימי"). Recover the donor from the INTENT the donor filled right before
+    // paying: match by amount within a recent window, preferring an exact amount
+    // match, else the single most-recent named intent in the last 12 minutes.
+    if (!donorName) {
+      const sinceIso = new Date(Date.now() - 90 * 60_000).toISOString()
+      const { data: cands } = await supabase
+        .from('donation_intents')
+        .select('phone, donor_email, custom_data, amount, created_at')
+        .eq('campaign_id', campaignId)
+        .gt('created_at', sinceIso)
+        .order('created_at', { ascending: false })
+        .limit(30)
+      const named = (cands ?? []).filter(c => String((c.custom_data as Record<string, unknown> | null)?.__name || '').trim())
+      const recent12 = named.filter(c => new Date(c.created_at).getTime() > Date.now() - 12 * 60_000)
+      const match =
+        named.find(c => Math.round(Number(c.amount)) === Math.round(amount)) ||
+        (recent12.length === 1 ? recent12[0] : null)
+      if (match) {
+        const cd = (match.custom_data as Record<string, unknown>) || {}
+        donorName = String(cd.__name || '').trim() || null
+        donorPhone = donorPhone || (match.phone as string) || null
+        donorEmail = donorEmail || (match.donor_email as string) || null
+      }
+    }
+
     let groupId: string | null = null
     if (groupSlug) {
       const { data: g } = await supabase.from('groups').select('id').eq('campaign_id', campaignId).eq('slug', groupSlug).maybeSingle()
