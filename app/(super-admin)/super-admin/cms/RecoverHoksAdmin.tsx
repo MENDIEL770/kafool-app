@@ -7,7 +7,7 @@ type Row = {
   campaign_id: string; campaign_title: string; donor_name: string; phone: string
   donor_email: string | null; monthly: number; group_slug: string; attempts: number; first: string
   // editable
-  months?: string; charge_day?: string; start_date?: string; note?: string; include?: boolean
+  months?: string; charge_day?: string; start_date?: string; obligation_ref?: string; note?: string; include?: boolean
 }
 
 // Super-admin: recover הו"ק commitments that came through Kafool but were never
@@ -26,7 +26,7 @@ export default function RecoverHoksAdmin() {
         body: JSON.stringify({ action: 'scan', days: Number(days) || 14 }),
       })
       const j = await res.json()
-      setRows((j.items || []).map((r: Row) => ({ ...r, months: '', charge_day: '', start_date: '', note: '', include: false })))
+      setRows((j.items || []).map((r: Row) => ({ ...r, months: '', charge_day: '', start_date: '', obligation_ref: '', note: '', include: false })))
     } catch (e) { setMsg('הסריקה נכשלה: ' + String(e)) }
     setBusy(false)
   }
@@ -46,7 +46,7 @@ export default function RecoverHoksAdmin() {
           campaign_id: r.campaign_id, group_slug: r.group_slug, phone: r.phone,
           donor_name: r.donor_name, donor_email: r.donor_email, monthly: r.monthly,
           months: Number(r.months), charge_day: r.charge_day ? Number(r.charge_day) : null,
-          start_date: r.start_date || null, note: r.note || null,
+          start_date: r.start_date || null, obligation_ref: r.obligation_ref || null, note: r.note || null,
         })) }),
       })
       const j = await res.json()
@@ -87,7 +87,7 @@ export default function RecoverHoksAdmin() {
               <tr className="text-right text-[11px] text-gray-400 border-b">
                 <th className="py-2 pl-2">רישום</th><th className="pl-2">תורם</th><th className="pl-2">קמפיין</th>
                 <th className="pl-2">חודשי</th><th className="pl-2">חודשים</th><th className="pl-2">יום חיוב</th>
-                <th className="pl-2">קבוצה</th><th className="pl-2">ניסיונות</th>
+                <th className="pl-2">אסמכתא</th><th className="pl-2">קבוצה</th><th className="pl-2">ניסיונות</th>
               </tr>
             </thead>
             <tbody>
@@ -110,6 +110,11 @@ export default function RecoverHoksAdmin() {
                   <td className="pl-2">
                     <input value={r.charge_day} onChange={e => patch(i, { charge_day: e.target.value })} inputMode="numeric" placeholder="2"
                       className="w-12 border border-gray-200 rounded-lg px-2 py-1 text-center outline-none focus:ring-2 focus:ring-blue-400" />
+                  </td>
+                  <td className="pl-2">
+                    <input value={r.obligation_ref} onChange={e => patch(i, { obligation_ref: e.target.value })} placeholder="001090" dir="ltr"
+                      title="מס' אסמכתא מאישור קשר — חשוב! מונע כפילות כשהחיוב הראשון יעבור"
+                      className="w-20 border border-gray-200 rounded-lg px-2 py-1 text-center outline-none focus:ring-2 focus:ring-blue-400" />
                   </td>
                   <td className="pl-2 text-[11px] text-gray-400">{r.group_slug || '—'}</td>
                   <td className="pl-2">

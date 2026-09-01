@@ -76,10 +76,23 @@ export async function POST(req: NextRequest) {
       const { data: campaign } = await admin.from('campaigns').select('org_id').eq('id', campaignId).single()
       if (!campaign) { results.push({ phone, ok: false, error: 'קמפיין לא נמצא' }); continue }
 
-      // idempotency: already has a הו"ק donation for this phone+monthly in this campaign?
-      const { data: existDon } = await admin.from('donations')
-        .select('id, donor_phone, monthly_amount, payment_type').eq('campaign_id', campaignId).eq('payment_type', 'hok')
-      const dup = (existDon || []).some((d: any) => norm(d.donor_phone) === norm(phone) && Number(d.monthly_amount) === monthly)
+      // The obligation reference (asmachta) from the Kesher approval. Storing it lets
+      // the eventual first-charge webhook dedup against this record instead of
+      // recording the הו"ק a second time when the deferred charge finally posts.
+      const oblRef = String(it.obligation_ref || '').trim()
+
+      // idempotency: already recorded — by obligation ref (preferred) or phone+monthly.
+      let dup = false
+      if (oblRef) {
+        const { data: byRef } = await admin.from('donations').select('id')
+          .eq('campaign_id', campaignId).eq('kesher_obligation_ref', oblRef).limit(1)
+        dup = !!(byRef && byRef.length)
+      }
+      if (!dup) {
+        const { data: existDon } = await admin.from('donations')
+          .select('id, donor_phone, monthly_amount, payment_type').eq('campaign_id', campaignId).eq('payment_type', 'hok')
+        dup = (existDon || []).some((d: any) => norm(d.donor_phone) === norm(phone) && Number(d.monthly_amount) === monthly)
+      }
       if (dup) { results.push({ phone, ok: false, error: 'כבר רשום (כפילות)' }); continue }
 
       let groupId: string | null = null
@@ -97,6 +110,9 @@ export async function POST(req: NextRequest) {
         donor_name: it.donor_name || null, donor_phone: phone || null, donor_email: it.donor_email || null,
         group_id: groupId, payment_status: 'completed', payment_type: 'hok',
         monthly_amount: monthly, installments: months,
+        kesher_transaction_id: oblRef ? `hok:${oblRef}` : null,
+        kesher_obligation_ref: oblRef || null,
+        kesher_raw: oblRef ? { __recovered: true, obligationRef: oblRef } : null,
         custom_data: {
           __name: it.donor_name || null, __method: 'hok', __recovered: true,
           ...(chargeDay ? { __charge_day: chargeDay } : {}), ...(startDate ? { __starts_at: startDate } : {}),
