@@ -57,12 +57,21 @@ async function getShowcaseCampaigns(): Promise<HomeCampaign[]> {
     const admin = createAdmin(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
     const { data, error } = await admin
       .from('campaigns')
-      .select('title, slug, cover_image_url')
+      .select('title, slug, cover_image_url, settings')
       .eq('show_on_homepage', true)
       .order('created_at', { ascending: false })
       .limit(24)
     if (error) return []
-    return (data || []).filter((c): c is HomeCampaign => !!c.slug)
+    return (data || [])
+      .filter((c): c is { title: string; slug: string; cover_image_url: string | null; settings: unknown } => !!c.slug)
+      .map((c) => {
+        // Prefer the campaign's dedicated mobile banner (fuller, card-friendly).
+        const mb = (c.settings as { mobile_banners?: { url: string; sort_order: number }[] } | null)?.mobile_banners
+        const mobile_image_url = Array.isArray(mb) && mb.length
+          ? [...mb].sort((a, b) => a.sort_order - b.sort_order)[0]?.url ?? null
+          : null
+        return { title: c.title, slug: c.slug, cover_image_url: c.cover_image_url, mobile_image_url }
+      })
   } catch {
     return []
   }
