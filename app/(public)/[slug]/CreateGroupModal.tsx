@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { X, Upload, Check, Loader2, ExternalLink } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import ImageCropper from '@/components/ImageCropper'
 
 interface Props {
   isOpen: boolean
@@ -21,13 +22,16 @@ export default function CreateGroupModal({ isOpen, onClose, campaignId, primaryC
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<{ groupUrl: string; name: string } | null>(null)
   const [error, setError] = useState('')
+  const [cropFile, setCropFile] = useState<File | null>(null)
 
   function set(k: string, v: string) { setForm(p => ({ ...p, [k]: v })) }
 
-  async function uploadImage(file: File) {
+  // The picked file is cropped/positioned first; only the resulting square blob is uploaded.
+  async function uploadCropped(blob: Blob) {
+    setCropFile(null)
     setUploading(true)
     const fd = new FormData()
-    fd.append('file', file)
+    fd.append('file', new File([blob], 'group.jpg', { type: 'image/jpeg' }))
     fd.append('path', `groups/public/${Date.now()}`)
     const res = await fetch('/api/upload', { method: 'POST', body: fd })
     if (res.ok) {
@@ -146,9 +150,18 @@ export default function CreateGroupModal({ isOpen, onClose, campaignId, primaryC
                     )}
                   </div>
                   <input type="file" accept="image/*" className="hidden"
-                    onChange={e => e.target.files?.[0] && uploadImage(e.target.files[0])} />
+                    onChange={e => { const f = e.target.files?.[0]; if (f) setCropFile(f); e.target.value = '' }} />
                 </label>
               </div>
+
+              {cropFile && (
+                <ImageCropper
+                  file={cropFile}
+                  lang={form.lang === 'en' ? 'en' : 'he'}
+                  onCancel={() => setCropFile(null)}
+                  onCropped={uploadCropped}
+                />
+              )}
 
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-gray-600">שם הקבוצה *</label>
