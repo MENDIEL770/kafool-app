@@ -933,9 +933,15 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
                       <td className="px-4 py-3 font-bold text-gray-900">
                         {(() => {
                           const f = foreignOf(d)
-                          return f
-                            ? <div><div dir="ltr" className="text-right">{f.sym}{f.amount.toLocaleString()}</div><div className="text-[10px] font-normal text-gray-400">≈ ₪{(d.amount || 0).toLocaleString()}</div></div>
-                            : <>₪{(d.amount || 0).toLocaleString()}</>
+                          const isHok = d.payment_type === 'hok' && d.monthly_amount && d.installments
+                          return (
+                            <div>
+                              {f
+                                ? <><div dir="ltr" className="text-right">{f.sym}{f.amount.toLocaleString()}</div><div className="text-[10px] font-normal text-gray-400">≈ ₪{(d.amount || 0).toLocaleString()}</div></>
+                                : <>₪{(d.amount || 0).toLocaleString()}</>}
+                              {isHok ? <div className="text-[10px] font-normal text-gray-400" dir="ltr">₪{Number(d.monthly_amount).toLocaleString()}×{d.installments}</div> : null}
+                            </div>
+                          )
                         })()}
                       </td>
                       <td className="px-4 py-3">
