@@ -47,6 +47,18 @@ interface Donation {
   custom_data?: Record<string, string> | null
 }
 
+const CUR_SYM: Record<string, string> = { usd: '$', eur: '€', gbp: '£' }
+
+// Foreign (Stripe) donations store `amount` in ₪ (for campaign totals) but keep the
+// original currency + amount in custom_data. Show the manager the original figure
+// (e.g. $50) — matching the public page — with the ₪ equivalent kept as a small note.
+function foreignOf(d: { custom_data?: Record<string, string> | null }): { sym: string; amount: number } | null {
+  const cur = String(d.custom_data?.stripe_currency || 'ils').toLowerCase()
+  const orig = Number(d.custom_data?.stripe_amount) || 0
+  if (cur === 'ils' || orig <= 0) return null
+  return { sym: CUR_SYM[cur] || cur.toUpperCase() + ' ', amount: orig }
+}
+
 // How the donation was paid. Manual donations carry it in custom_data.payment_method;
 // online ones (Kesher / Nedarim) are credit-card by default.
 const PAYMENT_METHODS = [
@@ -174,6 +186,8 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
       'טלפון': d.donor_phone || '',
       'אימייל': d.donor_email || '',
       'סכום (₪)': d.amount || 0,
+      'מטבע מקורי': foreignOf(d) ? String(d.custom_data?.stripe_currency).toUpperCase() : 'ILS',
+      'סכום מקורי': foreignOf(d)?.amount ?? (d.amount || 0),
       'סוג תשלום': d.payment_type === 'hok' ? 'הוראת קבע' : 'חד״פ',
       'תשלומים': d.payment_type === 'hok' ? (d.installments ?? '') : '',
       'סכום חודשי (₪)': d.payment_type === 'hok' ? (d.monthly_amount ?? '') : '',
@@ -916,7 +930,14 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
                         )}
                       </td>
                       <td className="px-4 py-3 text-gray-500 text-xs" dir="ltr">{d.donor_phone || '—'}</td>
-                      <td className="px-4 py-3 font-bold text-gray-900">₪{(d.amount || 0).toLocaleString()}</td>
+                      <td className="px-4 py-3 font-bold text-gray-900">
+                        {(() => {
+                          const f = foreignOf(d)
+                          return f
+                            ? <div><div dir="ltr" className="text-right">{f.sym}{f.amount.toLocaleString()}</div><div className="text-[10px] font-normal text-gray-400">≈ ₪{(d.amount || 0).toLocaleString()}</div></div>
+                            : <>₪{(d.amount || 0).toLocaleString()}</>
+                        })()}
+                      </td>
                       <td className="px-4 py-3">
                         {d.payment_type === 'hok' ? (
                           <div className="space-y-0.5">
