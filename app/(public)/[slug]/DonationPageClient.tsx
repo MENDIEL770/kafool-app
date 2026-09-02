@@ -28,6 +28,8 @@ const STR = {
   oneTime: ['חד״פ', 'One-time'],
   standingOrder: ['הוראת קבע', 'Monthly'],
   raisedOfGoal: ['גויסו מתוך יעד', 'raised of'],
+  raisedSoFar: ['גויס עד כה', 'Raised so far'],
+  ofGoalOf: ['מתוך יעד גיוס של', 'of a fundraising goal of'],
   remaining: ['נותר', 'left'],
   goalReached: ['היעד הושג!', 'Goal reached!'],
   beFirst: ['היה הראשון לתרום!', 'Be the first to donate!'],
@@ -825,20 +827,15 @@ function ProgressSection({ raised, goal, donorsCount, primaryColor, bricks, show
     <section className="bg-gray-50 py-12 md:py-16 px-4" aria-label="התקדמות הקמפיין">
       <div className="max-w-3xl mx-auto space-y-6">
 
-        {/* סכום גדול */}
-        <div className="text-center space-y-2">
+        {/* גויס עד כה + סכום גדול */}
+        <div className="text-center space-y-1">
+          <div className="text-sm md:text-base font-semibold text-gray-500">{t('raisedSoFar')}</div>
           <div className="text-5xl md:text-7xl font-black tabular-nums leading-none" style={{ color: primaryColor }}>
             ₪{Math.ceil(raised).toLocaleString('he-IL')}
           </div>
-          {showGoal && (
-          <div className="text-base md:text-lg text-gray-500">
-            {t('raisedOfGoal')} ₪{goal.toLocaleString('he-IL')}
-          </div>
-          )}
         </div>
 
-        {/* Progress bar */}
-        {showGoal && (
+        {/* Progress bar — always shown; fills by raised/goal even when the goal is hidden */}
         <div className="relative">
           <div className="h-5 bg-gray-200 rounded-full overflow-hidden shadow-inner" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={`${pct}% הושלם`}>
             <div
@@ -852,13 +849,19 @@ function ProgressSection({ raised, goal, donorsCount, primaryColor, bricks, show
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse" />
             </div>
           </div>
-          <div className="flex justify-between text-xs text-gray-400 mt-1.5">
-            <span>{pct}% {completed}</span>
-            {goal > raised && <span>{t('remaining')} ₪{Math.ceil(goal - raised).toLocaleString('he-IL')}</span>}
-            {goal <= raised && goal > 0 && <span className="font-bold" style={{ color: primaryColor }}>{t('goalReached')}</span>}
-          </div>
+          {showGoal && (
+            <>
+              <div className="flex justify-between text-xs text-gray-400 mt-1.5">
+                <span>{pct}% {completed}</span>
+                {goal > raised && <span>{t('remaining')} ₪{Math.ceil(goal - raised).toLocaleString('he-IL')}</span>}
+                {goal <= raised && goal > 0 && <span className="font-bold" style={{ color: primaryColor }}>{t('goalReached')}</span>}
+              </div>
+              <div className="text-center text-sm md:text-base text-gray-500 mt-1.5">
+                {t('ofGoalOf')} ₪{goal.toLocaleString('he-IL')}
+              </div>
+            </>
+          )}
         </div>
-        )}
 
         {/* קיר הלבנים — נבנה מהיסוד כלפי מעלה, שורות בהיסט כמו קיר אמיתי */}
         {showGoal && bricksTotal > 0 && (() => {
