@@ -1342,8 +1342,8 @@ function AboutSection({ campaign, gallery }: { campaign: Campaign; gallery: Gall
               <div key={g.id} className="relative rounded-3xl overflow-hidden shadow-md bg-gray-50 cursor-zoom-in" onClick={() => openGallery(i)}>
                 <img src={g.image_url} alt={g.caption || ''} className="w-full h-auto max-h-[80vh] object-contain" loading="lazy" />
                 {g.caption && (
-                  <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 px-5 py-4 pointer-events-none">
-                    <p className="text-white text-sm">{g.caption}</p>
+                  <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/75 px-7 pb-7 pt-10 pointer-events-none">
+                    <p className="text-white text-lg md:text-xl font-semibold">{g.caption}</p>
                   </div>
                 )}
               </div>
@@ -1357,8 +1357,8 @@ function AboutSection({ campaign, gallery }: { campaign: Campaign; gallery: Gall
             {/* object-contain so the whole image shows — nothing gets cropped */}
             <img src={gallery[idx].image_url} alt={gallery[idx].caption || ''} className="w-full h-auto max-h-[70vh] object-contain" loading="lazy" />
             {gallery[idx].caption && (
-              <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 px-5 py-4 pointer-events-none">
-                <p className="text-white text-sm">{gallery[idx].caption}</p>
+              <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/75 px-7 pb-7 pt-10 pointer-events-none">
+                <p className="text-white text-lg md:text-xl font-semibold">{gallery[idx].caption}</p>
               </div>
             )}
             {gallery.length > 1 && (

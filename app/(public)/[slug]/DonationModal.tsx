@@ -594,12 +594,12 @@ export default function DonationModal({
               <label className="text-xs font-medium text-gray-500 block mb-2">{T.amountLabel}</label>
               <input
                 ref={amountRef}
-                type="number"
+                type="text"
                 inputMode="numeric"
                 pattern="[0-9]*"
                 autoFocus
                 value={customAmount}
-                onChange={e => setCustomAmount(e.target.value)}
+                onChange={e => setCustomAmount(e.target.value.replace(/[^\d]/g, ''))}
                 placeholder={T.amountPh}
                 className="w-full border border-gray-200 rounded-xl px-4 py-3 text-lg font-bold text-center outline-none focus:ring-2"
                 style={{ '--tw-ring-color': primaryColor } as React.CSSProperties}
