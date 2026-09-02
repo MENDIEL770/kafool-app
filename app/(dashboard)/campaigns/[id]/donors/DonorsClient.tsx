@@ -107,6 +107,7 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
   const [search, setSearch] = useState('')
   const [groupFilter, setGroupFilter] = useState('')   // '' = all groups
   const [sortBy, setSortBy] = useState<'recent' | 'name_asc' | 'name_desc' | 'amount_desc' | 'amount_asc' | 'source'>('recent')
+  const [sourceFilter, setSourceFilter] = useState('')   // '' = all sources
   const [editId, setEditId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<Partial<Donation>>({})
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
@@ -149,8 +150,13 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
   const supabase = createClient()
   const groupName = (id: string | null) => groups.find(g => g.id === id)?.name || null
 
+  // Distinct sources actually present in this campaign's donations (so the manager
+  // sees only the sources that exist, e.g. only "ידני" + "קשר").
+  const sourcesPresent = [...new Set(donations.map(d => donationSource(d, paymentProvider).label))].sort((a, b) => a.localeCompare(b, 'he'))
+
   const filtered = donations.filter(d =>
     (!groupFilter || (groupFilter === '__none__' ? !d.group_id : d.group_id === groupFilter)) &&
+    (!sourceFilter || donationSource(d, paymentProvider).label === sourceFilter) &&
     (!search ||
       d.donor_name?.includes(search) ||
       d.donor_phone?.includes(search) ||
@@ -548,7 +554,7 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
         )}
         <select
           value={sortBy}
-          onChange={e => setSortBy(e.target.value as typeof sortBy)}
+          onChange={e => { const v = e.target.value as typeof sortBy; setSortBy(v); if (v !== 'source') setSourceFilter('') }}
           aria-label="מיון תורמים"
           className="shrink-0 h-10 border border-gray-200 rounded-md px-3 text-sm bg-white outline-none cursor-pointer focus:ring-2 focus:ring-blue-400"
         >
@@ -559,6 +565,17 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
           <option value="amount_asc">סכום: נמוך → גבוה</option>
           <option value="source">לפי מקור התרומה</option>
         </select>
+        {sortBy === 'source' && (
+          <select
+            value={sourceFilter}
+            onChange={e => setSourceFilter(e.target.value)}
+            aria-label="סינון לפי מקור"
+            className="shrink-0 h-10 border border-gray-200 rounded-md px-3 text-sm bg-white outline-none cursor-pointer focus:ring-2 focus:ring-blue-400"
+          >
+            <option value="">כל המקורות</option>
+            {sourcesPresent.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        )}
       </div>
 
       {/* Add form */}
