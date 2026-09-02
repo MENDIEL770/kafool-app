@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { ExternalLink, Pencil, MessageSquare, Send, X, Check, Loader2, ChevronDown, ChevronUp, Trash2, AlertTriangle, TrendingUp, TrendingDown, Copy, Link2 } from 'lucide-react'
+import { ExternalLink, Pencil, MessageSquare, Send, X, Check, Loader2, ChevronDown, ChevronUp, Trash2, AlertTriangle, TrendingUp, TrendingDown, Copy, Link2, Search } from 'lucide-react'
 import type { Group } from '@/types'
 
 interface CampaignInfo { slug: string; campaign_slug: string }
@@ -695,6 +695,8 @@ export default function GroupsPage() {
   const [showWelcome, setShowWelcome] = useState(false)
   const [welcomeSms, setWelcomeSms] = useState('')
   const [form, setForm] = useState({ name: '', slug: randomSlug(), goal_amount: '', manager_name: '', manager_phone: '', default_lang: 'he' })
+  const [groupSearch, setGroupSearch] = useState('')
+  const [sortBy, setSortBy] = useState<'default' | 'amount_desc' | 'amount_asc' | 'pct_desc' | 'pct_asc'>('default')
 
   async function load() {
     const supabase = createClient()
@@ -774,6 +776,21 @@ export default function GroupsPage() {
     .sort((a, b) => b.pct - a.pct)
   const strong = ranked.slice(0, 3)
   const weak = ranked.slice(-3).reverse()
+
+  // Manager-facing search + sort over the group list.
+  const groupPct = (g: Group) => (g.goal_amount || 0) > 0 ? (g.raised_amount || 0) / g.goal_amount : 0
+  const q = groupSearch.trim().toLowerCase()
+  const visibleGroups = groups
+    .filter(g => !q || `${g.name} ${g.manager_name || ''} ${g.slug || ''}`.toLowerCase().includes(q))
+    .sort((a, b) => {
+      switch (sortBy) {
+        case 'amount_desc': return (b.raised_amount || 0) - (a.raised_amount || 0)
+        case 'amount_asc': return (a.raised_amount || 0) - (b.raised_amount || 0)
+        case 'pct_desc': return groupPct(b) - groupPct(a)
+        case 'pct_asc': return groupPct(a) - groupPct(b)
+        default: return 0
+      }
+    })
 
   return (
     <div className="max-w-2xl mx-auto space-y-5" dir="rtl">
@@ -930,6 +947,34 @@ export default function GroupsPage() {
         </div>
       )}
 
+      {/* חיפוש + מיון */}
+      {groups.length > 0 && (
+        <div className="flex flex-col sm:flex-row gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden />
+            <input
+              value={groupSearch}
+              onChange={e => setGroupSearch(e.target.value)}
+              placeholder="חיפוש קבוצה / ראש קבוצה…"
+              aria-label="חיפוש קבוצות"
+              className="w-full border border-gray-200 rounded-xl pr-9 pl-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400"
+            />
+          </div>
+          <select
+            value={sortBy}
+            onChange={e => setSortBy(e.target.value as typeof sortBy)}
+            aria-label="מיון קבוצות"
+            className="border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-700 bg-white outline-none focus:ring-2 focus:ring-blue-400"
+          >
+            <option value="default">מיון: ברירת מחדל</option>
+            <option value="amount_desc">סכום: גבוה לנמוך</option>
+            <option value="amount_asc">סכום: נמוך לגבוה</option>
+            <option value="pct_desc">קרוב ליעד: גבוה לנמוך</option>
+            <option value="pct_asc">קרוב ליעד: נמוך לגבוה</option>
+          </select>
+        </div>
+      )}
+
       <div className="space-y-3">
         {groups.length === 0 && (
           <div className="text-center py-14 text-gray-400">
@@ -937,8 +982,11 @@ export default function GroupsPage() {
             <p>אין קבוצות עדיין</p>
           </div>
         )}
+        {groups.length > 0 && visibleGroups.length === 0 && (
+          <div className="text-center py-10 text-gray-400 text-sm">לא נמצאו קבוצות התואמות לחיפוש</div>
+        )}
 
-        {groups.map((g) => {
+        {visibleGroups.map((g) => {
           const pct = g.goal_amount > 0 ? Math.min(100, Math.round((g.raised_amount / g.goal_amount) * 100)) : 0
           const groupUrl = campaignInfo ? `https://kafool.com/${campaignInfo.campaign_slug}/g/${g.slug}` : null
 
