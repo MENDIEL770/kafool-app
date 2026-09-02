@@ -1146,10 +1146,12 @@ export default function CampaignMediaClient({
               </label>
 
 
-              <button onClick={saveBannerSettings} disabled={savingBanner}
+              {(() => { const imgBusy = uploadingBanner || uploadingMobileBanner || uploadingShare || uploadingPopup; return (
+              <button onClick={saveBannerSettings} disabled={savingBanner || imgBusy}
                 className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white font-semibold text-sm disabled:opacity-50 transition-colors bg-blue-600 hover:bg-blue-700">
-                {savedBanner ? <><Check className="w-4 h-4" /> נשמר!</> : savingBanner ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> שומר...</> : 'שמור שינויים'}
+                {savedBanner ? <><Check className="w-4 h-4" /> נשמר!</> : savingBanner ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> שומר...</> : imgBusy ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> מעלה תמונה…</> : 'שמור שינויים'}
               </button>
+              )})()}
             </div>
           </div>
 
@@ -1509,10 +1511,12 @@ export default function CampaignMediaClient({
             </div>
           )}
 
-          <button onClick={savePlans} disabled={savingAmounts}
+          {(() => { const imgBusy = uploadingPlan !== null || uploadingOther; return (
+          <button onClick={savePlans} disabled={savingAmounts || imgBusy}
             className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors">
-            {savedAmounts ? <><Check className="w-4 h-4" /> נשמר!</> : savingAmounts ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> שומר...</> : 'שמור'}
+            {savedAmounts ? <><Check className="w-4 h-4" /> נשמר!</> : savingAmounts ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> שומר...</> : imgBusy ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> מעלה תמונה…</> : 'שמור'}
           </button>
+          )})()}
 
           <CustomLinkBuilder slug={campaignSlug} />
         </div>

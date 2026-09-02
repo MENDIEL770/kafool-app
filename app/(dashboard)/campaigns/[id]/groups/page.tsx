@@ -310,10 +310,10 @@ function EditModal({ group, onClose, onSaved }: { group: Group; onClose: () => v
             </div>
           </div>
           <div className="flex gap-2 pt-1">
-            <button type="submit" disabled={saving}
+            <button type="submit" disabled={saving || uploadingImg}
               className="flex-1 inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-2.5 rounded-xl transition-colors text-sm">
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-              שמור
+              {(saving || uploadingImg) ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+              {uploadingImg ? 'מעלה תמונה…' : 'שמור'}
             </button>
             <button type="button" onClick={onClose}
               className="px-4 py-2.5 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 text-sm font-medium transition-colors">

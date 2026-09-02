@@ -743,8 +743,8 @@ export default function CampaignSettingsPage() {
 
         {tab !== 'status' && (
           <div className="flex gap-3">
-            <Button type="submit" disabled={loading}>
-              {saved ? '✓ נשמר' : loading ? 'שומר...' : 'שמור שינויים'}
+            <Button type="submit" disabled={loading || uploadingAbout}>
+              {saved ? '✓ נשמר' : loading ? 'שומר...' : uploadingAbout ? 'מעלה תמונה…' : 'שמור שינויים'}
             </Button>
             <Button type="button" variant="outline" onClick={() => router.back()}>חזרה</Button>
           </div>

@@ -214,10 +214,12 @@ export default function CreateGroupModal({ isOpen, onClose, campaignId, primaryC
                 </div>
               )}
 
-              <button type="submit" disabled={submitting}
+              <button type="submit" disabled={submitting || uploading}
                 className="w-full py-3.5 rounded-xl font-black text-white text-sm disabled:opacity-50 transition-all flex items-center justify-center gap-2"
                 style={{ backgroundColor: primaryColor }}>
-                {submitting ? <><Loader2 className="w-4 h-4 animate-spin" /> יוצר...</> : <><Check className="w-4 h-4" /> צור קבוצה</>}
+                {submitting ? <><Loader2 className="w-4 h-4 animate-spin" /> {form.lang === 'en' ? 'Creating...' : 'יוצר...'}</>
+                  : uploading ? <><Loader2 className="w-4 h-4 animate-spin" /> {form.lang === 'en' ? 'Uploading image…' : 'מעלה תמונה…'}</>
+                  : <><Check className="w-4 h-4" /> {form.lang === 'en' ? 'Create group' : 'צור קבוצה'}</>}
               </button>
 
               <p className="text-center text-xs text-gray-400">
