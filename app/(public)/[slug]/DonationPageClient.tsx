@@ -803,7 +803,7 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
   )
 }
 
-function ProgressSection({ raised, goal, donorsCount, primaryColor, bricks }: { raised: number; goal: number; donorsCount: number; primaryColor: string; bricks?: { total: number; price: number; label?: string } }) {
+function ProgressSection({ raised, goal, donorsCount, primaryColor, bricks, showGoal = true }: { raised: number; goal: number; donorsCount: number; primaryColor: string; bricks?: { total: number; price: number; label?: string }; showGoal?: boolean }) {
   const pct = goal > 0 ? Math.min(100, Math.round((raised / goal) * 100)) : 0
   const [animPct, setAnimPct] = useState(0)
   const lang = useLang()
@@ -830,12 +830,15 @@ function ProgressSection({ raised, goal, donorsCount, primaryColor, bricks }: { 
           <div className="text-5xl md:text-7xl font-black tabular-nums leading-none" style={{ color: primaryColor }}>
             ₪{Math.ceil(raised).toLocaleString('he-IL')}
           </div>
+          {showGoal && (
           <div className="text-base md:text-lg text-gray-500">
             {t('raisedOfGoal')} ₪{goal.toLocaleString('he-IL')}
           </div>
+          )}
         </div>
 
         {/* Progress bar */}
+        {showGoal && (
         <div className="relative">
           <div className="h-5 bg-gray-200 rounded-full overflow-hidden shadow-inner" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={`${pct}% הושלם`}>
             <div
@@ -855,9 +858,10 @@ function ProgressSection({ raised, goal, donorsCount, primaryColor, bricks }: { 
             {goal <= raised && goal > 0 && <span className="font-bold" style={{ color: primaryColor }}>{t('goalReached')}</span>}
           </div>
         </div>
+        )}
 
         {/* קיר הלבנים — נבנה מהיסוד כלפי מעלה, שורות בהיסט כמו קיר אמיתי */}
-        {bricksTotal > 0 && (() => {
+        {showGoal && bricksTotal > 0 && (() => {
           const COLS = 15
           const rows: boolean[][] = []
           for (let i = 0; i < bricksTotal; i += COLS) {
@@ -1897,7 +1901,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
       {isOn('amounts') && <DonationPlans plans={donationPlans} primaryColor={primaryColor} campaignSlug={campaign.slug} groups={groups} buttonRadius={buttonRadius} buttonSize={buttonSize} otherAmountImage={(settings as { other_amount_design?: string })?.other_amount_design || null} otherAmountPlacement={(settings as { other_amount_placement?: 'grid' | 'cta' })?.other_amount_placement === 'cta' ? 'cta' : 'grid'} defaultCta={(settings as { donate_cta?: string })?.donate_cta || ''} onDonate={openDonate} displayCurrency={modalDefaultCurrency} fxRate={pageRate} />}
 
       {/* 4. Progress */}
-      {isOn('goal') && <ProgressSection raised={raisedAmount} goal={campaign.goal_amount} donorsCount={donations.length} primaryColor={primaryColor} bricks={(campaign.settings as { show_bricks?: boolean })?.show_bricks === false ? undefined : (campaign.settings as { bricks?: { total: number; price: number; label?: string } })?.bricks} />}
+      {isOn('goal') && <ProgressSection raised={raisedAmount} goal={campaign.goal_amount} donorsCount={donations.length} primaryColor={primaryColor} showGoal={(campaign.settings as { show_goal?: boolean })?.show_goal !== false} bricks={(campaign.settings as { show_bricks?: boolean })?.show_bricks === false ? undefined : (campaign.settings as { bricks?: { total: number; price: number; label?: string } })?.bricks} />}
 
       {/* 5+7. About (right) + Community (left) — two columns */}
       {(isOn('gallery') || isOn('donors')) && (

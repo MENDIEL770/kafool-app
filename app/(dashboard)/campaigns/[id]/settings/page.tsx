@@ -40,6 +40,7 @@ export default function CampaignSettingsPage() {
     countdown_end: '',
     show_timer: true,
     show_bricks: true,
+    show_goal: true,
     whatsapp_phone: '',
     whatsapp_message: '',
     manager_phone: '',
@@ -82,6 +83,7 @@ export default function CampaignSettingsPage() {
           countdown_end: data.settings?.countdown_end || '',
           show_timer: data.settings?.show_timer !== false,
           show_bricks: data.settings?.show_bricks !== false,
+          show_goal: data.settings?.show_goal !== false,
           whatsapp_phone: data.settings?.whatsapp_phone || '',
           whatsapp_message: data.settings?.whatsapp_message || '',
           manager_phone: data.settings?.manager_phone || '',
@@ -146,6 +148,7 @@ export default function CampaignSettingsPage() {
         countdown_end: form.countdown_end || null,
         show_timer: form.show_timer,
         show_bricks: form.show_bricks,
+        show_goal: form.show_goal,
         whatsapp_phone: form.whatsapp_phone || null,
         whatsapp_message: form.whatsapp_message || null,
         manager_phone: form.manager_phone || null,
@@ -293,6 +296,11 @@ export default function CampaignSettingsPage() {
                 <Input type="number" value={form.bonus_goal_amount} onChange={(e) => set('bonus_goal_amount', e.target.value)} dir="ltr" />
               </div>
             </div>
+            <label className="mt-4 flex items-center gap-2 cursor-pointer bg-gray-50 border border-gray-100 rounded-xl px-3 py-2.5">
+              <input type="checkbox" checked={form.show_goal} onChange={(e) => setForm(prev => ({ ...prev, show_goal: e.target.checked }))} className="w-4 h-4 accent-blue-600" />
+              <span className="text-sm text-gray-700">הצג את יעד הגיוס בדף הציבורי</span>
+            </label>
+            <p className="text-xs text-gray-400 mt-1.5">כשמכובה — יוצג רק הסכום שגויס, בלי היעד, פס ההתקדמות והאחוזים.</p>
           </CardContent>
         </Card>
 
