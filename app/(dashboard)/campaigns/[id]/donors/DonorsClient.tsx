@@ -106,7 +106,7 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
   const [donations, setDonations] = useState(initial)
   const [search, setSearch] = useState('')
   const [groupFilter, setGroupFilter] = useState('')   // '' = all groups
-  const [sortBy, setSortBy] = useState<'recent' | 'name_asc' | 'name_desc' | 'amount_desc' | 'amount_asc'>('recent')
+  const [sortBy, setSortBy] = useState<'recent' | 'name_asc' | 'name_desc' | 'amount_desc' | 'amount_asc' | 'source'>('recent')
   const [editId, setEditId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<Partial<Donation>>({})
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
@@ -164,6 +164,11 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
       case 'name_desc': return (b.donor_name || '').localeCompare(a.donor_name || '', 'he')
       case 'amount_desc': return (b.amount || 0) - (a.amount || 0)
       case 'amount_asc': return (a.amount || 0) - (b.amount || 0)
+      case 'source': {
+        // group by source (Kesher / Nedarim / Stripe / Manual), then newest first within each
+        const s = donationSource(a, paymentProvider).label.localeCompare(donationSource(b, paymentProvider).label, 'he')
+        return s !== 0 ? s : new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      }
       default: return new Date(b.created_at).getTime() - new Date(a.created_at).getTime() // recent
     }
   })
@@ -552,6 +557,7 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
           <option value="name_desc">שם: ת → א</option>
           <option value="amount_desc">סכום: גבוה → נמוך</option>
           <option value="amount_asc">סכום: נמוך → גבוה</option>
+          <option value="source">לפי מקור התרומה</option>
         </select>
       </div>
 
