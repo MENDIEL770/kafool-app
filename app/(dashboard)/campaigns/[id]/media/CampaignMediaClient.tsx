@@ -55,7 +55,10 @@ function FrameGrabber({ src, onClose, onCapture }: { src: string; onClose: () =>
 
 /* ─── Types ─── */
 interface GalleryItem { id: string; image_url: string; caption: string | null; sort_order: number }
-interface DonationPlan { amount: number; amount_usd?: number | null; label?: string | null; image_url?: string | null; image_url_en?: string | null; payment_type?: 'one_time' | 'hok'; months?: number | null; form?: string | null; cta?: string | null }
+interface DonationPlan { amount: number; amount_usd?: number | null; label?: string | null; image_url?: string | null; image_url_en?: string | null; payment_type?: 'one_time' | 'hok'; months?: number | null; form?: string | null; cta?: string | null; _cid?: string }
+// Stable client id so React keys survive add/remove/reorder in an editable list
+// with file inputs (index keys were mixing up which button an upload landed on).
+const withCid = (list: DonationPlan[]): DonationPlan[] => (list || []).map(p => ({ ...p, _cid: p._cid || (typeof crypto !== 'undefined' ? crypto.randomUUID() : String(Math.random())) }))
 interface FormOption { id: string; name: string }
 
 interface Props {
@@ -526,9 +529,9 @@ export default function CampaignMediaClient({
   const initialPlans: DonationPlan[] =
     (initialSettings.donation_plans as DonationPlan[] | undefined) ||
     (((initialSettings.donation_amounts as number[]) || [180, 360, 720, 1800, 3600]).map(amount => ({ amount })))
-  const [plans, setPlans] = useState<DonationPlan[]>(initialPlans)
+  const [plans, setPlans] = useState<DonationPlan[]>(() => withCid(initialPlans))
   // Separate English button set (independent list). Empty → English falls back to Hebrew.
-  const [plansEn, setPlansEn] = useState<DonationPlan[]>((initialSettings.donation_plans_en as DonationPlan[] | undefined) || [])
+  const [plansEn, setPlansEn] = useState<DonationPlan[]>(() => withCid((initialSettings.donation_plans_en as DonationPlan[] | undefined) || []))
   const [buttonLang, setButtonLang] = useState<'he' | 'en'>('he')
   const [uploadingPlan, setUploadingPlan] = useState<number | null>(null)
   const [otherAmountImage, setOtherAmountImage] = useState<string | null>((initialSettings.other_amount_design as string) || null)
@@ -791,7 +794,7 @@ export default function CampaignMediaClient({
     setActivePlans(p => p.map((x, idx) => idx === i ? { ...x, ...patch } : x))
   }
   function removePlan(i: number) { setActivePlans(p => p.filter((_, idx) => idx !== i)) }
-  function addPlan() { setActivePlans(p => [...p, { amount: 0, label: '', image_url: null }]) }
+  function addPlan() { setActivePlans(p => [...p, { amount: 0, label: '', image_url: null, _cid: crypto.randomUUID() }]) }
   function movePlan(i: number, dir: -1 | 1) {
     setActivePlans(p => {
       const j = i + dir
@@ -803,7 +806,7 @@ export default function CampaignMediaClient({
   }
   // Seed the English list from the Hebrew one (uses each button's EN graphic if present).
   function copyPlansFromHe() {
-    setPlansEn(plans.map(p => ({ ...p, image_url: p.image_url_en || p.image_url || null, image_url_en: null })))
+    setPlansEn(plans.map(p => ({ ...p, image_url: p.image_url_en || p.image_url || null, image_url_en: null, _cid: crypto.randomUUID() })))
   }
 
   async function uploadPlanImage(i: number, file: File) {
@@ -1454,7 +1457,7 @@ export default function CampaignMediaClient({
           {/* Plan editors — the list for the currently selected language */}
           <div className="space-y-3">
             {activePlans.map((plan, i) => (
-              <PlanEditor key={i} plan={plan} lang={buttonLang}
+              <PlanEditor key={plan._cid || i} plan={plan} lang={buttonLang}
                 uploading={uploadingPlan === i}
                 isFirst={i === 0} isLast={i === activePlans.length - 1}
                 customForms={campaignCustomForms}
