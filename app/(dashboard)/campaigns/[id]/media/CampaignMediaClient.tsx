@@ -236,9 +236,10 @@ function UploadZone({
 }
 
 /* ─── Donation button (plan) editor row ─── */
-function PlanEditor({ plan, lang, uploading, isFirst, isLast, customForms, preStepEnabled, onChange, onUpload, onRemove, onMoveUp, onMoveDown }: {
+function PlanEditor({ plan, lang, foreignSym = '$', uploading, isFirst, isLast, customForms, preStepEnabled, onChange, onUpload, onRemove, onMoveUp, onMoveDown }: {
   plan: DonationPlan
   lang: 'he' | 'en'
+  foreignSym?: string
   uploading: boolean
   isFirst: boolean
   isLast: boolean
@@ -304,7 +305,7 @@ function PlanEditor({ plan, lang, uploading, isFirst, isLast, customForms, preSt
         </div>
         {lang === 'en' && (
           <div>
-            <label className="text-[11px] text-gray-400">סכום בדולרים ($) — לתצוגה באנגלית</label>
+            <label className="text-[11px] text-gray-400">סכום ב-{foreignSym} — לתצוגה באנגלית (אם ריק, יומר אוטומטית מהשקל)</label>
             <input type="number" value={plan.amount_usd ?? ''} onChange={e => onChange({ amount_usd: e.target.value === '' ? null : (Number(e.target.value) || 0) })}
               placeholder="למשל 50 — אם ריק, יומר אוטומטית מהשקל" dir="ltr"
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400" />
@@ -532,7 +533,11 @@ export default function CampaignMediaClient({
   const [plans, setPlans] = useState<DonationPlan[]>(() => withCid(initialPlans))
   // Separate English button set (independent list). Empty → English falls back to Hebrew.
   const [plansEn, setPlansEn] = useState<DonationPlan[]>(() => withCid((initialSettings.donation_plans_en as DonationPlan[] | undefined) || []))
-  const [buttonLang, setButtonLang] = useState<'he' | 'en'>('he')
+  // Open the buttons editor on the campaign's configured default language.
+  const [buttonLang, setButtonLang] = useState<'he' | 'en'>((initialSettings.default_lang as string) === 'en' ? 'en' : 'he')
+  // The campaign's foreign currency (for English $/€/£ button amounts + preview).
+  const foreignCur = (((initialSettings.stripe_currency as string) || 'usd').toLowerCase())
+  const foreignSym = ({ usd: '$', eur: '€', gbp: '£' } as Record<string, string>)[foreignCur] || '$'
   const [uploadingPlan, setUploadingPlan] = useState<number | null>(null)
   const [otherAmountImage, setOtherAmountImage] = useState<string | null>((initialSettings.other_amount_design as string) || null)
   // how the "other amount" button appears: in the buttons grid, or beside the donate CTA
@@ -1457,7 +1462,7 @@ export default function CampaignMediaClient({
           {/* Plan editors — the list for the currently selected language */}
           <div className="space-y-3">
             {activePlans.map((plan, i) => (
-              <PlanEditor key={plan._cid || i} plan={plan} lang={buttonLang}
+              <PlanEditor key={plan._cid || i} plan={plan} lang={buttonLang} foreignSym={foreignSym}
                 uploading={uploadingPlan === i}
                 isFirst={i === 0} isLast={i === activePlans.length - 1}
                 customForms={campaignCustomForms}
@@ -1527,21 +1532,27 @@ export default function CampaignMediaClient({
             <div className="p-5 bg-gray-50 rounded-2xl space-y-3">
               <p className="text-xs text-gray-400 font-medium">תצוגה מקדימה — {buttonLang === 'en' ? 'אנגלית' : 'עברית'} (כמו בעמוד הגיוס)</p>
               <div className="flex gap-4 flex-wrap">
-                {activePlans.filter(p => p.amount > 0).map((plan, i) => (
-                  <div key={i} className="flex flex-col items-center gap-2">
+                {activePlans.filter(p => p.amount > 0).map((plan, i) => {
+                  // English preview shows the foreign amount (explicit or "≈" from ₪); Hebrew shows ₪.
+                  const amtLabel = buttonLang === 'en'
+                    ? (Number(plan.amount_usd) > 0 ? `${foreignSym}${Number(plan.amount_usd).toLocaleString()}` : `${foreignSym}?`)
+                    : `₪${plan.amount.toLocaleString()}`
+                  return (
+                  <div key={plan._cid || i} className="flex flex-col items-center gap-2">
                     <div className="w-[88px] h-[88px] rounded-full overflow-hidden shadow-md">
                       {plan.image_url
                         ? <img src={plan.image_url} alt="" className="w-full h-full object-cover" />
                         : <div className="w-full h-full flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${primaryColor}dd, ${primaryColor}88)` }}>
-                            <span className="text-white font-black text-lg">₪{plan.amount.toLocaleString()}</span>
+                            <span className="text-white font-black text-lg">{amtLabel}</span>
                           </div>}
                     </div>
                     <div className="text-center">
-                      <div className="text-sm font-bold text-gray-800">₪{plan.amount.toLocaleString()}</div>
+                      <div className="text-sm font-bold text-gray-800">{amtLabel}</div>
                       {plan.label && <div className="text-[11px] text-gray-400 mt-0.5">{plan.label}</div>}
                     </div>
                   </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
           )}
