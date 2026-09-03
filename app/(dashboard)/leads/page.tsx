@@ -380,7 +380,7 @@ export default function LeadsPage() {
         <div className="text-center py-12 text-gray-400">אין לידים. ייבא CSV כדי להתחיל.</div>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-gray-100">
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[720px] text-sm">
             <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
               <tr>
                 <th className="px-4 py-3 text-right">שם</th>

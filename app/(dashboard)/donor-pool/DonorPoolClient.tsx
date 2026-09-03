@@ -33,7 +33,7 @@ export default function DonorPoolClient({ donors }: { donors: PoolDonor[] }) {
         <p className="text-sm text-gray-400 mt-0.5">כל מי שתרם אי-פעם, מכל הקמפיינים — כדי שתדע למי לפנות בקמפיין הבא.</p>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {[
           { label: 'תורמים ייחודיים', value: donors.length.toLocaleString('he-IL'), icon: Users, color: 'text-blue-700', bg: 'bg-blue-50' },
           { label: 'תרמו ביותר מקמפיין אחד', value: repeat.toLocaleString('he-IL'), icon: Heart, color: 'text-rose-700', bg: 'bg-rose-50' },

@@ -209,7 +209,7 @@ export default function CallersPage() {
         <Card><CardContent className="py-16 text-center text-gray-400"><div className="text-4xl mb-3"></div><p>אין טלפנים עדיין.</p></CardContent></Card>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-gray-100">
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[720px] text-sm">
             <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
               <tr>
                 <th className="px-4 py-3 text-right">#</th>

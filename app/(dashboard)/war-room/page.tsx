@@ -116,8 +116,8 @@ export default function WarRoomPage() {
     <div className="min-h-screen bg-[#0f172a] text-white p-6 space-y-6" dir="rtl">
       {/* Header */}
       <div className="text-center space-y-2">
-        <h1 className="text-3xl font-bold text-gray-100">{campaign.title}</h1>
-        <div className="text-7xl font-black text-green-400">₪{raised.toLocaleString('he-IL')}</div>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-100">{campaign.title}</h1>
+        <div className="text-5xl sm:text-6xl lg:text-7xl font-black text-green-400 tabular-nums break-all">₪{raised.toLocaleString('he-IL')}</div>
         <div className="text-gray-400">מתוך ₪{campaign.goal_amount.toLocaleString('he-IL')}</div>
 
         <div className="max-w-2xl mx-auto space-y-2">
@@ -135,7 +135,7 @@ export default function WarRoomPage() {
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-3 gap-4 max-w-2xl mx-auto">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-2xl mx-auto">
         <div className="bg-gray-800 rounded-xl p-4 text-center">
           <div className="text-2xl font-bold text-white">{stats.totalDonations}</div>
           <div className="text-xs text-gray-400 mt-1">סה&quot;כ תרומות</div>

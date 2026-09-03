@@ -114,7 +114,7 @@ export default async function AbandonedPage({ params }: { params: Promise<{ id: 
       ) : (
         <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[640px] text-sm">
               <thead>
                 <tr className="text-gray-400 text-xs border-b border-gray-100">
                   <th className="text-right font-medium px-4 py-3">תורם</th>

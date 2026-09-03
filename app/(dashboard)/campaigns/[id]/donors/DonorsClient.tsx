@@ -480,12 +480,12 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
   return (
     <div className="space-y-6" dir="rtl">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">תורמים</h1>
           <p className="text-sm text-gray-500 mt-0.5">{campaign.title}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" onClick={exportExcel} disabled={sorted.length === 0} title="מייצא לפי הסינון הנוכחי" className="gap-2">
             <Download className="w-4 h-4" />
             ייצוא לאקסל
@@ -607,7 +607,7 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label className="text-xs">{addForm.payment_type === 'hok' ? 'סכום חודשי (₪) *' : 'סכום (₪) *'}</Label>
               <Input type="number" value={addForm.amount} onChange={e => setAddForm(f => ({ ...f, amount: e.target.value }))} placeholder="180" />

@@ -413,7 +413,7 @@ export default function CustomFormsPage() {
                       </div>
                       <p className="text-[11px] text-gray-400">מחיר היחידה נלקח מהסכום שהוגדר בכפתור התרומה; השדה למעלה משמש רק כגיבוי אם אין סכום. ההנחות מופעלות מכמות מינימלית (אופציונלי — לדוגמה: מ-10 יח׳ — 13% הנחה):</p>
                       {tiers.map((tier, ti) => (
-                        <div key={ti} className="flex items-center gap-2">
+                        <div key={ti} className="flex flex-wrap items-center gap-2">
                           <span className="text-[11px] text-gray-400 shrink-0">מ-</span>
                           <input type="number" min="1" value={tier.minQty} dir="ltr"
                             onChange={e => setTiers(tiers.map((tt, j) => (j === ti ? { ...tt, minQty: Number(e.target.value) || 1 } : tt)))}

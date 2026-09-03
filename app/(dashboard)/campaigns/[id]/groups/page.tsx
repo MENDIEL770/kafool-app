@@ -795,9 +795,9 @@ export default function GroupsPage() {
   return (
     <div className="max-w-2xl mx-auto space-y-5" dir="rtl">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-xl font-bold text-gray-900">קבוצות גיוס</h1>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => setShowWelcome(true)}
             title="ערוך את ההודעה שנשלחת למקים קבוצה דרך האתר"
