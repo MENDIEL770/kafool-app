@@ -606,7 +606,7 @@ function HeroSection({ campaign, countdown }: {
 }
 
 type PlanItem = { amount: number; amount_usd?: number | null; label?: string; image_url?: string | null; image_url_en?: string | null; payment_type?: 'one_time' | 'hok'; months?: number | null; form?: string | null; cta?: string | null }
-function DonationPlans({ plans, plansEn, primaryColor, campaignSlug, groups, buttonRadius, buttonSize = 'default', otherAmountImage, otherAmountPlacement = 'grid', defaultCta, onDonate, displayCurrency = 'ils', fxRate }: {
+function DonationPlans({ plans, plansEn, primaryColor, campaignSlug, groups, buttonRadius, buttonSize = 'default', otherAmountImage, otherAmountImageEn, otherAmountPlacement = 'grid', defaultCta, onDonate, displayCurrency = 'ils', fxRate }: {
   plans: PlanItem[]
   plansEn?: PlanItem[]
   primaryColor: string
@@ -615,6 +615,7 @@ function DonationPlans({ plans, plansEn, primaryColor, campaignSlug, groups, but
   buttonRadius: string
   buttonSize?: 'default' | 'large'
   otherAmountImage?: string | null
+  otherAmountImageEn?: string | null
   otherAmountPlacement?: 'grid' | 'cta'
   defaultCta?: string
   onDonate: (amount?: number, groupSlug?: string, method?: 'one_time' | 'hok', months?: number, formMode?: string, foreignAmount?: number) => void
@@ -651,6 +652,9 @@ function DonationPlans({ plans, plansEn, primaryColor, campaignSlug, groups, but
     }
     return plans
   }, [lang, plans, plansEn])
+
+  // "Other amount" graphic: English uses its own when set, else the Hebrew one.
+  const otherImg = (lang === 'en' && otherAmountImageEn) ? otherAmountImageEn : otherAmountImage
 
   // selected holds the chosen plan INDEX (not the amount) so two plans with the
   // same amount (e.g. 180 monthly vs 180 one-time) don't both highlight.
@@ -746,13 +750,13 @@ function DonationPlans({ plans, plansEn, primaryColor, campaignSlug, groups, but
               className={itemCls}
             >
               <div
-                className={otherAmountImage
+                className={otherImg
                   ? `${shapeCls} flex items-center justify-center`
                   : `${large ? `w-full aspect-square md:w-[180px] md:h-[180px] md:aspect-auto ${planShape}` : `w-[90px] h-[90px] md:w-[110px] md:h-[110px] ${planShape}`} border-2 border-dashed border-gray-300 flex flex-col items-center justify-center bg-gray-50 transition-all duration-200`}
-                style={{ boxShadow: otherAmountImage ? '0 2px 10px rgba(0,0,0,0.08)' : undefined }}
+                style={{ boxShadow: otherImg ? '0 2px 10px rgba(0,0,0,0.08)' : undefined }}
               >
-                {otherAmountImage
-                  ? <img src={otherAmountImage} alt={t('otherAmount')} className="absolute inset-0 w-full h-full object-cover" />
+                {otherImg
+                  ? <img src={otherImg} alt={t('otherAmount')} className="absolute inset-0 w-full h-full object-cover" />
                   : <span className="text-2xl md:text-3xl font-light text-gray-400 leading-none">+</span>}
               </div>
               <div className="text-center">
@@ -1915,7 +1919,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
       )}
 
       {/* 3. Donation Plans */}
-      {isOn('amounts') && <DonationPlans plans={donationPlans} plansEn={donationPlansEn} primaryColor={primaryColor} campaignSlug={campaign.slug} groups={groups} buttonRadius={buttonRadius} buttonSize={buttonSize} otherAmountImage={(settings as { other_amount_design?: string })?.other_amount_design || null} otherAmountPlacement={(settings as { other_amount_placement?: 'grid' | 'cta' })?.other_amount_placement === 'cta' ? 'cta' : 'grid'} defaultCta={(settings as { donate_cta?: string })?.donate_cta || ''} onDonate={openDonate} displayCurrency={modalDefaultCurrency} fxRate={pageRate} />}
+      {isOn('amounts') && <DonationPlans plans={donationPlans} plansEn={donationPlansEn} primaryColor={primaryColor} campaignSlug={campaign.slug} groups={groups} buttonRadius={buttonRadius} buttonSize={buttonSize} otherAmountImage={(settings as { other_amount_design?: string })?.other_amount_design || null} otherAmountImageEn={(settings as { other_amount_design_en?: string })?.other_amount_design_en || null} otherAmountPlacement={(settings as { other_amount_placement?: 'grid' | 'cta' })?.other_amount_placement === 'cta' ? 'cta' : 'grid'} defaultCta={(settings as { donate_cta?: string })?.donate_cta || ''} onDonate={openDonate} displayCurrency={modalDefaultCurrency} fxRate={pageRate} />}
 
       {/* 4. Progress */}
       {isOn('goal') && <ProgressSection raised={raisedAmount} goal={campaign.goal_amount} donorsCount={donations.length} primaryColor={primaryColor} showGoal={(campaign.settings as { show_goal?: boolean })?.show_goal !== false} bricks={(campaign.settings as { show_bricks?: boolean })?.show_bricks === false ? undefined : (campaign.settings as { bricks?: { total: number; price: number; label?: string } })?.bricks} />}

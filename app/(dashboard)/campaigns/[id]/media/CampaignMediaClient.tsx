@@ -540,6 +540,8 @@ export default function CampaignMediaClient({
   const foreignSym = ({ usd: '$', eur: '€', gbp: '£' } as Record<string, string>)[foreignCur] || '$'
   const [uploadingPlan, setUploadingPlan] = useState<number | null>(null)
   const [otherAmountImage, setOtherAmountImage] = useState<string | null>((initialSettings.other_amount_design as string) || null)
+  // Separate "other amount" button graphic for English (falls back to the Hebrew one).
+  const [otherAmountImageEn, setOtherAmountImageEn] = useState<string | null>((initialSettings.other_amount_design_en as string) || null)
   // how the "other amount" button appears: in the buttons grid, or beside the donate CTA
   const [otherAmountPlacement, setOtherAmountPlacement] = useState<'grid' | 'cta'>(
     (initialSettings.other_amount_placement as 'grid' | 'cta') === 'cta' ? 'cta' : 'grid'
@@ -821,10 +823,13 @@ export default function CampaignMediaClient({
     setUploadingPlan(null)
   }
 
+  // The "other amount" graphic is per-language, like the buttons.
+  const activeOther = buttonLang === 'en' ? otherAmountImageEn : otherAmountImage
+  const setActiveOther = buttonLang === 'en' ? setOtherAmountImageEn : setOtherAmountImage
   async function uploadOtherImage(file: File) {
     setUploadingOther(true)
-    const url = await uploadFile(file, `${orgId}/${campaignId}/other-amount-${Date.now()}`)
-    if (url) setOtherAmountImage(url)
+    const url = await uploadFile(file, `${orgId}/${campaignId}/other-amount-${buttonLang}-${Date.now()}`)
+    if (url) setActiveOther(url)
     setUploadingOther(false)
   }
 
@@ -855,6 +860,7 @@ export default function CampaignMediaClient({
       donation_plans_en: cleanEn,
       donation_amounts: clean.map(p => p.amount), // keep in sync for backward-compat
       other_amount_design: otherAmountImage || null,
+      other_amount_design_en: otherAmountImageEn || null,
       other_amount_placement: otherAmountPlacement,
       donate_cta: donateCta.trim() || null,
       primary_color: primaryColor,
@@ -1487,12 +1493,12 @@ export default function CampaignMediaClient({
               </div>
             )}
 
-            {/* עיצוב לכפתור "סכום אחר" */}
+            {/* עיצוב לכפתור "סכום אחר" — נפרד לכל שפה (לפי הלשונית שנבחרה) */}
             <div className="flex items-center gap-3 border border-gray-100 rounded-2xl p-3 bg-gray-50/50">
               <label className="w-16 h-16 rounded-full overflow-hidden shrink-0 cursor-pointer relative border-2 border-dashed border-gray-200 hover:border-blue-300 bg-white flex items-center justify-center group" title="עיצוב לכפתור סכום אחר">
-                {otherAmountImage ? (
+                {activeOther ? (
                   <>
-                    <img src={otherAmountImage} alt="" className="w-full h-full object-cover" />
+                    <img src={activeOther} alt="" className="w-full h-full object-cover" />
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"><Upload className="w-4 h-4 text-white" /></div>
                   </>
                 ) : uploadingOther ? (
@@ -1501,11 +1507,11 @@ export default function CampaignMediaClient({
                 <input type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) uploadOtherImage(f); e.target.value = '' }} />
               </label>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-gray-800">כפתור &quot;סכום אחר&quot;</p>
-                <p className="text-[11px] text-gray-400">עיצוב אופציונלי לכפתור שבו התורם מקליד סכום חופשי. בלי עיצוב — יוצג העיגול המקווקו הרגיל.</p>
+                <p className="text-sm font-bold text-gray-800">כפתור &quot;סכום אחר&quot; — {buttonLang === 'en' ? 'אנגלית' : 'עברית'}</p>
+                <p className="text-[11px] text-gray-400">עיצוב אופציונלי לכפתור שבו התורם מקליד סכום חופשי. בלי עיצוב — יוצג העיגול המקווקו הרגיל. {buttonLang === 'en' ? 'אם ריק — יוצג עיצוב העברית.' : ''}</p>
               </div>
-              {otherAmountImage && (
-                <button onClick={() => setOtherAmountImage(null)} className="text-[10px] text-gray-400 hover:text-red-500 shrink-0" title="הסר עיצוב">הסר עיצוב</button>
+              {activeOther && (
+                <button onClick={() => setActiveOther(null)} className="text-[10px] text-gray-400 hover:text-red-500 shrink-0" title="הסר עיצוב">הסר עיצוב</button>
               )}
             </div>
 
