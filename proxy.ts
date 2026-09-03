@@ -1,7 +1,26 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+// First path segments that are app areas, not public campaign slugs — never treat
+// a trailing /en|/he on these as a language link.
+const RESERVED_FIRST_SEG = new Set([
+  'dashboard', 'campaigns', 'callers', 'war-room', 'reports', 'sms', 'donor-pool',
+  'settings', 'super-admin', 'login', 'register', 'api', 'onboarding', 'leads',
+  'about', 'contact', 'faq', 'privacy', 'terms', 'accessibility', 'join', 'design',
+])
+
 export async function proxy(request: NextRequest) {
+  // Pretty language links: /{slug}/en · /{slug}/he · /{slug}/g/{group}/en|he
+  // → internally serve the same page with ?lang= (URL stays short in the browser).
+  const langMatch = request.nextUrl.pathname.match(/^\/([^/]+)(?:\/g\/([^/]+))?\/(en|he)$/)
+  if (langMatch && !RESERVED_FIRST_SEG.has(langMatch[1])) {
+    const [, slug, groupSlug, lang] = langMatch
+    const url = request.nextUrl.clone()
+    url.pathname = groupSlug ? `/${slug}/g/${groupSlug}` : `/${slug}`
+    url.searchParams.set('lang', lang)
+    return NextResponse.rewrite(url)
+  }
+
   // Expose the current path to server components that need it.
   const requestHeaders = new Headers(request.headers)
   requestHeaders.set('x-pathname', request.nextUrl.pathname)
