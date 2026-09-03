@@ -10,11 +10,19 @@ const RESERVED_FIRST_SEG = new Set([
 ])
 
 export async function proxy(request: NextRequest) {
-  // Pretty language links: /{slug}/en · /{slug}/he · /{slug}/g/{group}/en|he
-  // → internally serve the same page with ?lang= (URL stays short in the browser).
-  const langMatch = request.nextUrl.pathname.match(/^\/([^/]+)(?:\/g\/([^/]+))?\/(en|he)$/)
-  if (langMatch && !RESERVED_FIRST_SEG.has(langMatch[1])) {
-    const [, slug, groupSlug, lang] = langMatch
+  // Pretty language links → internally serve the same page with ?lang= (the URL
+  // stays short in the browser). Both spellings work:
+  //   /{slug}/en           /{slug}/en/g/{group}     (lang right after the slug)
+  //   /{slug}/g/{group}/en                          (lang trailing)
+  const p = request.nextUrl.pathname
+  let slug: string | undefined, lang: string | undefined, groupSlug: string | undefined
+  const m1 = p.match(/^\/([^/]+)\/(en|he)(?:\/g\/([^/]+))?$/)
+  if (m1) { slug = m1[1]; lang = m1[2]; groupSlug = m1[3] }
+  else {
+    const m2 = p.match(/^\/([^/]+)\/g\/([^/]+)\/(en|he)$/)
+    if (m2) { slug = m2[1]; groupSlug = m2[2]; lang = m2[3] }
+  }
+  if (slug && lang && !RESERVED_FIRST_SEG.has(slug)) {
     const url = request.nextUrl.clone()
     url.pathname = groupSlug ? `/${slug}/g/${groupSlug}` : `/${slug}`
     url.searchParams.set('lang', lang)
