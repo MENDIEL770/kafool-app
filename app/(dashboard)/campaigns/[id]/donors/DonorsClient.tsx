@@ -126,7 +126,7 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
       .filter(([, v]) => v.trim() !== '')
   function copyText(text: string) { navigator.clipboard?.writeText(text).catch(() => {}) }
   const [showAdd, setShowAdd] = useState(false)
-  const [addForm, setAddForm] = useState({ amount: '', donor_name: '', donor_phone: '', donor_email: '', dedication: '', group_id: '', payment_type: 'one_time', installments: '', payment_method: 'credit', manager_note: '' })
+  const [addForm, setAddForm] = useState({ amount: '', donor_name: '', donor_phone: '', donor_email: '', dedication: '', group_id: '', payment_type: 'one_time', installments: '', payment_method: 'credit', manager_note: '', anonymous: false })
   const [saving, setSaving] = useState(false)
   const [addError, setAddError] = useState('')
 
@@ -394,7 +394,7 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
       payment_type: isHok ? 'hok' : 'one_time',
       installments: isHok && months > 0 ? months : null,
       monthly_amount: isHok ? inputAmount : null,
-      custom_data: { payment_method: addForm.payment_method, ...(addForm.manager_note.trim() ? { manager_note: addForm.manager_note.trim() } : {}) },
+      custom_data: { payment_method: addForm.payment_method, ...(addForm.anonymous ? { anonymous: 'true' } : {}), ...(addForm.manager_note.trim() ? { manager_note: addForm.manager_note.trim() } : {}) },
     }).select().single()
     if (error || !data) {
       setAddError(error?.message || 'הוספת התרומה נכשלה')
@@ -404,7 +404,7 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
     const next = [data, ...donations]
     setDonations(next)
     await syncTotals(next, addForm.group_id ? [addForm.group_id] : [])
-    setAddForm({ amount: '', donor_name: '', donor_phone: '', donor_email: '', dedication: '', group_id: '', payment_type: 'one_time', installments: '', payment_method: 'credit', manager_note: '' })
+    setAddForm({ amount: '', donor_name: '', donor_phone: '', donor_email: '', dedication: '', group_id: '', payment_type: 'one_time', installments: '', payment_method: 'credit', manager_note: '', anonymous: false })
     setShowAdd(false)
     setSaving(false)
     router.refresh()
@@ -644,6 +644,10 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
             <div className="space-y-1">
               <Label className="text-xs">שם תורם</Label>
               <Input value={addForm.donor_name} onChange={e => setAddForm(f => ({ ...f, donor_name: e.target.value }))} />
+              <label className="flex items-center gap-1.5 pt-1 cursor-pointer text-xs text-gray-600">
+                <input type="checkbox" checked={addForm.anonymous} onChange={e => setAddForm(f => ({ ...f, anonymous: e.target.checked }))} className="w-3.5 h-3.5 accent-blue-600" />
+                תרומה אנונימית (השם לא יוצג בדף הציבורי)
+              </label>
             </div>
             <div className="space-y-1">
               <Label className="text-xs">טלפון</Label>
