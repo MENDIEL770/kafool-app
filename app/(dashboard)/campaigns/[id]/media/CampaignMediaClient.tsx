@@ -737,8 +737,10 @@ export default function CampaignMediaClient({
   /* ─── Save banner settings ─── */
   async function saveBannerSettings() {
     setSavingBanner(true)
+    // re-fetch current settings so saving banners never clobbers edits from another section
+    const { data: existing } = await supabase.from('campaigns').select('settings').eq('id', campaignId).single()
     const settings = {
-      ...(initialSettings as object),
+      ...(existing?.settings as object),
       banners: banners.map((url, i) => ({ url, sort_order: i })),
       mobile_banners: mobileBanners.map((url, i) => ({ url, sort_order: i })),
       banners_en: bannersEn.map((url, i) => ({ url, sort_order: i })),
@@ -837,8 +839,10 @@ export default function CampaignMediaClient({
     setSavingAmounts(true)
     const clean = cleanPlans(plans)
     const cleanEn = cleanPlans(plansEn)
+    // re-fetch current settings so saving the buttons never clobbers edits from another section
+    const { data: existing } = await supabase.from('campaigns').select('settings').eq('id', campaignId).single()
     const settings = {
-      ...(initialSettings as object),
+      ...(existing?.settings as object),
       donation_plans: clean,
       donation_plans_en: cleanEn,
       donation_amounts: clean.map(p => p.amount), // keep in sync for backward-compat
