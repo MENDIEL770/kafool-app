@@ -248,8 +248,9 @@ function PlanEditor({ plan, lang, uploading, isFirst, isLast, customForms, preSt
   onMoveDown: () => void
 }) {
   const ref = useRef<HTMLInputElement>(null)
-  const imgKey = lang === 'en' ? 'image_url_en' : 'image_url'
-  const img = lang === 'en' ? plan.image_url_en : plan.image_url
+  // Each language now edits its own list, so the button image is always image_url.
+  const imgKey = 'image_url'
+  const img = plan.image_url
   return (
     <div className="flex items-center gap-3 border border-gray-100 rounded-2xl p-3 bg-gray-50/50">
       {/* reorder */}
@@ -526,6 +527,8 @@ export default function CampaignMediaClient({
     (initialSettings.donation_plans as DonationPlan[] | undefined) ||
     (((initialSettings.donation_amounts as number[]) || [180, 360, 720, 1800, 3600]).map(amount => ({ amount })))
   const [plans, setPlans] = useState<DonationPlan[]>(initialPlans)
+  // Separate English button set (independent list). Empty → English falls back to Hebrew.
+  const [plansEn, setPlansEn] = useState<DonationPlan[]>((initialSettings.donation_plans_en as DonationPlan[] | undefined) || [])
   const [buttonLang, setButtonLang] = useState<'he' | 'en'>('he')
   const [uploadingPlan, setUploadingPlan] = useState<number | null>(null)
   const [otherAmountImage, setOtherAmountImage] = useState<string | null>((initialSettings.other_amount_design as string) || null)
@@ -779,14 +782,16 @@ export default function CampaignMediaClient({
     setGallery(p => p.map(g => g.id === id ? { ...g, caption } : g))
   }
 
-  /* ─── Donation buttons (plans) ─── */
+  /* ─── Donation buttons (plans) ─── each language edits its OWN list ─── */
+  const activePlans = buttonLang === 'en' ? plansEn : plans
+  const setActivePlans = buttonLang === 'en' ? setPlansEn : setPlans
   function updatePlan(i: number, patch: Partial<DonationPlan>) {
-    setPlans(p => p.map((x, idx) => idx === i ? { ...x, ...patch } : x))
+    setActivePlans(p => p.map((x, idx) => idx === i ? { ...x, ...patch } : x))
   }
-  function removePlan(i: number) { setPlans(p => p.filter((_, idx) => idx !== i)) }
-  function addPlan() { setPlans(p => [...p, { amount: 0, label: '', image_url: null }]) }
+  function removePlan(i: number) { setActivePlans(p => p.filter((_, idx) => idx !== i)) }
+  function addPlan() { setActivePlans(p => [...p, { amount: 0, label: '', image_url: null }]) }
   function movePlan(i: number, dir: -1 | 1) {
-    setPlans(p => {
+    setActivePlans(p => {
       const j = i + dir
       if (j < 0 || j >= p.length) return p
       const next = [...p]
@@ -794,11 +799,15 @@ export default function CampaignMediaClient({
       return next
     })
   }
+  // Seed the English list from the Hebrew one (uses each button's EN graphic if present).
+  function copyPlansFromHe() {
+    setPlansEn(plans.map(p => ({ ...p, image_url: p.image_url_en || p.image_url || null, image_url_en: null })))
+  }
 
   async function uploadPlanImage(i: number, file: File) {
     setUploadingPlan(i)
     const url = await uploadFile(file, `${orgId}/${campaignId}/plan-${i}-${buttonLang}-${Date.now()}`)
-    if (url) updatePlan(i, buttonLang === 'en' ? { image_url_en: url } : { image_url: url })
+    if (url) updatePlan(i, { image_url: url })
     setUploadingPlan(null)
   }
 
@@ -809,26 +818,29 @@ export default function CampaignMediaClient({
     setUploadingOther(false)
   }
 
+  const cleanPlans = (list: DonationPlan[]) => list.filter(p => p.amount > 0).map(p => ({
+    amount: p.amount, label: p.label?.trim() || null, image_url: p.image_url || null,
+    image_url_en: p.image_url_en || null,
+    amount_usd: Number(p.amount_usd) > 0 ? Number(p.amount_usd) : null,
+    payment_type: p.payment_type || 'one_time',
+    months: p.payment_type === 'hok' ? (Number(p.months) || null) : null,
+    form: p.form || null,
+    cta: p.cta?.trim() || null,
+  }))
   async function savePlans() {
-    // הוראת קבע מחייבת מספר חודשי תרומה — חוסם שמירה אם חסר
-    const missingMonths = plans.some(p => p.amount > 0 && p.payment_type === 'hok' && !(Number(p.months) >= 1))
+    // הוראת קבע מחייבת מספר חודשי תרומה — חוסם שמירה אם חסר (בשתי השפות)
+    const missingMonths = [...plans, ...plansEn].some(p => p.amount > 0 && p.payment_type === 'hok' && !(Number(p.months) >= 1))
     if (missingMonths) {
       alert('יש להגדיר מספר חודשי תרומה לכל כפתור של הוראת קבע.')
       return
     }
     setSavingAmounts(true)
-    const clean = plans.filter(p => p.amount > 0).map(p => ({
-      amount: p.amount, label: p.label?.trim() || null, image_url: p.image_url || null,
-      image_url_en: p.image_url_en || null,
-      amount_usd: Number(p.amount_usd) > 0 ? Number(p.amount_usd) : null,
-      payment_type: p.payment_type || 'one_time',
-      months: p.payment_type === 'hok' ? (Number(p.months) || null) : null,
-      form: p.form || null,
-      cta: p.cta?.trim() || null,
-    }))
+    const clean = cleanPlans(plans)
+    const cleanEn = cleanPlans(plansEn)
     const settings = {
       ...(initialSettings as object),
       donation_plans: clean,
+      donation_plans_en: cleanEn,
       donation_amounts: clean.map(p => p.amount), // keep in sync for backward-compat
       other_amount_design: otherAmountImage || null,
       other_amount_placement: otherAmountPlacement,
@@ -1423,16 +1435,24 @@ export default function CampaignMediaClient({
               ))}
             </div>
             <span className="text-[11px] text-gray-400">
-              {buttonLang === 'en' ? 'עיצובי הכפתורים למבקרים באנגלית (אם ריק — יוצג עיצוב העברית)' : 'עיצוב ברירת המחדל'}
+              {buttonLang === 'en'
+                ? 'סט כפתורים נפרד לאנגלית — סכומים, תמונות וכמות עצמאיים (אם ריק — מוצגים כפתורי העברית)'
+                : 'כפתורי ברירת המחדל (עברית)'}
             </span>
+            {buttonLang === 'en' && plans.length > 0 && (
+              <button onClick={copyPlansFromHe} type="button"
+                className="text-[11px] font-semibold text-blue-600 hover:underline">
+                העתק מהעברית
+              </button>
+            )}
           </div>
 
-          {/* Plan editors */}
+          {/* Plan editors — the list for the currently selected language */}
           <div className="space-y-3">
-            {plans.map((plan, i) => (
+            {activePlans.map((plan, i) => (
               <PlanEditor key={i} plan={plan} lang={buttonLang}
                 uploading={uploadingPlan === i}
-                isFirst={i === 0} isLast={i === plans.length - 1}
+                isFirst={i === 0} isLast={i === activePlans.length - 1}
                 customForms={campaignCustomForms}
                 preStepEnabled={campaignPreStepEnabled}
                 onChange={patch => updatePlan(i, patch)}
@@ -1441,10 +1461,18 @@ export default function CampaignMediaClient({
                 onMoveUp={() => movePlan(i, -1)}
                 onMoveDown={() => movePlan(i, 1)} />
             ))}
-            {plans.length === 0 && (
-              <button onClick={addPlan} className="w-full border-2 border-dashed border-gray-200 rounded-2xl py-8 text-sm text-gray-400 hover:border-blue-300 hover:text-blue-500 transition-all">
-                + הוסף כפתור תרומה ראשון
-              </button>
+            {activePlans.length === 0 && (
+              <div className="space-y-2">
+                <button onClick={addPlan} className="w-full border-2 border-dashed border-gray-200 rounded-2xl py-8 text-sm text-gray-400 hover:border-blue-300 hover:text-blue-500 transition-all">
+                  + הוסף כפתור תרומה ראשון
+                </button>
+                {buttonLang === 'en' && plans.length > 0 && (
+                  <button onClick={copyPlansFromHe} type="button"
+                    className="w-full text-sm font-semibold text-blue-600 hover:underline">
+                    או: העתק את כפתורי העברית והתאם אותם
+                  </button>
+                )}
+              </div>
             )}
 
             {/* עיצוב לכפתור "סכום אחר" */}
@@ -1487,12 +1515,12 @@ export default function CampaignMediaClient({
             </div>
           </div>
 
-          {/* Live preview — like the donation page */}
-          {plans.some(p => p.amount > 0) && (
+          {/* Live preview — like the donation page (of the language you're editing) */}
+          {activePlans.some(p => p.amount > 0) && (
             <div className="p-5 bg-gray-50 rounded-2xl space-y-3">
-              <p className="text-xs text-gray-400 font-medium">תצוגה מקדימה (כמו בעמוד הגיוס)</p>
+              <p className="text-xs text-gray-400 font-medium">תצוגה מקדימה — {buttonLang === 'en' ? 'אנגלית' : 'עברית'} (כמו בעמוד הגיוס)</p>
               <div className="flex gap-4 flex-wrap">
-                {plans.filter(p => p.amount > 0).map((plan, i) => (
+                {activePlans.filter(p => p.amount > 0).map((plan, i) => (
                   <div key={i} className="flex flex-col items-center gap-2">
                     <div className="w-[88px] h-[88px] rounded-full overflow-hidden shadow-md">
                       {plan.image_url

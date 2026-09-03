@@ -605,8 +605,10 @@ function HeroSection({ campaign, countdown }: {
   )
 }
 
-function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius, buttonSize = 'default', otherAmountImage, otherAmountPlacement = 'grid', defaultCta, onDonate, displayCurrency = 'ils', fxRate }: {
-  plans: { amount: number; amount_usd?: number | null; label?: string; image_url?: string | null; image_url_en?: string | null; payment_type?: 'one_time' | 'hok'; months?: number | null; form?: string | null; cta?: string | null }[]
+type PlanItem = { amount: number; amount_usd?: number | null; label?: string; image_url?: string | null; image_url_en?: string | null; payment_type?: 'one_time' | 'hok'; months?: number | null; form?: string | null; cta?: string | null }
+function DonationPlans({ plans, plansEn, primaryColor, campaignSlug, groups, buttonRadius, buttonSize = 'default', otherAmountImage, otherAmountPlacement = 'grid', defaultCta, onDonate, displayCurrency = 'ils', fxRate }: {
+  plans: PlanItem[]
+  plansEn?: PlanItem[]
   primaryColor: string
   campaignSlug: string
   groups: Group[]
@@ -636,12 +638,23 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
   const [selectedMonths, setSelectedMonths] = useState<number | undefined>()
   const [custom, setCustom] = useState('')
   const [selectedGroup] = useState<string>('')
+  const lang = useLang()
+  const t = useT()
+
+  // English gets its OWN separate button set when the manager configured one;
+  // otherwise it falls back to the Hebrew buttons (using each button's English
+  // graphic if one was uploaded). Hebrew always uses the Hebrew list.
+  const displayPlans = useMemo<PlanItem[]>(() => {
+    if (lang === 'en') {
+      if (plansEn && plansEn.length) return plansEn
+      return plans.map(p => ({ ...p, image_url: p.image_url_en || p.image_url }))
+    }
+    return plans
+  }, [lang, plans, plansEn])
 
   // selected holds the chosen plan INDEX (not the amount) so two plans with the
   // same amount (e.g. 180 monthly vs 180 one-time) don't both highlight.
-  const finalAmount = selected != null ? (plans[selected]?.amount ?? null) : (custom ? Number(custom) : null)
-  const lang = useLang()
-  const t = useT()
+  const finalAmount = selected != null ? (displayPlans[selected]?.amount ?? null) : (custom ? Number(custom) : null)
 
   // Large mode: big 1:1 buttons (full-width-ish squares on mobile, large circles
   // side by side on desktop). Buttons WRAP onto multiple rows so none get cut.
@@ -669,10 +682,9 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
 
         {/* Grid: 3 columns on mobile, scrollable row on md+ (or large 1:1 buttons) */}
         <div className={gridCls} style={{ overflowY: 'visible' }}>
-          {plans.map(({ amount, amount_usd, label, image_url, image_url_en, payment_type, months }, i) => {
+          {displayPlans.map(({ amount, amount_usd, label, image_url, payment_type, months }, i) => {
             const isActive = selected === i
-            // English visitors see the EN button design when one was uploaded.
-            const img = lang === 'en' ? (image_url_en || image_url) : image_url
+            const img = image_url
             return (
               <button
                 key={i}
@@ -764,15 +776,15 @@ function DonationPlans({ plans, primaryColor, campaignSlug, groups, buttonRadius
             </button>
           )}
           <button
-            onClick={() => onDonate(finalAmount ?? undefined, selectedGroup || undefined, selectedMethod, selectedMethod === 'hok' ? selectedMonths : undefined, selected != null ? (plans[selected]?.form ?? undefined) : undefined, (foreignDisplay && selected != null && Number(plans[selected]?.amount_usd) > 0) ? Number(plans[selected]?.amount_usd) : undefined)}
+            onClick={() => onDonate(finalAmount ?? undefined, selectedGroup || undefined, selectedMethod, selectedMethod === 'hok' ? selectedMonths : undefined, selected != null ? (displayPlans[selected]?.form ?? undefined) : undefined, (foreignDisplay && selected != null && Number(displayPlans[selected]?.amount_usd) > 0) ? Number(displayPlans[selected]?.amount_usd) : undefined)}
             className={`flex-1 py-2.5 sm:py-3.5 text-white font-black text-sm sm:text-base text-center shadow-lg hover:opacity-90 active:scale-95 transition-all ${buttonRadius}`}
             style={{ backgroundColor: primaryColor }}
           >
             {(() => {
               // Per-button CTA override → campaign default → the amount-based label.
-              const override = ((selected != null ? plans[selected]?.cta : null) || defaultCta || '').trim()
+              const override = ((selected != null ? displayPlans[selected]?.cta : null) || defaultCta || '').trim()
               if (override) return override
-              const selUsd = selected != null ? plans[selected]?.amount_usd : null
+              const selUsd = selected != null ? displayPlans[selected]?.amount_usd : null
               const fa = finalAmount || 0
               const one = planAmt(fa, selUsd)
               const total = (foreignDisplay && Number(selUsd) > 0)
@@ -1679,6 +1691,8 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
     : null
   const donationPlans = settings?.donation_plans ||
     (settings?.donation_amounts || [180, 360, 720, 1800, 3600]).map(amount => ({ amount }))
+  // Separate English button set (optional); empty → English falls back to the Hebrew list.
+  const donationPlansEn = (settings as { donation_plans_en?: typeof donationPlans })?.donation_plans_en || undefined
   const buttonRadiusMap: Record<string, string> = { pill: 'rounded-full', rounded: 'rounded-xl', square: 'rounded-md' }
   const buttonRadius = builderCfg
     ? radiusToButtonClass(builderCfg.design.radius)
@@ -1901,7 +1915,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
       )}
 
       {/* 3. Donation Plans */}
-      {isOn('amounts') && <DonationPlans plans={donationPlans} primaryColor={primaryColor} campaignSlug={campaign.slug} groups={groups} buttonRadius={buttonRadius} buttonSize={buttonSize} otherAmountImage={(settings as { other_amount_design?: string })?.other_amount_design || null} otherAmountPlacement={(settings as { other_amount_placement?: 'grid' | 'cta' })?.other_amount_placement === 'cta' ? 'cta' : 'grid'} defaultCta={(settings as { donate_cta?: string })?.donate_cta || ''} onDonate={openDonate} displayCurrency={modalDefaultCurrency} fxRate={pageRate} />}
+      {isOn('amounts') && <DonationPlans plans={donationPlans} plansEn={donationPlansEn} primaryColor={primaryColor} campaignSlug={campaign.slug} groups={groups} buttonRadius={buttonRadius} buttonSize={buttonSize} otherAmountImage={(settings as { other_amount_design?: string })?.other_amount_design || null} otherAmountPlacement={(settings as { other_amount_placement?: 'grid' | 'cta' })?.other_amount_placement === 'cta' ? 'cta' : 'grid'} defaultCta={(settings as { donate_cta?: string })?.donate_cta || ''} onDonate={openDonate} displayCurrency={modalDefaultCurrency} fxRate={pageRate} />}
 
       {/* 4. Progress */}
       {isOn('goal') && <ProgressSection raised={raisedAmount} goal={campaign.goal_amount} donorsCount={donations.length} primaryColor={primaryColor} showGoal={(campaign.settings as { show_goal?: boolean })?.show_goal !== false} bricks={(campaign.settings as { show_bricks?: boolean })?.show_bricks === false ? undefined : (campaign.settings as { bricks?: { total: number; price: number; label?: string } })?.bricks} />}
