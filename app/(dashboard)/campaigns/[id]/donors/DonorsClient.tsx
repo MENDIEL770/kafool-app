@@ -126,7 +126,7 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
       .filter(([, v]) => v.trim() !== '')
   function copyText(text: string) { navigator.clipboard?.writeText(text).catch(() => {}) }
   const [showAdd, setShowAdd] = useState(false)
-  const [addForm, setAddForm] = useState({ amount: '', donor_name: '', donor_phone: '', donor_email: '', dedication: '', group_id: '', payment_type: 'one_time', installments: '', payment_method: 'credit', manager_note: '', anonymous: false })
+  const [addForm, setAddForm] = useState({ amount: '', currency: 'ils', donor_name: '', donor_phone: '', donor_email: '', dedication: '', group_id: '', payment_type: 'one_time', installments: '', payment_method: 'credit', manager_note: '', anonymous: false })
   const [saving, setSaving] = useState(false)
   const [addError, setAddError] = useState('')
 
@@ -380,11 +380,26 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
     // For a הו"ק the entered amount is the MONTHLY amount; we store the full total.
     const isHok = addForm.payment_type === 'hok'
     const months = isHok ? (Number(addForm.installments) || 0) : 0
-    const amount = isHok && months > 0 ? inputAmount * months : inputAmount
+    const enteredTotal = isHok && months > 0 ? inputAmount * months : inputAmount
+    // A donation entered in a foreign currency is stored in ₪ (for totals) with the
+    // original currency + amount kept in custom_data — exactly like Stripe donations.
+    const cur = (addForm.currency || 'ils').toLowerCase()
+    let rate = 1
+    if (cur !== 'ils') {
+      try {
+        const j = await fetch(`/api/fx?currency=${cur}&fallback=3.7`).then(r => r.json())
+        rate = Number(j?.rate) > 0 ? Number(j.rate) : 3.7
+      } catch { rate = 3.7 }
+    }
+    const round2 = (n: number) => Math.round(n * 100) / 100
+    const amount = cur === 'ils' ? enteredTotal : round2(enteredTotal * rate)
+    const monthlyIls = isHok ? (cur === 'ils' ? inputAmount : round2(inputAmount * rate)) : null
+    const foreignCd = cur !== 'ils' ? { stripe_currency: cur, stripe_amount: enteredTotal } : {}
     const { data, error } = await supabase.from('donations').insert({
       campaign_id: campaign.id,
       org_id: campaign.org_id, // ← היה undefined (הבאג): org_id הוא NOT NULL
       amount,
+      currency: 'ILS',
       donor_name: addForm.donor_name || null,
       donor_phone: addForm.donor_phone || null,
       donor_email: addForm.donor_email || null,
@@ -393,8 +408,8 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
       payment_status: 'completed',
       payment_type: isHok ? 'hok' : 'one_time',
       installments: isHok && months > 0 ? months : null,
-      monthly_amount: isHok ? inputAmount : null,
-      custom_data: { payment_method: addForm.payment_method, ...(addForm.anonymous ? { anonymous: 'true' } : {}), ...(addForm.manager_note.trim() ? { manager_note: addForm.manager_note.trim() } : {}) },
+      monthly_amount: monthlyIls,
+      custom_data: { payment_method: addForm.payment_method, ...foreignCd, ...(addForm.anonymous ? { anonymous: 'true' } : {}), ...(addForm.manager_note.trim() ? { manager_note: addForm.manager_note.trim() } : {}) },
     }).select().single()
     if (error || !data) {
       setAddError(error?.message || 'הוספת התרומה נכשלה')
@@ -404,7 +419,7 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
     const next = [data, ...donations]
     setDonations(next)
     await syncTotals(next, addForm.group_id ? [addForm.group_id] : [])
-    setAddForm({ amount: '', donor_name: '', donor_phone: '', donor_email: '', dedication: '', group_id: '', payment_type: 'one_time', installments: '', payment_method: 'credit', manager_note: '', anonymous: false })
+    setAddForm({ amount: '', currency: 'ils', donor_name: '', donor_phone: '', donor_email: '', dedication: '', group_id: '', payment_type: 'one_time', installments: '', payment_method: 'credit', manager_note: '', anonymous: false })
     setShowAdd(false)
     setSaving(false)
     router.refresh()
@@ -609,11 +624,30 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
-              <Label className="text-xs">{addForm.payment_type === 'hok' ? 'סכום חודשי (₪) *' : 'סכום (₪) *'}</Label>
-              <Input type="number" value={addForm.amount} onChange={e => setAddForm(f => ({ ...f, amount: e.target.value }))} placeholder="180" />
-              {addForm.payment_type === 'hok' && Number(addForm.amount) > 0 && Number(addForm.installments) > 0 && (
-                <p className="text-[11px] text-gray-400">סה״כ ₪{(Number(addForm.amount) * Number(addForm.installments)).toLocaleString()}</p>
-              )}
+              {(() => {
+                const sym = addForm.currency === 'ils' ? '₪' : (CUR_SYM[addForm.currency] || '')
+                return (
+                <>
+                  <Label className="text-xs">{addForm.payment_type === 'hok' ? `סכום חודשי (${sym}) *` : `סכום (${sym}) *`}</Label>
+                  <div className="flex gap-2">
+                    <Input type="number" value={addForm.amount} onChange={e => setAddForm(f => ({ ...f, amount: e.target.value }))} placeholder="180" className="flex-1" />
+                    <select value={addForm.currency} onChange={e => setAddForm(f => ({ ...f, currency: e.target.value }))}
+                      className="w-24 h-9 border border-gray-200 rounded-md px-2 text-sm bg-white outline-none focus:ring-2 focus:ring-blue-400" dir="ltr">
+                      <option value="ils">₪ ILS</option>
+                      <option value="usd">$ USD</option>
+                      <option value="eur">€ EUR</option>
+                      <option value="gbp">£ GBP</option>
+                    </select>
+                  </div>
+                  {addForm.payment_type === 'hok' && Number(addForm.amount) > 0 && Number(addForm.installments) > 0 && (
+                    <p className="text-[11px] text-gray-400">סה״כ {sym}{(Number(addForm.amount) * Number(addForm.installments)).toLocaleString()}</p>
+                  )}
+                  {addForm.currency !== 'ils' && (
+                    <p className="text-[11px] text-gray-400">יישמר בשקלים לפי השער היומי, עם הסכום המקורי ב-{sym}.</p>
+                  )}
+                </>
+                )
+              })()}
             </div>
             <div className="space-y-1">
               <Label className="text-xs">סוג תרומה</Label>
