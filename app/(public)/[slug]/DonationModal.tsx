@@ -603,7 +603,7 @@ export default function DonationModal({
                 placeholder={T.amountPh}
                 className="w-full border border-gray-200 rounded-xl px-4 py-3 text-lg font-bold text-center outline-none focus:ring-2"
                 style={{ '--tw-ring-color': primaryColor } as React.CSSProperties}
-                dir="ltr"
+                dir={en ? 'ltr' : 'rtl'}
                 min="1"
               />
             </div>
