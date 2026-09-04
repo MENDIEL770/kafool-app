@@ -42,6 +42,7 @@ export default function CampaignSettingsPage() {
     show_bricks: true,
     show_goal: true,
     hok_months_mode: 'list',
+    hok_default_months: '12',
     whatsapp_phone: '',
     whatsapp_message: '',
     manager_phone: '',
@@ -86,6 +87,7 @@ export default function CampaignSettingsPage() {
           show_bricks: data.settings?.show_bricks !== false,
           show_goal: data.settings?.show_goal !== false,
           hok_months_mode: data.settings?.hok_months_mode === 'range' ? 'range' : 'list',
+          hok_default_months: String(data.settings?.hok_default_months || 12),
           whatsapp_phone: data.settings?.whatsapp_phone || '',
           whatsapp_message: data.settings?.whatsapp_message || '',
           manager_phone: data.settings?.manager_phone || '',
@@ -152,6 +154,7 @@ export default function CampaignSettingsPage() {
         show_bricks: form.show_bricks,
         show_goal: form.show_goal,
         hok_months_mode: form.hok_months_mode === 'range' ? 'range' : 'list',
+        hok_default_months: Math.min(60, Math.max(2, Number(form.hok_default_months) || 12)),
         whatsapp_phone: form.whatsapp_phone || null,
         whatsapp_message: form.whatsapp_message || null,
         manager_phone: form.manager_phone || null,
@@ -325,6 +328,12 @@ export default function CampaignSettingsPage() {
                   <span className="text-[11px] text-gray-400">{desc}</span>
                 </button>
               ))}
+            </div>
+            <div className="mt-4 space-y-1 max-w-[12rem]">
+              <Label className="text-xs">ברירת מחדל (חודשים)</Label>
+              <Input type="number" min="2" max="60" value={form.hok_default_months}
+                onChange={(e) => set('hok_default_months', e.target.value)} dir="ltr" placeholder="12" />
+              <p className="text-[11px] text-gray-400">המספר שיהיה מסומן מראש כשהתורם בוחר הוראת קבע (2–60).</p>
             </div>
           </CardContent>
         </Card>

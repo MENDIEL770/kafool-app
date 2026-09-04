@@ -76,6 +76,7 @@ interface Props {
   ilsRate?: number   // ₪ per 1 unit of foreign currency (manager-set), for conversion
   presetForeignAmount?: number   // explicit foreign amount (e.g. a button's $ price), skips conversion
   hokMonthsMode?: 'list' | 'range'   // הו"ק month picker: preset list (default) or free 2–60
+  hokDefaultMonths?: number   // pre-selected months for a הו"ק (when a button doesn't set its own)
 }
 
 export default function DonationModal({
@@ -106,6 +107,7 @@ export default function DonationModal({
   ilsRate = 3.7,
   presetForeignAmount,
   hokMonthsMode = 'list',
+  hokDefaultMonths = 12,
 }: Props) {
   // The pre-step is available once configured (choice/info/consent). It is NEVER
   // applied globally — only when a button's form setting is explicitly 'choice'.
@@ -156,7 +158,7 @@ export default function DonationModal({
   const amountRef = useRef<HTMLInputElement>(null)
   const [selectedGroupSlug, setSelectedGroupSlug] = useState(presetGroupSlug || '')
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(presetMethod ?? 'one_time')
-  const [months, setMonths] = useState<number>(presetMonths ?? 12)
+  const [months, setMonths] = useState<number>(presetMonths ?? hokDefaultMonths)
   const [customValues, setCustomValues] = useState<Record<string, string>>({})
 
   // Currency: ₪ → Kesher/Nedarim iframe; any foreign currency → Stripe (in-modal).
@@ -219,7 +221,7 @@ export default function DonationModal({
       }
       setSelectedGroupSlug(presetGroupSlug || '')
       setPaymentMethod(presetMethod ?? 'one_time')
-      setMonths(presetMonths ?? 12)
+      setMonths(presetMonths ?? hokDefaultMonths)
       setCustomValues({})
       setChoice('')
       setConsented(false)
@@ -232,7 +234,7 @@ export default function DonationModal({
         setStep('details'); setActiveFormId(mode === 'regular' || mode === 'choice' ? '' : mode)
       }
     }
-  }, [isOpen, presetAmount, presetGroupSlug, presetMethod, presetMonths, hasPreStep, presetFormMode, defaultFormId, defaultCurrency, ilsRate, presetForeignAmount])
+  }, [isOpen, presetAmount, presetGroupSlug, presetMethod, presetMonths, hasPreStep, presetFormMode, defaultFormId, defaultCurrency, ilsRate, presetForeignAmount, hokDefaultMonths])
 
   // Bit / bank aren't available in a foreign currency (Stripe) — fall back to one-time.
   useEffect(() => {
