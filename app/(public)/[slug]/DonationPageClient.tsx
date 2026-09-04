@@ -1982,6 +1982,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
         presetMethod={modalMethod}
         presetMonths={modalMonths}
         presetForeignAmount={modalForeignAmount}
+        hokMonthsMode={(campaign.settings as { hok_months_mode?: 'list' | 'range' })?.hok_months_mode === 'range' ? 'range' : 'list'}
         donationUrl={donationUrl}
         paymentUrls={paymentUrls}
         paymentProvider={paymentProvider}

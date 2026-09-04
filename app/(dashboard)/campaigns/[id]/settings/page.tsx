@@ -41,6 +41,7 @@ export default function CampaignSettingsPage() {
     show_timer: true,
     show_bricks: true,
     show_goal: true,
+    hok_months_mode: 'list',
     whatsapp_phone: '',
     whatsapp_message: '',
     manager_phone: '',
@@ -84,6 +85,7 @@ export default function CampaignSettingsPage() {
           show_timer: data.settings?.show_timer !== false,
           show_bricks: data.settings?.show_bricks !== false,
           show_goal: data.settings?.show_goal !== false,
+          hok_months_mode: data.settings?.hok_months_mode === 'range' ? 'range' : 'list',
           whatsapp_phone: data.settings?.whatsapp_phone || '',
           whatsapp_message: data.settings?.whatsapp_message || '',
           manager_phone: data.settings?.manager_phone || '',
@@ -149,6 +151,7 @@ export default function CampaignSettingsPage() {
         show_timer: form.show_timer,
         show_bricks: form.show_bricks,
         show_goal: form.show_goal,
+        hok_months_mode: form.hok_months_mode === 'range' ? 'range' : 'list',
         whatsapp_phone: form.whatsapp_phone || null,
         whatsapp_message: form.whatsapp_message || null,
         manager_phone: form.manager_phone || null,
@@ -301,6 +304,28 @@ export default function CampaignSettingsPage() {
               <span className="text-sm text-gray-700">הצג את יעד הגיוס בדף הציבורי</span>
             </label>
             <p className="text-xs text-gray-400 mt-1.5">כשמכובה — יוצג רק הסכום שגויס, בלי היעד, פס ההתקדמות והאחוזים.</p>
+          </CardContent>
+        </Card>
+
+        {/* ── בחירת מספר חודשים בהוראת קבע ── */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">מספר חודשים בהוראת קבע</CardTitle>
+            <p className="text-xs text-gray-400 mt-1">איך התורם יבחר את מספר החודשים כשבוחר הוראת קבע.</p>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {([
+                ['list', 'רשימה קבועה', 'אפשרויות נפוצות: 6 / 12 / 18 / 24 / 36 / 48 / 60 חודשים'],
+                ['range', 'בחירה חופשית 2–60', 'התורם בוחר כל מספר חודשים בין 2 ל-60'],
+              ] as const).map(([val, title, desc]) => (
+                <button key={val} type="button" onClick={() => set('hok_months_mode', val)}
+                  className={`text-right rounded-xl border px-3 py-2.5 transition-colors ${form.hok_months_mode === val ? 'border-blue-400 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                  <span className={`text-sm font-bold block ${form.hok_months_mode === val ? 'text-blue-700' : 'text-gray-600'}`}>{title}</span>
+                  <span className="text-[11px] text-gray-400">{desc}</span>
+                </button>
+              ))}
+            </div>
           </CardContent>
         </Card>
 

@@ -75,6 +75,7 @@ interface Props {
   defaultCurrency?: string
   ilsRate?: number   // ₪ per 1 unit of foreign currency (manager-set), for conversion
   presetForeignAmount?: number   // explicit foreign amount (e.g. a button's $ price), skips conversion
+  hokMonthsMode?: 'list' | 'range'   // הו"ק month picker: preset list (default) or free 2–60
 }
 
 export default function DonationModal({
@@ -104,6 +105,7 @@ export default function DonationModal({
   defaultCurrency = 'ils',
   ilsRate = 3.7,
   presetForeignAmount,
+  hokMonthsMode = 'list',
 }: Props) {
   // The pre-step is available once configured (choice/info/consent). It is NEVER
   // applied globally — only when a button's form setting is explicitly 'choice'.
@@ -678,13 +680,24 @@ export default function DonationModal({
               {paymentMethod === 'hok' && (
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-gray-500">{T.hokMonths}</label>
-                  <select
-                    value={months}
-                    onChange={e => setMonths(Number(e.target.value))}
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-400 bg-white"
-                  >
-                    {[6, 12, 18, 24, 36, 48, 60].map(m => <option key={m} value={m}>{m} {T.months}</option>)}
-                  </select>
+                  {hokMonthsMode === 'range' ? (
+                    // Free choice 2–60 — full list so any number of payments can be picked.
+                    <select
+                      value={months}
+                      onChange={e => setMonths(Number(e.target.value))}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+                    >
+                      {Array.from({ length: 59 }, (_, i) => i + 2).map(m => <option key={m} value={m}>{m} {T.months}</option>)}
+                    </select>
+                  ) : (
+                    <select
+                      value={months}
+                      onChange={e => setMonths(Number(e.target.value))}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+                    >
+                      {[6, 12, 18, 24, 36, 48, 60].map(m => <option key={m} value={m}>{m} {T.months}</option>)}
+                    </select>
+                  )}
                   {finalAmount > 0 && months > 0 && (
                     <p className="text-xs text-gray-600 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2 text-center">
                       {sym}{finalAmount.toLocaleString()} {T.perMonth} × {months} {T.months} = <strong className="text-gray-900">{sym}{(finalAmount * months).toLocaleString()}</strong> {T.total}
