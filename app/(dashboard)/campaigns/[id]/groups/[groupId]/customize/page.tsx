@@ -13,6 +13,42 @@ import { Upload, Trash2, ArrowRight, Check } from 'lucide-react'
 type BannerObj = { url: string; sort_order: number }
 const urlsOf = (v?: BannerObj[]) => v?.length ? [...v].sort((a, b) => a.sort_order - b.sort_order).map(b => b.url) : []
 
+// A row of banner thumbnails with always-visible delete + replace (touch-friendly)
+// plus an upload tile. Module-scoped so it doesn't remount on every keystroke.
+function BannerList({ list, kind, busy, onDelete, onReplace, onAdd }: {
+  list: string[]
+  kind: 'desktop' | 'mobile'
+  busy: boolean
+  onDelete: (i: number) => void
+  onReplace: (i: number, f: File) => void
+  onAdd: (f: File) => void
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-2">
+        {list.map((url, i) => (
+          <div key={i} className="relative w-28 h-16 rounded-lg overflow-hidden border border-gray-200">
+            <img src={url} alt="" className="w-full h-full object-cover" />
+            <div className="absolute top-1 left-1 flex gap-1">
+              <button type="button" onClick={() => onDelete(i)} title="מחק"
+                className="w-6 h-6 rounded-full bg-red-600/90 text-white flex items-center justify-center shadow hover:bg-red-700"><Trash2 className="w-3.5 h-3.5" /></button>
+              <label title="החלף" className="w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center shadow hover:bg-black/80 cursor-pointer">
+                <Upload className="w-3.5 h-3.5" />
+                <input type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) onReplace(i, f); e.target.value = '' }} />
+              </label>
+            </div>
+          </div>
+        ))}
+        <label className={`w-28 h-16 rounded-lg border-2 border-dashed border-gray-200 hover:border-blue-300 flex items-center justify-center cursor-pointer bg-gray-50 ${busy ? 'opacity-60 pointer-events-none' : ''}`}>
+          {busy ? <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" /> : <Upload className="w-4 h-4 text-gray-300" />}
+          <input type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) onAdd(f); e.target.value = '' }} />
+        </label>
+      </div>
+      {list.length === 0 && <p className="text-[11px] text-gray-400">ריק — יוצגו הבאנרים של הקמפיין.</p>}
+    </div>
+  )
+}
+
 // Per-group customization: banners / donation buttons / about text / primary color.
 // Anything left empty is INHERITED from the campaign (the public page falls back).
 export default function GroupCustomizePage() {
@@ -65,6 +101,21 @@ export default function GroupCustomizePage() {
     setUploadingBanner(null)
   }
 
+  async function replaceBanner(file: File, kind: 'desktop' | 'mobile', i: number) {
+    setUploadingBanner(kind)
+    try {
+      const url = await uploadImage(file, `groups/${groupId}/banner-${kind}-${Date.now()}`)
+      const set = kind === 'mobile' ? setMobileBanners : setBanners
+      set(b => b.map((u, idx) => idx === i ? url : u))
+    } catch { alert('העלאת התמונה נכשלה') }
+    setUploadingBanner(null)
+  }
+
+  const deleteBanner = (kind: 'desktop' | 'mobile', i: number) => {
+    const set = kind === 'mobile' ? setMobileBanners : setBanners
+    set(b => b.filter((_, idx) => idx !== i))
+  }
+
   // plan operations (reuse PlanEditor)
   const updatePlan = (i: number, patch: Partial<DonationPlan>) => setPlans(p => p.map((x, idx) => idx === i ? { ...x, ...patch } : x))
   const removePlan = (i: number) => setPlans(p => p.filter((_, idx) => idx !== i))
@@ -110,25 +161,6 @@ export default function GroupCustomizePage() {
 
   if (loading) return <div className="p-6 text-sm text-gray-400" dir="rtl">טוען…</div>
 
-  const BannerList = ({ list, setList, kind }: { list: string[]; setList: React.Dispatch<React.SetStateAction<string[]>>; kind: 'desktop' | 'mobile' }) => (
-    <div className="space-y-2">
-      <div className="flex flex-wrap gap-2">
-        {list.map((url, i) => (
-          <div key={i} className="relative w-28 h-16 rounded-lg overflow-hidden border border-gray-200 group">
-            <img src={url} alt="" className="w-full h-full object-cover" />
-            <button type="button" onClick={() => setList(b => b.filter((_, idx) => idx !== i))}
-              className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 className="w-3 h-3" /></button>
-          </div>
-        ))}
-        <label className={`w-28 h-16 rounded-lg border-2 border-dashed border-gray-200 hover:border-blue-300 flex items-center justify-center cursor-pointer bg-gray-50 ${uploadingBanner === kind ? 'opacity-60' : ''}`}>
-          {uploadingBanner === kind ? <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" /> : <Upload className="w-4 h-4 text-gray-300" />}
-          <input type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) addBanner(f, kind); e.target.value = '' }} />
-        </label>
-      </div>
-      {list.length === 0 && <p className="text-[11px] text-gray-400">ריק — יוצגו הבאנרים של הקמפיין.</p>}
-    </div>
-  )
-
   return (
     <div className="max-w-2xl mx-auto space-y-5 pb-10" dir="rtl">
       <div className="flex items-center justify-between">
@@ -143,8 +175,14 @@ export default function GroupCustomizePage() {
 
       <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-3">
         <h2 className="text-base font-bold text-gray-900">באנרים</h2>
-        <div className="space-y-1"><Label className="text-xs">באנרים (מחשב)</Label><BannerList list={banners} setList={setBanners} kind="desktop" /></div>
-        <div className="space-y-1"><Label className="text-xs">באנרים לנייד (אופציונלי)</Label><BannerList list={mobileBanners} setList={setMobileBanners} kind="mobile" /></div>
+        <div className="space-y-1"><Label className="text-xs">באנרים (מחשב)</Label>
+          <BannerList list={banners} kind="desktop" busy={uploadingBanner === 'desktop'}
+            onAdd={f => addBanner(f, 'desktop')} onReplace={(i, f) => replaceBanner(f, 'desktop', i)} onDelete={i => deleteBanner('desktop', i)} />
+        </div>
+        <div className="space-y-1"><Label className="text-xs">באנרים לנייד (אופציונלי)</Label>
+          <BannerList list={mobileBanners} kind="mobile" busy={uploadingBanner === 'mobile'}
+            onAdd={f => addBanner(f, 'mobile')} onReplace={(i, f) => replaceBanner(f, 'mobile', i)} onDelete={i => deleteBanner('mobile', i)} />
+        </div>
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-3">
