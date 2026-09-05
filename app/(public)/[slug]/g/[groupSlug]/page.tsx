@@ -193,6 +193,8 @@ export default async function GroupPage({ params, searchParams }: { params: Prom
         manager_name: group.manager_name,
         image_url: group.image_url,
         donorCount: groupDonorCount ?? 0,
+        // Optional per-group overrides (banners / buttons / about / color). Absent = inherit campaign.
+        settings: (group as { settings?: Record<string, unknown> }).settings ?? null,
       }}
     />
   )

@@ -189,7 +189,16 @@ function planAvatarImage(d: Donation, plans: PlanForAvatar[] | undefined, lang: 
   return (lang === 'en' ? (p.image_url_en || p.image_url) : p.image_url) || null
 }
 interface GalleryItem { id: string; image_url: string; caption: string | null }
-interface ActiveGroup { id: string; name: string; slug: string; goal_amount: number; raised_amount: number; manager_name: string | null; image_url?: string | null; donorCount?: number }
+// Optional per-group overrides (banners / buttons / about / color). Any key absent
+// means "inherit the campaign". One language-agnostic set (shown in both languages).
+type GroupSettings = {
+  banners?: { url: string; sort_order: number }[]
+  mobile_banners?: { url: string; sort_order: number }[]
+  donation_plans?: { amount: number; amount_usd?: number | null; label?: string; image_url?: string | null; image_url_en?: string | null; payment_type?: 'one_time' | 'hok'; months?: number | null; form?: string | null; cta?: string | null }[]
+  about_text?: string | null
+  primary_color?: string | null
+}
+interface ActiveGroup { id: string; name: string; slug: string; goal_amount: number; raised_amount: number; manager_name: string | null; image_url?: string | null; donorCount?: number; settings?: GroupSettings | null }
 interface PaymentUrls { one_time: string; hok: string; bit: string; bank: string; one_time_en?: string; hok_en?: string }
 interface NedarimConfig { mosad: string; apiValid: string; active: boolean }
 interface Props { org: Org; campaign: Campaign; donations: Donation[]; groups: Group[]; gallery: GalleryItem[]; activeGroup?: ActiveGroup; donationUrl?: string; paymentUrls?: PaymentUrls; paymentProvider?: string; nedarim?: NedarimConfig | null; initialLang?: Lang }
@@ -540,9 +549,10 @@ function BannerCarousel({ banners, videoEmbed, onPlayVideo }: {
   )
 }
 
-function HeroSection({ campaign, countdown }: {
+function HeroSection({ campaign, countdown, groupSettings }: {
   campaign: Campaign
   countdown: { d: number; h: number; m: number; s: number } | null
+  groupSettings?: GroupSettings
 }) {
   const lang = useLang()
   const settings = campaign.settings as {
@@ -554,13 +564,16 @@ function HeroSection({ campaign, countdown }: {
   }
   const urls = (v?: { url: string; sort_order: number }[]) =>
     v?.length ? [...v].sort((a, b) => a.sort_order - b.sort_order).map(b => b.url) : []
-  // In English use the EN banner set when uploaded, else fall back to the Hebrew set.
+  // A group's own banners (one set) win in both languages; else the campaign's,
+  // with the EN set used in English when uploaded.
+  const gBanners = urls(groupSettings?.banners)
   const heBanners = urls(settings?.banners).length ? urls(settings?.banners) : (campaign.cover_image_url ? [campaign.cover_image_url] : [])
-  const banners = (lang === 'en' && urls(settings?.banners_en).length) ? urls(settings?.banners_en) : heBanners
+  const banners = gBanners.length ? gBanners : ((lang === 'en' && urls(settings?.banners_en).length) ? urls(settings?.banners_en) : heBanners)
 
   // Dedicated mobile banner set; falls back to the desktop banners when none uploaded.
+  const gMobile = urls(groupSettings?.mobile_banners)
   const heMobile = urls(settings?.mobile_banners).length ? urls(settings?.mobile_banners) : banners
-  const mobileBanners = (lang === 'en' && urls(settings?.mobile_banners_en).length) ? urls(settings?.mobile_banners_en) : heMobile
+  const mobileBanners = gMobile.length ? gMobile : ((lang === 'en' && urls(settings?.mobile_banners_en).length) ? urls(settings?.mobile_banners_en) : heMobile)
 
   const [videoOpen, setVideoOpen] = useState(false)
   // The play button on the banner can be turned off in the campaign media settings.
@@ -1284,13 +1297,15 @@ function CampaignVideos({ campaign }: { campaign: Campaign }) {
   )
 }
 
-function AboutSection({ campaign, gallery }: { campaign: Campaign; gallery: GalleryItem[] }) {
+function AboutSection({ campaign, gallery, groupSettings }: { campaign: Campaign; gallery: GalleryItem[]; groupSettings?: GroupSettings }) {
   const lang = useLang()
   const t = useT()
   const settings = campaign.settings as { about_text?: string | null; about_text_en?: string | null; about_image?: string | null; gallery_mode?: string }
   const galleryStacked = settings?.gallery_mode === 'stacked'
-  // English visitors see the English about text when provided; otherwise fall back.
-  const aboutText = (lang === 'en' && settings?.about_text_en?.trim()) ? settings.about_text_en : settings?.about_text
+  // A group's own about text (one set) wins; else English about text when provided, else Hebrew.
+  const aboutText = groupSettings?.about_text?.trim()
+    ? groupSettings.about_text
+    : ((lang === 'en' && settings?.about_text_en?.trim()) ? settings.about_text_en : settings?.about_text)
   const aboutImage = settings?.about_image || null
   const [idx, setIdx] = useState(0)               // inline carousel position
   // On mobile the About text is collapsed behind a "read more" so the donor
@@ -1688,15 +1703,19 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
   // A section shows unless the builder explicitly turned it off.
   const isOn = (id: string) => !blockOn || blockOn[id] !== false
   const pageBg = builderCfg?.design.bg
-  const primaryColor = builderCfg?.design.primary || settings?.primary_color || '#2563eb'
+  // Per-group overrides: on a group page, the group's own banners/buttons/about/color
+  // replace the campaign's when set (one set, shown in both languages).
+  const gs = activeGroup?.settings || undefined
+  const primaryColor = builderCfg?.design.primary || gs?.primary_color || settings?.primary_color || '#2563eb'
   const whatsappPhone = normalizeWaPhone(settings?.whatsapp_phone)
   const whatsappUrl = whatsappPhone
     ? `https://wa.me/${whatsappPhone}${settings?.whatsapp_message ? `?text=${encodeURIComponent(settings.whatsapp_message)}` : ''}`
     : null
-  const donationPlans = settings?.donation_plans ||
+  const donationPlans = (gs?.donation_plans?.length ? gs.donation_plans : settings?.donation_plans) ||
     (settings?.donation_amounts || [180, 360, 720, 1800, 3600]).map(amount => ({ amount }))
   // Separate English button set (optional); empty → English falls back to the Hebrew list.
-  const donationPlansEn = (settings as { donation_plans_en?: typeof donationPlans })?.donation_plans_en || undefined
+  // A group override is one language-agnostic set → skip the campaign's EN split.
+  const donationPlansEn = gs?.donation_plans?.length ? undefined : ((settings as { donation_plans_en?: typeof donationPlans })?.donation_plans_en || undefined)
   const buttonRadiusMap: Record<string, string> = { pill: 'rounded-full', rounded: 'rounded-xl', square: 'rounded-md' }
   const buttonRadius = builderCfg
     ? radiusToButtonClass(builderCfg.design.radius)
@@ -1899,7 +1918,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
       )}
 
       {/* 2. Hero */}
-      {isOn('hero') && <HeroSection campaign={campaign} countdown={countdown} />}
+      {isOn('hero') && <HeroSection campaign={campaign} countdown={countdown} groupSettings={gs} />}
 
       {/* סרטוני הקמפיין — מעל כפתור התרומה ומעל "אודות" */}
       {isOn('video') && <CampaignVideos campaign={campaign} />}
@@ -1932,7 +1951,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
             {/* אודות — ימין בעברית, שמאל באנגלית (טקסט מיושר לשמאל) */}
             {isOn('gallery') && (
             <div className="lg:w-[45%] shrink-0" dir={lang === 'en' ? 'ltr' : undefined}>
-              <AboutSection campaign={campaign} gallery={gallery} />
+              <AboutSection campaign={campaign} gallery={gallery} groupSettings={gs} />
             </div>
             )}
             {/* תורמים — שמאל בעברית, ימין באנגלית */}
