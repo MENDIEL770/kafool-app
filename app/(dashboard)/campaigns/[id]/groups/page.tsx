@@ -5,7 +5,8 @@ import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { ExternalLink, Pencil, MessageSquare, Send, X, Check, Loader2, ChevronDown, ChevronUp, Trash2, AlertTriangle, TrendingUp, TrendingDown, Copy, Link2, Search } from 'lucide-react'
+import { ExternalLink, Pencil, MessageSquare, Send, X, Check, Loader2, ChevronDown, ChevronUp, Trash2, AlertTriangle, TrendingUp, TrendingDown, Copy, Link2, Search, Palette } from 'lucide-react'
+import Link from 'next/link'
 import type { Group } from '@/types'
 
 interface CampaignInfo { slug: string; campaign_slug: string }
@@ -1024,6 +1025,13 @@ export default function GroupsPage() {
                   >
                     <Pencil className="w-4 h-4" />
                   </button>
+                  <Link
+                    href={`/campaigns/${campaignId}/groups/${g.id}/customize`}
+                    title="התאמה אישית — באנרים, כפתורים, אודות וצבע לדף הקבוצה"
+                    className="p-1.5 rounded-lg text-gray-400 hover:bg-purple-50 hover:text-purple-600 transition-colors"
+                  >
+                    <Palette className="w-4 h-4" />
+                  </Link>
                   <button
                     onClick={() => setDeleteGroup(g)}
                     title="מחק קבוצה"

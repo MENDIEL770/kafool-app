@@ -55,11 +55,11 @@ function FrameGrabber({ src, onClose, onCapture }: { src: string; onClose: () =>
 
 /* ─── Types ─── */
 interface GalleryItem { id: string; image_url: string; caption: string | null; sort_order: number }
-interface DonationPlan { amount: number; amount_usd?: number | null; label?: string | null; image_url?: string | null; image_url_en?: string | null; payment_type?: 'one_time' | 'hok'; months?: number | null; form?: string | null; cta?: string | null; _cid?: string }
+export interface DonationPlan { amount: number; amount_usd?: number | null; label?: string | null; image_url?: string | null; image_url_en?: string | null; payment_type?: 'one_time' | 'hok'; months?: number | null; form?: string | null; cta?: string | null; _cid?: string }
 // Stable client id so React keys survive add/remove/reorder in an editable list
 // with file inputs (index keys were mixing up which button an upload landed on).
-const withCid = (list: DonationPlan[]): DonationPlan[] => (list || []).map(p => ({ ...p, _cid: p._cid || (typeof crypto !== 'undefined' ? crypto.randomUUID() : String(Math.random())) }))
-interface FormOption { id: string; name: string }
+export const withCid = (list: DonationPlan[]): DonationPlan[] => (list || []).map(p => ({ ...p, _cid: p._cid || (typeof crypto !== 'undefined' ? crypto.randomUUID() : String(Math.random())) }))
+export interface FormOption { id: string; name: string }
 
 interface Props {
   campaignId: string
@@ -236,7 +236,7 @@ function UploadZone({
 }
 
 /* ─── Donation button (plan) editor row ─── */
-function PlanEditor({ plan, lang, foreignSym = '$', uploading, isFirst, isLast, customForms, preStepEnabled, onChange, onUpload, onRemove, onMoveUp, onMoveDown }: {
+export function PlanEditor({ plan, lang, foreignSym = '$', uploading, isFirst, isLast, customForms, preStepEnabled, onChange, onUpload, onRemove, onMoveUp, onMoveDown }: {
   plan: DonationPlan
   lang: 'he' | 'en'
   foreignSym?: string
