@@ -104,7 +104,7 @@ export default function ProductsEditorPage() {
     } catch { alert('העלאת התמונה נכשלה') }
     setUploading(null)
   }
-  const rmImage = (i: number, k: number) => upP(i, { images: products[i].images.filter((_, idx) => idx !== k) })
+  const rmImage = (i: number, k: number) => setProducts(ps => ps.map((p, idx) => idx === i ? { ...p, images: p.images.filter((_, x) => x !== k) } : p))
   const addTier = (i: number) => upP(i, { qty_tiers: [...products[i].qty_tiers, { qty: 0, price: 0 }] })
   const upTier = (i: number, ti: number, patch: Partial<QtyTier>) => upP(i, { qty_tiers: products[i].qty_tiers.map((t, idx) => idx === ti ? { ...t, ...patch } : t) })
   const rmTier = (i: number, ti: number) => upP(i, { qty_tiers: products[i].qty_tiers.filter((_, idx) => idx !== ti) })
@@ -188,7 +188,7 @@ export default function ProductsEditorPage() {
                     <Label className="text-xs">תמונות (הראשונה היא הראשית)</Label>
                     <div className="flex flex-wrap gap-2">
                       {p.images.map((url, k) => (
-                        <div key={k} className="relative w-20 h-20 rounded-lg overflow-hidden border border-gray-200">
+                        <div key={url} className="relative w-20 h-20 rounded-lg overflow-hidden border border-gray-200">
                           <img src={url} alt="" className="w-full h-full object-cover" />
                           <button type="button" onClick={() => rmImage(i, k)} className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-red-600/90 text-white flex items-center justify-center"><X className="w-3 h-3" /></button>
                           {k === 0 && <span className="absolute bottom-0 inset-x-0 bg-black/50 text-white text-[9px] text-center">ראשית</span>}
