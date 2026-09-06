@@ -2,6 +2,7 @@ import { createClient as createAdmin } from '@supabase/supabase-js'
 import { notFound } from 'next/navigation'
 import { type Metadata } from 'next'
 import DonationPageClient from './DonationPageClient'
+import ProductSalesClient from './ProductSalesClient'
 import { applyCampaignPaymentOverride } from '@/lib/payment'
 
 // Service-role client for public reads that bypass RLS
@@ -179,6 +180,21 @@ export default async function PublicDonationPage({ params, searchParams }: { par
     if (patch.urls) Object.assign(paymentUrls, patch.urls)
     if (patch.nedarim) nedarim = { mosad: patch.nedarim.mosad || nedarim?.mosad || '', apiValid: patch.nedarim.apiValid || nedarim?.apiValid || '', active: true }
   }, paymentProvider)
+
+  // Product sales page — a distinct public layout (banner + products + cart +
+  // checkout) instead of the donation page. Everything else (payment resolution
+  // above) is shared.
+  if ((campaign.settings as { page_type?: string })?.page_type === 'products') {
+    return (
+      <ProductSalesClient
+        campaign={campaign}
+        initialLang={urlLang}
+        paymentUrls={paymentUrls}
+        paymentProvider={paymentProvider}
+        nedarim={nedarim}
+      />
+    )
+  }
 
   return (
     <DonationPageClient
