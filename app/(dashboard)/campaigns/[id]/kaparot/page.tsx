@@ -21,8 +21,10 @@ export default function KaparotSettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [uploading, setUploading] = useState<'logo' | 'email' | 'flyer' | null>(null)
+  const [uploading, setUploading] = useState<'logo' | 'email' | 'flyer' | 'hero' | null>(null)
   const [slug, setSlug] = useState('')
+  const [heroImage, setHeroImage] = useState('')
+  const [heroDeclaration, setHeroDeclaration] = useState('')
 
   const [pricePerSoul, setPricePerSoul] = useState('50')
   const [maxSouls, setMaxSouls] = useState('20')
@@ -48,6 +50,8 @@ export default function KaparotSettingsPage() {
       setIntroHtml(String(k.intro_html || ''))
       setAboutText(String(k.about_text || ''))
       setLogoUrl(String(k.chabad_logo_url || ''))
+      setHeroImage(String(k.hero_image_url || ''))
+      setHeroDeclaration(k.hero_declaration != null ? String(k.hero_declaration) : 'יחי אדוננו מורנו ורבינו מלך המשיח לעולם ועד')
       const em = (k.email || {}) as Record<string, string>
       setEmailSubject(em.subject || '')
       setEmailBody(em.body || '')
@@ -65,12 +69,12 @@ export default function KaparotSettingsPage() {
 
   const logoRef = useRef<HTMLInputElement>(null)
   const emailImgRef = useRef<HTMLInputElement>(null)
-  async function upImg(file: File | undefined, which: 'logo' | 'email' | 'flyer') {
+  async function upImg(file: File | undefined, which: 'logo' | 'email' | 'flyer' | 'hero') {
     if (!file) return
     setUploading(which)
     try {
       const url = await uploadImage(file, `campaigns/${id}/kaparot-${which}-${Date.now()}`)
-      if (which === 'logo') setLogoUrl(url); else if (which === 'flyer') setFlyerTemplate(url); else setEmailImage(url)
+      if (which === 'logo') setLogoUrl(url); else if (which === 'flyer') setFlyerTemplate(url); else if (which === 'hero') setHeroImage(url); else setEmailImage(url)
     } catch { alert('העלאת התמונה נכשלה') }
     setUploading(null)
   }
@@ -87,6 +91,8 @@ export default function KaparotSettingsPage() {
         intro_html: introHtml.trim() || null,
         about_text: aboutText.trim() || null,
         chabad_logo_url: logoUrl.trim() || null,
+        hero_image_url: heroImage.trim() || null,
+        hero_declaration: heroDeclaration.trim(),
         email: {
           subject: emailSubject.trim() || null,
           body: emailBody.trim() || null,
@@ -138,6 +144,29 @@ export default function KaparotSettingsPage() {
             {logoUrl && <button onClick={() => setLogoUrl('')} className="text-xs text-red-400 hover:text-red-600">הסר</button>}
           </div>
           <p className="text-[11px] text-gray-400 mt-1.5">ריק = הלוגו של הארגון.</p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">תמונת רקע (Hero)</CardTitle>
+          <p className="text-xs text-gray-400 mt-1">תמונה רחבה שתופיע ברקע ראש העמוד (למשל חוף / נוף בית חב״ד). ריק = רקע זהב עדין.</p>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-center gap-3">
+            {heroImage && <img src={heroImage} alt="" className="h-16 w-28 object-cover rounded border border-gray-100" />}
+            <label className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600 cursor-pointer">
+              {uploading === 'hero' ? <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" /> : <Upload className="w-4 h-4" />}
+              {heroImage ? 'החלף תמונה' : 'העלה תמונה'}
+              <input type="file" accept="image/*" className="hidden" onChange={e => { upImg(e.target.files?.[0], 'hero'); e.target.value = '' }} />
+            </label>
+            {heroImage && <button onClick={() => setHeroImage('')} className="text-xs text-red-400 hover:text-red-600">הסר</button>}
+          </div>
+          <div className="space-y-1">
+            <Label>הצהרה בראש העמוד (אופציונלי)</Label>
+            <Input value={heroDeclaration} onChange={e => setHeroDeclaration(e.target.value)} placeholder="יחי אדוננו מורנו ורבינו מלך המשיח לעולם ועד" />
+            <p className="text-[11px] text-gray-400">ריק = לא יוצג.</p>
+          </div>
         </CardContent>
       </Card>
 
