@@ -147,6 +147,7 @@ export default async function ThanksPage({
       logoUrl={logoUrl}
       thanksTitle={thanks?.title || null}
       thanksMessage={thanks?.message || null}
+      isOrder={(campaign.settings as { page_type?: string })?.page_type === 'products'}
     />
   )
 }

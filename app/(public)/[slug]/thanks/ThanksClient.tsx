@@ -19,14 +19,17 @@ interface Props {
   logoUrl?: string | null
   thanksTitle?: string | null
   thanksMessage?: string | null
+  isOrder?: boolean
 }
 
 type Phase = 'verifying' | 'confirmed' | 'pending'
 
 export default function ThanksClient({
   slug, campaignId, orgName, campaignTitle, primaryColor, receiptUrl,
-  transactionNumber, pendingTx, initiallyConfirmed, logoUrl, thanksTitle, thanksMessage,
+  transactionNumber, pendingTx, initiallyConfirmed, logoUrl, thanksTitle, thanksMessage, isOrder,
 }: Props) {
+  // Product-sales pages phrase the confirmation as an order, not a donation.
+  const noun = isOrder ? 'ההזמנה' : 'התרומה'
   const router = useRouter()
 
   // Only congratulate once the payment is actually confirmed. If we already know
@@ -127,7 +130,7 @@ export default function ThanksClient({
           </div>
           <div>
             <h1 className="text-2xl font-black text-gray-900 mb-2">מאמתים את התשלום…</h1>
-            <p className="text-gray-500 text-base">אנחנו מוודאים מול חברת הסליקה שהתרומה נקלטה.</p>
+            <p className="text-gray-500 text-base">אנחנו מוודאים מול חברת הסליקה ש{noun} נקלטה.</p>
             <p className="text-gray-400 text-sm mt-2">אל תסגור את הדף — זה ייקח כמה שניות.</p>
           </div>
         </div>
@@ -150,7 +153,7 @@ export default function ThanksClient({
           <div>
             <h1 className="text-2xl font-black text-gray-900 mb-2">עדיין מאמתים את התשלום</h1>
             <p className="text-gray-500 text-base leading-relaxed">
-              קיבלנו את בקשת התרומה, אך טרם קיבלנו אישור מחברת הסליקה.
+              קיבלנו את בקשת {isOrder ? 'ההזמנה' : 'התרומה'}, אך טרם קיבלנו אישור מחברת הסליקה.
               <br />
               ייתכן שהחיוב לא הושלם. אם לא חויבת — נסה שוב. אם כן חויבת — נשמח שתיצור קשר ונוודא.
             </p>
@@ -189,7 +192,7 @@ export default function ThanksClient({
 
         <div>
           <h1 className="text-3xl font-black text-gray-900 mb-2">{thanksTitle || 'תודה רבה!'}</h1>
-          <p className="text-gray-500 text-lg whitespace-pre-line">{thanksMessage || 'תרומתך התקבלה בהצלחה'}</p>
+          <p className="text-gray-500 text-lg whitespace-pre-line">{thanksMessage || (isOrder ? 'הזמנתך התקבלה בהצלחה' : 'תרומתך התקבלה בהצלחה')}</p>
           {donorName && <p className="text-gray-700 font-bold mt-1">{donorName}</p>}
           {orgName && <p className="text-gray-400 text-sm mt-1">{orgName}</p>}
         </div>

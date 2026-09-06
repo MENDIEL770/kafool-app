@@ -38,10 +38,12 @@ export default function CampaignNav({ campaign, pageType = 'donation' }: Props) 
   const tabs = [
     { href: base, label: 'ראשי', icon: LayoutDashboard, exact: true },
     { href: `${base}/settings`, label: 'הגדרות', icon: Settings },
-    // Product sales pages get a dedicated catalog/shipping editor.
+    // Product sales pages get a dedicated catalog/shipping editor + orders view.
     ...(isProducts ? [{ href: `${base}/products`, label: 'מוצרים', icon: ShoppingBag }] : []),
     { href: `${base}/media`, label: 'מדיה', icon: Image },
-    { href: `${base}/donors`, label: isProducts ? 'הזמנות' : 'תורמים', icon: Users },
+    isProducts
+      ? { href: `${base}/orders`, label: 'הזמנות', icon: Users }
+      : { href: `${base}/donors`, label: 'תורמים', icon: Users },
     { href: `${base}/abandoned`, label: 'לידים שנטשו', icon: UserX },
     { href: `${base}/insights`, label: 'סקירת תנועה', icon: Activity },
     { href: `${base}/groups`, label: 'קבוצות', icon: Group },
