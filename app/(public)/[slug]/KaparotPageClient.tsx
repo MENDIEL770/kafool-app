@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import DonationModal from './DonationModal'
-import { Banknote, RefreshCw, HeartHandshake, Calendar, Coins, Users, Lock, ShieldCheck } from 'lucide-react'
+import { Banknote, BookOpen, HeartHandshake, Calendar, Coins, Users, Lock, ShieldCheck } from 'lucide-react'
 
 // ── Design tokens (approved mockup) ──────────────────────────────────────────
 const C = {
@@ -32,9 +32,9 @@ const DEFAULT_YECHI = 'יחי אדוננו מורנו ורבינו מלך המש
 const NUSACH = 'בְּנֵי אָדָם יוֹשְׁבֵי חשֶׁךְ וְצַלְמָוֶת אֲסִירֵי עֳנִי וּבַרְזֶל: יוֹצִיאֵם מֵחשֶׁךְ וְצַלְמָוֶת וּמוֹסְרוֹתֵיהֶם יְנַתֵּק: אֱוִילִים מִדֶּרֶךְ פִּשְׁעָם וּמֵעֲוֹנֹתֵיהֶם יִתְעַנּוּ: כָּל אֹכֶל תְּתַעֵב נַפְשָׁם וַיַּגִּיעוּ עַד שַׁעֲרֵי מָוֶת: וַיִּזְעֲקוּ אֶל אַ-דֹנָי בַּצַּר לָהֶם מִמְּצוּקוֹתֵיהֶם יוֹשִׁיעֵם: יִשְׁלַח דְּבָרוֹ וְיִרְפָּאֵם וִימַלֵּט מִשְּׁחִיתוֹתָם: יוֹדוּ לַ־דֹנָי חַסְדּוֹ וְנִפְלְאוֹתָיו לִבְנֵי אָדָם: אִם יֵשׁ עָלָיו מַלְאָךְ מֵלִיץ אֶחָד מִנִּי אָלֶף. לְהַגִּיד לְאָדָם יָשְׁרוֹ: יְחֻנֶּנּוּ וַיֹּאמֶר פְּדָעֵהוּ מֵרֶדֶת שַׁחַת מָצָאתִי כֹפֶר:'
 const DECLARATION = 'זֶה חֲלִיפָתִי. זֶה תְּמוּרָתִי. זֶה כַּפָּרָתִי. זֶה הַכֶּסֶף יֵלֵךְ לִצְדָקָה, וַאֲנִי אֵלֵךְ לְחַיִּים טוֹבִים אֲרוּכִים וּלְשָׁלוֹם'
 const STEPS = [
-  { icon: Banknote, text: 'אוחזים את הכסף ואומרים את פסוקי הכפרות.' },
-  { icon: RefreshCw, text: 'מסובבים שלוש פעמים מעל הראש ואומרים:' },
-  { icon: HeartHandshake, text: 'מעבירים לצדקה — משלימים בטופס.' },
+  { icon: Banknote, text: 'לוקחים כסף מזומן ועושים עליו את "פדיון הכפרות". לאחר מכן תורמים את הסכום כנגדו לצדקה בטופס שלפניכם.' },
+  { icon: BookOpen, text: 'אומרים את נוסח הכפרות המופיע למטה, ותוך כדי אומרים: "זה חליפתי, זה תמורתי, זה כפרתי…".' },
+  { icon: HeartHandshake, text: 'מעבירים לצדקה — משלימים את הפדיון בטופס שלמעלה.' },
 ]
 const FAQ = [
   { icon: Calendar, q: 'מתי עורכים כפרות?', a: 'בעשרת ימי תשובה, ורבים עורכים בערב יום הכיפורים.' },
@@ -126,11 +126,12 @@ export default function KaparotPageClient({ org, campaign, initialLang, donation
   )
 
   return (
-    <div dir={initialLang === 'en' ? 'ltr' : 'rtl'} style={{ background: C.bg, color: C.text, minHeight: '100vh', fontFamily: "'Heebo', system-ui, sans-serif" }}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@500;700;900&family=Heebo:wght@400;500;700&display=swap');
-        .kap-h{font-family:'Frank Ruhl Libre',Georgia,serif}
+    <div dir={initialLang === 'en' ? 'ltr' : 'rtl'} style={{ background: C.bg, color: C.text, minHeight: '100vh', fontFamily: "'Rubik', system-ui, sans-serif" }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800;900&family=Frank+Ruhl+Libre:wght@500;700&display=swap');
+        /* All UI text in Rubik; only the prayer passages (nusach + declaration) stay serif. */
+        .kap-h{font-family:'Rubik',sans-serif;font-weight:900;letter-spacing:-.01em}
         .kap-serif{font-family:'Frank Ruhl Libre',Georgia,serif}
-        .kap-script{font-family:'Frank Ruhl Libre',Georgia,serif;font-style:italic}`}</style>
+        .kap-over{font-family:'Rubik',sans-serif;font-weight:700;letter-spacing:.18em}`}</style>
 
       {/* ── HERO ── */}
       <section className="relative overflow-hidden">
@@ -152,7 +153,7 @@ export default function KaparotPageClient({ org, campaign, initialLang, donation
 
             {/* Info (right) */}
             <div className="order-2 md:order-2 md:pt-4">
-              <p className="text-sm font-bold tracking-wide mb-1" style={{ color: C.gold }}>תשפ״ז · 2026</p>
+              <p className="kap-over text-xs mb-2" style={{ color: C.gold }}>תשפ״ז · 2026</p>
               <h1 className="kap-h text-5xl md:text-6xl font-black leading-none">פדיון כפרות</h1>
               <div className="w-20 h-1 rounded my-4" style={{ background: C.gold }} />
               <p className="text-lg leading-relaxed font-semibold mb-4">לקראת יום הכיפורים נוהגים לערוך כפרות לכל אחד ואחת מבני הבית.</p>
@@ -166,7 +167,11 @@ export default function KaparotPageClient({ org, campaign, initialLang, donation
                 </p>
               </div>
 
-              <p className="kap-script text-2xl mt-5 text-center md:text-right" style={{ color: C.goldSoft }}>זכות לצדקה · זכות לחיים טובים</p>
+              <div className="mt-6 flex items-center gap-3 justify-center md:justify-start" style={{ color: C.gold }}>
+                <span className="h-px w-8" style={{ background: C.goldSoft }} />
+                <span className="text-sm font-semibold tracking-wide">זכות לצדקה · זכות לחיים טובים</span>
+                <span className="h-px w-8" style={{ background: C.goldSoft }} />
+              </div>
             </div>
           </div>
         </div>
@@ -235,7 +240,7 @@ export default function KaparotPageClient({ org, campaign, initialLang, donation
           </div>
         </section>
       )}
-      <footer className="px-5 py-6 text-center text-xs flex items-center justify-center gap-1.5" style={{ color: C.muted }}>מופעל באמצעות Kafool <span style={{ color: '#e11d48' }}>♥</span></footer>
+      <footer className="px-5 py-8 text-center text-xs" style={{ color: C.muted }}>מופעל באמצעות Kafool</footer>
 
       <DonationModal
         isOpen={modalOpen} onClose={() => setModalOpen(false)}
