@@ -10,6 +10,7 @@ interface Product {
 }
 interface CheckoutField { key: string; label: string; type: 'text' | 'tel' | 'email' | 'textarea'; required?: boolean; enabled?: boolean }
 interface Shipping { cost?: number; free_over?: number | null }
+interface BankDetails { account_name?: string | null; bank?: string | null; branch?: string | null; account_number?: string | null; note?: string | null }
 
 interface Campaign {
   id: string; slug: string; title: string
@@ -50,7 +51,9 @@ export default function ProductSalesClient({ campaign, initialLang, paymentUrls,
   const products = useMemo(() => (Array.isArray(s.products) ? s.products : []).filter(p => p && p.name && p.price > 0), [s.products])
   const shipping: Shipping = s.shipping || {}
   const fields = useMemo(() => (Array.isArray(s.checkout_fields) ? s.checkout_fields : []).filter(f => f.enabled !== false && f.label), [s.checkout_fields])
-  const banner = ((s.banners || []).slice().sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))[0]?.url) || campaign.cover_image_url || ''
+  const firstUrl = (arr?: { url: string; sort_order?: number }[]) => (arr || []).slice().sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))[0]?.url
+  const desktopBanner = firstUrl(s.banners) || campaign.cover_image_url || ''
+  const mobileBanner = firstUrl(s.mobile_banners) || desktopBanner   // dedicated mobile banner, falls back to desktop
 
   const [qty, setQty] = useState<Record<number, number>>({})
   const setQ = (i: number, v: number) => setQty(q => ({ ...q, [i]: Math.max(0, v) }))
@@ -67,10 +70,11 @@ export default function ProductSalesClient({ campaign, initialLang, paymentUrls,
 
   return (
     <div dir={en ? 'ltr' : 'rtl'} className="min-h-screen bg-gray-50 text-gray-900" style={{ ['--pc' as string]: primary }}>
-      {/* Banner */}
-      {banner && (
+      {/* Banner — the dedicated mobile banner on phones, the desktop one from md up */}
+      {(mobileBanner || desktopBanner) && (
         <div className="w-full bg-white">
-          <img src={banner} alt={campaign.title} className="w-full max-h-[520px] object-contain mx-auto" />
+          {mobileBanner && <img src={mobileBanner} alt={campaign.title} className="w-full max-h-[560px] object-contain mx-auto md:hidden" />}
+          {desktopBanner && <img src={desktopBanner} alt={campaign.title} className="w-full max-h-[520px] object-contain mx-auto hidden md:block" />}
         </div>
       )}
 
@@ -193,8 +197,10 @@ function CheckoutModal({ en, primary, fields, lines, subtotal, shipCost, grandTo
   campaign: Campaign; paymentUrls: Props['paymentUrls']; paymentProvider: string; nedarim: Props['nedarim']; onClose: () => void
 }) {
   const [vals, setVals] = useState<Record<string, string>>({})
-  const [step, setStep] = useState<'details' | 'payment'>('details')
+  const [step, setStep] = useState<'details' | 'method' | 'payment'>('details')
   const [payUrl, setPayUrl] = useState('')
+  const [bankView, setBankView] = useState(false)
+  const [copied, setCopied] = useState<string | null>(null)
   const set = (k: string, v: string) => setVals(s => ({ ...s, [k]: v }))
 
   const find = (key: string) => fields.find(f => f.key === key)
@@ -205,14 +211,28 @@ function CheckoutModal({ en, primary, fields, lines, subtotal, shipCost, grandTo
   const missing = fields.filter(f => f.required && !(vals[f.key] || '').trim())
   const valid = missing.length === 0
 
-  function proceed() {
-    if (!valid) return
-    const name = (nameField ? vals[nameField.key] : '')?.trim() || ''
-    const phone = (phoneField ? vals[phoneField.key] : '')?.trim() || ''
-    const email = (emailField ? vals[emailField.key] : '')?.trim() || ''
+  // Available payment methods for this campaign: those with a configured link
+  // (bank also when manual details exist), minus any the manager hid.
+  const cs = (campaign.settings || {}) as { payment?: { disabled?: string[] }; bank_details?: BankDetails }
+  const disabled = cs.payment?.disabled || []
+  const bank = cs.bank_details
+  const hasBank = !!(bank && (bank.account_name || bank.bank || bank.account_number || bank.note))
+  const methods = ([
+    { key: 'one_time', label: en ? 'Credit card' : 'כרטיס אשראי', url: (en && paymentUrls.one_time_en) || paymentUrls.one_time },
+    { key: 'bit', label: en ? 'Bit' : 'ביט', url: paymentUrls.bit || '' },
+    { key: 'bank', label: en ? 'Bank transfer' : 'העברה בנקאית', url: paymentUrls.bank || '' },
+  ] as { key: string; label: string; url: string }[]).filter(m => (m.url || (m.key === 'bank' && hasBank)) && !disabled.includes(m.key))
 
-    // Record the order (lead) — cart + shipping + all fields — so it lands in the
-    // orders table via the same intent → payment-callback attachment as donations.
+  const buyer = () => ({
+    name: (nameField ? vals[nameField.key] : '')?.trim() || '',
+    phone: (phoneField ? vals[phoneField.key] : '')?.trim() || '',
+    email: (emailField ? vals[emailField.key] : '')?.trim() || '',
+  })
+
+  // Record the order (lead) — cart + shipping + fields — so it lands in the orders
+  // table via the same intent → payment-callback attachment as donations.
+  function recordIntent(methodKey: string) {
+    const { name, phone, email } = buyer()
     const labeled: Record<string, string> = {}
     for (const f of fields) { const v = (vals[f.key] || '').trim(); if (v) labeled[f.label] = v }
     labeled[en ? 'Order' : 'הזמנה'] = lines.map(l => `${l.p.name} ×${l.q}`).join(', ')
@@ -221,49 +241,54 @@ function CheckoutModal({ en, primary, fields, lines, subtotal, shipCost, grandTo
     if (grandTotal > 0) {
       fetch('/api/donations/intent', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ campaignId: campaign.id, phone: phone || null, amount: grandTotal, groupSlug: null, customData: labeled, donorName: name || null, paymentMethod: 'one_time', donorEmail: email || null }),
+        body: JSON.stringify({ campaignId: campaign.id, phone: phone || null, amount: grandTotal, groupSlug: null, customData: labeled, donorName: name || null, paymentMethod: methodKey, donorEmail: email || null }),
         keepalive: true,
       }).catch(() => {})
     }
+  }
 
-    // Build the one-time clearing URL (Kesher/Nedarim) with the grand total.
-    const activeUrl = (en && paymentUrls.one_time_en) || paymentUrls.one_time
-    if (!activeUrl) { setPayUrl(''); setStep('payment'); return }
+  // Route to the chosen method's clearing link (or the manual bank details).
+  function startMethod(m: { key: string; url: string }) {
+    recordIntent(m.key)
+    if (m.key === 'bank' && !m.url && hasBank) { setBankView(true); setPayUrl(''); setStep('payment'); return }
+    if (!m.url) { setBankView(false); setPayUrl(''); setStep('payment'); return }
+    const { name, phone, email } = buyer()
     const isNedarim = paymentProvider === 'nedarim'
     const params = new URLSearchParams()
-    const parts = name.split(' ')
-    const firstName = parts[0] || name, lastName = parts.slice(1).join(' ')
+    const parts = name.split(' '); const firstName = parts[0] || name, lastName = parts.slice(1).join(' ')
     if (isNedarim) {
       params.set('Amount', String(grandTotal)); params.set('Currency', '1')
-      if (firstName) params.set('FirstName', firstName)
-      if (lastName) params.set('LastName', lastName)
-      if (phone) params.set('Phone', phone)
-      if (email) params.set('Mail', email)
+      if (firstName) params.set('FirstName', firstName); if (lastName) params.set('LastName', lastName)
+      if (phone) params.set('Phone', phone); if (email) params.set('Mail', email)
     } else {
       params.set('total', String(grandTotal))
-      if (firstName) params.set('firstname', firstName)
-      if (lastName) params.set('lastname', lastName)
-      if (phone) params.set('tel', phone)
-      if (email) params.set('mail', email)
+      if (firstName) params.set('firstname', firstName); if (lastName) params.set('lastname', lastName)
+      if (phone) params.set('tel', phone); if (email) params.set('mail', email)
     }
-    params.set('addactiondata', campaign.id)
-    params.set('Param1', campaign.id)
+    params.set('addactiondata', campaign.id); params.set('Param1', campaign.id)
     const origin = typeof window !== 'undefined' ? window.location.origin : ''
     const sp = new URLSearchParams()
-    if (name) sp.set('dn', name)
-    if (phone) sp.set('dp', phone)
-    if (email) sp.set('de', email)
+    if (name) sp.set('dn', name); if (phone) sp.set('dp', phone); if (email) sp.set('de', email)
     params.set('successurl', `${origin}/${campaign.slug}/thanks${sp.toString() ? `?${sp}` : ''}`)
-    const sep = activeUrl.includes('?') ? '&' : '?'
-    setPayUrl(`${activeUrl}${sep}${params.toString()}`)
-    setStep('payment')
+    const sep = m.url.includes('?') ? '&' : '?'
+    setBankView(false); setPayUrl(`${m.url}${sep}${params.toString()}`); setStep('payment')
   }
+
+  // "Pay" on the details step → method chooser (or straight through if there's one).
+  function toPayment() {
+    if (!valid) return
+    if (methods.length > 1) { setStep('method'); return }
+    if (methods.length === 1) { startMethod(methods[0]); return }
+    setBankView(false); setPayUrl(''); setStep('payment')
+  }
+
+  const copy = (v: string) => { navigator.clipboard?.writeText(v).then(() => { setCopied(v); setTimeout(() => setCopied(c => c === v ? null : c), 1500) }).catch(() => {}) }
 
   return (
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/50 p-0 md:p-4" onClick={onClose}>
       <div className="bg-white w-full md:max-w-lg md:rounded-2xl rounded-t-2xl max-h-[92vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()} dir={en ? 'ltr' : 'rtl'}>
         <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
-          <h2 className="font-bold">{step === 'details' ? (en ? 'Your details' : 'הפרטים שלך') : (en ? 'Payment' : 'תשלום')}</h2>
+          <h2 className="font-bold">{step === 'details' ? (en ? 'Your details' : 'הפרטים שלך') : step === 'method' ? (en ? 'Payment method' : 'אמצעי תשלום') : (en ? 'Payment' : 'תשלום')}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-xl leading-none">×</button>
         </div>
 
@@ -290,14 +315,50 @@ function CheckoutModal({ en, primary, fields, lines, subtotal, shipCost, grandTo
 
         {step === 'details' && (
           <div className="px-5 py-3 border-t border-gray-100">
-            <button onClick={proceed} disabled={!valid} className="w-full rounded-xl py-3 text-white font-bold disabled:opacity-40" style={{ backgroundColor: primary }}>
+            <button onClick={toPayment} disabled={!valid} className="w-full rounded-xl py-3 text-white font-bold disabled:opacity-40" style={{ backgroundColor: primary }}>
               {en ? `Pay ${ils(grandTotal)}` : `לתשלום ${ils(grandTotal)}`}
             </button>
             {!valid && <p className="text-center text-[11px] text-gray-400 mt-1.5">{en ? 'Please fill the required fields' : 'נא למלא את שדות החובה'}</p>}
           </div>
         )}
 
-        {step === 'payment' && (
+        {/* Method chooser — routes to the matching clearing link */}
+        {step === 'method' && (
+          <div className="overflow-y-auto px-5 py-4 space-y-2">
+            <p className="text-sm text-gray-500">{en ? 'Choose how to pay' : 'בחרו איך לשלם'} · <b style={{ color: primary }}>{ils(grandTotal)}</b></p>
+            {methods.map(m => (
+              <button key={m.key} onClick={() => startMethod(m)}
+                className="w-full flex items-center justify-between rounded-xl border-2 border-gray-200 hover:border-current px-4 py-3 text-sm font-bold text-gray-700"
+                style={{ color: primary }}>
+                <span className="text-gray-800">{m.label}</span>
+                <span aria-hidden>←</span>
+              </button>
+            ))}
+            <button onClick={() => setStep('details')} className="text-xs text-gray-400 hover:text-gray-600 pt-1">{en ? 'Back' : 'חזרה לפרטים'}</button>
+          </div>
+        )}
+
+        {step === 'payment' && bankView && bank && (
+          <div className="overflow-y-auto px-5 py-4 space-y-3">
+            <p className="font-bold text-gray-800">{en ? 'Bank transfer details' : 'פרטים להעברה בנקאית'} · <span style={{ color: primary }}>{ils(grandTotal)}</span></p>
+            <div className="rounded-xl bg-gray-50 border border-gray-100 divide-y divide-gray-100">
+              {([[en ? 'Account holder' : 'שם החשבון', bank.account_name], [en ? 'Bank' : 'בנק', bank.bank], [en ? 'Branch' : 'סניף', bank.branch], [en ? 'Account no.' : 'מספר חשבון', bank.account_number]] as [string, string | null | undefined][]).filter(([, v]) => v).map(([k, v]) => (
+                <div key={k} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
+                  <span className="text-gray-400">{k}</span>
+                  <span className="flex items-center gap-2 min-w-0"><span className="font-semibold text-gray-800 truncate" dir="ltr">{v}</span>
+                    <button onClick={() => copy(String(v))} className="text-[11px] font-semibold shrink-0" style={{ color: primary }}>{copied === v ? (en ? '✓' : '✓ הועתק') : (en ? 'Copy' : 'העתק')}</button></span>
+                </div>
+              ))}
+            </div>
+            {bank.note && <p className="text-sm text-gray-600 whitespace-pre-line bg-gray-50 rounded-xl px-3 py-2">{bank.note}</p>}
+            <div className="flex gap-2">
+              <button onClick={onClose} className="flex-1 rounded-xl py-3 text-white font-bold" style={{ backgroundColor: primary }}>{en ? 'Done' : 'סיימתי'}</button>
+              <button onClick={() => setStep('method')} className="rounded-xl px-4 py-3 text-sm text-gray-500 border border-gray-200">{en ? 'Back' : 'חזרה'}</button>
+            </div>
+          </div>
+        )}
+
+        {step === 'payment' && !bankView && (
           payUrl ? (
             <div className="flex flex-col">
               <div className="w-full overflow-y-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
