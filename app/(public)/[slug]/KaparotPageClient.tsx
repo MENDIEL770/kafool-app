@@ -200,10 +200,10 @@ export default function KaparotPageClient({ org, campaign, initialLang, donation
       <section className="px-5 py-12">
         <div className="max-w-3xl mx-auto">
           <h2 className="kap-h text-2xl md:text-3xl font-black text-center mb-5">נוסח הכפרות המלא</h2>
-          <div className="relative rounded-2xl border p-6 md:p-8" style={{ borderColor: C.border, background: `linear-gradient(180deg, ${C.parch1}, ${C.parch2})` }}>
-            <span className="absolute top-2 right-3 text-2xl" style={{ color: C.goldSoft }}>❦</span>
-            <span className="absolute bottom-2 left-3 text-2xl" style={{ color: C.goldSoft }}>❦</span>
-            <p className="kap-serif text-lg md:text-xl leading-loose text-center">{NUSACH}</p>
+          <div className="relative rounded-2xl border p-6 md:p-10" style={{ borderColor: C.border, background: `linear-gradient(180deg, ${C.parch1}, ${C.parch2})` }}>
+            <span className="absolute top-3 right-4 text-3xl" style={{ color: C.goldSoft }}>❦</span>
+            <span className="absolute bottom-3 left-4 text-3xl" style={{ color: C.goldSoft }}>❦</span>
+            <p className="kap-serif text-2xl md:text-4xl text-center" style={{ lineHeight: 2 }}>{NUSACH}</p>
           </div>
 
           {/* The declaration — said while circling the money over the head */}
