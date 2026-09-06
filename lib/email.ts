@@ -30,6 +30,59 @@ function renderHtml(tpl: EmailTemplate, campaignTitle: string): string {
   </body></html>`
 }
 
+function esc(s: string): string { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string)) }
+
+/** Confirmation email for a Kaparot (soul-redemption) order — lists the redeemed
+ *  souls, the total, a Chabad-house block and the shliach's custom text. */
+export function renderKaparotHtml(args: {
+  orgName: string; logoUrl?: string | null; souls: number; names: string[]; amount: number
+  customBody?: string | null; imageUrl?: string | null
+}): string {
+  const gold = '#b4882c', text = '#1c2340', bg = '#faf6ee', border = '#e7e0d2', muted = '#6f6a5c'
+  const namesList = (args.names.filter(n => n && n.trim()).length
+    ? args.names.filter(n => n && n.trim()).map(n => `<li style="padding:5px 0;border-bottom:1px solid ${border};">${esc(n.trim())}</li>`).join('')
+    : `<li style="padding:5px 0;">${args.souls} נפשות</li>`)
+  const img = args.imageUrl ? `<img src="${args.imageUrl}" alt="" style="display:block;width:100%;max-width:560px;border-radius:12px;margin:0 auto 20px;"/>` : ''
+  const custom = args.customBody ? `<div style="font-size:15px;line-height:1.7;text-align:right;margin:16px 0 0;border-top:1px solid ${border};padding-top:14px;">${args.customBody}</div>` : ''
+  return `<!doctype html><html dir="rtl"><body style="margin:0;background:${bg};font-family:Arial,Helvetica,sans-serif;color:${text};">
+    <div style="max-width:600px;margin:0 auto;padding:24px;">
+      <div style="text-align:center;margin-bottom:16px;">
+        ${args.logoUrl ? `<img src="${args.logoUrl}" alt="${esc(args.orgName)}" style="height:56px;margin:0 auto 8px;display:block;"/>` : ''}
+        <div style="font-weight:bold;">${esc(args.orgName)}</div>
+      </div>
+      <div style="background:#fff;border:1px solid ${border};border-radius:12px;padding:28px;">
+        ${img}
+        <h1 style="text-align:center;color:${gold};font-size:25px;margin:0 0 6px;">פדיון הכפרות התקבל בהצלחה</h1>
+        <p style="text-align:center;color:${muted};margin:0 0 20px;">הפדיון נערך עבור ${args.souls} נפשות</p>
+        <div style="background:${bg};border:1px solid ${border};border-radius:10px;padding:16px;margin-bottom:16px;">
+          <div style="font-weight:bold;margin-bottom:6px;">הנפשות שנפדו:</div>
+          <ul style="margin:0;padding:0 18px;list-style:none;">${namesList}</ul>
+        </div>
+        <table style="width:100%;font-size:15px;border-collapse:collapse;">
+          <tr><td style="color:${muted};padding:3px 0;">מספר נפשות</td><td style="text-align:left;font-weight:bold;">${args.souls}</td></tr>
+          <tr><td style="color:${muted};padding:3px 0;">סה״כ פדיון</td><td style="text-align:left;font-weight:bold;color:${gold};">₪${Math.round(args.amount).toLocaleString('he-IL')}</td></tr>
+        </table>
+        <div style="text-align:center;color:${muted};font-size:14px;border-top:1px solid ${border};padding-top:14px;margin-top:14px;">"זֶה הַכֶּסֶף יֵלֵךְ לִצְדָקָה, וַאֲנִי אֵלֵךְ לְחַיִּים טוֹבִים אֲרוּכִים וּלְשָׁלוֹם"</div>
+        ${custom}
+      </div>
+      <p style="text-align:center;color:#9ca3af;font-size:12px;margin-top:18px;">${esc(args.orgName)} · קבלה מוכרת למס תישלח בנפרד · נשלח דרך Kafool</p>
+    </div></body></html>`
+}
+
+/** Send a pre-rendered HTML email. Returns true if sent. */
+export async function sendHtmlEmail(to: string, subject: string, html: string): Promise<boolean> {
+  const key = process.env.RESEND_API_KEY
+  const from = process.env.EMAIL_FROM
+  if (!key || !from || !to || !/.+@.+\..+/.test(to)) return false
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from, to, subject, html }),
+    })
+    return res.ok
+  } catch { return false }
+}
+
 /** Generic transactional email. Returns true if sent. */
 export async function sendPlusEmail(to: string, subject: string, bodyHtml: string): Promise<boolean> {
   const key = process.env.RESEND_API_KEY

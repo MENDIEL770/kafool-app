@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { sendThankYouEmail } from './email'
+import { sendThankYouEmail, renderKaparotHtml, sendHtmlEmail } from './email'
 import { sendWhatsAppTemplate } from './whatsapp'
 import { syncDonationToKafoolPlus } from './kafool-plus'
 
@@ -34,6 +34,7 @@ export async function attachCustomData(
   args: { donationId: string; campaignId: string; phone: string | null; amount: number; donorEmail?: string | null },
 ): Promise<void> {
   let intentTemplate: { subject?: string; body?: string; image?: string } | null = null
+  let matchedCd: Record<string, unknown> | null = null   // the matched intent's custom_data (for kaparot names)
   try {
     const sinceIso = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString() // last 6h
     const { data: intents } = await supabase
@@ -53,6 +54,7 @@ export async function attachCustomData(
     const match = strongMatch || (intents || []).find(i => Math.round(Number(i.amount) || 0) === Math.round(args.amount))
 
     if (match) {
+      matchedCd = (match.custom_data as Record<string, unknown>) || null
       if (match.custom_data) {
         // Drop reserved internal keys (__name / __method / __notified) — they're
         // for the abandoned-donation flow, not part of the donor's real data.
@@ -73,8 +75,10 @@ export async function attachCustomData(
 
   // Thank-you notifications after a confirmed donation.
   try {
-    const { data: c } = await supabase.from('campaigns').select('settings, title').eq('id', args.campaignId).single()
+    const { data: c } = await supabase.from('campaigns').select('settings, title, org_id').eq('id', args.campaignId).single()
     const campaignTitle = c?.title || ''
+    const cSettings = (c?.settings as { page_type?: string; kaparot?: { chabad_logo_url?: string; email?: { subject?: string; body?: string; image_url?: string } } } | null) || {}
+    const isKaparot = cSettings.page_type === 'kaparot'
 
     // WhatsApp thank-you (Meta Cloud API) — sent when configured + we have a phone.
     // Template body should take {{1}} = campaign name, {{2}} = amount.
@@ -83,10 +87,27 @@ export async function attachCustomData(
       await sendWhatsAppTemplate(args.phone, waTemplate, [campaignTitle, `₪${Math.round(args.amount)}`])
     }
 
+    // Kaparot confirmation email — lists the redeemed souls + a Chabad-house block.
+    if (isKaparot && args.donorEmail) {
+      const { data: org } = c?.org_id
+        ? await supabase.from('organizations').select('name, logo_url').eq('id', c.org_id).single()
+        : { data: null }
+      const namesStr = String(matchedCd?.['שמות הנפשות'] || '')
+      const names = namesStr ? namesStr.split(' · ') : []
+      const souls = Number(matchedCd?.['מספר נפשות']) || names.length || 1
+      const kEmail = cSettings.kaparot?.email || {}
+      const html = renderKaparotHtml({
+        orgName: (org as { name?: string })?.name || campaignTitle,
+        logoUrl: cSettings.kaparot?.chabad_logo_url || (org as { logo_url?: string })?.logo_url || null,
+        souls, names, amount: args.amount,
+        customBody: kEmail.body || null, imageUrl: kEmail.image_url || null,
+      })
+      await sendHtmlEmail(args.donorEmail, kEmail.subject?.trim() || `אישור פדיון כפרות — ${(org as { name?: string })?.name || campaignTitle}`, html)
+    }
     // Thank-you email. Send when: the intent carried a content override (per-form /
     // per-button content) → use it; else this button opted-in via its checkbox → use
     // its content, or the default content; else the master default email is enabled.
-    if (args.donorEmail) {
+    else if (args.donorEmail) {
       type Tpl = { enabled?: boolean; subject?: string; body?: string; image?: string }
       const s = (c?.settings as { thank_you_email?: Tpl; button_emails?: Record<string, Tpl> } | null) || {}
       const def = s.thank_you_email || {}

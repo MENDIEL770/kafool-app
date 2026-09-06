@@ -16,6 +16,7 @@ import {
   ChevronLeft,
   ExternalLink,
   ShoppingBag,
+  Sparkles,
 } from 'lucide-react'
 
 interface Campaign {
@@ -42,6 +43,7 @@ export default function CampaignNav({ campaign, pageType = 'donation' }: Props) 
     { href: `${base}/settings`, label: 'הגדרות', icon: Settings },
     // Product sales pages get a dedicated catalog/shipping editor + orders view.
     ...(isProducts ? [{ href: `${base}/products`, label: 'מוצרים', icon: ShoppingBag }] : []),
+    ...(isKaparot ? [{ href: `${base}/kaparot`, label: 'כפרות', icon: Sparkles }] : []),
     { href: `${base}/media`, label: 'מדיה', icon: Image },
     commerce
       ? { href: `${base}/orders`, label: isKaparot ? 'פדיונות' : 'הזמנות', icon: Users }
