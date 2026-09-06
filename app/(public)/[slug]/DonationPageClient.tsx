@@ -32,6 +32,8 @@ const STR = {
   ofGoalOf: ['מתוך יעד גיוס של', 'of a fundraising goal of'],
   remaining: ['נותר', 'left'],
   goalReached: ['היעד הושג!', 'Goal reached!'],
+  bonusGoalWord: ['יעד בונוס', 'Bonus goal'],
+  toBonus: ['ליעד הבונוס', 'to the bonus goal'],
   beFirst: ['היה הראשון לתרום!', 'Be the first to donate!'],
   loadMore: ['טען עוד', 'Load more'],
   raised: ['גויס', 'raised'],
@@ -834,12 +836,24 @@ function DonationPlans({ plans, plansEn, primaryColor, campaignSlug, groups, but
   )
 }
 
-function ProgressSection({ raised, goal, donorsCount, primaryColor, bricks, showGoal = true }: { raised: number; goal: number; donorsCount: number; primaryColor: string; bricks?: { total: number; price: number; label?: string }; showGoal?: boolean }) {
+function ProgressSection({ raised, goal, donorsCount, primaryColor, bricks, showGoal = true, bonusGoal = 0 }: { raised: number; goal: number; donorsCount: number; primaryColor: string; bricks?: { total: number; price: number; label?: string }; showGoal?: boolean; bonusGoal?: number }) {
   const pct = goal > 0 ? Math.min(100, Math.round((raised / goal) * 100)) : 0
-  const [animPct, setAnimPct] = useState(0)
   const lang = useLang()
   const t = useT()
   const completed = lang === 'en' ? 'complete' : 'הושלם'
+
+  // Bonus (stretch) goal: once the goal is passed the bar keeps filling toward the
+  // bonus target and the overflow segment shows in a lighter tint of the primary.
+  const bonusActive = bonusGoal > goal && goal > 0
+  const denom = bonusActive ? Math.max(bonusGoal, raised) : goal   // bar's full width represents this
+  const mainW = denom > 0 ? (Math.min(raised, goal) / denom) * 100 : 0
+  const bonusW = (bonusActive && raised > goal && denom > 0) ? ((Math.min(raised, denom) - goal) / denom) * 100 : 0
+  // Percentage climbs above 100% only when a bonus goal is in play; otherwise capped.
+  const displayPct = goal > 0 ? (bonusActive ? Math.round((raised / goal) * 100) : Math.min(100, Math.round((raised / goal) * 100))) : 0
+  const bonusColor = `color-mix(in srgb, ${primaryColor} 45%, #ffffff)`
+  const [mounted, setMounted] = useState(false)
+  const animMain = mounted ? mainW : 0
+  const animBonus = mounted ? bonusW : 0
 
   const bricksTotal = bricks && bricks.total > 0 ? bricks.total : 0
   // Bricks mirror the money percentage exactly, so the wall + its "% built"
@@ -848,9 +862,9 @@ function ProgressSection({ raised, goal, donorsCount, primaryColor, bricks, show
   const bricksLabel = bricks?.label || (lang === 'en' ? 'bricks' : 'לבנים')
 
   useEffect(() => {
-    const t = setTimeout(() => setAnimPct(pct), 300)
+    const t = setTimeout(() => setMounted(true), 300)
     return () => clearTimeout(t)
-  }, [pct])
+  }, [mainW, bonusW])
 
   return (
     <section className="bg-gray-50 py-12 md:py-16 px-4" aria-label="התקדמות הקמפיין">
@@ -864,29 +878,42 @@ function ProgressSection({ raised, goal, donorsCount, primaryColor, bricks, show
           </div>
         </div>
 
-        {/* Progress bar — always shown; fills by raised/goal even when the goal is hidden */}
+        {/* Progress bar — always shown; fills by raised/goal even when the goal is hidden.
+            With a bonus goal it fills past the goal toward the bonus target, the overflow
+            segment tinted lighter, and the percentage climbs above 100%. */}
         <div className="relative">
-          <div className="h-5 bg-gray-200 rounded-full overflow-hidden shadow-inner" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={`${pct}% הושלם`}>
+          <div className="h-5 bg-gray-200 rounded-full overflow-hidden shadow-inner flex" role="progressbar" aria-valuenow={displayPct} aria-valuemin={0} aria-valuemax={bonusActive ? Math.round((bonusGoal / goal) * 100) : 100} aria-label={`${displayPct}% הושלם`}>
             <div
-              className="h-full rounded-full relative overflow-hidden"
-              style={{
-                width: `${animPct}%`,
-                backgroundColor: primaryColor,
-                transition: 'width 1.6s cubic-bezier(0.4, 0, 0.2, 1)',
-              }}
+              className="h-full relative overflow-hidden"
+              style={{ width: `${animMain}%`, backgroundColor: primaryColor, transition: 'width 1.6s cubic-bezier(0.4, 0, 0.2, 1)' }}
             >
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse" />
             </div>
+            {bonusW > 0 && (
+              <div
+                className="h-full relative overflow-hidden"
+                style={{ width: `${animBonus}%`, backgroundColor: bonusColor, transition: 'width 1.6s cubic-bezier(0.4, 0, 0.2, 1)' }}
+                title={t('bonusGoalWord')}
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse" />
+              </div>
+            )}
           </div>
           {showGoal && (
             <>
               <div className="flex justify-between text-xs text-gray-400 mt-1.5">
-                <span>{pct}% {completed}</span>
-                {goal > raised && <span>{t('remaining')} ₪{Math.ceil(goal - raised).toLocaleString('he-IL')}</span>}
-                {goal <= raised && goal > 0 && <span className="font-bold" style={{ color: primaryColor }}>{t('goalReached')}</span>}
+                <span>{displayPct}% {completed}</span>
+                {raised < goal && <span>{t('remaining')} ₪{Math.ceil(goal - raised).toLocaleString('he-IL')}</span>}
+                {raised >= goal && bonusActive && raised < bonusGoal && (
+                  <span className="font-bold" style={{ color: primaryColor }}>{t('goalReached')} · {t('remaining')} ₪{Math.ceil(bonusGoal - raised).toLocaleString('he-IL')} {t('toBonus')}</span>
+                )}
+                {raised >= goal && (!bonusActive || raised >= bonusGoal) && goal > 0 && (
+                  <span className="font-bold" style={{ color: primaryColor }}>{t('goalReached')}</span>
+                )}
               </div>
               <div className="text-center text-sm md:text-base text-gray-500 mt-1.5">
                 {t('ofGoalOf')} ₪{goal.toLocaleString('he-IL')}
+                {bonusActive && <span className="text-gray-400"> · {t('bonusGoalWord')} ₪{bonusGoal.toLocaleString('he-IL')}</span>}
               </div>
             </>
           )}
@@ -1941,7 +1968,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
       {isOn('amounts') && <DonationPlans plans={donationPlans} plansEn={donationPlansEn} primaryColor={primaryColor} campaignSlug={campaign.slug} groups={groups} buttonRadius={buttonRadius} buttonSize={buttonSize} otherAmountImage={(settings as { other_amount_design?: string })?.other_amount_design || null} otherAmountImageEn={(settings as { other_amount_design_en?: string })?.other_amount_design_en || null} otherAmountPlacement={(settings as { other_amount_placement?: 'grid' | 'cta' })?.other_amount_placement === 'cta' ? 'cta' : 'grid'} defaultCta={(settings as { donate_cta?: string })?.donate_cta || ''} onDonate={openDonate} displayCurrency={modalDefaultCurrency} fxRate={pageRate} />}
 
       {/* 4. Progress */}
-      {isOn('goal') && <ProgressSection raised={raisedAmount} goal={campaign.goal_amount} donorsCount={donations.length} primaryColor={primaryColor} showGoal={(campaign.settings as { show_goal?: boolean })?.show_goal !== false} bricks={(campaign.settings as { show_bricks?: boolean })?.show_bricks === false ? undefined : (campaign.settings as { bricks?: { total: number; price: number; label?: string } })?.bricks} />}
+      {isOn('goal') && <ProgressSection raised={raisedAmount} goal={campaign.goal_amount} donorsCount={donations.length} primaryColor={primaryColor} showGoal={(campaign.settings as { show_goal?: boolean })?.show_goal !== false} bonusGoal={Number((campaign as { bonus_goal_amount?: number | null }).bonus_goal_amount) || 0} bricks={(campaign.settings as { show_bricks?: boolean })?.show_bricks === false ? undefined : (campaign.settings as { bricks?: { total: number; price: number; label?: string } })?.bricks} />}
 
       {/* 5+7. About (right) + Community (left) — two columns */}
       {(isOn('gallery') || isOn('donors')) && (

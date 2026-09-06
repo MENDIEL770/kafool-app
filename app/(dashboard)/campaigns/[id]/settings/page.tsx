@@ -299,9 +299,10 @@ export default function CampaignSettingsPage() {
               </div>
               <div className="space-y-1">
                 <Label>יעד בונוס (₪)</Label>
-                <Input type="number" value={form.bonus_goal_amount} onChange={(e) => set('bonus_goal_amount', e.target.value)} dir="ltr" />
+                <Input type="number" value={form.bonus_goal_amount} onChange={(e) => set('bonus_goal_amount', e.target.value)} dir="ltr" placeholder="למשל 800" />
               </div>
             </div>
+            <p className="text-xs text-gray-400 mt-1.5">יעד בונוס גבוה מהיעד הראשי — כשעוברים את היעד הראשי פס ההתקדמות ממשיך להתמלא עד יעד הבונוס, האחוזים עולים מעל 100%, והחלק הנוסף מוצג בגוון בהיר יותר. השאר ריק כדי לכבות.</p>
             <label className="mt-4 flex items-center gap-2 cursor-pointer bg-gray-50 border border-gray-100 rounded-xl px-3 py-2.5">
               <input type="checkbox" checked={form.show_goal} onChange={(e) => setForm(prev => ({ ...prev, show_goal: e.target.checked }))} className="w-4 h-4 accent-blue-600" />
               <span className="text-sm text-gray-700">הצג את יעד הגיוס בדף הציבורי</span>
