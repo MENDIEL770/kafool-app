@@ -210,6 +210,7 @@ function CheckoutModal({ en, primary, fields, lines, subtotal, shipCost, grandTo
   const [vals, setVals] = useState<Record<string, string>>({})
   const [step, setStep] = useState<'details' | 'method' | 'payment'>('details')
   const [payUrl, setPayUrl] = useState('')
+  const [payMethod, setPayMethod] = useState('')
   const [bankView, setBankView] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
   const set = (k: string, v: string) => setVals(s => ({ ...s, [k]: v }))
@@ -262,6 +263,7 @@ function CheckoutModal({ en, primary, fields, lines, subtotal, shipCost, grandTo
   // Route to the chosen method's clearing link (or the manual bank details).
   function startMethod(m: { key: string; label: string; url: string }) {
     recordIntent(m)
+    setPayMethod(m.key)
     if (m.key === 'bank' && !m.url && hasBank) { setBankView(true); setPayUrl(''); setStep('payment'); return }
     if (!m.url) { setBankView(false); setPayUrl(''); setStep('payment'); return }
     const { name, phone, email } = buyer()
@@ -373,11 +375,26 @@ function CheckoutModal({ en, primary, fields, lines, subtotal, shipCost, grandTo
         {step === 'payment' && !bankView && (
           payUrl ? (
             <div className="flex flex-col">
+              {payMethod === 'bit' && (
+                <div className="mx-4 mt-3 rounded-2xl px-4 py-3 text-center" style={{ backgroundColor: '#0A2E36', color: '#fff' }}>
+                  <p className="text-base font-black">{en ? 'A payment link will be sent to you by SMS' : 'קישור לתשלום יישלח אליך ב-SMS'}</p>
+                  <p className="mt-1 text-sm font-bold" style={{ color: '#37E5E0' }}>{en ? 'Open it and pay in the Bit app' : 'היכנסו לקישור והשלימו את התשלום באפליקציית ביט'}</p>
+                  <p className="mt-1 text-xs" style={{ color: '#d7fbfa' }}>{en ? 'The order is recorded only after the Bit payment is completed ✓' : 'ההזמנה תיקלט רק לאחר השלמת התשלום בביט ✓'}</p>
+                </div>
+              )}
               <div className="w-full overflow-y-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
                 <iframe src={payUrl} className="w-full" style={{ height: 'min(680px, 74vh)', border: 'none' }} title={en ? 'Secure payment' : 'תשלום מאובטח'} allow="payment" />
               </div>
-              <div className="px-5 pb-4 pt-2 text-center">
-                <button onClick={() => setStep('details')} className="text-xs text-gray-400 hover:text-gray-600">{en ? 'Back' : 'חזרה לפרטים'}</button>
+              <div className="px-5 pb-4 pt-3 space-y-2 border-t border-gray-100">
+                <button
+                  onClick={() => { if (typeof window !== 'undefined') window.location.href = `/${campaign.slug}/thanks` }}
+                  className="w-full rounded-xl py-3 text-white font-bold"
+                  style={{ backgroundColor: primary }}
+                >
+                  {en ? "I've completed the payment" : 'ביצעתי את התשלום — המשך'}
+                </button>
+                <p className="text-center text-[11px] text-gray-400">{en ? 'After payment the order is confirmed automatically.' : 'לאחר השלמת התשלום ההזמנה נקלטת אוטומטית. לחצו כאן לאחר התשלום.'}</p>
+                <button onClick={() => setStep('method')} className="block mx-auto text-xs text-gray-400 hover:text-gray-600">{en ? 'Back' : 'חזרה'}</button>
               </div>
             </div>
           ) : (
