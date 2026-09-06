@@ -206,8 +206,11 @@ export default function KaparotPageClient({ org, campaign, initialLang, donation
             <p className="kap-serif text-lg md:text-xl leading-loose text-center">{NUSACH}</p>
           </div>
 
-          {/* The declaration — said while performing the redemption */}
-          <div className="kap-serif rounded-xl border p-4 text-center text-base leading-relaxed max-w-2xl mx-auto mt-6" style={{ borderColor: C.gold, background: C.bg }}>
+          {/* The declaration — said while circling the money over the head */}
+          <p className="text-center text-sm md:text-base font-semibold mt-8 mb-3 max-w-2xl mx-auto" style={{ color: C.text }}>
+            לוקחים את הכסף ומסובבים אותו שלוש פעמים מעל הראש, ובכל סיבוב אומרים:
+          </p>
+          <div className="kap-serif rounded-xl border p-4 text-center text-base leading-relaxed max-w-2xl mx-auto" style={{ borderColor: C.gold, background: C.bg }}>
             &quot;{DECLARATION}&quot;
             <div className="text-xs mt-2" style={{ color: C.muted }}>כך שלוש פעמים לכל אחד מבני הבית.</div>
           </div>
