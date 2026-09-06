@@ -69,6 +69,12 @@ export default function CampaignSettingsPage() {
     pay_bank: '',
     pay_nedarim_mosad: '',
     pay_nedarim_api: '',
+    // Bank-transfer details shown to the donor when they pick "העברה בנקאית"
+    bank_account_name: '',
+    bank_name: '',
+    bank_branch: '',
+    bank_account_number: '',
+    bank_note: '',
   })
 
   useEffect(() => {
@@ -121,6 +127,11 @@ export default function CampaignSettingsPage() {
           pay_bank: data.settings?.payment?.urls?.bank || '',
           pay_nedarim_mosad: data.settings?.payment?.nedarim?.mosad || '',
           pay_nedarim_api: data.settings?.payment?.nedarim?.api_valid || '',
+          bank_account_name: data.settings?.bank_details?.account_name || '',
+          bank_name: data.settings?.bank_details?.bank || '',
+          bank_branch: data.settings?.bank_details?.branch || '',
+          bank_account_number: data.settings?.bank_details?.account_number || '',
+          bank_note: data.settings?.bank_details?.note || '',
         })
       }
     }
@@ -167,6 +178,16 @@ export default function CampaignSettingsPage() {
       },
     } : null
 
+    // Bank-transfer details (shown to the donor for a manual transfer) — null when empty.
+    const bankFields = [form.bank_account_name, form.bank_name, form.bank_branch, form.bank_account_number, form.bank_note]
+    const bankDetails = bankFields.some(v => (v || '').toString().trim()) ? {
+      account_name: form.bank_account_name.trim() || null,
+      bank: form.bank_name.trim() || null,
+      branch: form.bank_branch.trim() || null,
+      account_number: form.bank_account_number.trim() || null,
+      note: form.bank_note.trim() || null,
+    } : null
+
     await supabase.from('campaigns').update({
       title: form.title,
       description: form.description || null,
@@ -205,6 +226,7 @@ export default function CampaignSettingsPage() {
         },
         nedarim_category: form.nedarim_category.trim() || null,
         payment: paymentOverride,
+        bank_details: bankDetails,
       },
     }).eq('id', id)
     setLoading(false)
@@ -482,6 +504,29 @@ export default function CampaignSettingsPage() {
                 </div>
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        {/* ── פרטי העברה בנקאית ── */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">פרטי העברה בנקאית</CardTitle>
+            <p className="text-xs text-gray-400 mt-1">כשהתורם בוחר "העברה בנקאית" יוצגו לו הפרטים האלה להעברה ידנית. השאר ריק כדי להסתיר את האפשרות.</p>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="space-y-1">
+              <Label>שם בעל החשבון</Label>
+              <Input value={form.bank_account_name} onChange={(e) => set('bank_account_name', e.target.value)} placeholder="לדוגמה — עמותת חב״ד סקיה" />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1"><Label>בנק</Label><Input value={form.bank_name} onChange={(e) => set('bank_name', e.target.value)} placeholder="לאומי" /></div>
+              <div className="space-y-1"><Label>סניף</Label><Input value={form.bank_branch} onChange={(e) => set('bank_branch', e.target.value)} dir="ltr" placeholder="123" /></div>
+              <div className="space-y-1"><Label>מספר חשבון</Label><Input value={form.bank_account_number} onChange={(e) => set('bank_account_number', e.target.value)} dir="ltr" placeholder="456789" /></div>
+            </div>
+            <div className="space-y-1">
+              <Label>הערות נוספות (אופציונלי)</Label>
+              <Textarea value={form.bank_note} onChange={(e) => set('bank_note', e.target.value)} rows={2} placeholder="לדוגמה — נא לציין שם התורם בהעברה, או לשלוח אישור לוואטסאפ…" />
+            </div>
           </CardContent>
         </Card>
 

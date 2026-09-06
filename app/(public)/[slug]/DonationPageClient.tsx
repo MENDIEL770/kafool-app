@@ -2030,6 +2030,7 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
         presetForeignAmount={modalForeignAmount}
         hokMonthsMode={(campaign.settings as { hok_months_mode?: 'list' | 'range' })?.hok_months_mode === 'range' ? 'range' : 'list'}
         hokDefaultMonths={Number((campaign.settings as { hok_default_months?: number })?.hok_default_months) || 12}
+        bankDetails={(campaign.settings as { bank_details?: { account_name?: string | null; bank?: string | null; branch?: string | null; account_number?: string | null; note?: string | null } | null })?.bank_details || null}
         donationUrl={donationUrl}
         paymentUrls={paymentUrls}
         paymentProvider={paymentProvider}
