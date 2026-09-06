@@ -79,6 +79,7 @@ interface Props {
   hokDefaultMonths?: number   // pre-selected months for a הו"ק (when a button doesn't set its own)
   bankDetails?: { account_name?: string | null; bank?: string | null; branch?: string | null; account_number?: string | null; note?: string | null } | null
   disabledMethods?: string[]   // per-campaign: payment methods to hide even if the org offers them
+  presetCustomData?: Record<string, string>   // extra labeled data to attach to the donation (e.g. kaparot names/souls)
 }
 
 export default function DonationModal({
@@ -112,6 +113,7 @@ export default function DonationModal({
   hokDefaultMonths = 12,
   bankDetails,
   disabledMethods = [],
+  presetCustomData,
 }: Props) {
   // Bank transfer: the fast path is the clearing link ("continue"); the manager's
   // account details are tucked behind a toggle for donors who prefer a manual transfer.
@@ -364,6 +366,8 @@ export default function DonationModal({
       }
       if (hasPreStep && choice) labeled[preStep!.title || 'בחירה'] = choice
       if (hasPreStep && preStepType === 'consent' && consented) labeled[preStep!.consentLabel || 'אישור'] = 'כן'
+      // Caller-supplied labeled data (e.g. kaparot souls + names). No __ prefix (reserved).
+      if (presetCustomData) for (const [k, v] of Object.entries(presetCustomData)) { if (v && !k.startsWith('__')) labeled[k] = v }
       // thank-you email content override stored on the intent: per-button (opted-in
       // via its checkbox) → per-form → none. Whether an email is sent at all (incl.
       // the master default + button opt-in with no custom content) is decided server-side.

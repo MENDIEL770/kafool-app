@@ -13,7 +13,7 @@ export async function createCampaign(formData: {
   start_at: string | null
   end_at: string | null
   primary_color: string
-  page_type?: 'donation' | 'products'
+  page_type?: 'donation' | 'products' | 'kaparot'
 }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -52,11 +52,13 @@ export async function createCampaign(formData: {
       end_at: formData.end_at,
       status: 'draft',
       settings: {
-        page_type: formData.page_type === 'products' ? 'products' : 'donation',
+        page_type: formData.page_type === 'products' ? 'products' : formData.page_type === 'kaparot' ? 'kaparot' : 'donation',
         donation_amounts: [180, 360, 720, 1800, 3600],
         primary_color: formData.primary_color,
         secondary_color: '#1e40af',
         about_text: null,
+        // Kaparot (soul-redemption) page — seed sensible defaults; the editor comes in phase 2.
+        ...(formData.page_type === 'kaparot' ? { kaparot: { price_per_soul: 50, max_souls: 20 } } : {}),
       },
     })
     .select()

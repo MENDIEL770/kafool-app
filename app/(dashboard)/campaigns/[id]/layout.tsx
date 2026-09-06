@@ -20,7 +20,8 @@ export default async function CampaignLayout({
 
   if (!campaign) notFound()
 
-  const pageType = (campaign.settings as { page_type?: string })?.page_type === 'products' ? 'products' : 'donation'
+  const pt = (campaign.settings as { page_type?: string })?.page_type
+  const pageType = pt === 'products' ? 'products' : pt === 'kaparot' ? 'kaparot' : 'donation'
 
   return (
     <div className="space-y-0 -mx-4 -mb-4 lg:-m-6">

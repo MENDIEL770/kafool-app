@@ -14,8 +14,10 @@ export default function NewCampaignPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const [pageType, setPageType] = useState<'donation' | 'products'>('donation')
+  const [pageType, setPageType] = useState<'donation' | 'products' | 'kaparot'>('donation')
   const isProducts = pageType === 'products'
+  const isKaparot = pageType === 'kaparot'
+  const noGoal = isProducts || isKaparot   // these page types have no fundraising goal
 
   const [form, setForm] = useState({
     title: '',
@@ -51,8 +53,8 @@ export default function NewCampaignPage() {
       title: form.title,
       slug: form.slug,
       description: form.description,
-      goal_amount: isProducts ? 0 : (Number(form.goal_amount) || 0),
-      bonus_goal_amount: isProducts ? null : (form.bonus_goal_amount ? Number(form.bonus_goal_amount) : null),
+      goal_amount: noGoal ? 0 : (Number(form.goal_amount) || 0),
+      bonus_goal_amount: noGoal ? null : (form.bonus_goal_amount ? Number(form.bonus_goal_amount) : null),
       start_at: form.start_at || null,
       end_at: form.end_at || null,
       primary_color: form.primary_color,
@@ -78,7 +80,7 @@ export default function NewCampaignPage() {
           <CardContent>
             <div className="grid grid-cols-2 gap-3">
               <button type="button" onClick={() => setPageType('donation')}
-                className={`text-right rounded-xl border-2 p-4 transition-all ${!isProducts ? 'border-blue-500 bg-blue-50/50' : 'border-gray-200 hover:border-gray-300'}`}>
+                className={`text-right rounded-xl border-2 p-4 transition-all ${pageType === 'donation' ? 'border-blue-500 bg-blue-50/50' : 'border-gray-200 hover:border-gray-300'}`}>
                 <div className="text-sm font-bold text-gray-900">דף קמפיין רגיל</div>
                 <div className="text-xs text-gray-500 mt-1">גיוס תרומות — יעד, פס התקדמות, פיד תורמים.</div>
               </button>
@@ -86,6 +88,11 @@ export default function NewCampaignPage() {
                 className={`text-right rounded-xl border-2 p-4 transition-all ${isProducts ? 'border-blue-500 bg-blue-50/50' : 'border-gray-200 hover:border-gray-300'}`}>
                 <div className="text-sm font-bold text-gray-900">דף מכירת מוצרים</div>
                 <div className="text-xs text-gray-500 mt-1">מכירה — מוצרים, כמות, משלוח וסכום לתשלום. בלי יעד ובלי שמות קונים.</div>
+              </button>
+              <button type="button" onClick={() => setPageType('kaparot')}
+                className={`text-right rounded-xl border-2 p-4 transition-all ${isKaparot ? 'border-blue-500 bg-blue-50/50' : 'border-gray-200 hover:border-gray-300'}`}>
+                <div className="text-sm font-bold text-gray-900">פדיון כפרות</div>
+                <div className="text-xs text-gray-500 mt-1">בחירת מספר נפשות, שם לכל נפש, וסכום לפי מחיר לנפש. מתאים לשליחים.</div>
               </button>
             </div>
           </CardContent>
@@ -116,14 +123,14 @@ export default function NewCampaignPage() {
           </CardContent>
         </Card>
 
-        {!isProducts && (
+        {!noGoal && (
           <Card>
             <CardHeader><CardTitle className="text-base">יעדים</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <Label>יעד ראשי (₪)</Label>
-                  <Input type="number" value={form.goal_amount} onChange={(e) => set('goal_amount', e.target.value)} dir="ltr" required={!isProducts} />
+                  <Input type="number" value={form.goal_amount} onChange={(e) => set('goal_amount', e.target.value)} dir="ltr" required={!noGoal} />
                 </div>
                 <div className="space-y-1">
                   <Label>יעד בונוס (₪)</Label>
@@ -171,7 +178,7 @@ export default function NewCampaignPage() {
 
         <div className="flex gap-3">
           <Button type="submit" disabled={loading}>
-            {loading ? 'יוצר...' : isProducts ? 'צור דף מכירות' : 'צור קמפיין'}
+            {loading ? 'יוצר...' : isKaparot ? 'צור דף כפרות' : isProducts ? 'צור דף מכירות' : 'צור קמפיין'}
           </Button>
           <Button type="button" variant="outline" onClick={() => router.back()}>
             ביטול

@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { type Metadata } from 'next'
 import DonationPageClient from './DonationPageClient'
 import ProductSalesClient from './ProductSalesClient'
+import KaparotPageClient from './KaparotPageClient'
 import { applyCampaignPaymentOverride } from '@/lib/payment'
 
 // Service-role client for public reads that bypass RLS
@@ -189,6 +190,21 @@ export default async function PublicDonationPage({ params, searchParams }: { par
       <ProductSalesClient
         campaign={campaign}
         initialLang={urlLang}
+        paymentUrls={paymentUrls}
+        paymentProvider={paymentProvider}
+        nedarim={nedarim}
+      />
+    )
+  }
+
+  // Kaparot (soul-redemption) page — its own layout + the shared DonationModal for payment.
+  if ((campaign.settings as { page_type?: string })?.page_type === 'kaparot') {
+    return (
+      <KaparotPageClient
+        org={org}
+        campaign={campaign}
+        initialLang={urlLang}
+        donationUrl={paymentUrls.one_time}
         paymentUrls={paymentUrls}
         paymentProvider={paymentProvider}
         nedarim={nedarim}

@@ -27,13 +27,15 @@ interface Campaign {
 
 interface Props {
   campaign: Campaign
-  pageType?: 'donation' | 'products'
+  pageType?: 'donation' | 'products' | 'kaparot'
 }
 
 export default function CampaignNav({ campaign, pageType = 'donation' }: Props) {
   const pathname = usePathname()
   const base = `/campaigns/${campaign.id}`
   const isProducts = pageType === 'products'
+  const isKaparot = pageType === 'kaparot'
+  const commerce = isProducts || isKaparot   // sales/kaparot pages: leaner nav, orders view
 
   const tabs = [
     { href: base, label: 'ראשי', icon: LayoutDashboard, exact: true },
@@ -41,13 +43,13 @@ export default function CampaignNav({ campaign, pageType = 'donation' }: Props) 
     // Product sales pages get a dedicated catalog/shipping editor + orders view.
     ...(isProducts ? [{ href: `${base}/products`, label: 'מוצרים', icon: ShoppingBag }] : []),
     { href: `${base}/media`, label: 'מדיה', icon: Image },
-    isProducts
-      ? { href: `${base}/orders`, label: 'הזמנות', icon: Users }
+    commerce
+      ? { href: `${base}/orders`, label: isKaparot ? 'פדיונות' : 'הזמנות', icon: Users }
       : { href: `${base}/donors`, label: 'תורמים', icon: Users },
-    { href: `${base}/abandoned`, label: isProducts ? 'עגלות נטושות' : 'לידים שנטשו', icon: UserX },
+    { href: `${base}/abandoned`, label: commerce ? 'עגלות נטושות' : 'לידים שנטשו', icon: UserX },
     { href: `${base}/insights`, label: 'סקירת תנועה', icon: Activity },
-    // Groups + custom donation forms are donation-specific — hidden on sales pages.
-    ...(isProducts ? [] : [
+    // Groups + custom donation forms are donation-specific — hidden on sales/kaparot pages.
+    ...(commerce ? [] : [
       { href: `${base}/groups`, label: 'קבוצות', icon: Group },
       { href: `${base}/custom-forms`, label: 'טפסים בהתאמה אישית', icon: SlidersHorizontal },
     ]),
