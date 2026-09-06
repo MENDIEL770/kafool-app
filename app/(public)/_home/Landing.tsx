@@ -976,13 +976,10 @@ export default function Landing({ c, logos, campaigns = [] }: { c: LandingConten
                     href={`/${cam.slug}`}
                     className="group block overflow-hidden rounded-3xl border border-white/60 bg-white/70 shadow-sm backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_26px_55px_-18px_rgba(16,42,86,0.35)]"
                   >
-                    <div className="relative aspect-[4/5] overflow-hidden bg-slate-100">
+                    {/* 1080×1350 (4:5) frame — the banner fills it edge to edge */}
+                    <div className="relative aspect-[1080/1350] overflow-hidden bg-slate-100">
                       {banner
-                        ? <>
-                            {/* blurred fill so every banner shows in full at a uniform size */}
-                            <img src={banner} alt="" aria-hidden className="absolute inset-0 h-full w-full scale-110 object-cover opacity-40 blur-xl" loading="lazy" />
-                            <img src={banner} alt={cam.title} className="relative h-full w-full object-contain transition-transform duration-500 group-hover:scale-105" loading="lazy" />
-                          </>
+                        ? <img src={banner} alt={cam.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
                         : <div className="flex h-full w-full items-center justify-center px-4 text-center text-sm font-bold text-slate-300">{cam.title}</div>}
                     </div>
                     <div className="flex items-center justify-between gap-2 p-4">
