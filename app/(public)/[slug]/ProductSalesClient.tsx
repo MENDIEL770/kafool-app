@@ -128,18 +128,29 @@ export default function ProductSalesClient({ campaign, initialLang, paymentUrls,
         </div>
       </div>
 
-      {/* Sticky cart bar */}
-      {itemCount > 0 && (
+      {/* Sticky cart bar — always pinned to the bottom, even with an empty cart */}
+      {products.length > 0 && (
         <div className="fixed bottom-0 inset-x-0 z-30 border-t border-gray-200 bg-white/95 backdrop-blur shadow-[0_-8px_30px_-12px_rgba(0,0,0,0.2)]">
           <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
             <div className="text-sm">
-              <div className="text-gray-500">
-                {en ? `${itemCount} items` : `${itemCount} פריטים`}
-                {shipCost > 0 ? ` · ${en ? 'shipping' : 'משלוח'} ${ils(shipCost)}` : subtotal > 0 ? ` · ${en ? 'free shipping' : 'משלוח חינם'}` : ''}
-              </div>
-              <div className="text-xl font-black" style={{ color: primary }}>{ils(grandTotal)}</div>
+              {itemCount > 0 ? (
+                <>
+                  <div className="text-gray-500">
+                    {en ? `${itemCount} items` : `${itemCount} פריטים`}
+                    {shipCost > 0 ? ` · ${en ? 'shipping' : 'משלוח'} ${ils(shipCost)}` : subtotal > 0 ? ` · ${en ? 'free shipping' : 'משלוח חינם'}` : ''}
+                  </div>
+                  <div className="text-xl font-black" style={{ color: primary }}>{ils(grandTotal)}</div>
+                </>
+              ) : (
+                <div className="text-gray-400">{en ? 'Your cart is empty — add products' : 'העגלה ריקה — הוסיפו מוצרים'}</div>
+              )}
             </div>
-            <button onClick={() => setCheckout(true)} className="rounded-xl px-6 py-3 text-white font-bold shadow" style={{ backgroundColor: primary }}>
+            <button
+              onClick={() => setCheckout(true)}
+              disabled={itemCount === 0}
+              className="rounded-xl px-6 py-3 text-white font-bold shadow disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{ backgroundColor: primary }}
+            >
               {en ? 'Checkout' : 'המשך לתשלום'}
             </button>
           </div>
