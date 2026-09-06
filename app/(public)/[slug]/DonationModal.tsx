@@ -78,6 +78,7 @@ interface Props {
   hokMonthsMode?: 'list' | 'range'   // הו"ק month picker: preset list (default) or free 2–60
   hokDefaultMonths?: number   // pre-selected months for a הו"ק (when a button doesn't set its own)
   bankDetails?: { account_name?: string | null; bank?: string | null; branch?: string | null; account_number?: string | null; note?: string | null } | null
+  disabledMethods?: string[]   // per-campaign: payment methods to hide even if the org offers them
 }
 
 export default function DonationModal({
@@ -110,6 +111,7 @@ export default function DonationModal({
   hokMonthsMode = 'list',
   hokDefaultMonths = 12,
   bankDetails,
+  disabledMethods = [],
 }: Props) {
   // Bank transfer: the fast path is the clearing link ("continue"); the manager's
   // account details are tucked behind a toggle for donors who prefer a manual transfer.
@@ -189,7 +191,7 @@ export default function DonationModal({
   // Kesher URL (הו"ק falls back to the one-time base), and Bit / bank appear when
   // their link is set. Foreign currency goes through Stripe (one-time / monthly
   // only — no Bit / bank), so those two are hidden when a foreign currency is set.
-  const availableMethods = isForeign
+  const availableMethods = (isForeign
     ? PAYMENT_METHODS.filter(m => m.key === 'one_time' || m.key === 'hok')
     : PAYMENT_METHODS.filter(m =>
         m.key === 'one_time' ? !!donationUrl
@@ -197,6 +199,7 @@ export default function DonationModal({
           : m.key === 'bank' ? !!(paymentUrls?.bank || hasBankDetails)
           : !!(paymentUrls?.[m.key])
       )
+  ).filter(m => !disabledMethods.includes(m.key))   // per-campaign hidden methods
   const bitUrl = paymentUrls?.bit || ''
   const hasMultipleMethods = availableMethods.length > 1
 
@@ -249,6 +252,13 @@ export default function DonationModal({
   useEffect(() => {
     if (isForeign && (paymentMethod === 'bit' || paymentMethod === 'bank')) setPaymentMethod('one_time')
   }, [isForeign, paymentMethod])
+
+  // If the selected method was hidden for this campaign, fall back to an available one.
+  useEffect(() => {
+    if (availableMethods.length && !availableMethods.some(m => m.key === paymentMethod)) {
+      setPaymentMethod(availableMethods[0].key)
+    }
+  }, [availableMethods, paymentMethod])
 
   // On open, pull the LIVE ₪ rate for each allowed foreign currency.
   useEffect(() => {

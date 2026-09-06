@@ -21,6 +21,7 @@ export default function CampaignSettingsPage() {
   const [loading, setLoading] = useState(false)
   const [saved, setSaved] = useState(false)
   const [status, setStatus] = useState('')
+  const [copiedWebhook, setCopiedWebhook] = useState(false)
   // special "product" (e.g. brick wall) configured on this campaign, if any
   const [bricks, setBricks] = useState<{ total?: number; price?: number; label?: string } | null>(null)
   // which settings tab is open (the page has many sections — grouped into a menu)
@@ -72,6 +73,11 @@ export default function CampaignSettingsPage() {
     pay_bank: '',
     pay_nedarim_mosad: '',
     pay_nedarim_api: '',
+    // Hide specific payment methods on this campaign (even if the org offers them)
+    pay_disable_one_time: false,
+    pay_disable_hok: false,
+    pay_disable_bit: false,
+    pay_disable_bank: false,
     // Bank-transfer details shown to the donor when they pick "העברה בנקאית"
     bank_account_name: '',
     bank_name: '',
@@ -133,6 +139,10 @@ export default function CampaignSettingsPage() {
           pay_bank: data.settings?.payment?.urls?.bank || '',
           pay_nedarim_mosad: data.settings?.payment?.nedarim?.mosad || '',
           pay_nedarim_api: data.settings?.payment?.nedarim?.api_valid || '',
+          pay_disable_one_time: (data.settings?.payment?.disabled || []).includes('one_time'),
+          pay_disable_hok: (data.settings?.payment?.disabled || []).includes('hok'),
+          pay_disable_bit: (data.settings?.payment?.disabled || []).includes('bit'),
+          pay_disable_bank: (data.settings?.payment?.disabled || []).includes('bank'),
           bank_account_name: data.settings?.bank_details?.account_name || '',
           bank_name: data.settings?.bank_details?.bank || '',
           bank_branch: data.settings?.bank_details?.branch || '',
@@ -169,8 +179,14 @@ export default function CampaignSettingsPage() {
 
     // Per-campaign payment override — only stored when the manager actually set
     // something; otherwise null so the campaign cleanly inherits the org.
+    const disabledMethods = [
+      ...(form.pay_disable_one_time ? ['one_time'] : []),
+      ...(form.pay_disable_hok ? ['hok'] : []),
+      ...(form.pay_disable_bit ? ['bit'] : []),
+      ...(form.pay_disable_bank ? ['bank'] : []),
+    ]
     const payFields = [form.pay_provider, form.pay_one_time, form.pay_hok, form.pay_bit, form.pay_bank, form.pay_nedarim_mosad, form.pay_nedarim_api]
-    const paymentOverride = payFields.some(v => (v || '').toString().trim()) ? {
+    const paymentOverride = (payFields.some(v => (v || '').toString().trim()) || disabledMethods.length) ? {
       provider: form.pay_provider || null,
       urls: {
         one_time: form.pay_one_time.trim() || null,
@@ -182,6 +198,7 @@ export default function CampaignSettingsPage() {
         mosad: form.pay_nedarim_mosad.trim() || null,
         api_valid: form.pay_nedarim_api.trim() || null,
       },
+      disabled: disabledMethods,
     } : null
 
     // Bank-transfer details (shown to the donor for a manual transfer) — null when empty.
@@ -483,6 +500,40 @@ export default function CampaignSettingsPage() {
                 <option value="nedarim">נדרים</option>
               </select>
             </div>
+
+            {/* Webhook URL to embed in the clearing page so donations (incl. future
+                standing orders) report back to Kafool. */}
+            <div className="space-y-1 rounded-xl bg-blue-50/50 border border-blue-100 p-3">
+              <Label className="text-blue-900">כתובת Webhook להטמעה בדף הסליקה</Label>
+              <p className="text-[11px] text-gray-500 mb-1">הדביקו את הכתובת הזו בהגדרות ה-Callback של דף הסליקה בקשר, כדי שתרומות (כולל הוראות קבע שיוקמו לחיוב עתידי) יירשמו אוטומטית באתר.</p>
+              <div className="flex items-center gap-2">
+                <Input readOnly value={form.pay_provider === 'nedarim' ? 'https://www.kafool.com/api/webhooks/nedarim' : 'https://www.kafool.com/api/webhooks/kesher'} dir="ltr" className="font-mono text-xs bg-white" onFocus={(e) => e.target.select()} />
+                <Button type="button" variant="outline" className="shrink-0" onClick={() => {
+                  const url = form.pay_provider === 'nedarim' ? 'https://www.kafool.com/api/webhooks/nedarim' : 'https://www.kafool.com/api/webhooks/kesher'
+                  navigator.clipboard?.writeText(url).then(() => { setCopiedWebhook(true); setTimeout(() => setCopiedWebhook(false), 1800) }).catch(() => {})
+                }}>{copiedWebhook ? '✓ הועתק' : 'העתק'}</Button>
+              </div>
+            </div>
+
+            {/* Hide specific payment methods on this campaign */}
+            <div className="space-y-1.5 rounded-xl bg-gray-50 border border-gray-100 p-3">
+              <Label>הסתרת אמצעי תשלום בקמפיין זה</Label>
+              <p className="text-[11px] text-gray-500 mb-1">סמנו אמצעי כדי שלא יופיע לתורם בקמפיין זה — גם אם הארגון מחובר אליו (למשל להסתיר ביט).</p>
+              <div className="grid grid-cols-2 gap-2">
+                {([
+                  ['pay_disable_one_time', 'תשלום חד-פעמי'],
+                  ['pay_disable_hok', 'הוראת קבע'],
+                  ['pay_disable_bit', 'ביט'],
+                  ['pay_disable_bank', 'העברה בנקאית'],
+                ] as const).map(([key, label]) => (
+                  <label key={key} className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                    <input type="checkbox" checked={form[key] as boolean} onChange={(e) => setForm(prev => ({ ...prev, [key]: e.target.checked }))} className="w-4 h-4 accent-red-500" />
+                    הסתר {label}
+                  </label>
+                ))}
+              </div>
+            </div>
+
             <div className="space-y-1">
               <Label>קישור דף סליקה — תשלום חד-פעמי</Label>
               <Input value={form.pay_one_time} onChange={(e) => set('pay_one_time', e.target.value)} dir="ltr" placeholder="https://…" />
