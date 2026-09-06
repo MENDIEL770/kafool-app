@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import Footer from '../_components/Footer'
 
 // ── Types (mirror the products editor) ───────────────────────────────────────
 interface QtyTier { qty: number; price: number }
@@ -133,6 +134,13 @@ export default function ProductSalesClient({ campaign, initialLang, paymentUrls,
           })}
         </div>
       </div>
+
+      {/* Kafool footer */}
+      <p className="text-center text-sm text-gray-500 px-4 pb-6 max-w-3xl mx-auto">
+        עמוד מכירה זה הוקם באמצעות פלטפורמת Kafool — פתרונות גיוס מתקדמים
+      </p>
+      <Footer />
+      <div className="h-24" />
 
       {/* Sticky cart bar — always pinned to the bottom, even with an empty cart */}
       {products.length > 0 && (
