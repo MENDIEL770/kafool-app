@@ -111,8 +111,12 @@ export default function DonationModal({
   hokDefaultMonths = 12,
   bankDetails,
 }: Props) {
-  // Bank transfer shows manager-entered account details instead of a clearing iframe.
+  // Bank transfer: the fast path is the clearing link ("continue"); the manager's
+  // account details are tucked behind a toggle for donors who prefer a manual transfer.
   const hasBankDetails = !!(bankDetails && (bankDetails.account_name || bankDetails.bank || bankDetails.account_number || bankDetails.note))
+  const [showBankManual, setShowBankManual] = useState(false)
+  const [copiedBank, setCopiedBank] = useState<string | null>(null)
+  const copyBank = (v: string) => { navigator.clipboard?.writeText(v).then(() => { setCopiedBank(v); setTimeout(() => setCopiedBank(c => c === v ? null : c), 1500) }).catch(() => {}) }
   // The pre-step is available once configured (choice/info/consent). It is NEVER
   // applied globally — only when a button's form setting is explicitly 'choice'.
   const hasPreStep = !!(preStep && preStep.enabled)
@@ -683,23 +687,42 @@ export default function DonationModal({
                 </div>
               )}
 
-              {/* Bank transfer: the manager's account details, small, right under the
-                  method buttons — the clearing link still runs on "continue" as before. */}
+              {/* Bank transfer: the fast path is "continue" (the clearing link). Manual
+                  account details are optional, behind a toggle, so donors don't assume
+                  copying the details is the only way to transfer. */}
               {paymentMethod === 'bank' && hasBankDetails && bankDetails && (
-                <div className="rounded-xl bg-gray-50 border border-gray-100 px-3 py-2.5 space-y-1 text-[11px] leading-relaxed">
-                  <p className="font-semibold text-gray-500">{en ? 'Bank transfer details' : 'פרטים להעברה בנקאית'}</p>
-                  {[
-                    [en ? 'Account holder' : 'שם החשבון', bankDetails.account_name],
-                    [en ? 'Bank' : 'בנק', bankDetails.bank],
-                    [en ? 'Branch' : 'סניף', bankDetails.branch],
-                    [en ? 'Account no.' : 'חשבון', bankDetails.account_number],
-                  ].filter(([, v]) => v).map(([k, v]) => (
-                    <div key={k} className="flex items-center justify-between gap-2">
-                      <span className="text-gray-400">{k}</span>
-                      <span className="font-semibold text-gray-700" dir="ltr">{v}</span>
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowBankManual(v => !v)}
+                    className="inline-flex items-center gap-1 text-xs font-semibold hover:opacity-80"
+                    style={{ color: primaryColor }}
+                  >
+                    <span className={`transition-transform ${showBankManual ? 'rotate-180' : ''}`}>▾</span>
+                    {en ? 'Prefer to transfer manually? Show account details' : 'מעוניין לבצע את ההעברה ידנית? להצגת פרטי החשבון'}
+                  </button>
+                  {showBankManual && (
+                    <div className="rounded-xl bg-gray-50 border border-gray-100 px-3 py-2.5 space-y-1.5 text-xs leading-relaxed">
+                      {([
+                        [en ? 'Account holder' : 'שם החשבון', bankDetails.account_name],
+                        [en ? 'Bank' : 'בנק', bankDetails.bank],
+                        [en ? 'Branch' : 'סניף', bankDetails.branch],
+                        [en ? 'Account no.' : 'מספר חשבון', bankDetails.account_number],
+                      ] as [string, string | null | undefined][]).filter(([, v]) => v).map(([k, v]) => (
+                        <div key={k} className="flex items-center justify-between gap-2">
+                          <span className="text-gray-400 shrink-0">{k}</span>
+                          <span className="flex items-center gap-1.5 min-w-0">
+                            <span className="font-semibold text-gray-800 truncate" dir="ltr">{v}</span>
+                            <button type="button" onClick={() => copyBank(String(v))} className="shrink-0 text-[11px] font-semibold" style={{ color: primaryColor }}>
+                              {copiedBank === v ? (en ? '✓ Copied' : '✓ הועתק') : (en ? 'Copy' : 'העתק')}
+                            </button>
+                          </span>
+                        </div>
+                      ))}
+                      {bankDetails.note && <p className="text-gray-500 pt-0.5 whitespace-pre-line border-t border-gray-200 mt-1.5 pt-1.5">{bankDetails.note}</p>}
+                      <p className="text-[11px] text-gray-400 pt-1">{en ? 'Or just continue for a fast bank transfer through the system.' : 'או פשוט המשיכו — לביצוע העברה בנקאית מהירה דרך המערכת.'}</p>
                     </div>
-                  ))}
-                  {bankDetails.note && <p className="text-gray-500 pt-0.5 whitespace-pre-line">{bankDetails.note}</p>}
+                  )}
                 </div>
               )}
 
