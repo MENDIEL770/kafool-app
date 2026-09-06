@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import RichTextEditor from '@/components/RichTextEditor'
 import { Check, Upload } from 'lucide-react'
+import KaparotFlyer from './KaparotFlyer'
 
 // Settings editor for a פדיון כפרות campaign (settings.kaparot).
 export default function KaparotSettingsPage() {
@@ -20,7 +21,8 @@ export default function KaparotSettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [uploading, setUploading] = useState<'logo' | 'email' | null>(null)
+  const [uploading, setUploading] = useState<'logo' | 'email' | 'flyer' | null>(null)
+  const [slug, setSlug] = useState('')
 
   const [pricePerSoul, setPricePerSoul] = useState('50')
   const [maxSouls, setMaxSouls] = useState('20')
@@ -30,10 +32,16 @@ export default function KaparotSettingsPage() {
   const [emailSubject, setEmailSubject] = useState('')
   const [emailBody, setEmailBody] = useState('')
   const [emailImage, setEmailImage] = useState('')
+  // Flyer (template + a few editable lines)
+  const [flyerTemplate, setFlyerTemplate] = useState('')
+  const [flyerHeadline, setFlyerHeadline] = useState('')
+  const [flyerSubtext, setFlyerSubtext] = useState('')
+  const [flyerContact, setFlyerContact] = useState('')
 
   useEffect(() => {
     async function load() {
-      const { data } = await supabase.from('campaigns').select('settings').eq('id', id).single()
+      const { data } = await supabase.from('campaigns').select('slug, settings').eq('id', id).single()
+      setSlug(data?.slug || '')
       const k = (data?.settings?.kaparot || {}) as Record<string, unknown>
       setPricePerSoul(String(k.price_per_soul ?? 50))
       setMaxSouls(String(k.max_souls ?? 20))
@@ -44,6 +52,11 @@ export default function KaparotSettingsPage() {
       setEmailSubject(em.subject || '')
       setEmailBody(em.body || '')
       setEmailImage(em.image_url || '')
+      const fl = (k.flyer || {}) as Record<string, string>
+      setFlyerTemplate(fl.template_url || '')
+      setFlyerHeadline(fl.headline || '')
+      setFlyerSubtext(fl.subtext || '')
+      setFlyerContact(fl.contact || '')
       setLoading(false)
     }
     load()
@@ -52,12 +65,12 @@ export default function KaparotSettingsPage() {
 
   const logoRef = useRef<HTMLInputElement>(null)
   const emailImgRef = useRef<HTMLInputElement>(null)
-  async function upImg(file: File | undefined, which: 'logo' | 'email') {
+  async function upImg(file: File | undefined, which: 'logo' | 'email' | 'flyer') {
     if (!file) return
     setUploading(which)
     try {
       const url = await uploadImage(file, `campaigns/${id}/kaparot-${which}-${Date.now()}`)
-      if (which === 'logo') setLogoUrl(url); else setEmailImage(url)
+      if (which === 'logo') setLogoUrl(url); else if (which === 'flyer') setFlyerTemplate(url); else setEmailImage(url)
     } catch { alert('העלאת התמונה נכשלה') }
     setUploading(null)
   }
@@ -78,6 +91,12 @@ export default function KaparotSettingsPage() {
           subject: emailSubject.trim() || null,
           body: emailBody.trim() || null,
           image_url: emailImage.trim() || null,
+        },
+        flyer: {
+          template_url: flyerTemplate.trim() || null,
+          headline: flyerHeadline.trim() || null,
+          subtext: flyerSubtext.trim() || null,
+          contact: flyerContact.trim() || null,
         },
       },
     }
@@ -151,6 +170,45 @@ export default function KaparotSettingsPage() {
               </label>
               {emailImage && <button onClick={() => setEmailImage('')} className="text-xs text-red-400 hover:text-red-600">הסר</button>}
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">פלייר להדפסה</CardTitle>
+          <p className="text-xs text-gray-400 mt-1">העלה תבנית מעוצבת (התבנית = הרקע), ערוך את הכותרת והפרטים, וייצא ל-PNG או PDF להדפסה. השאר בתבנית מקום ריק לכותרת (במרכז־עליון) ולפרטים (בתחתית).</p>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="space-y-1">
+            <Label>תבנית הפלייר (רקע)</Label>
+            <div className="flex items-center gap-3">
+              {flyerTemplate && <img src={flyerTemplate} alt="" className="h-16 w-auto object-contain rounded border border-gray-100" />}
+              <label className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600 cursor-pointer">
+                {uploading === 'flyer' ? <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" /> : <Upload className="w-4 h-4" />}
+                {flyerTemplate ? 'החלף תבנית' : 'העלה תבנית'}
+                <input type="file" accept="image/*" className="hidden" onChange={e => { upImg(e.target.files?.[0], 'flyer'); e.target.value = '' }} />
+              </label>
+              {flyerTemplate && <button onClick={() => setFlyerTemplate('')} className="text-xs text-red-400 hover:text-red-600">הסר</button>}
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-3">
+            <div className="space-y-1"><Label>כותרת</Label><Input value={flyerHeadline} onChange={e => setFlyerHeadline(e.target.value)} placeholder="פדיון כפרות תשפ״ז" /></div>
+            <div className="space-y-1"><Label>תת-כותרת</Label><Input value={flyerSubtext} onChange={e => setFlyerSubtext(e.target.value)} placeholder="לקראת יום הכיפורים — פדיון על כסף לצדקה" /></div>
+            <div className="space-y-1"><Label>פרטי קשר (בתחתית)</Label><Input value={flyerContact} onChange={e => setFlyerContact(e.target.value)} placeholder="בית חב״ד · 050-0000000" /></div>
+          </div>
+
+          <div className="pt-2">
+            <Label className="text-xs mb-2 block">תצוגה מקדימה</Label>
+            <KaparotFlyer
+              templateUrl={flyerTemplate}
+              headline={flyerHeadline}
+              subtext={flyerSubtext}
+              contact={flyerContact}
+              price={Math.max(1, Number(pricePerSoul) || 50)}
+              logoUrl={logoUrl}
+              pageUrl={`https://www.kafool.com/${slug}`}
+            />
           </div>
         </CardContent>
       </Card>
