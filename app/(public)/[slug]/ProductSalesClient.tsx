@@ -192,10 +192,12 @@ function ProductDetailModal({ product, primary, en, q, onQty, onClose }: {
   const tiers = (product.qty_tiers || []).filter(t => t.qty > 1 && t.price > 0)
   return (
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/60 p-0 md:p-4" onClick={onClose}>
-      <div className="bg-white w-full md:max-w-lg md:rounded-2xl rounded-t-2xl max-h-[94vh] overflow-y-auto" onClick={e => e.stopPropagation()} dir={en ? 'ltr' : 'rtl'}>
+      <div className="bg-white w-full md:max-w-lg md:rounded-2xl rounded-t-2xl max-h-[94vh] relative flex flex-col" onClick={e => e.stopPropagation()} dir={en ? 'ltr' : 'rtl'}>
+        {/* Close — fixed to the modal (outside the scroll area) so it never moves */}
+        <button onClick={onClose} className="absolute top-2 left-2 z-30 w-9 h-9 rounded-full bg-black/50 text-white text-xl leading-none flex items-center justify-center hover:bg-black/70" aria-label="סגור">×</button>
+        <div className="overflow-y-auto">
         <div className="relative bg-gray-100">
           {imgs[idx] && <img src={imgs[idx]} alt={product.name} className="w-full max-h-[60vh] object-contain bg-black/5" />}
-          <button onClick={onClose} className="absolute top-2 left-2 w-9 h-9 rounded-full bg-black/50 text-white text-xl leading-none flex items-center justify-center">×</button>
           {imgs.length > 1 && (
             <div className="absolute bottom-3 inset-x-0 flex justify-center gap-1.5">
               {imgs.map((_, k) => (
@@ -233,6 +235,7 @@ function ProductDetailModal({ product, primary, en, q, onQty, onClose }: {
             </a>
           )}
           <div className="pt-1"><QtyStepper q={q} onChange={onQty} max={product.max_qty || undefined} primary={primary} en={en} block /></div>
+        </div>
         </div>
       </div>
     </div>
