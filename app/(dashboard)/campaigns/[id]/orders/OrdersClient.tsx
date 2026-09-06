@@ -13,6 +13,7 @@ interface Order {
   payment_status: string
   created_at: string
   custom_data?: Record<string, string> | null
+  kesher_transaction_id?: string | null
 }
 interface Campaign { id: string; title: string; slug: string; settings?: Record<string, unknown> }
 
@@ -20,17 +21,26 @@ interface Campaign { id: string; title: string; slug: string; settings?: Record<
 const STATUSES = [
   { key: 'new', label: 'חדשה', cls: 'bg-blue-100 text-blue-700', icon: Clock },
   { key: 'packed', label: 'נארזה', cls: 'bg-amber-100 text-amber-700', icon: Package },
-  { key: 'shipped', label: 'נשלחה', cls: 'bg-indigo-100 text-indigo-700', icon: Truck },
+  { key: 'shipped', label: 'יצאה למשלוח', cls: 'bg-indigo-100 text-indigo-700', icon: Truck },
+  { key: 'arrived', label: 'הגיעה', cls: 'bg-teal-100 text-teal-700', icon: CheckCircle2 },
   { key: 'done', label: 'הושלמה', cls: 'bg-emerald-100 text-emerald-700', icon: CheckCircle2 },
+  { key: 'cancelled', label: 'בוטלה', cls: 'bg-red-100 text-red-600', icon: Clock },
 ] as const
 const statusOf = (o: Order) => (o.custom_data?.fulfillment_status || 'new')
 const statusMeta = (k: string) => STATUSES.find(s => s.key === k) || STATUSES[0]
+
+// How the buyer paid — recorded on the order as 'אמצעי תשלום' (or inferred).
+function payMethodOf(o: Order): string {
+  const cd = o.custom_data || {}
+  return cd['אמצעי תשלום'] || cd['Payment method'] || (cd.payment_method === 'stripe' ? 'כרטיס אשראי (חו״ל)' : cd.payment_method ? String(cd.payment_method) : (o.kesher_transaction_id ? 'סליקה' : '—'))
+}
+const payStatusOf = (o: Order) => o.payment_status === 'completed' ? { label: 'שולם', cls: 'bg-emerald-50 text-emerald-700' } : { label: 'ממתין', cls: 'bg-amber-50 text-amber-700' }
 
 // custom_data keys that are internal / shown specially — everything else is a
 // buyer-entered checkout field (address etc.) and is listed as label:value.
 const HIDDEN = new Set([
   'stripe_currency', 'stripe_amount', 'payment_method', 'anonymous', 'fulfillment_status', 'fulfillment_note',
-  'הזמנה', 'משלוח', 'סכום פריטים', 'Order', 'Shipping', 'Items total',
+  'הזמנה', 'משלוח', 'סכום פריטים', 'אמצעי תשלום', 'Order', 'Shipping', 'Items total', 'Payment method',
 ])
 
 const ils = (n: number) => '₪' + Math.round(n).toLocaleString('he-IL')
@@ -139,6 +149,10 @@ export default function OrdersClient({ campaign, orders: initial }: { campaign: 
                 </div>
                 <div className="text-left">
                   <div className="text-xl font-black text-blue-600">{ils(o.amount)}</div>
+                  <div className="flex items-center gap-1.5 justify-end mt-0.5">
+                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${payStatusOf(o).cls}`}>{payStatusOf(o).label}</span>
+                    <span className="text-[11px] text-gray-400">{payMethodOf(o)}</span>
+                  </div>
                 </div>
               </div>
 

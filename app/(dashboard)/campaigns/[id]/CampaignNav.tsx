@@ -44,10 +44,13 @@ export default function CampaignNav({ campaign, pageType = 'donation' }: Props) 
     isProducts
       ? { href: `${base}/orders`, label: 'הזמנות', icon: Users }
       : { href: `${base}/donors`, label: 'תורמים', icon: Users },
-    { href: `${base}/abandoned`, label: 'לידים שנטשו', icon: UserX },
+    { href: `${base}/abandoned`, label: isProducts ? 'עגלות נטושות' : 'לידים שנטשו', icon: UserX },
     { href: `${base}/insights`, label: 'סקירת תנועה', icon: Activity },
-    { href: `${base}/groups`, label: 'קבוצות', icon: Group },
-    { href: `${base}/custom-forms`, label: 'טפסים בהתאמה אישית', icon: SlidersHorizontal },
+    // Groups + custom donation forms are donation-specific — hidden on sales pages.
+    ...(isProducts ? [] : [
+      { href: `${base}/groups`, label: 'קבוצות', icon: Group },
+      { href: `${base}/custom-forms`, label: 'טפסים בהתאמה אישית', icon: SlidersHorizontal },
+    ]),
     { href: `${base}/email`, label: 'אימייל', icon: Mail },
   ]
 

@@ -240,27 +240,28 @@ function CheckoutModal({ en, primary, fields, lines, subtotal, shipCost, grandTo
     email: (emailField ? vals[emailField.key] : '')?.trim() || '',
   })
 
-  // Record the order (lead) — cart + shipping + fields — so it lands in the orders
-  // table via the same intent → payment-callback attachment as donations.
-  function recordIntent(methodKey: string) {
+  // Record the order (lead) — cart + shipping + fields + payment method — so it
+  // lands in the orders table via the same intent → payment-callback attachment.
+  function recordIntent(method: { key: string; label: string }) {
     const { name, phone, email } = buyer()
     const labeled: Record<string, string> = {}
     for (const f of fields) { const v = (vals[f.key] || '').trim(); if (v) labeled[f.label] = v }
     labeled[en ? 'Order' : 'הזמנה'] = lines.map(l => `${l.p.name} ×${l.q}`).join(', ')
     labeled[en ? 'Shipping' : 'משלוח'] = shipCost > 0 ? ils(shipCost) : (en ? 'Free' : 'חינם')
     labeled[en ? 'Items total' : 'סכום פריטים'] = ils(subtotal)
+    labeled[en ? 'Payment method' : 'אמצעי תשלום'] = method.label   // survives attachCustomData (no __ prefix)
     if (grandTotal > 0) {
       fetch('/api/donations/intent', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ campaignId: campaign.id, phone: phone || null, amount: grandTotal, groupSlug: null, customData: labeled, donorName: name || null, paymentMethod: methodKey, donorEmail: email || null }),
+        body: JSON.stringify({ campaignId: campaign.id, phone: phone || null, amount: grandTotal, groupSlug: null, customData: labeled, donorName: name || null, paymentMethod: method.key, donorEmail: email || null }),
         keepalive: true,
       }).catch(() => {})
     }
   }
 
   // Route to the chosen method's clearing link (or the manual bank details).
-  function startMethod(m: { key: string; url: string }) {
-    recordIntent(m.key)
+  function startMethod(m: { key: string; label: string; url: string }) {
+    recordIntent(m)
     if (m.key === 'bank' && !m.url && hasBank) { setBankView(true); setPayUrl(''); setStep('payment'); return }
     if (!m.url) { setBankView(false); setPayUrl(''); setStep('payment'); return }
     const { name, phone, email } = buyer()

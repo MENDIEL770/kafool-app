@@ -20,7 +20,7 @@ export default async function CampaignOrdersPage({ params }: { params: Promise<{
   // fields living in custom_data (attached from the checkout intent).
   const { data: orders } = await supabase
     .from('donations')
-    .select('id, amount, donor_name, donor_phone, donor_email, payment_status, created_at, custom_data')
+    .select('id, amount, donor_name, donor_phone, donor_email, payment_status, created_at, custom_data, kesher_transaction_id')
     .eq('campaign_id', id)
     .eq('payment_status', 'completed')
     .order('created_at', { ascending: false })
