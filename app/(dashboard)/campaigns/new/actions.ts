@@ -13,6 +13,7 @@ export async function createCampaign(formData: {
   start_at: string | null
   end_at: string | null
   primary_color: string
+  page_type?: 'donation' | 'products'
 }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -22,8 +23,14 @@ export async function createCampaign(formData: {
   // they've "entered" (kf_org cookie), NOT their own profile.org_id. Using the
   // latter created campaigns under the wrong org (invisible in the entered org).
   const ctx = await getContext(supabase)
+
+  // Only the platform manager (super admin) may open new campaign pages; a
+  // regular account can only manage the pages that were opened for it.
+  if (!ctx.isSuperAdmin) {
+    return { error: 'רק מנהל המערכת יכול לפתוח דף חדש. פנה למנהל.' }
+  }
   if (!ctx.orgId) {
-    return { error: ctx.isSuperAdmin ? 'לא נבחר ארגון — היכנס לארגון תחילה' : 'לא נמצא ארגון' }
+    return { error: 'לא נבחר ארגון — היכנס לארגון תחילה' }
   }
 
   // A super admin creates campaigns in an org that isn't their own, which the
@@ -45,6 +52,7 @@ export async function createCampaign(formData: {
       end_at: formData.end_at,
       status: 'draft',
       settings: {
+        page_type: formData.page_type === 'products' ? 'products' : 'donation',
         donation_amounts: [180, 360, 720, 1800, 3600],
         primary_color: formData.primary_color,
         secondary_color: '#1e40af',

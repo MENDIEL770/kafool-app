@@ -14,6 +14,9 @@ export default function NewCampaignPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const [pageType, setPageType] = useState<'donation' | 'products'>('donation')
+  const isProducts = pageType === 'products'
+
   const [form, setForm] = useState({
     title: '',
     slug: '',
@@ -48,11 +51,12 @@ export default function NewCampaignPage() {
       title: form.title,
       slug: form.slug,
       description: form.description,
-      goal_amount: Number(form.goal_amount) || 0,
-      bonus_goal_amount: form.bonus_goal_amount ? Number(form.bonus_goal_amount) : null,
+      goal_amount: isProducts ? 0 : (Number(form.goal_amount) || 0),
+      bonus_goal_amount: isProducts ? null : (form.bonus_goal_amount ? Number(form.bonus_goal_amount) : null),
       start_at: form.start_at || null,
       end_at: form.end_at || null,
       primary_color: form.primary_color,
+      page_type: pageType,
     })
 
     if (result.error) {
@@ -69,6 +73,24 @@ export default function NewCampaignPage() {
       <h1 className="text-2xl font-bold text-gray-900">קמפיין חדש</h1>
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        <Card>
+          <CardHeader><CardTitle className="text-base">סוג העמוד</CardTitle></CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-3">
+              <button type="button" onClick={() => setPageType('donation')}
+                className={`text-right rounded-xl border-2 p-4 transition-all ${!isProducts ? 'border-blue-500 bg-blue-50/50' : 'border-gray-200 hover:border-gray-300'}`}>
+                <div className="text-sm font-bold text-gray-900">דף קמפיין רגיל</div>
+                <div className="text-xs text-gray-500 mt-1">גיוס תרומות — יעד, פס התקדמות, פיד תורמים.</div>
+              </button>
+              <button type="button" onClick={() => setPageType('products')}
+                className={`text-right rounded-xl border-2 p-4 transition-all ${isProducts ? 'border-blue-500 bg-blue-50/50' : 'border-gray-200 hover:border-gray-300'}`}>
+                <div className="text-sm font-bold text-gray-900">דף מכירת מוצרים</div>
+                <div className="text-xs text-gray-500 mt-1">מכירה — מוצרים, כמות, משלוח וסכום לתשלום. בלי יעד ובלי שמות קונים.</div>
+              </button>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader><CardTitle className="text-base">פרטי הקמפיין</CardTitle></CardHeader>
           <CardContent className="space-y-4">
@@ -94,21 +116,23 @@ export default function NewCampaignPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader><CardTitle className="text-base">יעדים</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <Label>יעד ראשי (₪)</Label>
-                <Input type="number" value={form.goal_amount} onChange={(e) => set('goal_amount', e.target.value)} dir="ltr" required />
+        {!isProducts && (
+          <Card>
+            <CardHeader><CardTitle className="text-base">יעדים</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label>יעד ראשי (₪)</Label>
+                  <Input type="number" value={form.goal_amount} onChange={(e) => set('goal_amount', e.target.value)} dir="ltr" required={!isProducts} />
+                </div>
+                <div className="space-y-1">
+                  <Label>יעד בונוס (₪)</Label>
+                  <Input type="number" value={form.bonus_goal_amount} onChange={(e) => set('bonus_goal_amount', e.target.value)} dir="ltr" />
+                </div>
               </div>
-              <div className="space-y-1">
-                <Label>יעד בונוס (₪)</Label>
-                <Input type="number" value={form.bonus_goal_amount} onChange={(e) => set('bonus_goal_amount', e.target.value)} dir="ltr" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader><CardTitle className="text-base">תאריכים</CardTitle></CardHeader>
@@ -147,7 +171,7 @@ export default function NewCampaignPage() {
 
         <div className="flex gap-3">
           <Button type="submit" disabled={loading}>
-            {loading ? 'יוצר...' : 'צור קמפיין'}
+            {loading ? 'יוצר...' : isProducts ? 'צור דף מכירות' : 'צור קמפיין'}
           </Button>
           <Button type="button" variant="outline" onClick={() => router.back()}>
             ביטול

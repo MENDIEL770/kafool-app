@@ -68,12 +68,15 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  // Super-admin area requires the super_admin role, not merely being logged in.
-  // (Defense-in-depth alongside the per-route role checks.)
-  if (path.startsWith('/super-admin') && user) {
+  // The super-admin area AND opening a new campaign page both require the
+  // super_admin role (the platform manager) — a regular account may manage only
+  // the pages opened for it, not create new ones. (Defense-in-depth alongside the
+  // per-route/action role checks.) One profile lookup covers both gates.
+  const needsSuperAdmin = path.startsWith('/super-admin') || path.startsWith('/campaigns/new')
+  if (needsSuperAdmin && user) {
     const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
     if (profile?.role !== 'super_admin') {
-      return NextResponse.redirect(new URL('/dashboard', request.url))
+      return NextResponse.redirect(new URL(path.startsWith('/campaigns') ? '/campaigns' : '/dashboard', request.url))
     }
   }
 

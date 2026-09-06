@@ -54,6 +54,7 @@ export default function CampaignsPage() {
   const [defaultId, setDefaultId] = useState<string>('')
   const [loading, setLoading] = useState(true)
   const [orgName, setOrgName] = useState<string>('')   // when a super-admin views a specific org
+  const [isSuper, setIsSuper] = useState(false)        // only the manager may open new pages
 
   useEffect(() => {
     setDefaultId(localStorage.getItem(DEFAULT_KEY) || '')
@@ -63,6 +64,7 @@ export default function CampaignsPage() {
       if (!user) return
       const { data: profile } = await supabase.from('profiles').select('org_id, role').eq('id', user.id).single()
       const isSuper = profile?.role === 'super_admin'
+      setIsSuper(isSuper)
       // sticky org context (super admin: the entered org; else own org)
       const ctxOrgId = getClientOrgId(profile)
 
@@ -113,13 +115,15 @@ export default function CampaignsPage() {
             <p className="text-xs text-gray-400 mt-0.5">★ קמפיין ברירת מחדל מסומן</p>
           ) : null}
         </div>
-        <Link
-          href="/campaigns/new"
-          className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2.5 rounded-xl transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          קמפיין חדש
-        </Link>
+        {isSuper && (
+          <Link
+            href="/campaigns/new"
+            className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2.5 rounded-xl transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            קמפיין חדש
+          </Link>
+        )}
       </div>
 
       {loading && (
@@ -134,9 +138,11 @@ export default function CampaignsPage() {
         <div className="text-center py-20 text-gray-400">
           <div className="text-5xl mb-4"></div>
           <p className="font-medium">אין קמפיינים עדיין</p>
-          <Link href="/campaigns/new" className="mt-4 inline-flex items-center gap-2 bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors">
-            <Plus className="w-4 h-4" /> צור קמפיין ראשון
-          </Link>
+          {isSuper && (
+            <Link href="/campaigns/new" className="mt-4 inline-flex items-center gap-2 bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors">
+              <Plus className="w-4 h-4" /> צור קמפיין ראשון
+            </Link>
+          )}
         </div>
       )}
 
