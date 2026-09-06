@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { Phone, MessageCircle, Mail, UserX } from 'lucide-react'
 import { intentCompleted } from '@/lib/abandoned'
 import SendPaymentLink from './SendPaymentLink'
+import DeleteLeadButton from './DeleteLeadButton'
 
 export const dynamic = 'force-dynamic'
 
@@ -173,6 +174,7 @@ export default async function AbandonedPage({ params }: { params: Promise<{ id: 
                             <Mail className="w-4 h-4" />
                           </a>
                         )}
+                        <DeleteLeadButton campaignId={campaign.id} intentId={r.id} />
                       </div>
                     </td>
                   </tr>
