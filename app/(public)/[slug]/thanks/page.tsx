@@ -31,7 +31,7 @@ export default async function ThanksPage({
   if (!org) notFound()
 
   const primaryColor = (campaign.settings as { primary_color?: string })?.primary_color || '#2563eb'
-  const thanks = (campaign.settings as { thanks?: { title?: string; message?: string } } | null)?.thanks
+  const thanks = (campaign.settings as { thanks?: { title?: string; message?: string; sub_text?: string; button_label?: string; button_url?: string } } | null)?.thanks
   const logoUrl = (campaign as { logo_url?: string | null }).logo_url || org.logo_url || null
   const receiptUrl = sp.receiptLink || sp.receipturl || sp.receipt_url || sp.receiptUrl || null
   const transactionNumber = sp.transactionNumber || sp.NumTransaction || null
@@ -148,6 +148,9 @@ export default async function ThanksPage({
       thanksTitle={thanks?.title || null}
       thanksMessage={thanks?.message || null}
       isOrder={(campaign.settings as { page_type?: string })?.page_type === 'products'}
+      subText={thanks?.sub_text || null}
+      buttonLabel={thanks?.button_label || null}
+      buttonUrl={thanks?.button_url || null}
     />
   )
 }

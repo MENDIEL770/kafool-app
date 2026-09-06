@@ -20,6 +20,9 @@ interface Props {
   thanksTitle?: string | null
   thanksMessage?: string | null
   isOrder?: boolean
+  subText?: string | null          // secondary text under the message (editable)
+  buttonLabel?: string | null      // CTA button label (default: back to campaign)
+  buttonUrl?: string | null        // CTA target; empty = the campaign page
 }
 
 type Phase = 'verifying' | 'confirmed' | 'pending'
@@ -27,10 +30,13 @@ type Phase = 'verifying' | 'confirmed' | 'pending'
 export default function ThanksClient({
   slug, campaignId, orgName, campaignTitle, primaryColor, receiptUrl,
   transactionNumber, pendingTx, initiallyConfirmed, logoUrl, thanksTitle, thanksMessage, isOrder,
+  subText, buttonLabel, buttonUrl,
 }: Props) {
   // Product-sales pages phrase the confirmation as an order, not a donation.
   const noun = isOrder ? 'ההזמנה' : 'התרומה'
   const router = useRouter()
+  // A custom CTA link takes over the button and disables the auto-return.
+  const customCta = !!(buttonUrl && buttonUrl.trim())
 
   // Only congratulate once the payment is actually confirmed. If we already know
   // it landed → straight to the thank-you. If we have a transaction to check →
@@ -103,15 +109,21 @@ export default function ThanksClient({
     if (typeof window !== 'undefined' && window.self !== window.top) window.top!.location.href = url
     else router.push(url)
   }
+  // The CTA goes to the manager's custom link when set, else back to the campaign.
+  function goToTarget() {
+    if (customCta) { if (typeof window !== 'undefined') { const w = window.self !== window.top ? window.top! : window; w.location.href = buttonUrl!.trim() }; return }
+    goToCampaign()
+  }
 
-  // Auto-return countdown runs only on the confirmed screen.
+  // Auto-return countdown runs only on the confirmed screen — and only with the
+  // default CTA (a custom link should not be overridden by an auto-redirect).
   useEffect(() => {
-    if (phase !== 'confirmed') return
+    if (phase !== 'confirmed' || customCta) return
     const t = setInterval(() => {
       setSeconds(s => { if (s <= 1) { clearInterval(t); goToCampaign(); return 0 } return s - 1 })
     }, 1000)
     return () => clearInterval(t)
-  }, [phase, slug])
+  }, [phase, slug, customCta])
 
   // ── Verifying: spinning "confirming your payment" screen ──
   if (phase === 'verifying') {
@@ -198,10 +210,10 @@ export default function ThanksClient({
         </div>
 
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-4">
-          <p className="text-gray-600 text-sm leading-relaxed">
-            קבלה תישלח לאימייל שלך בקרוב.
-            <br />
-            תרומתך תשנה חיים.
+          <p className="text-gray-600 text-sm leading-relaxed whitespace-pre-line">
+            {subText?.trim()
+              ? subText
+              : (isOrder ? 'עדכון על ההזמנה יישלח אליך במייל.' : 'קבלה תישלח לאימייל שלך בקרוב.\nתרומתך תשנה חיים.')}
           </p>
           {receipt && (
             <a
@@ -218,13 +230,13 @@ export default function ThanksClient({
 
         <div className="space-y-2">
           <button
-            onClick={goToCampaign}
+            onClick={goToTarget}
             className="w-full py-3 rounded-xl font-bold text-white text-sm transition-opacity hover:opacity-90"
             style={{ backgroundColor: primaryColor }}
           >
-            חזרה לדף הקמפיין
+            {buttonLabel?.trim() || 'חזרה לדף הקמפיין'}
           </button>
-          <p className="text-gray-400 text-xs">חוזר אוטומטית בעוד {seconds} שניות...</p>
+          {!customCta && <p className="text-gray-400 text-xs">חוזר אוטומטית בעוד {seconds} שניות...</p>}
         </div>
       </div>
     </div>

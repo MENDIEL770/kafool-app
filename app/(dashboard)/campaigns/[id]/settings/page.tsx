@@ -59,6 +59,9 @@ export default function CampaignSettingsPage() {
     allow_gbp: false,
     thanks_title: '',
     thanks_message: '',
+    thanks_sub_text: '',
+    thanks_button_label: '',
+    thanks_button_url: '',
     logo_url: '',
     nedarim_category: '',
     // Per-campaign payment override (empty = inherit the org's connection)
@@ -118,6 +121,9 @@ export default function CampaignSettingsPage() {
           allow_gbp: Array.isArray(data.settings?.allowed_currencies) ? data.settings.allowed_currencies.includes('gbp') : false,
           thanks_title: data.settings?.thanks?.title || '',
           thanks_message: data.settings?.thanks?.message || '',
+          thanks_sub_text: data.settings?.thanks?.sub_text || '',
+          thanks_button_label: data.settings?.thanks?.button_label || '',
+          thanks_button_url: data.settings?.thanks?.button_url || '',
           logo_url: data.logo_url || '',
           nedarim_category: data.settings?.nedarim_category || '',
           pay_provider: data.settings?.payment?.provider === 'kesher' || data.settings?.payment?.provider === 'nedarim' ? data.settings.payment.provider : '',
@@ -223,6 +229,9 @@ export default function CampaignSettingsPage() {
         thanks: {
           title: form.thanks_title.trim() || null,
           message: form.thanks_message.trim() || null,
+          sub_text: form.thanks_sub_text.trim() || null,
+          button_label: form.thanks_button_label.trim() || null,
+          button_url: form.thanks_button_url.trim() || null,
         },
         nedarim_category: form.nedarim_category.trim() || null,
         payment: paymentOverride,
@@ -865,7 +874,7 @@ export default function CampaignSettingsPage() {
               />
             </div>
             <div className="space-y-1">
-              <Label>טקסט</Label>
+              <Label>טקסט ראשי</Label>
               <Textarea
                 value={form.thanks_message}
                 onChange={(e) => set('thanks_message', e.target.value)}
@@ -874,6 +883,27 @@ export default function CampaignSettingsPage() {
               />
               <p className="text-[11px] text-gray-400">השאר ריק כדי להשתמש בברירת המחדל</p>
             </div>
+            <div className="space-y-1">
+              <Label>טקסט משני (בתיבה)</Label>
+              <Textarea
+                value={form.thanks_sub_text}
+                onChange={(e) => set('thanks_sub_text', e.target.value)}
+                rows={2}
+                placeholder="קבלה תישלח לאימייל שלך בקרוב.&#10;תרומתך תשנה חיים."
+              />
+              <p className="text-[11px] text-gray-400">הטקסט בתיבה הלבנה מתחת לכותרת. ריק = ברירת מחדל.</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>טקסט הכפתור</Label>
+                <Input value={form.thanks_button_label} onChange={(e) => set('thanks_button_label', e.target.value)} placeholder="חזרה לדף הקמפיין" />
+              </div>
+              <div className="space-y-1">
+                <Label>קישור הכפתור</Label>
+                <Input value={form.thanks_button_url} onChange={(e) => set('thanks_button_url', e.target.value)} dir="ltr" placeholder="ריק = דף הקמפיין" />
+              </div>
+            </div>
+            <p className="text-[11px] text-gray-400 -mt-2">אם מזינים קישור (למשל קבוצת וואטסאפ) — הכפתור יוביל אליו, וההפניה האוטומטית לדף הקמפיין תבוטל.</p>
 
             {/* תצוגה מקדימה חיה */}
             <div className="space-y-2">
@@ -894,10 +924,10 @@ export default function CampaignSettingsPage() {
                     <p className="text-gray-500 whitespace-pre-line mt-1">{form.thanks_message || 'תרומתך התקבלה בהצלחה'}</p>
                   </div>
                   <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                    <p className="text-gray-600 text-xs leading-relaxed">קבלה תישלח לאימייל שלך בקרוב.<br />תרומתך תשנה חיים.</p>
+                    <p className="text-gray-600 text-xs leading-relaxed whitespace-pre-line">{form.thanks_sub_text || 'קבלה תישלח לאימייל שלך בקרוב.\nתרומתך תשנה חיים.'}</p>
                   </div>
                   <button type="button" disabled className="w-full py-2.5 rounded-xl font-bold text-white text-sm" style={{ backgroundColor: primaryColor }}>
-                    חזרה לדף הקמפיין
+                    {form.thanks_button_label || 'חזרה לדף הקמפיין'}
                   </button>
                 </div>
               </div>
