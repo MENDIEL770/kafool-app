@@ -193,14 +193,10 @@ export default function KaparotPageClient({ org, campaign, initialLang, donation
               )
             })}
           </div>
-          <div className="kap-serif rounded-xl border p-4 text-center text-base leading-relaxed max-w-2xl mx-auto" style={{ borderColor: C.gold, background: C.bg }}>
-            &quot;{DECLARATION}&quot;
-            <div className="text-xs mt-2" style={{ color: C.muted }}>כך שלוש פעמים לכל אחד מבני הבית.</div>
-          </div>
         </div>
       </section>
 
-      {/* ── FULL NUSACH (parchment) ── */}
+      {/* ── FULL NUSACH (parchment) + declaration ── */}
       <section className="px-5 py-12">
         <div className="max-w-3xl mx-auto">
           <h2 className="kap-h text-2xl md:text-3xl font-black text-center mb-5">נוסח הכפרות המלא</h2>
@@ -208,6 +204,12 @@ export default function KaparotPageClient({ org, campaign, initialLang, donation
             <span className="absolute top-2 right-3 text-2xl" style={{ color: C.goldSoft }}>❦</span>
             <span className="absolute bottom-2 left-3 text-2xl" style={{ color: C.goldSoft }}>❦</span>
             <p className="kap-serif text-lg md:text-xl leading-loose text-center">{NUSACH}</p>
+          </div>
+
+          {/* The declaration — said while performing the redemption */}
+          <div className="kap-serif rounded-xl border p-4 text-center text-base leading-relaxed max-w-2xl mx-auto mt-6" style={{ borderColor: C.gold, background: C.bg }}>
+            &quot;{DECLARATION}&quot;
+            <div className="text-xs mt-2" style={{ color: C.muted }}>כך שלוש פעמים לכל אחד מבני הבית.</div>
           </div>
         </div>
       </section>
