@@ -61,6 +61,14 @@ export default function CampaignSettingsPage() {
     thanks_message: '',
     logo_url: '',
     nedarim_category: '',
+    // Per-campaign payment override (empty = inherit the org's connection)
+    pay_provider: '' as '' | 'kesher' | 'nedarim',
+    pay_one_time: '',
+    pay_hok: '',
+    pay_bit: '',
+    pay_bank: '',
+    pay_nedarim_mosad: '',
+    pay_nedarim_api: '',
   })
 
   useEffect(() => {
@@ -106,6 +114,13 @@ export default function CampaignSettingsPage() {
           thanks_message: data.settings?.thanks?.message || '',
           logo_url: data.logo_url || '',
           nedarim_category: data.settings?.nedarim_category || '',
+          pay_provider: data.settings?.payment?.provider === 'kesher' || data.settings?.payment?.provider === 'nedarim' ? data.settings.payment.provider : '',
+          pay_one_time: data.settings?.payment?.urls?.one_time || '',
+          pay_hok: data.settings?.payment?.urls?.hok || '',
+          pay_bit: data.settings?.payment?.urls?.bit || '',
+          pay_bank: data.settings?.payment?.urls?.bank || '',
+          pay_nedarim_mosad: data.settings?.payment?.nedarim?.mosad || '',
+          pay_nedarim_api: data.settings?.payment?.nedarim?.api_valid || '',
         })
       }
     }
@@ -134,6 +149,23 @@ export default function CampaignSettingsPage() {
 
     // Preserve existing settings fields we don't edit here (videos live in מדיה)
     const { data: existing } = await supabase.from('campaigns').select('settings').eq('id', id).single()
+
+    // Per-campaign payment override — only stored when the manager actually set
+    // something; otherwise null so the campaign cleanly inherits the org.
+    const payFields = [form.pay_provider, form.pay_one_time, form.pay_hok, form.pay_bit, form.pay_bank, form.pay_nedarim_mosad, form.pay_nedarim_api]
+    const paymentOverride = payFields.some(v => (v || '').toString().trim()) ? {
+      provider: form.pay_provider || null,
+      urls: {
+        one_time: form.pay_one_time.trim() || null,
+        hok: form.pay_hok.trim() || null,
+        bit: form.pay_bit.trim() || null,
+        bank: form.pay_bank.trim() || null,
+      },
+      nedarim: {
+        mosad: form.pay_nedarim_mosad.trim() || null,
+        api_valid: form.pay_nedarim_api.trim() || null,
+      },
+    } : null
 
     await supabase.from('campaigns').update({
       title: form.title,
@@ -172,6 +204,7 @@ export default function CampaignSettingsPage() {
           message: form.thanks_message.trim() || null,
         },
         nedarim_category: form.nedarim_category.trim() || null,
+        payment: paymentOverride,
       },
     }).eq('id', id)
     setLoading(false)
@@ -398,6 +431,60 @@ export default function CampaignSettingsPage() {
         </>)}
 
         {tab === 'payments' && (<>
+        {/* ── חיבור סליקה ייעודי לקמפיין זה ── */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">חיבור סליקה לקמפיין זה</CardTitle>
+            <p className="text-xs text-gray-400 mt-1">
+              בררת מחדל: הקמפיין משתמש בחיבור הסליקה של הארגון. כאן אפשר לחבר <b>דף סליקה ייעודי</b> לקמפיין זה בלבד (למשל דף מכירה שמוגדר כתשלום ולא כתרומה). <b>כל שדה שנשאר ריק — יורש מהארגון, וכל הקמפיינים הקיימים ממשיכים לעבוד כרגיל.</b>
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="space-y-1">
+              <Label>ספק סליקה</Label>
+              <select
+                value={form.pay_provider}
+                onChange={(e) => set('pay_provider', e.target.value)}
+                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm"
+              >
+                <option value="">כמו הארגון (ברירת מחדל)</option>
+                <option value="kesher">קשר</option>
+                <option value="nedarim">נדרים</option>
+              </select>
+            </div>
+            <div className="space-y-1">
+              <Label>קישור דף סליקה — תשלום חד-פעמי</Label>
+              <Input value={form.pay_one_time} onChange={(e) => set('pay_one_time', e.target.value)} dir="ltr" placeholder="https://…" />
+            </div>
+            <div className="space-y-1">
+              <Label>קישור דף סליקה — הוראת קבע</Label>
+              <Input value={form.pay_hok} onChange={(e) => set('pay_hok', e.target.value)} dir="ltr" placeholder="https://… (ריק = כמו הארגון)" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>קישור — ביט</Label>
+                <Input value={form.pay_bit} onChange={(e) => set('pay_bit', e.target.value)} dir="ltr" placeholder="https://…" />
+              </div>
+              <div className="space-y-1">
+                <Label>קישור — העברה בנקאית</Label>
+                <Input value={form.pay_bank} onChange={(e) => set('pay_bank', e.target.value)} dir="ltr" placeholder="https://…" />
+              </div>
+            </div>
+            {form.pay_provider === 'nedarim' && (
+              <div className="grid grid-cols-2 gap-3 rounded-xl bg-gray-50 border border-gray-100 p-3">
+                <div className="space-y-1">
+                  <Label>מוסד נדרים (Mosad)</Label>
+                  <Input value={form.pay_nedarim_mosad} onChange={(e) => set('pay_nedarim_mosad', e.target.value)} dir="ltr" placeholder="ריק = כמו הארגון" />
+                </div>
+                <div className="space-y-1">
+                  <Label>ApiValid</Label>
+                  <Input value={form.pay_nedarim_api} onChange={(e) => set('pay_nedarim_api', e.target.value)} dir="ltr" placeholder="ריק = כמו הארגון" />
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* ── נדרים פלוס ── */}
         <Card>
           <CardHeader>

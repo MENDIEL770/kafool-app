@@ -2,6 +2,7 @@ import { createClient as createAdmin } from '@supabase/supabase-js'
 import { notFound } from 'next/navigation'
 import { type Metadata } from 'next'
 import DonationPageClient from './DonationPageClient'
+import { applyCampaignPaymentOverride } from '@/lib/payment'
 
 // Service-role client for public reads that bypass RLS
 function adminClient() {
@@ -168,6 +169,16 @@ export default async function PublicDonationPage({ params, searchParams }: { par
       paymentUrls.hok_en = (p.kesher_url_hok_en as string) || ''
     }
   }
+
+  // Per-campaign payment override (optional). When a campaign has its own
+  // clearing links in settings.payment they win; anything left empty — and every
+  // existing campaign, which has no settings.payment at all — inherits the org's
+  // connection, so active campaigns keep working exactly as before.
+  applyCampaignPaymentOverride(campaign.settings, (patch) => {
+    if (patch.provider) paymentProvider = patch.provider
+    if (patch.urls) Object.assign(paymentUrls, patch.urls)
+    if (patch.nedarim) nedarim = { mosad: patch.nedarim.mosad || nedarim?.mosad || '', apiValid: patch.nedarim.apiValid || nedarim?.apiValid || '', active: true }
+  }, paymentProvider)
 
   return (
     <DonationPageClient

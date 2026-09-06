@@ -2,6 +2,7 @@ import { createClient as createAdmin } from '@supabase/supabase-js'
 import { notFound } from 'next/navigation'
 import { type Metadata } from 'next'
 import DonationPageClient from '../../DonationPageClient'
+import { applyCampaignPaymentOverride } from '@/lib/payment'
 
 // Cookie-less service-role client so the page can be cached (ISR) under load
 function adminClient() {
@@ -171,6 +172,15 @@ export default async function GroupPage({ params, searchParams }: { params: Prom
       paymentUrls.bank     = (p.nedarim_url_bank as string) || paymentUrls.bank
     }
   }
+
+  // Per-campaign payment override (optional) — same rule as the campaign page:
+  // the campaign's own clearing links win, empty inherits the org, and a campaign
+  // with no settings.payment (every existing one) is unaffected.
+  applyCampaignPaymentOverride(campaign.settings, (patch) => {
+    if (patch.provider) paymentProvider = patch.provider
+    if (patch.urls) Object.assign(paymentUrls, patch.urls)
+    if (patch.nedarim) nedarim = { mosad: patch.nedarim.mosad || nedarim?.mosad || '', apiValid: patch.nedarim.apiValid || nedarim?.apiValid || '', active: true }
+  }, paymentProvider)
 
   return (
     <DonationPageClient
