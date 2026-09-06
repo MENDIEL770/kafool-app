@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { sendThankYouEmail, renderKaparotHtml, sendHtmlEmail } from './email'
+import { sendYemotSms } from './sms/yemot'
 import { sendWhatsAppTemplate } from './whatsapp'
 import { syncDonationToKafoolPlus } from './kafool-plus'
 
@@ -77,14 +78,26 @@ export async function attachCustomData(
   try {
     const { data: c } = await supabase.from('campaigns').select('settings, title, org_id').eq('id', args.campaignId).single()
     const campaignTitle = c?.title || ''
-    const cSettings = (c?.settings as { page_type?: string; kaparot?: { chabad_logo_url?: string; email?: { subject?: string; body?: string; image_url?: string } } } | null) || {}
+    const cSettings = (c?.settings as { page_type?: string; manager_phone?: string; order_contact_phone?: string; kaparot?: { chabad_logo_url?: string; email?: { subject?: string; body?: string; image_url?: string } } } | null) || {}
     const isKaparot = cSettings.page_type === 'kaparot'
+    const isProducts = cSettings.page_type === 'products'
 
     // WhatsApp thank-you (Meta Cloud API) — sent when configured + we have a phone.
     // Template body should take {{1}} = campaign name, {{2}} = amount.
     const waTemplate = process.env.WHATSAPP_THANKS_TEMPLATE
     if (waTemplate && args.phone) {
       await sendWhatsAppTemplate(args.phone, waTemplate, [campaignTitle, `₪${Math.round(args.amount)}`])
+    }
+
+    // Product order confirmation SMS to the buyer (org name + contact number).
+    if (isProducts && args.phone && process.env.YEMOT_API_KEY) {
+      const { data: org } = c?.org_id
+        ? await supabase.from('organizations').select('name').eq('id', c.org_id).single()
+        : { data: null }
+      const orgName = (org as { name?: string })?.name || campaignTitle
+      const contact = (cSettings.order_contact_phone || cSettings.manager_phone || '').trim()
+      const msg = `ההזמנה שלך מ${orgName} הושלמה בהצלחה.` + (contact ? `\nלפרטים ויצירת קשר: ${contact}` : '')
+      await sendYemotSms(process.env.YEMOT_API_KEY, args.phone, msg).catch(() => {})
     }
 
     // Kaparot confirmation email — lists the redeemed souls + a Chabad-house block.

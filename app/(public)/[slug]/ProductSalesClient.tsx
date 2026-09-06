@@ -67,6 +67,7 @@ export default function ProductSalesClient({ campaign, initialLang, paymentUrls,
   const itemCount = lines.reduce((n, l) => n + l.q, 0)
 
   const [checkout, setCheckout] = useState(false)
+  const [detail, setDetail] = useState<number | null>(null)   // product-detail modal (enlarged image + full description)
 
   return (
     <div dir={en ? 'ltr' : 'rtl'} className="min-h-screen bg-gray-50 text-gray-900" style={{ ['--pc' as string]: primary }}>
@@ -96,9 +97,9 @@ export default function ProductSalesClient({ campaign, initialLang, paymentUrls,
             const tiers = (p.qty_tiers || []).filter(t => t.qty > 1 && t.price > 0)
             return (
               <div key={i} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col">
-                <ProductImages images={p.images || []} name={p.name} />
+                <ProductImages images={p.images || []} name={p.name} onOpen={() => setDetail(i)} />
                 <div className="p-3 flex flex-col gap-1.5 flex-1">
-                  <h3 className="font-bold text-sm leading-tight line-clamp-2">{p.name}</h3>
+                  <h3 className="font-bold text-sm leading-tight line-clamp-2 cursor-pointer" onClick={() => setDetail(i)}>{p.name}</h3>
                   <div className="flex items-baseline gap-1.5">
                     <span className="text-base font-black" style={{ color: primary }}>{ils(unit)}</span>
                     {onSale && <span className="text-xs text-gray-400 line-through">{ils(p.price)}</span>}
@@ -113,6 +114,11 @@ export default function ProductSalesClient({ campaign, initialLang, paymentUrls,
                     </div>
                   )}
                   {p.description && <p className="text-xs text-gray-500 line-clamp-2">{p.description}</p>}
+                  {(p.description || (p.images || []).length > 0) && (
+                    <button type="button" onClick={() => setDetail(i)} className="text-[11px] font-semibold text-right" style={{ color: primary }}>
+                      {en ? 'More details ›' : 'פרטים נוספים ›'}
+                    </button>
+                  )}
                   {p.video_url && (
                     <a href={p.video_url} target="_blank" rel="noopener noreferrer" className="text-[11px] font-semibold" style={{ color: primary }}>
                       {en ? '▶ Watch' : '▶ סרטון'}
@@ -164,17 +170,82 @@ export default function ProductSalesClient({ campaign, initialLang, paymentUrls,
           onClose={() => setCheckout(false)}
         />
       )}
+
+      {detail !== null && products[detail] && (
+        <ProductDetailModal
+          product={products[detail]} primary={primary} en={en}
+          q={qty[detail] || 0} onQty={v => setQ(detail, v)} onClose={() => setDetail(null)}
+        />
+      )}
+    </div>
+  )
+}
+
+// ── Product detail modal — enlarged images + full description ─────────────────
+function ProductDetailModal({ product, primary, en, q, onQty, onClose }: {
+  product: Product; primary: string; en: boolean; q: number; onQty: (v: number) => void; onClose: () => void
+}) {
+  const [idx, setIdx] = useState(0)
+  const imgs = product.images || []
+  const unit = product.sale_price != null && product.sale_price > 0 ? product.sale_price : product.price
+  const onSale = product.sale_price != null && product.sale_price > 0 && product.sale_price < product.price
+  const tiers = (product.qty_tiers || []).filter(t => t.qty > 1 && t.price > 0)
+  return (
+    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/60 p-0 md:p-4" onClick={onClose}>
+      <div className="bg-white w-full md:max-w-lg md:rounded-2xl rounded-t-2xl max-h-[94vh] overflow-y-auto" onClick={e => e.stopPropagation()} dir={en ? 'ltr' : 'rtl'}>
+        <div className="relative bg-gray-100">
+          {imgs[idx] && <img src={imgs[idx]} alt={product.name} className="w-full max-h-[60vh] object-contain bg-black/5" />}
+          <button onClick={onClose} className="absolute top-2 left-2 w-9 h-9 rounded-full bg-black/50 text-white text-xl leading-none flex items-center justify-center">×</button>
+          {imgs.length > 1 && (
+            <div className="absolute bottom-3 inset-x-0 flex justify-center gap-1.5">
+              {imgs.map((_, k) => (
+                <button key={k} onClick={() => setIdx(k)} className={`h-2 rounded-full transition-all ${k === idx ? 'w-6 bg-white' : 'w-2 bg-white/60'}`} />
+              ))}
+            </div>
+          )}
+        </div>
+        {imgs.length > 1 && (
+          <div className="flex gap-2 overflow-x-auto p-3">
+            {imgs.map((u, k) => (
+              <img key={k} src={u} onClick={() => setIdx(k)} className={`w-16 h-16 object-cover rounded-lg cursor-pointer shrink-0 border-2 ${k === idx ? '' : 'border-transparent opacity-70'}`} style={k === idx ? { borderColor: primary } : {}} />
+            ))}
+          </div>
+        )}
+        <div className="p-5 space-y-3">
+          <h2 className="text-xl font-black">{product.name}</h2>
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-black" style={{ color: primary }}>{ils(unit)}</span>
+            {onSale && <span className="text-sm text-gray-400 line-through">{ils(product.price)}</span>}
+          </div>
+          {tiers.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {tiers.sort((a, b) => a.qty - b.qty).map((t, ti) => (
+                <span key={ti} className="text-xs font-semibold rounded-full px-2 py-0.5" style={{ background: `${primary}14`, color: primary }}>
+                  {en ? `${t.qty} for ${ils(t.price)}` : `${t.qty} ב-${ils(t.price)}`}
+                </span>
+              ))}
+            </div>
+          )}
+          {product.description && <p className="text-sm text-gray-600 whitespace-pre-line leading-relaxed">{product.description}</p>}
+          {product.video_url && (
+            <a href={product.video_url} target="_blank" rel="noopener noreferrer" className="inline-block text-sm font-semibold" style={{ color: primary }}>
+              {en ? '▶ Watch video' : '▶ צפו בסרטון'}
+            </a>
+          )}
+          <div className="pt-1"><QtyStepper q={q} onChange={onQty} max={product.max_qty || undefined} primary={primary} en={en} block /></div>
+        </div>
+      </div>
     </div>
   )
 }
 
 // ── Product image carousel (simple) ──────────────────────────────────────────
-function ProductImages({ images, name }: { images: string[]; name: string }) {
+function ProductImages({ images, name, onOpen }: { images: string[]; name: string; onOpen?: () => void }) {
   const [idx, setIdx] = useState(0)
   if (!images.length) return null
   return (
     <div className="relative bg-gray-100">
-      <img src={images[idx]} alt={name} className="w-full aspect-square object-cover" />
+      <img src={images[idx]} alt={name} onClick={onOpen} className={`w-full aspect-square object-cover ${onOpen ? 'cursor-zoom-in' : ''}`} />
       {images.length > 1 && (
         <div className="absolute bottom-2 inset-x-0 flex justify-center gap-1.5">
           {images.map((_, k) => (

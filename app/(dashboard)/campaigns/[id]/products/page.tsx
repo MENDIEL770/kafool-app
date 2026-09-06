@@ -56,6 +56,7 @@ export default function ProductsEditorPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [shipCost, setShipCost] = useState('')
   const [freeOver, setFreeOver] = useState('')
+  const [contactPhone, setContactPhone] = useState('')
   const [fields, setFields] = useState<CheckoutField[]>([])
   const [uploading, setUploading] = useState<string | null>(null)   // `${cid}` of product uploading
 
@@ -78,6 +79,7 @@ export default function ProductsEditorPage() {
         const sh = (s.shipping || {}) as { cost?: number; free_over?: number | null }
         setShipCost(sh.cost != null ? String(sh.cost) : '')
         setFreeOver(sh.free_over != null ? String(sh.free_over) : '')
+        setContactPhone(String(s.order_contact_phone || (s as { manager_phone?: string }).manager_phone || ''))
         const rawFields = Array.isArray(s.checkout_fields) ? (s.checkout_fields as Partial<CheckoutField>[]) : null
         setFields((rawFields && rawFields.length ? rawFields.map(f => ({
           _cid: cid(), key: f.key || cid(), label: f.label || '', type: (f.type as FieldType) || 'text',
@@ -135,6 +137,7 @@ export default function ProductsEditorPage() {
       ...(cur?.settings as object || {}),
       products: cleanProducts,
       shipping: { cost: Number(shipCost) || 0, free_over: freeOver.trim() ? Number(freeOver) || null : null },
+      order_contact_phone: contactPhone.trim() || null,
       checkout_fields,
     }
     const { error } = await supabase.from('campaigns').update({ settings }).eq('id', campaignId)
@@ -263,6 +266,11 @@ export default function ProductsEditorPage() {
             </div>
           </div>
           <p className="text-[11px] text-gray-400 mt-2">משלוח קבוע לכל הזמנה. אם מוגדר סף חינם — הזמנות מעליו יקבלו משלוח חינם.</p>
+          <div className="space-y-1 mt-4">
+            <Label>טלפון ליצירת קשר בהזמנות</Label>
+            <Input value={contactPhone} onChange={e => setContactPhone(e.target.value)} dir="ltr" placeholder="050-0000000" />
+            <p className="text-[11px] text-gray-400">כשהזמנה מושלמת, הקונה מקבל SMS: "ההזמנה שלך מ[שם הארגון] הושלמה. לפרטים ויצירת קשר: [הטלפון הזה]".</p>
+          </div>
         </CardContent>
       </Card>
 
