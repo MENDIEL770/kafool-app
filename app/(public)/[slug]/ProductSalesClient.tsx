@@ -84,46 +84,39 @@ export default function ProductSalesClient({ campaign, initialLang, paymentUrls,
           <p className="text-center text-gray-400 py-16">{en ? 'No products yet.' : 'אין מוצרים עדיין.'}</p>
         )}
 
-        <div className="space-y-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
           {products.map((p, i) => {
             const q = qty[i] || 0
             const unit = p.sale_price != null && p.sale_price > 0 ? p.sale_price : p.price
             const onSale = p.sale_price != null && p.sale_price > 0 && p.sale_price < p.price
             const tiers = (p.qty_tiers || []).filter(t => t.qty > 1 && t.price > 0)
             return (
-              <div key={i} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div key={i} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col">
                 <ProductImages images={p.images || []} name={p.name} />
-                <div className="p-4 space-y-2">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <h3 className="font-bold text-lg">{p.name}</h3>
-                      <div className="flex items-baseline gap-2 mt-0.5">
-                        <span className="text-xl font-black" style={{ color: primary }}>{ils(unit)}</span>
-                        {onSale && <span className="text-sm text-gray-400 line-through">{ils(p.price)}</span>}
-                      </div>
-                    </div>
-                    <QtyStepper q={q} onChange={v => setQ(i, v)} max={p.max_qty || undefined} primary={primary} en={en} />
+                <div className="p-3 flex flex-col gap-1.5 flex-1">
+                  <h3 className="font-bold text-sm leading-tight line-clamp-2">{p.name}</h3>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-base font-black" style={{ color: primary }}>{ils(unit)}</span>
+                    {onSale && <span className="text-xs text-gray-400 line-through">{ils(p.price)}</span>}
                   </div>
-                  {p.description && <p className="text-sm text-gray-600 whitespace-pre-line">{p.description}</p>}
                   {tiers.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 pt-1">
+                    <div className="flex flex-wrap gap-1">
                       {tiers.sort((a, b) => a.qty - b.qty).map((t, ti) => (
-                        <span key={ti} className="text-[11px] font-semibold rounded-full px-2 py-0.5" style={{ background: `${primary}14`, color: primary }}>
+                        <span key={ti} className="text-[10px] font-semibold rounded-full px-1.5 py-0.5" style={{ background: `${primary}14`, color: primary }}>
                           {en ? `${t.qty} for ${ils(t.price)}` : `${t.qty} ב-${ils(t.price)}`}
                         </span>
                       ))}
                     </div>
                   )}
+                  {p.description && <p className="text-xs text-gray-500 line-clamp-2">{p.description}</p>}
                   {p.video_url && (
-                    <a href={p.video_url} target="_blank" rel="noopener noreferrer" className="inline-block text-xs font-semibold" style={{ color: primary }}>
-                      {en ? '▶ Watch video' : '▶ צפו בסרטון'}
+                    <a href={p.video_url} target="_blank" rel="noopener noreferrer" className="text-[11px] font-semibold" style={{ color: primary }}>
+                      {en ? '▶ Watch' : '▶ סרטון'}
                     </a>
                   )}
-                  {q > 0 && (
-                    <div className="text-sm text-gray-500 pt-1">
-                      {en ? 'Line total' : 'סה״כ לשורה'}: <b>{ils(lineTotal(p, q))}</b>
-                    </div>
-                  )}
+                  <div className="mt-auto pt-1.5">
+                    <QtyStepper q={q} onChange={v => setQ(i, v)} max={p.max_qty || undefined} primary={primary} en={en} block />
+                  </div>
                 </div>
               </div>
             )
@@ -166,7 +159,7 @@ function ProductImages({ images, name }: { images: string[]; name: string }) {
   if (!images.length) return null
   return (
     <div className="relative bg-gray-100">
-      <img src={images[idx]} alt={name} className="w-full aspect-[4/3] object-cover" />
+      <img src={images[idx]} alt={name} className="w-full aspect-square object-cover" />
       {images.length > 1 && (
         <div className="absolute bottom-2 inset-x-0 flex justify-center gap-1.5">
           {images.map((_, k) => (
@@ -178,16 +171,16 @@ function ProductImages({ images, name }: { images: string[]; name: string }) {
   )
 }
 
-function QtyStepper({ q, onChange, max, primary, en }: { q: number; onChange: (v: number) => void; max?: number; primary: string; en: boolean }) {
+function QtyStepper({ q, onChange, max, primary, en, block }: { q: number; onChange: (v: number) => void; max?: number; primary: string; en: boolean; block?: boolean }) {
   if (q === 0) return (
-    <button onClick={() => onChange(1)} className="rounded-xl border-2 px-4 py-2 text-sm font-bold shrink-0" style={{ borderColor: primary, color: primary }}>
+    <button onClick={() => onChange(1)} className={`rounded-xl border-2 py-2 text-sm font-bold ${block ? 'w-full' : 'px-4 shrink-0'}`} style={{ borderColor: primary, color: primary }}>
       {en ? 'Add' : 'הוסף'}
     </button>
   )
   return (
-    <div className="flex items-center gap-2 shrink-0">
+    <div className={`flex items-center gap-2 ${block ? 'justify-between' : 'shrink-0'}`}>
       <button onClick={() => onChange(q - 1)} className="w-8 h-8 rounded-lg border border-gray-200 text-lg leading-none">−</button>
-      <span className="w-6 text-center font-bold tabular-nums">{q}</span>
+      <span className="text-center font-bold tabular-nums flex-1">{q}</span>
       <button onClick={() => onChange(q + 1)} disabled={max != null && q >= max} className="w-8 h-8 rounded-lg text-lg leading-none text-white disabled:opacity-40" style={{ backgroundColor: primary }}>+</button>
     </div>
   )
