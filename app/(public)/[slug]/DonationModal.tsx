@@ -683,6 +683,26 @@ export default function DonationModal({
                 </div>
               )}
 
+              {/* Bank transfer: the manager's account details, small, right under the
+                  method buttons — the clearing link still runs on "continue" as before. */}
+              {paymentMethod === 'bank' && hasBankDetails && bankDetails && (
+                <div className="rounded-xl bg-gray-50 border border-gray-100 px-3 py-2.5 space-y-1 text-[11px] leading-relaxed">
+                  <p className="font-semibold text-gray-500">{en ? 'Bank transfer details' : 'פרטים להעברה בנקאית'}</p>
+                  {[
+                    [en ? 'Account holder' : 'שם החשבון', bankDetails.account_name],
+                    [en ? 'Bank' : 'בנק', bankDetails.bank],
+                    [en ? 'Branch' : 'סניף', bankDetails.branch],
+                    [en ? 'Account no.' : 'חשבון', bankDetails.account_number],
+                  ].filter(([, v]) => v).map(([k, v]) => (
+                    <div key={k} className="flex items-center justify-between gap-2">
+                      <span className="text-gray-400">{k}</span>
+                      <span className="font-semibold text-gray-700" dir="ltr">{v}</span>
+                    </div>
+                  ))}
+                  {bankDetails.note && <p className="text-gray-500 pt-0.5 whitespace-pre-line">{bankDetails.note}</p>}
+                </div>
+              )}
+
               {/* standing-order duration — chosen in the form, sent to Kesher */}
               {paymentMethod === 'hok' && (
                 <div className="space-y-1.5">
@@ -923,43 +943,6 @@ export default function DonationModal({
 
           {/* Step: Payment (₪) — the provider's payment page loads in an iframe */}
           {step === 'payment' && !isForeign && (() => {
-            // Bank transfer: no clearing page — show the manager's account details
-            // for a manual transfer (the intent is already recorded as a lead).
-            if (paymentMethod === 'bank' && hasBankDetails && bankDetails) {
-              const rows = [
-                { label: en ? 'Account holder' : 'שם בעל החשבון', value: bankDetails.account_name },
-                { label: en ? 'Bank' : 'בנק', value: bankDetails.bank },
-                { label: en ? 'Branch' : 'סניף', value: bankDetails.branch },
-                { label: en ? 'Account number' : 'מספר חשבון', value: bankDetails.account_number },
-              ].filter(r => r.value)
-              return (
-                <div className="px-5 py-5 space-y-4">
-                  <div className="text-center">
-                    <div className="text-3xl mb-1">🏦</div>
-                    <p className="font-black text-lg text-gray-800">{en ? 'Bank transfer details' : 'פרטים להעברה בנקאית'}</p>
-                    {finalAmount > 0 && <p className="text-sm text-gray-500 mt-0.5">{en ? 'Amount' : 'סכום'}: <b>₪{finalAmount.toLocaleString('he-IL')}</b></p>}
-                  </div>
-                  <div className="rounded-2xl border border-gray-200 divide-y divide-gray-100 overflow-hidden">
-                    {rows.map((r, i) => (
-                      <div key={i} className="flex items-center justify-between gap-3 px-4 py-2.5">
-                        <span className="text-xs text-gray-400 shrink-0">{r.label}</span>
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="font-semibold text-gray-800 truncate" dir="ltr">{r.value}</span>
-                          <button type="button" onClick={() => { navigator.clipboard?.writeText(String(r.value)).catch(() => {}) }}
-                            className="text-[11px] text-blue-500 hover:text-blue-700 shrink-0">{en ? 'Copy' : 'העתק'}</button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  {bankDetails.note && <p className="text-sm text-gray-600 whitespace-pre-line bg-gray-50 rounded-xl px-4 py-3">{bankDetails.note}</p>}
-                  <p className="text-xs text-gray-400 text-center">{en ? 'The transfer is completed at your bank; the campaign manager will confirm it.' : 'ההעברה מתבצעת אצלך בבנק — מנהל הקמפיין יאשר את קבלתה.'}</p>
-                  <div className="flex gap-2">
-                    <button onClick={onClose} className="flex-1 rounded-xl py-3 text-white font-bold" style={{ backgroundColor: primaryColor }}>{en ? 'Done' : 'סיימתי'}</button>
-                    <button onClick={() => setStep('details')} className="rounded-xl px-4 py-3 text-sm text-gray-500 border border-gray-200">{en ? 'Back' : 'חזרה'}</button>
-                  </div>
-                </div>
-              )
-            }
             const payUrl = buildPaymentUrl()
             const isValid = payUrl.startsWith('http://') || payUrl.startsWith('https://')
             if (!isValid) {
