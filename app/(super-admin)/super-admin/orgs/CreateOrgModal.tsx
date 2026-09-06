@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { X, Building2, User, Mail, Phone, Send, Plus, Lock } from 'lucide-react'
+import { X, Building2, User, Mail, Phone, Send, Plus, Lock, Eye, EyeOff } from 'lucide-react'
 
 interface Props {
   onClose: () => void
@@ -13,6 +13,7 @@ export default function CreateOrgModal({ onClose }: Props) {
   const [step, setStep] = useState<'form' | 'success'>('form')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [showPw, setShowPw] = useState(false)
 
   const [form, setForm] = useState({
     orgName: '',
@@ -170,16 +171,22 @@ export default function CreateOrgModal({ onClose }: Props) {
                             <label className="text-xs font-semibold text-gray-500 mb-1.5 flex items-center gap-1.5">
                               <Lock className="w-3.5 h-3.5" /> סיסמה *
                             </label>
-                            <input
-                              type="password" value={form.ownerPassword} onChange={e => set('ownerPassword', e.target.value)}
-                              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition"
-                              dir="ltr" autoComplete="new-password"
-                            />
+                            <div className="relative">
+                              <input
+                                type={showPw ? 'text' : 'password'} value={form.ownerPassword} onChange={e => set('ownerPassword', e.target.value)}
+                                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 pl-10 text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition"
+                                dir="ltr" autoComplete="new-password"
+                              />
+                              <button type="button" onClick={() => setShowPw(v => !v)} title={showPw ? 'הסתר סיסמה' : 'הצג סיסמה'}
+                                className="absolute left-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600">
+                                {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                              </button>
+                            </div>
                           </div>
                           <div>
                             <label className="text-xs font-semibold text-gray-500 mb-1.5 block">אימות סיסמה *</label>
                             <input
-                              type="password" value={form.ownerPasswordConfirm} onChange={e => set('ownerPasswordConfirm', e.target.value)}
+                              type={showPw ? 'text' : 'password'} value={form.ownerPasswordConfirm} onChange={e => set('ownerPasswordConfirm', e.target.value)}
                               className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition"
                               dir="ltr" autoComplete="new-password"
                             />
