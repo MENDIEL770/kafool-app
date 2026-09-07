@@ -2,7 +2,35 @@
 
 import { useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Phone, MessageCircle, Mail, Package, Search, Download, Truck, CheckCircle2, Clock, FileText } from 'lucide-react'
+import { Phone, MessageCircle, Mail, Package, Search, Download, Truck, CheckCircle2, Clock, FileText, Plus, X, Minus } from 'lucide-react'
+
+// ── Catalog types (from campaign.settings) — for the manual-order form ──
+interface QtyTier { qty: number; price: number }
+interface Product { name: string; price: number; sale_price?: number | null; qty_tiers?: QtyTier[] }
+interface Shipping { cost?: number; free_over?: number | null }
+interface CheckoutField { key: string; label: string; type?: string; required?: boolean; enabled?: boolean }
+const DEFAULT_FIELDS: CheckoutField[] = [
+  { key: 'full_name', label: 'שם מלא', required: true, enabled: true },
+  { key: 'phone', label: 'טלפון', type: 'tel', required: true, enabled: true },
+  { key: 'email', label: 'אימייל', type: 'email', enabled: true },
+  { key: 'city', label: 'עיר', enabled: true },
+  { key: 'street', label: 'רחוב', enabled: true },
+  { key: 'house_number', label: 'מספר בית', enabled: true },
+]
+// Greedy bundle pricing — mirrors the server + public checkout.
+function lineTotal(p: Product, q: number): number {
+  const unit = p.sale_price != null && p.sale_price > 0 ? p.sale_price : p.price
+  const tiers = [...(p.qty_tiers || [])].filter(t => t.qty > 1 && t.price > 0).sort((a, b) => b.qty - a.qty)
+  let remaining = q, total = 0
+  for (const t of tiers) { if (remaining >= t.qty) { const b = Math.floor(remaining / t.qty); total += b * t.price; remaining -= b * t.qty } }
+  return total + remaining * unit
+}
+const PAY_METHODS = [
+  { key: 'cash', label: 'מזומן' },
+  { key: 'bit', label: 'ביט / פייבוקס' },
+  { key: 'transfer', label: 'העברה בנקאית' },
+  { key: 'other', label: 'אחר / צ׳ק' },
+] as const
 
 interface Order {
   id: string
@@ -18,6 +46,128 @@ interface Order {
   kesher_raw?: Record<string, unknown> | null
 }
 interface Campaign { id: string; title: string; slug: string; settings?: Record<string, unknown> }
+
+// Manager-entered order (paid cash / Bit / transfer / cheque). Posts to the
+// manual-order route which recomputes the total server-side, then prepends it.
+function NewOrderModal({ campaign, onClose, onCreated }: { campaign: Campaign; onClose: () => void; onCreated: (o: Order) => void }) {
+  const s = (campaign.settings || {}) as { products?: Product[]; shipping?: Shipping; checkout_fields?: CheckoutField[] }
+  const products = Array.isArray(s.products) ? s.products : []
+  const shipping = s.shipping || {}
+  const fieldDefs = (Array.isArray(s.checkout_fields) && s.checkout_fields.length ? s.checkout_fields : DEFAULT_FIELDS).filter(f => f.enabled !== false)
+
+  const [qty, setQty] = useState<Record<number, number>>({})
+  const [fields, setFields] = useState<Record<string, string>>({})
+  const [method, setMethod] = useState<string>('cash')
+  const [paid, setPaid] = useState(true)
+  const [note, setNote] = useState('')
+  const [override, setOverride] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const setQ = (i: number, d: number) => setQty(q => ({ ...q, [i]: Math.max(0, (q[i] || 0) + d) }))
+  const subtotal = products.reduce((sum, p, i) => sum + lineTotal(p, qty[i] || 0), 0)
+  const shipCost = subtotal <= 0 ? 0
+    : (shipping.free_over != null && shipping.free_over > 0 && subtotal >= shipping.free_over) ? 0
+    : Number(shipping.cost) || 0
+  const computed = subtotal + shipCost
+  const total = override.trim() ? Number(override) || 0 : computed
+
+  async function submit() {
+    setSaving(true); setError(null)
+    const quantities: Record<string, number> = {}
+    for (const [i, q] of Object.entries(qty)) if (q > 0) quantities[i] = q
+    try {
+      const r = await fetch(`/api/campaigns/${campaign.id}/manual-order`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ quantities, fields, payment_method: method, paid, note, amount_override: override.trim() ? Number(override) : null }),
+      })
+      const d = await r.json().catch(() => ({}))
+      if (!r.ok) { setError(d.error || 'השמירה נכשלה'); setSaving(false); return }
+      onCreated(d.order)
+    } catch { setError('השמירה נכשלה'); setSaving(false) }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center overflow-y-auto p-4" dir="rtl" onMouseDown={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg my-8" onMouseDown={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3">
+          <h2 className="font-bold text-gray-900 flex items-center gap-2"><Plus className="w-4 h-4 text-blue-600" /> הזמנה חדשה (תשלום ידני)</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 p-1"><X className="w-5 h-5" /></button>
+        </div>
+
+        <div className="px-5 py-4 space-y-4 max-h-[70vh] overflow-y-auto">
+          {/* products */}
+          {products.length > 0 && (
+            <div className="space-y-2">
+              <div className="text-sm font-semibold text-gray-700">מוצרים</div>
+              {products.map((p, i) => (
+                <div key={i} className="flex items-center justify-between gap-2 rounded-xl border border-gray-100 px-3 py-2">
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-gray-800 truncate">{p.name || `מוצר ${i + 1}`}</div>
+                    <div className="text-xs text-gray-400">{ils(p.sale_price != null && p.sale_price > 0 ? p.sale_price : p.price)} ליח׳</div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button type="button" onClick={() => setQ(i, -1)} className="w-7 h-7 rounded-lg border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-50"><Minus className="w-3.5 h-3.5" /></button>
+                    <span className="w-6 text-center text-sm font-bold">{qty[i] || 0}</span>
+                    <button type="button" onClick={() => setQ(i, +1)} className="w-7 h-7 rounded-lg border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-50"><Plus className="w-3.5 h-3.5" /></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* customer fields */}
+          <div className="space-y-2">
+            <div className="text-sm font-semibold text-gray-700">פרטי לקוח</div>
+            <div className="grid grid-cols-2 gap-2">
+              {fieldDefs.map(f => (
+                <input key={f.key} value={fields[f.key] || ''} onChange={e => setFields(v => ({ ...v, [f.key]: e.target.value }))}
+                  placeholder={f.label + (f.required ? ' *' : '')} type={f.type === 'email' ? 'email' : f.type === 'tel' ? 'tel' : 'text'}
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400" />
+              ))}
+            </div>
+          </div>
+
+          {/* payment method */}
+          <div className="space-y-2">
+            <div className="text-sm font-semibold text-gray-700">אמצעי תשלום</div>
+            <div className="flex flex-wrap gap-2">
+              {PAY_METHODS.map(m => (
+                <button key={m.key} type="button" onClick={() => setMethod(m.key)}
+                  className={`text-sm font-semibold rounded-full px-3 py-1.5 border ${method === m.key ? 'bg-gray-900 text-white border-gray-900' : 'bg-white border-gray-200 text-gray-600'}`}>{m.label}</button>
+              ))}
+            </div>
+            <label className="flex items-center gap-2 text-sm text-gray-600 pt-1">
+              <input type="checkbox" checked={paid} onChange={e => setPaid(e.target.checked)} className="w-4 h-4" />
+              התשלום כבר התקבל (סמן כ"שולם")
+            </label>
+          </div>
+
+          {/* note + total */}
+          <input value={note} onChange={e => setNote(e.target.value)} placeholder="הערה פנימית (אופציונלי)" className="w-full border border-gray-100 bg-gray-50 rounded-lg px-3 py-2 text-sm" />
+          <div className="flex items-center justify-between rounded-xl bg-blue-50/60 border border-blue-100 px-3 py-2.5">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">סה״כ לתשלום</span>
+              <input value={override} onChange={e => setOverride(e.target.value.replace(/[^\d.]/g, ''))} inputMode="numeric" placeholder={String(Math.round(computed))} dir="ltr"
+                className="w-24 border border-gray-200 rounded-lg px-2 py-1 text-sm text-center" />
+            </div>
+            <div className="text-lg font-black text-blue-600">{ils(total)}</div>
+          </div>
+          {subtotal > 0 && !override.trim() && <div className="text-xs text-gray-400 text-left">פריטים {ils(subtotal)} · משלוח {shipCost > 0 ? ils(shipCost) : 'חינם'}</div>}
+
+          {error && <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">{error}</div>}
+        </div>
+
+        <div className="flex items-center justify-end gap-2 border-t border-gray-100 px-5 py-3">
+          <button onClick={onClose} className="text-sm font-semibold text-gray-500 px-4 py-2 hover:text-gray-700">ביטול</button>
+          <button onClick={submit} disabled={saving || total <= 0} className="text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-xl px-5 py-2">
+            {saving ? 'שומר...' : 'שמור הזמנה'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 // Fulfillment stages, stored in custom_data.fulfillment_status (no migration).
 const STATUSES = [
@@ -66,6 +216,7 @@ export default function OrdersClient({ campaign, orders: initial }: { campaign: 
   const [orders, setOrders] = useState<Order[]>(initial)
   const [filter, setFilter] = useState<string>('all')
   const [q, setQ] = useState('')
+  const [newOpen, setNewOpen] = useState(false)
 
   async function patchCd(id: string, patch: Record<string, string>) {
     setOrders(os => os.map(o => o.id === id ? { ...o, custom_data: { ...(o.custom_data || {}), ...patch } } : o))
@@ -114,12 +265,22 @@ export default function OrdersClient({ campaign, orders: initial }: { campaign: 
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2"><Package className="w-6 h-6 text-blue-600" /> הזמנות</h1>
           <p className="text-sm text-gray-500 mt-0.5">{orders.length} הזמנות · הכנסה {ils(revenue)}</p>
         </div>
-        {orders.length > 0 && (
-          <button onClick={exportCsv} className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-600 border border-gray-200 rounded-xl px-3 py-2 hover:bg-gray-50">
-            <Download className="w-4 h-4" /> ייצוא CSV
+        <div className="flex items-center gap-2">
+          <button onClick={() => setNewOpen(true)} className="inline-flex items-center gap-1.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl px-3 py-2">
+            <Plus className="w-4 h-4" /> הזמנה חדשה
           </button>
-        )}
+          {orders.length > 0 && (
+            <button onClick={exportCsv} className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-600 border border-gray-200 rounded-xl px-3 py-2 hover:bg-gray-50">
+              <Download className="w-4 h-4" /> ייצוא CSV
+            </button>
+          )}
+        </div>
       </div>
+
+      {newOpen && (
+        <NewOrderModal campaign={campaign} onClose={() => setNewOpen(false)}
+          onCreated={o => { setOrders(os => [o, ...os]); setNewOpen(false) }} />
+      )}
 
       {/* filters */}
       <div className="flex items-center gap-2 flex-wrap">
