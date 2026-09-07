@@ -49,6 +49,32 @@ export default function ThanksClient({
   const [receipt] = useState<string | null>(receiptUrl)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // CardCom: the modal stashed the LowProfileId in localStorage. Verify + record it
+  // here (idempotent backstop to the webhook) so the donor sees confirmation.
+  useEffect(() => {
+    let raw: string | null = null
+    try { raw = localStorage.getItem('kafool_cardcom') } catch { /* ignore */ }
+    if (!raw) return
+    let stop = false
+    ;(async () => {
+      try {
+        const cc = JSON.parse(raw as string)
+        if (!cc?.lp || !cc?.campaignId) return
+        setPhase(p => p === 'confirmed' ? p : 'verifying')
+        for (let i = 0; i < 12 && !stop; i++) {
+          const r = await fetch('/api/donations/cardcom/verify', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ lowProfileId: cc.lp, campaignId: cc.campaignId, groupSlug: cc.groupSlug || '' }),
+          }).then(x => x.json()).catch(() => ({}))
+          if (r?.confirmed) { try { localStorage.removeItem('kafool_cardcom') } catch {}; if (!stop) setPhase('confirmed'); return }
+          await new Promise(res => setTimeout(res, 2500))
+        }
+        if (!stop) setPhase(p => p === 'confirmed' ? p : 'pending')
+      } catch { /* ignore */ }
+    })()
+    return () => { stop = true }
+  }, [])
+
   // Poll the verify endpoint while we don't have a confirmation yet.
   useEffect(() => {
     if (phase !== 'verifying' || !pendingTx || !campaignId) return

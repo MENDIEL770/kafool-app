@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { getClientOrgId } from '@/lib/tenancy-client'
 import { Check, Copy, Info, ExternalLink } from 'lucide-react'
 import StripeConnectCard from './StripeConnectCard'
+import CardcomConnectCard from './CardcomConnectCard'
 
 // Generic payment-link fields. Each provider keeps its own copy of these,
 // stored in provider-specific DB columns (see COLUMNS below).
@@ -18,10 +19,11 @@ const PAYMENT_METHODS = [
 ] as const
 
 type PaymentKey = typeof PAYMENT_METHODS[number]['key']
-type Provider = 'kesher' | 'nedarim'
+type Provider = 'kesher' | 'nedarim' | 'cardcom'
+type UrlProvider = 'kesher' | 'nedarim'   // providers configured via payment-page URLs
 
-// Maps the generic field key → the DB column for each provider.
-const COLUMNS: Record<Provider, Record<PaymentKey, string>> = {
+// Maps the generic field key → the DB column for each URL-based provider.
+const COLUMNS: Record<UrlProvider, Record<PaymentKey, string>> = {
   kesher: {
     one_time: 'kesher_page_url', hok: 'kesher_url_hok', bit: 'kesher_url_bit',
     bank: 'kesher_url_bank', one_time_en: 'kesher_page_url_en', hok_en: 'kesher_url_hok_en',
@@ -47,7 +49,7 @@ export default function KesherSettingsPage() {
   const [provider, setProvider] = useState<Provider | ''>('')
   const [nedarim, setNedarim] = useState({ mosad: '', apiValid: '' })
   // Each provider keeps its own set of links, so switching tabs never mixes them up.
-  const [urls, setUrls] = useState<Record<Provider, Record<PaymentKey, string>>>({
+  const [urls, setUrls] = useState<Record<UrlProvider, Record<PaymentKey, string>>>({
     kesher: emptyUrls(),
     nedarim: emptyUrls(),
   })
@@ -78,9 +80,9 @@ export default function KesherSettingsPage() {
       if (org) {
         const o = org as Record<string, string>
         const saved = o.payment_provider
-        setProvider(saved === 'kesher' || saved === 'nedarim' ? saved : '')
+        setProvider(saved === 'kesher' || saved === 'nedarim' || saved === 'cardcom' ? saved : '')
         setNedarim({ mosad: o.nedarim_mosad || '', apiValid: o.nedarim_api_valid || '' })
-        const fill = (p: Provider): Record<PaymentKey, string> => {
+        const fill = (p: UrlProvider): Record<PaymentKey, string> => {
           const out = emptyUrls()
           for (const m of PAYMENT_METHODS) out[m.key] = o[COLUMNS[p][m.key]] || ''
           return out
@@ -103,8 +105,9 @@ export default function KesherSettingsPage() {
       nedarim_api_valid: nedarim.apiValid.trim() || null,
       nedarim_active:    provider === 'nedarim',
       kesher_active:     provider === 'kesher',
+      cardcom_active:    provider === 'cardcom',
     }
-    for (const p of ['kesher', 'nedarim'] as Provider[]) {
+    for (const p of ['kesher', 'nedarim'] as UrlProvider[]) {
       for (const m of PAYMENT_METHODS) {
         payload[COLUMNS[p][m.key]] = urls[p][m.key] || null
       }
@@ -123,8 +126,9 @@ export default function KesherSettingsPage() {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  // Both providers are link-based now: connected once a one-time payment URL is set.
-  const isConnected = !!provider && !!urls[provider].one_time
+  // URL-based providers connect once a one-time payment URL is set (CardCom manages
+  // its own connection state inside its card).
+  const isConnected = (provider === 'kesher' || provider === 'nedarim') && !!urls[provider].one_time
   // Nedarim posts its CallBack from a server, so use www to avoid a redirect.
   const nedarimWebhookUrl = webhookUrl
     .replace('/api/webhooks/kesher', '/api/webhooks/nedarim')
@@ -141,8 +145,8 @@ export default function KesherSettingsPage() {
       {/* בחירת ספק סליקה */}
       <div className="space-y-2">
         <label className="text-sm font-semibold text-gray-700">ספק הסליקה</label>
-        <div className="grid grid-cols-2 gap-3 max-w-sm">
-          {([['kesher', 'קשר'], ['nedarim', 'נדרים פלוס']] as const).map(([val, label]) => (
+        <div className="grid grid-cols-3 gap-3 max-w-md">
+          {([['kesher', 'קשר'], ['nedarim', 'נדרים פלוס'], ['cardcom', 'קארדקום']] as const).map(([val, label]) => (
             <button
               key={val}
               type="button"
@@ -164,8 +168,11 @@ export default function KesherSettingsPage() {
         </div>
       )}
 
-      {/* Everything below depends on a chosen provider */}
-      {provider && (<>
+      {/* CardCom — server credentials (its own card, no payment-page URLs) */}
+      {provider === 'cardcom' && <CardcomConnectCard />}
+
+      {/* Everything below is for the URL-based providers (Kesher / Nedarim) */}
+      {provider && provider !== 'cardcom' && (<>
       {/* Status pill */}
       <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold border ${
         isConnected

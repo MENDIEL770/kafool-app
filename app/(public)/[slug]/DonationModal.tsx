@@ -186,6 +186,10 @@ export default function DonationModal({
   const [clientSecret, setClientSecret] = useState<string | null>(null)
   const [stripePromise, setStripePromise] = useState<Promise<Stripe | null> | null>(null)
   const [stripeError, setStripeError] = useState<string | null>(null)
+  // CardCom hosted page — server-created URL loaded in an iframe (₪ only).
+  const isCardcom = paymentProvider === 'cardcom' && !isForeign
+  const [cardcomUrl, setCardcomUrl] = useState<string | null>(null)
+  const [cardcomError, setCardcomError] = useState<string | null>(null)
   const fetchClientSecret = useCallback(() => Promise.resolve(clientSecret || ''), [clientSecret])
 
   // The donor can always choose one-time vs monthly (הו"ק); a plan's configured
@@ -196,7 +200,8 @@ export default function DonationModal({
   const availableMethods = (isForeign
     ? PAYMENT_METHODS.filter(m => m.key === 'one_time' || m.key === 'hok')
     : PAYMENT_METHODS.filter(m =>
-        m.key === 'one_time' ? !!donationUrl
+        // CardCom creates the page server-side (one-time; true הו"ק via token is a follow-up).
+        m.key === 'one_time' ? (!!donationUrl || isCardcom)
           : m.key === 'hok' ? !!(paymentUrls?.hok || donationUrl)
           : m.key === 'bank' ? !!(paymentUrls?.bank || hasBankDetails)
           : !!(paymentUrls?.[m.key])
@@ -434,6 +439,36 @@ export default function DonationModal({
       }
     } catch {
       setStripeError(en ? 'Something went wrong, please try again' : 'אירעה שגיאה, נסו שוב')
+    }
+  }
+
+  // CardCom: create a hosted payment page server-side, stash the LowProfileId for
+  // the thanks page to verify, then load the returned URL in the payment iframe.
+  async function startCardcom() {
+    setCardcomError(null); setCardcomUrl(null)
+    setStep('payment')
+    try {
+      const res = await fetch('/api/donations/cardcom/checkout', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          campaignId: campaign.id,
+          groupSlug: selectedGroupSlug || undefined,
+          amount: finalAmount,
+          name: [form.firstName, form.lastName].filter(Boolean).join(' '),
+          phone: form.phone, email: form.email,
+          months: paymentMethod === 'hok' ? months : 0,
+          lang,
+        }),
+      })
+      const d = await res.json().catch(() => ({}))
+      if (d?.url) {
+        try { localStorage.setItem('kafool_cardcom', JSON.stringify({ lp: d.lowProfileId, campaignId: campaign.id, groupSlug: selectedGroupSlug || '' })) } catch { /* ignore */ }
+        setCardcomUrl(d.url)
+      } else {
+        setCardcomError(d?.error || (en ? 'Something went wrong, please try again' : 'אירעה שגיאה, נסו שוב'))
+      }
+    } catch {
+      setCardcomError(en ? 'Something went wrong, please try again' : 'אירעה שגיאה, נסו שוב')
     }
   }
 
@@ -915,6 +950,7 @@ export default function DonationModal({
                   // Foreign currency → Stripe embedded checkout; ₪ (incl. Bit/bank)
                   // → the provider's page in the in-modal iframe.
                   if (isForeign) startStripe()
+                  else if (isCardcom) startCardcom()
                   else setStep('payment')
                 }}
                 disabled={!canProceed}
@@ -978,8 +1014,29 @@ export default function DonationModal({
             </div>
           )}
 
+          {/* Step: Payment — CardCom hosted page (server-created URL) in an iframe */}
+          {step === 'payment' && isCardcom && (
+            cardcomError ? (
+              <div className="px-5 py-10 text-center space-y-3">
+                <p className="font-bold text-gray-700">{cardcomError}</p>
+                <button onClick={() => setStep('details')} className="text-sm text-blue-500 hover:underline">{T.back}</button>
+              </div>
+            ) : cardcomUrl ? (
+              <div className="flex flex-col">
+                <div className="w-full overflow-y-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+                  <iframe src={cardcomUrl} className="w-full" style={{ height: 'min(680px, 74vh)', border: 'none' }} title={T.securePay} allow="payment" />
+                </div>
+                <div className="px-5 pb-4 pt-2 text-center">
+                  <button onClick={() => setStep('details')} className="text-xs text-gray-400 hover:text-gray-600">{T.backToDetails}</button>
+                </div>
+              </div>
+            ) : (
+              <div className="px-5 py-16 text-center text-gray-400 text-sm">{en ? 'Loading secure payment…' : 'טוען תשלום מאובטח…'}</div>
+            )
+          )}
+
           {/* Step: Payment (₪) — the provider's payment page loads in an iframe */}
-          {step === 'payment' && !isForeign && (() => {
+          {step === 'payment' && !isForeign && !isCardcom && (() => {
             const payUrl = buildPaymentUrl()
             const isValid = payUrl.startsWith('http://') || payUrl.startsWith('https://')
             if (!isValid) {
