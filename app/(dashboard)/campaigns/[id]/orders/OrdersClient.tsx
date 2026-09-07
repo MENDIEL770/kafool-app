@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Phone, MessageCircle, Mail, Package, Search, Download, Truck, CheckCircle2, Clock } from 'lucide-react'
+import { Phone, MessageCircle, Mail, Package, Search, Download, Truck, CheckCircle2, Clock, FileText } from 'lucide-react'
 
 interface Order {
   id: string
@@ -14,6 +14,8 @@ interface Order {
   created_at: string
   custom_data?: Record<string, string> | null
   kesher_transaction_id?: string | null
+  receipt_url?: string | null
+  kesher_raw?: Record<string, unknown> | null
 }
 interface Campaign { id: string; title: string; slug: string; settings?: Record<string, unknown> }
 
@@ -35,6 +37,18 @@ function payMethodOf(o: Order): string {
   return cd['אמצעי תשלום'] || cd['Payment method'] || (cd.payment_method === 'stripe' ? 'כרטיס אשראי (חו״ל)' : cd.payment_method ? String(cd.payment_method) : (o.kesher_transaction_id ? 'סליקה' : '—'))
 }
 const payStatusOf = (o: Order) => o.payment_status === 'completed' ? { label: 'שולם', cls: 'bg-emerald-50 text-emerald-700' } : { label: 'ממתין', cls: 'bg-amber-50 text-amber-700' }
+
+// The payment receipt/invoice — dedicated column, or Kesher's ezcount link that
+// already sits in kesher_raw on older orders (various casings).
+function receiptOf(o: Order): string | null {
+  if (o.receipt_url) return o.receipt_url
+  const raw = (o.kesher_raw || {}) as Record<string, unknown>
+  for (const k of ['receiptLink', 'receipturl', 'receipt_url', 'receiptUrl', 'ReceiptLink', 'ReceiptUrl']) {
+    const v = raw[k]
+    if (typeof v === 'string' && v.startsWith('http')) return v
+  }
+  return null
+}
 
 // custom_data keys that are internal / shown specially — everything else is a
 // buyer-entered checkout field (address etc.) and is listed as label:value.
@@ -84,7 +98,7 @@ export default function OrdersClient({ campaign, orders: initial }: { campaign: 
       return {
         'תאריך': fmtDate(o.created_at), 'שם': o.donor_name || '', 'טלפון': o.donor_phone || '', 'אימייל': o.donor_email || '',
         'הזמנה': cd['הזמנה'] || cd['Order'] || '', 'משלוח': cd['משלוח'] || cd['Shipping'] || '',
-        'סה״כ': o.amount, 'סטטוס': statusMeta(statusOf(o)).label, 'פרטים': details, 'הערה': cd.fulfillment_note || '',
+        'סה״כ': o.amount, 'סטטוס': statusMeta(statusOf(o)).label, 'פרטים': details, 'הערה': cd.fulfillment_note || '', 'קבלה': receiptOf(o) || '',
       }
     })
     const headers = Object.keys(rows[0] || { '': '' })
@@ -137,6 +151,8 @@ export default function OrdersClient({ campaign, orders: initial }: { campaign: 
           const shipping = cd['משלוח'] || cd['Shipping'] || ''
           const details = Object.entries(cd).filter(([k]) => !HIDDEN.has(k) && !k.startsWith('__'))
           const StatusIcon = meta.icon
+          const receipt = receiptOf(o)
+          const rcMsg = `שלום${o.donor_name ? ' ' + o.donor_name : ''}, מצורפת הקבלה עבור ${ils(o.amount)}: ${receipt}`
           return (
             <div key={o.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-3">
               <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -186,6 +202,20 @@ export default function OrdersClient({ campaign, orders: initial }: { campaign: 
                   <a href={`mailto:${o.donor_email}`} className="inline-flex items-center gap-1 text-sm text-gray-600 border border-gray-200 rounded-lg px-2.5 py-1.5 hover:bg-gray-50"><Mail className="w-3.5 h-3.5" /> מייל</a>
                 )}
               </div>
+
+              {/* קבלה — צפייה, הורדה ושליחה ללקוח ישירות מהמערכת */}
+              {receipt && (
+                <div className="flex items-center gap-2 flex-wrap rounded-xl bg-blue-50/50 border border-blue-100 px-3 py-2">
+                  <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-700"><FileText className="w-4 h-4" /> קבלה</span>
+                  <a href={receipt} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sm text-blue-700 bg-white border border-blue-200 rounded-lg px-2.5 py-1.5 hover:bg-blue-50">צפייה / הורדה</a>
+                  {o.donor_phone && (
+                    <a href={`${waLink(o.donor_phone)}?text=${encodeURIComponent(rcMsg)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sm text-emerald-600 bg-white border border-emerald-200 rounded-lg px-2.5 py-1.5 hover:bg-emerald-50"><MessageCircle className="w-3.5 h-3.5" /> שלח בוואטסאפ</a>
+                  )}
+                  {o.donor_email && (
+                    <a href={`mailto:${o.donor_email}?subject=${encodeURIComponent('קבלה - ' + campaign.title)}&body=${encodeURIComponent(rcMsg)}`} className="inline-flex items-center gap-1 text-sm text-gray-600 bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 hover:bg-gray-50"><Mail className="w-3.5 h-3.5" /> שלח במייל</a>
+                  )}
+                </div>
+              )}
 
               <input
                 defaultValue={cd.fulfillment_note || ''}

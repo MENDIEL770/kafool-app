@@ -80,7 +80,8 @@ export default async function ThanksPage({
     }
 
     // upsert לפי מספר העסקה — דורס שורה שאולי ה-webhook יצר קודם, ואידמפוטנטי ברענון.
-    await supabaseService.from('donations').upsert({
+    // receipt_url נשמר בעמודה ייעודית (לא ב-custom_data, כי attachCustomData דורס אותו).
+    const row: Record<string, unknown> = {
       campaign_id: campaign.id,
       org_id: campaign.org_id,
       amount: recordedAmount,
@@ -95,7 +96,14 @@ export default async function ThanksPage({
       installments,
       monthly_amount: monthlyAmount,
       kesher_raw: sp,
-    }, { onConflict: 'kesher_transaction_id' })
+    }
+    if (receiptUrl) row.receipt_url = receiptUrl
+    const { error: upErr } = await supabaseService.from('donations').upsert(row, { onConflict: 'kesher_transaction_id' })
+    // אם עמודת receipt_url עדיין לא הורצה במיגרציה — ננסה שוב בלעדיה (הקבלה עדיין ב-kesher_raw).
+    if (upErr && /receipt_url/i.test(upErr.message)) {
+      delete row.receipt_url
+      await supabaseService.from('donations').upsert(row, { onConflict: 'kesher_transaction_id' })
+    }
 
     // raised_amount = סכום כל התרומות שהושלמו (ללא drift / ספירה כפולה)
     await recomputeCampaignRaised(supabaseService, campaign.id)
