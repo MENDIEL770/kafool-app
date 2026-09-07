@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Upload, Trash2, ChevronUp, ChevronDown, Plus, Check, X } from 'lucide-react'
+import { Upload, Trash2, ChevronUp, ChevronDown, Plus, Check } from 'lucide-react'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface QtyTier { qty: number; price: number }        // `qty` units cost `price` total
@@ -191,10 +191,15 @@ export default function ProductsEditorPage() {
                     <Label className="text-xs">תמונות (הראשונה היא הראשית)</Label>
                     <div className="flex flex-wrap gap-2">
                       {p.images.map((url, k) => (
-                        <div key={url} className="relative w-20 h-20 rounded-lg overflow-hidden border border-gray-200">
+                        <div key={url} className="relative w-24 h-24 rounded-lg overflow-hidden border border-gray-200 group">
                           <img src={url} alt="" className="w-full h-full object-cover" />
-                          <button type="button" onClick={() => rmImage(i, k)} className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-red-600/90 text-white flex items-center justify-center"><X className="w-3 h-3" /></button>
-                          {k === 0 && <span className="absolute bottom-0 inset-x-0 bg-black/50 text-white text-[9px] text-center">ראשית</span>}
+                          {/* darken on hover so the delete button stands out */}
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors pointer-events-none" />
+                          <button type="button" onClick={() => rmImage(i, k)} title="מחק תמונה"
+                            className="absolute top-1 left-1 z-10 w-7 h-7 rounded-full bg-red-600 text-white flex items-center justify-center shadow-md hover:bg-red-700">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                          {k === 0 && <span className="absolute bottom-0 inset-x-0 bg-black/55 text-white text-[9px] text-center py-0.5">ראשית</span>}
                         </div>
                       ))}
                       <label className={`w-20 h-20 rounded-lg border-2 border-dashed border-gray-200 hover:border-blue-300 flex items-center justify-center cursor-pointer bg-gray-50 ${uploading === p._cid ? 'opacity-60 pointer-events-none' : ''}`}>
