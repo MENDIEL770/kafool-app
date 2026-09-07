@@ -191,15 +191,15 @@ export default function ProductsEditorPage() {
                     <Label className="text-xs">תמונות (הראשונה היא הראשית)</Label>
                     <div className="flex flex-wrap gap-2">
                       {p.images.map((url, k) => (
-                        <div key={url} className="relative w-24 h-24 rounded-lg overflow-hidden border border-gray-200 group">
-                          <img src={url} alt="" className="w-full h-full object-cover" />
-                          {/* darken on hover so the delete button stands out */}
-                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors pointer-events-none" />
-                          <button type="button" onClick={() => rmImage(i, k)} title="מחק תמונה"
-                            className="absolute top-1 left-1 z-10 w-7 h-7 rounded-full bg-red-600 text-white flex items-center justify-center shadow-md hover:bg-red-700">
-                            <Trash2 className="w-3.5 h-3.5" />
+                        <div key={url} className="w-24">
+                          <div className="relative w-24 h-24 rounded-lg overflow-hidden border border-gray-200">
+                            <img src={url} alt="" className="w-full h-full object-cover" />
+                            {k === 0 && <span className="absolute bottom-0 inset-x-0 bg-black/55 text-white text-[9px] text-center py-0.5">ראשית</span>}
+                          </div>
+                          {/* delete in normal flow (not an overlay) so the click never misses */}
+                          <button type="button" onClick={() => rmImage(i, k)} className="mt-1 w-full inline-flex items-center justify-center gap-1 text-[11px] font-semibold text-red-500 hover:text-red-700">
+                            <Trash2 className="w-3 h-3" /> מחק
                           </button>
-                          {k === 0 && <span className="absolute bottom-0 inset-x-0 bg-black/55 text-white text-[9px] text-center py-0.5">ראשית</span>}
                         </div>
                       ))}
                       <label className={`w-20 h-20 rounded-lg border-2 border-dashed border-gray-200 hover:border-blue-300 flex items-center justify-center cursor-pointer bg-gray-50 ${uploading === p._cid ? 'opacity-60 pointer-events-none' : ''}`}>
