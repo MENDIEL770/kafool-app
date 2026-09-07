@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Pencil, Trash2, X, Check, Plus, Search, FileSpreadsheet, Upload, Download, ChevronDown, Copy, ClipboardList } from 'lucide-react'
+import { Pencil, Trash2, X, Check, Plus, Search, FileSpreadsheet, Upload, Download, ChevronDown, Copy, ClipboardList, FileText, MessageCircle } from 'lucide-react'
 
 // One parsed row from the uploaded spreadsheet
 interface ImportRow {
@@ -45,9 +45,24 @@ interface Donation {
   installments?: number | null
   monthly_amount?: number | null
   custom_data?: Record<string, string> | null
+  receipt_url?: string | null
+  kesher_raw?: Record<string, unknown> | null
 }
 
 const CUR_SYM: Record<string, string> = { usd: '$', eur: '€', gbp: '£' }
+
+// The payment receipt/invoice — dedicated column, or Kesher's ezcount link that
+// already sits in kesher_raw on older donations (various casings).
+function receiptOf(d: { receipt_url?: string | null; kesher_raw?: Record<string, unknown> | null }): string | null {
+  if (d.receipt_url) return d.receipt_url
+  const raw = (d.kesher_raw || {}) as Record<string, unknown>
+  for (const k of ['receiptLink', 'receipturl', 'receipt_url', 'receiptUrl', 'ReceiptLink', 'ReceiptUrl']) {
+    const v = raw[k]
+    if (typeof v === 'string' && v.startsWith('http')) return v
+  }
+  return null
+}
+function waReceiptLink(phone: string, text: string) { const d = phone.replace(/\D/g, ''); return `https://wa.me/${d.startsWith('0') ? '972' + d.slice(1) : d}?text=${encodeURIComponent(text)}` }
 
 // Foreign (Stripe) donations store `amount` in ₪ (for campaign totals) but keep the
 // original currency + amount in custom_data. Show the manager the original figure
@@ -208,6 +223,7 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
       'אמצעי תשלום': donationMethod(d) || '',
       'מקור': donationSource(d, paymentProvider).label,
       'מזהה עסקה': d.kesher_transaction_id || '',
+      'קבלה': receiptOf(d) || '',
       'תאריך': new Date(d.created_at).toLocaleString('he-IL'),
       // custom-form fields (shipping etc.) become their own columns, keyed by label
       ...(d.custom_data && typeof d.custom_data === 'object' ? d.custom_data : {}),
@@ -1044,6 +1060,14 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex gap-1">
+                          {(() => { const rc = receiptOf(d); return rc ? (
+                            <>
+                              <a href={rc} target="_blank" rel="noopener noreferrer" title="צפה / הורד קבלה" className="p-1.5 rounded hover:bg-emerald-50 text-emerald-500 transition-colors"><FileText className="w-3.5 h-3.5" /></a>
+                              {d.donor_phone && (
+                                <a href={waReceiptLink(d.donor_phone, `שלום${d.donor_name ? ' ' + d.donor_name : ''}, מצורפת הקבלה על התרומה: ${rc}`)} target="_blank" rel="noopener noreferrer" title="שלח קבלה בוואטסאפ" className="p-1.5 rounded hover:bg-emerald-50 text-emerald-500 transition-colors"><MessageCircle className="w-3.5 h-3.5" /></a>
+                              )}
+                            </>
+                          ) : null })()}
                           <button onClick={() => startEdit(d)} className="p-1.5 rounded hover:bg-blue-50 text-blue-400 transition-colors"><Pencil className="w-3.5 h-3.5" /></button>
                           <button onClick={() => deleteDonation(d.id, d.group_id)} className="p-1.5 rounded hover:bg-red-50 text-red-400 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
                         </div>

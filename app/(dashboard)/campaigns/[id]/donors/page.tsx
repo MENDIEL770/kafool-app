@@ -23,11 +23,21 @@ export default async function CampaignDonorsPage({ params }: { params: Promise<{
     ? settings.donation_plans.filter(p => p.amount > 0).map(p => ({ amount: p.amount, label: p.label ?? null }))
     : (settings.donation_amounts || []).map(amount => ({ amount, label: null }))
 
-  const { data: donations } = await supabase
-    .from('donations')
-    .select('id, amount, donor_name, donor_phone, donor_email, dedication, payment_status, created_at, kesher_transaction_id, group_id, payment_type, installments, monthly_amount, custom_data')
-    .eq('campaign_id', id)
-    .order('created_at', { ascending: false })
+  // receipt_url is a dedicated column (added by migration); the receipt also lives
+  // in kesher_raw.receiptLink, so fall back gracefully if the column isn't there yet.
+  const donBase = 'id, amount, donor_name, donor_phone, donor_email, dedication, payment_status, created_at, kesher_transaction_id, group_id, payment_type, installments, monthly_amount, custom_data, kesher_raw'
+  let donations: unknown[] | null = null
+  {
+    const r = await supabase.from('donations').select(donBase + ', receipt_url')
+      .eq('campaign_id', id).order('created_at', { ascending: false })
+    if (r.error && /receipt_url/i.test(r.error.message)) {
+      const r2 = await supabase.from('donations').select(donBase)
+        .eq('campaign_id', id).order('created_at', { ascending: false })
+      donations = r2.data
+    } else {
+      donations = r.data
+    }
+  }
 
   const { data: groups } = await supabase
     .from('groups')
@@ -42,5 +52,5 @@ export default async function CampaignDonorsPage({ params }: { params: Promise<{
     .eq('id', campaign.org_id)
     .maybeSingle()
 
-  return <DonorsClient campaign={campaign} donations={donations || []} groups={groups || []} plans={plans} paymentProvider={(org?.payment_provider as string) || 'kesher'} />
+  return <DonorsClient campaign={campaign} donations={(donations || []) as Parameters<typeof DonorsClient>[0]['donations']} groups={groups || []} plans={plans} paymentProvider={(org?.payment_provider as string) || 'kesher'} />
 }
