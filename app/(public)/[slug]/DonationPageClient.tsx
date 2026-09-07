@@ -845,11 +845,14 @@ function ProgressSection({ raised, goal, donorsCount, primaryColor, bricks, show
   // Bonus (stretch) goal: once the goal is passed the bar keeps filling toward the
   // bonus target and the overflow segment shows in a lighter tint of the primary.
   const bonusActive = bonusGoal > goal && goal > 0
-  const denom = bonusActive ? Math.max(bonusGoal, raised) : goal   // bar's full width represents this
+  // Even with no bonus goal, if the campaign overshot its goal we still show the
+  // excess: the bar fills past 100% and the overflow segment is tinted.
+  const overshoot = raised > goal && goal > 0
+  const denom = bonusActive ? Math.max(bonusGoal, raised) : (overshoot ? raised : goal)   // bar's full width represents this
   const mainW = denom > 0 ? (Math.min(raised, goal) / denom) * 100 : 0
-  const bonusW = (bonusActive && raised > goal && denom > 0) ? ((Math.min(raised, denom) - goal) / denom) * 100 : 0
-  // Percentage climbs above 100% only when a bonus goal is in play; otherwise capped.
-  const displayPct = goal > 0 ? (bonusActive ? Math.round((raised / goal) * 100) : Math.min(100, Math.round((raised / goal) * 100))) : 0
+  const bonusW = ((bonusActive || overshoot) && raised > goal && denom > 0) ? ((Math.min(raised, denom) - goal) / denom) * 100 : 0
+  // Percentage climbs above 100% whenever the goal is passed (bonus or plain overshoot).
+  const displayPct = goal > 0 ? Math.round((raised / goal) * 100) : 0
   const bonusColor = `color-mix(in srgb, ${primaryColor} 45%, #ffffff)`
   const [mounted, setMounted] = useState(false)
   const animMain = mounted ? mainW : 0
@@ -882,7 +885,7 @@ function ProgressSection({ raised, goal, donorsCount, primaryColor, bricks, show
             With a bonus goal it fills past the goal toward the bonus target, the overflow
             segment tinted lighter, and the percentage climbs above 100%. */}
         <div className="relative">
-          <div className="h-5 bg-gray-200 rounded-full overflow-hidden shadow-inner flex" role="progressbar" aria-valuenow={displayPct} aria-valuemin={0} aria-valuemax={bonusActive ? Math.round((bonusGoal / goal) * 100) : 100} aria-label={`${displayPct}% הושלם`}>
+          <div className="h-5 bg-gray-200 rounded-full overflow-hidden shadow-inner flex" role="progressbar" aria-valuenow={displayPct} aria-valuemin={0} aria-valuemax={bonusActive ? Math.round((bonusGoal / goal) * 100) : Math.max(100, displayPct)} aria-label={`${displayPct}% הושלם`}>
             <div
               className="h-full relative overflow-hidden"
               style={{ width: `${animMain}%`, backgroundColor: primaryColor, transition: 'width 1.6s cubic-bezier(0.4, 0, 0.2, 1)' }}
