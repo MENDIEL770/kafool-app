@@ -303,6 +303,7 @@ function CheckoutModal({ en, primary, fields, lines, subtotal, shipCost, grandTo
   const [waiting, setWaiting] = useState(false)
   const [confirmed, setConfirmed] = useState(false)
   const [timedOut, setTimedOut] = useState(false)
+  const [pendingTx, setPendingTx] = useState('')   // captured from the success redirect (precise verify)
   const set = (k: string, v: string) => setVals(s => ({ ...s, [k]: v }))
 
   const find = (key: string) => fields.find(f => f.key === key)
@@ -331,8 +332,9 @@ function CheckoutModal({ en, primary, fields, lines, subtotal, shipCost, grandTo
     email: (emailField ? vals[emailField.key] : '')?.trim() || '',
   })
 
-  // While waiting for the Bit payment, poll the verify endpoint (by phone+amount)
-  // until the callback records the order; give up gracefully after ~3 minutes.
+  // While the loading screen is up, poll the verify endpoint until the provider's
+  // callback records the order — by transaction id when we captured one from the
+  // success redirect, otherwise by phone+amount. Give up gracefully after ~3 min.
   useEffect(() => {
     if (!waiting || confirmed) return
     const phone = (phoneField ? vals[phoneField.key] : '')?.trim() || ''
@@ -340,7 +342,9 @@ function CheckoutModal({ en, primary, fields, lines, subtotal, shipCost, grandTo
     const iv = setInterval(async () => {
       tries++
       try {
-        const qs = new URLSearchParams({ campaignId: campaign.id, phone, amount: String(grandTotal) })
+        const qs = new URLSearchParams({ campaignId: campaign.id })
+        if (pendingTx) qs.set('tx', pendingTx)
+        else { qs.set('phone', phone); qs.set('amount', String(grandTotal)) }
         const r = await fetch(`/api/donations/verify?${qs}`)
         const d = await r.json().catch(() => ({}))
         if (d?.confirmed) { setConfirmed(true); clearInterval(iv) }
@@ -348,7 +352,7 @@ function CheckoutModal({ en, primary, fields, lines, subtotal, shipCost, grandTo
       if (tries >= 45) { setTimedOut(true); clearInterval(iv) }
     }, 4000)
     return () => clearInterval(iv)
-  }, [waiting, confirmed, campaign.id, grandTotal, phoneField, vals])
+  }, [waiting, confirmed, campaign.id, grandTotal, phoneField, vals, pendingTx])
 
   // Record the order (lead) — cart + shipping + fields + payment method — so it
   // lands in the orders table via the same intent → payment-callback attachment.
@@ -491,16 +495,28 @@ function CheckoutModal({ en, primary, fields, lines, subtotal, shipCost, grandTo
               <button onClick={onClose} className="w-full rounded-xl py-3 text-white font-bold" style={{ backgroundColor: primary }}>{en ? 'Done' : 'סיום'}</button>
             </div>
           ) : waiting ? (
-            // ── ממתינים לתשלום בביט ──
+            // ── חלון טעינה — ממתינים לאישור התשלום מחברת הסליקה ──
             <div className="px-6 py-10 text-center space-y-5">
               <div className="mx-auto w-14 h-14 rounded-full border-4 border-gray-200 animate-spin" style={{ borderTopColor: primary }} />
               <div className="space-y-2">
-                <h3 className="text-2xl font-black text-gray-900">{en ? 'Waiting for your Bit payment…' : 'ממתינים לתשלום שלך בביט…'}</h3>
-                <p className="text-base font-bold" style={{ color: primary }}>{en ? 'An SMS with a payment link is on its way 📲' : 'עוד רגע יגיע אליך SMS עם קישור לתשלום 📲'}</p>
-                <p className="text-sm text-gray-500 leading-relaxed max-w-sm mx-auto">
-                  {en ? 'Open the link and complete the payment in the Bit app. As soon as it\'s done, the order completes automatically here — no need to do anything else.'
-                      : 'פתחו את הקישור והשלימו את התשלום באפליקציית ביט. ברגע שהתשלום יושלם — הרכישה תיסגר כאן אוטומטית, אין צורך לעשות דבר נוסף.'}
-                </p>
+                {payMethod === 'bit' ? (
+                  <>
+                    <h3 className="text-2xl font-black text-gray-900">{en ? 'Waiting for your Bit payment…' : 'ממתינים לתשלום שלך בביט…'}</h3>
+                    <p className="text-base font-bold" style={{ color: primary }}>{en ? 'An SMS with a payment link is on its way 📲' : 'עוד רגע יגיע אליך SMS עם קישור לתשלום 📲'}</p>
+                    <p className="text-sm text-gray-500 leading-relaxed max-w-sm mx-auto">
+                      {en ? 'Open the link and complete the payment in the Bit app. As soon as it\'s done, the order completes automatically here — no need to do anything else.'
+                          : 'פתחו את הקישור והשלימו את התשלום באפליקציית ביט. ברגע שהתשלום יושלם — הרכישה תיסגר כאן אוטומטית, אין צורך לעשות דבר נוסף.'}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="text-2xl font-black text-gray-900">{en ? 'Confirming your payment…' : 'מאמתים את התשלום…'}</h3>
+                    <p className="text-sm text-gray-500 leading-relaxed max-w-sm mx-auto">
+                      {en ? 'Please wait a moment while we get confirmation from the payment provider. The order completes automatically — no need to do anything.'
+                          : 'רק רגע — ממתינים לאישור מחברת הסליקה. ההזמנה תיסגר כאן אוטומטית ברגע שהתשלום יאושר, אין צורך לעשות דבר.'}
+                    </p>
+                  </>
+                )}
               </div>
               {timedOut && (
                 <div className="rounded-xl bg-amber-50 border border-amber-100 px-4 py-3 text-sm text-amber-700 max-w-sm mx-auto">
@@ -527,30 +543,24 @@ function CheckoutModal({ en, primary, fields, lines, subtotal, shipCost, grandTo
                   title={en ? 'Secure payment' : 'תשלום מאובטח'}
                   allow="payment"
                   onLoad={e => {
-                    // When Kesher submits the Bit transaction it redirects the iframe to our
-                    // successurl (same-origin), which is our cue that the SMS was sent — switch
-                    // straight to the waiting screen. While on Kesher's own (cross-origin) page
-                    // reading location throws, so we stay put. Bit only — credit completes in-iframe.
-                    if (payMethod !== 'bit') return
+                    // The provider redirects the iframe to our successurl (same-origin) once the
+                    // payment is submitted — that's our cue to open the loading screen and wait
+                    // for the callback to confirm. While on the provider's own (cross-origin)
+                    // page reading location throws, so we stay put.
                     try {
                       const href = (e.currentTarget as HTMLIFrameElement).contentWindow?.location?.href || ''
-                      if (href && href.includes('/thanks')) { setTimedOut(false); setWaiting(true) }
+                      if (href && href.includes('/thanks')) {
+                        try { const u = new URL(href); const tx = u.searchParams.get('transactionNumber') || u.searchParams.get('tx') || ''; if (tx) setPendingTx(tx) } catch { /* no tx */ }
+                        setTimedOut(false); setWaiting(true)
+                      }
                     } catch { /* still on the provider's page */ }
                   }}
                 />
               </div>
-              <div className="px-5 pb-4 pt-3 space-y-2 border-t border-gray-100">
-                <button
-                  onClick={() => {
-                    if (payMethod === 'bit') { setTimedOut(false); setWaiting(true) }        // Bit: wait for the async app payment
-                    else if (typeof window !== 'undefined') window.location.href = `/${campaign.slug}/thanks`
-                  }}
-                  className="w-full rounded-xl py-3 text-white font-bold"
-                  style={{ backgroundColor: primary }}
-                >
-                  {en ? "I've completed the payment" : 'ביצעתי את התשלום — המשך'}
-                </button>
-                <p className="text-center text-[11px] text-gray-400">{en ? 'After payment the order is confirmed automatically.' : 'לאחר השלמת התשלום ההזמנה נקלטת אוטומטית. לחצו כאן לאחר התשלום.'}</p>
+              <div className="px-5 pb-4 pt-3 space-y-1.5 border-t border-gray-100 text-center">
+                <p className="text-xs text-gray-400">{en ? 'After you pay, hold on — the order is confirmed automatically.' : 'לאחר השלמת התשלום — המתינו רגע, ההזמנה תיקלט אוטומטית.'}</p>
+                {/* fallback for providers that show their own success page (no detectable redirect) */}
+                <button onClick={() => { setTimedOut(false); setWaiting(true) }} className="block mx-auto text-xs font-semibold" style={{ color: primary }}>{en ? 'Finished paying? Continue' : 'סיימתם לשלם? המשיכו לאישור'}</button>
                 <button onClick={() => setStep('method')} className="block mx-auto text-xs text-gray-400 hover:text-gray-600">{en ? 'Back' : 'חזרה'}</button>
               </div>
             </div>
