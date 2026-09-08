@@ -123,6 +123,8 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
   const [groupFilter, setGroupFilter] = useState('')   // '' = all groups
   const [sortBy, setSortBy] = useState<'recent' | 'name_asc' | 'name_desc' | 'amount_desc' | 'amount_asc' | 'source'>('recent')
   const [sourceFilter, setSourceFilter] = useState('')   // '' = all sources
+  const [minAmount, setMinAmount] = useState('')         // ₪ filter (from)
+  const [maxAmount, setMaxAmount] = useState('')         // ₪ filter (to)
   const [editId, setEditId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<Partial<Donation>>({})
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
@@ -169,9 +171,13 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
   // sees only the sources that exist, e.g. only "ידני" + "קשר").
   const sourcesPresent = [...new Set(donations.map(d => donationSource(d, paymentProvider).label))].sort((a, b) => a.localeCompare(b, 'he'))
 
+  const minA = Number(minAmount) || 0
+  const maxA = Number(maxAmount) || 0
   const filtered = donations.filter(d =>
     (!groupFilter || (groupFilter === '__none__' ? !d.group_id : d.group_id === groupFilter)) &&
     (!sourceFilter || donationSource(d, paymentProvider).label === sourceFilter) &&
+    (!minA || (d.amount || 0) >= minA) &&
+    (!maxA || (d.amount || 0) <= maxA) &&
     (!search ||
       d.donor_name?.includes(search) ||
       d.donor_phone?.includes(search) ||
@@ -204,35 +210,73 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
   const totalsMismatch = !totalsFixed && Math.round(realRaised) !== Math.round(campaign.raised_amount || 0)
 
   // ── Export all donors to an Excel file ──
+  const safeTitle = (campaign.title || 'קמפיין').replace(/[\\/:*?"<>|]/g, '_')
+  // A human-readable line describing the active amount filter (for the sheet subtitle).
+  const amountFilterLabel = () => {
+    if (minA && maxA) return ` · סכום ₪${minA.toLocaleString()}–₪${maxA.toLocaleString()}`
+    if (minA) return ` · מעל ₪${minA.toLocaleString()}`
+    if (maxA) return ` · עד ₪${maxA.toLocaleString()}`
+    return ''
+  }
+
   async function exportExcel() {
-    const XLSX = await import('xlsx')
-    const groupName = (gid: string | null) => groups.find(g => g.id === gid)?.name || ''
-    const rows = sorted.map(d => ({
-      'שם': d.donor_name || '',
-      'טלפון': d.donor_phone || '',
-      'אימייל': d.donor_email || '',
-      'סכום (₪)': d.amount || 0,
-      'מטבע מקורי': foreignOf(d) ? String(d.custom_data?.stripe_currency).toUpperCase() : 'ILS',
-      'סכום מקורי': foreignOf(d)?.amount ?? (d.amount || 0),
-      'סוג תשלום': d.payment_type === 'hok' ? 'הוראת קבע' : 'חד״פ',
-      'תשלומים': d.payment_type === 'hok' ? (d.installments ?? '') : '',
-      'סכום חודשי (₪)': d.payment_type === 'hok' ? (d.monthly_amount ?? '') : '',
-      'קבוצה': groupName(d.group_id),
-      'הקדשה': d.dedication || '',
-      'סטטוס': d.payment_status === 'completed' ? 'הושלם' : d.payment_status,
-      'אמצעי תשלום': donationMethod(d) || '',
-      'מקור': donationSource(d, paymentProvider).label,
-      'מזהה עסקה': d.kesher_transaction_id || '',
-      'קבלה': receiptOf(d) || '',
-      'תאריך': new Date(d.created_at).toLocaleString('he-IL'),
-      // custom-form fields (shipping etc.) become their own columns, keyed by label
-      ...(d.custom_data && typeof d.custom_data === 'object' ? d.custom_data : {}),
-    }))
-    const ws = XLSX.utils.json_to_sheet(rows)
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, 'תורמים')
-    const safe = (campaign.title || 'תורמים').replace(/[\\/:*?"<>|]/g, '_')
-    XLSX.writeFile(wb, `תורמים - ${safe}.xlsx`)
+    const { exportStyledXlsx } = await import('@/lib/xlsx-export')
+    const totalShown = sorted.reduce((s, d) => s + (d.amount || 0), 0)
+    exportStyledXlsx<Donation>({
+      filename: `תורמים - ${safeTitle}`,
+      sheetName: 'תורמים',
+      title: `תורמים · ${campaign.title || ''}`,
+      subtitle: `${sorted.length.toLocaleString()} תורמים · סה״כ ₪${Math.round(totalShown).toLocaleString()}${amountFilterLabel()} · הופק ${new Date().toLocaleDateString('he-IL')}`,
+      columns: [
+        { header: 'שם', get: d => d.donor_name || '' },
+        { header: 'טלפון', get: d => d.donor_phone || '', align: 'left' },
+        { header: 'אימייל', get: d => d.donor_email || '', align: 'left' },
+        { header: 'סכום', get: d => d.amount || 0, money: true },
+        { header: 'סוג', get: d => d.payment_type === 'hok' ? 'הוראת קבע' : 'חד״פ' },
+        { header: 'תשלומים', get: d => d.payment_type === 'hok' ? (d.installments ?? '') : '' },
+        { header: 'חודשי', get: d => d.payment_type === 'hok' && d.monthly_amount ? d.monthly_amount : '', money: true },
+        { header: 'קבוצה', get: d => groupName(d.group_id) },
+        { header: 'הקדשה', get: d => d.dedication || '' },
+        { header: 'אמצעי', get: d => donationMethod(d) || '' },
+        { header: 'מקור', get: d => donationSource(d, paymentProvider).label },
+        { header: 'סטטוס', get: d => d.payment_status === 'completed' ? 'הושלם' : d.payment_status },
+        { header: 'קבלה', get: d => receiptOf(d) || '', align: 'left', width: 30 },
+        { header: 'תאריך', get: d => new Date(d.created_at).toLocaleDateString('he-IL') },
+      ],
+      rows: sorted,
+    })
+  }
+
+  // Fundraiser (group) rollup — total raised + donor count per group, honoring the
+  // same amount filter as a MINIMUM on each fundraiser's total.
+  async function exportFundraisers() {
+    const { exportStyledXlsx } = await import('@/lib/xlsx-export')
+    const agg = new Map<string, { name: string; count: number; total: number; hok: number }>()
+    for (const d of donations) {
+      if (d.payment_status !== 'completed') continue
+      const key = d.group_id || '__none__'
+      const name = d.group_id ? (groupName(d.group_id) || '—') : 'ללא קבוצה'
+      const e = agg.get(key) || { name, count: 0, total: 0, hok: 0 }
+      e.count++; e.total += (d.amount || 0); if (d.payment_type === 'hok') e.hok++
+      agg.set(key, e)
+    }
+    let list = [...agg.values()].sort((a, b) => b.total - a.total)
+    if (minA) list = list.filter(g => g.total >= minA)
+    if (maxA) list = list.filter(g => g.total <= maxA)
+    const grand = list.reduce((s, g) => s + g.total, 0)
+    exportStyledXlsx<{ name: string; count: number; total: number; hok: number }>({
+      filename: `מגייסים - ${safeTitle}`,
+      sheetName: 'מגייסים',
+      title: `מגייסים · ${campaign.title || ''}`,
+      subtitle: `${list.length.toLocaleString()} מגייסים · סה״כ ₪${Math.round(grand).toLocaleString()}${amountFilterLabel()} · הופק ${new Date().toLocaleDateString('he-IL')}`,
+      columns: [
+        { header: 'מגייס / קבוצה', get: g => g.name, width: 28 },
+        { header: 'מס׳ תורמים', get: g => g.count, align: 'center' },
+        { header: 'סה״כ גויס', get: g => Math.round(g.total), money: true },
+        { header: 'מתוכם הו״ק', get: g => g.hok, align: 'center' },
+      ],
+      rows: list,
+    })
   }
 
   async function fixTotals() {
@@ -517,10 +561,16 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
           <p className="text-sm text-gray-500 mt-0.5">{campaign.title}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" onClick={exportExcel} disabled={sorted.length === 0} title="מייצא לפי הסינון הנוכחי" className="gap-2">
+          <Button variant="outline" onClick={exportExcel} disabled={sorted.length === 0} title="מייצא תורמים לפי הסינון הנוכחי" className="gap-2">
             <Download className="w-4 h-4" />
-            ייצוא לאקסל
+            ייצוא תורמים
           </Button>
+          {groups.length > 0 && (
+            <Button variant="outline" onClick={exportFundraisers} title="ייצוא סיכום מגייסים (קבוצות) — מסונן לפי סכום" className="gap-2">
+              <Download className="w-4 h-4" />
+              ייצוא מגייסים
+            </Button>
+          )}
           <Button variant="outline" onClick={() => { setShowImport(true); setShowAdd(false) }} className="gap-2">
             <FileSpreadsheet className="w-4 h-4" />
             ייבוא מאקסל
@@ -607,6 +657,16 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
             {sourcesPresent.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
         )}
+        {/* amount range — filters the list and both exports */}
+        <div className="flex items-center gap-1 shrink-0 h-10 border border-gray-200 rounded-md px-2 bg-white">
+          <span className="text-xs text-gray-400">₪</span>
+          <input value={minAmount} onChange={e => setMinAmount(e.target.value.replace(/[^\d]/g, ''))} inputMode="numeric" placeholder="מ-" aria-label="סכום מ-" className="w-16 text-sm outline-none text-center" dir="ltr" />
+          <span className="text-gray-300">–</span>
+          <input value={maxAmount} onChange={e => setMaxAmount(e.target.value.replace(/[^\d]/g, ''))} inputMode="numeric" placeholder="עד" aria-label="סכום עד" className="w-16 text-sm outline-none text-center" dir="ltr" />
+          {(minAmount || maxAmount) && (
+            <button onClick={() => { setMinAmount(''); setMaxAmount('') }} aria-label="נקה סינון סכום" className="text-gray-400 hover:text-gray-600"><X className="w-3.5 h-3.5" /></button>
+          )}
+        </div>
       </div>
 
       {/* Add form */}
