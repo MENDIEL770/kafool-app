@@ -520,7 +520,24 @@ function CheckoutModal({ en, primary, fields, lines, subtotal, shipCost, grandTo
                 </div>
               )}
               <div className="w-full overflow-y-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
-                <iframe src={payUrl} className="w-full" style={{ height: 'min(680px, 74vh)', border: 'none' }} title={en ? 'Secure payment' : 'תשלום מאובטח'} allow="payment" />
+                <iframe
+                  src={payUrl}
+                  className="w-full"
+                  style={{ height: 'min(680px, 74vh)', border: 'none' }}
+                  title={en ? 'Secure payment' : 'תשלום מאובטח'}
+                  allow="payment"
+                  onLoad={e => {
+                    // When Kesher submits the Bit transaction it redirects the iframe to our
+                    // successurl (same-origin), which is our cue that the SMS was sent — switch
+                    // straight to the waiting screen. While on Kesher's own (cross-origin) page
+                    // reading location throws, so we stay put. Bit only — credit completes in-iframe.
+                    if (payMethod !== 'bit') return
+                    try {
+                      const href = (e.currentTarget as HTMLIFrameElement).contentWindow?.location?.href || ''
+                      if (href && href.includes('/thanks')) { setTimedOut(false); setWaiting(true) }
+                    } catch { /* still on the provider's page */ }
+                  }}
+                />
               </div>
               <div className="px-5 pb-4 pt-3 space-y-2 border-t border-gray-100">
                 <button
