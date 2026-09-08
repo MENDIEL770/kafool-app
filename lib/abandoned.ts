@@ -88,22 +88,52 @@ function baseUrl(): string {
   return (process.env.NEXT_PUBLIC_BASE_URL || 'https://www.kafool.com').replace(/\/$/, '')
 }
 
-// The recovery email the donor receives (per the campaign's copy).
-function recoveryEmailHtml(args: { campaignTitle: string; orgName: string; link: string; managerPhone: string }): string {
-  const { campaignTitle, orgName, link, managerPhone } = args
+// Per-campaign editable copy for the recovery email (settings.abandoned_email).
+export interface AbandonedEmailCopy { subject?: string; message?: string; closing?: string; button_label?: string; image_url?: string }
+export const ABANDONED_EMAIL_DEFAULTS = {
+  subject: 'תרומתך ל{{campaign}} ממתינה להשלמה',
+  message: 'שלום וברכה,\nתודה על בחירתך לתמוך ב{{campaign}}! שמנו לב שתרומתך באתר לא הושלמה.\nעזרתך חיונית, ותרומתך נמצאת במרחק לחיצת כפתור:',
+  closing: 'לנדיבותך יש השפעה אמיתית, ואנו מעריכים את מחויבותך.',
+  button_label: 'להשלמת התרומה',
+} as const
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+// {{campaign}} / {{org}} placeholders → real values.
+function fillVars(s: string, campaignTitle: string, orgName: string): string {
+  return s.replace(/\{\{\s*campaign\s*\}\}/g, campaignTitle).replace(/\{\{\s*org\s*\}\}/g, orgName)
+}
+// Manager-entered text → paragraphs (each non-empty line its own <p>, HTML-escaped).
+function toParagraphs(text: string, campaignTitle: string, orgName: string): string {
+  return fillVars(text, campaignTitle, orgName).split(/\n+/).map(l => l.trim()).filter(Boolean)
+    .map(l => `<p>${escapeHtml(l)}</p>`).join('\n')
+}
+export function abandonedSubject(campaignTitle: string, orgName: string, copy?: AbandonedEmailCopy | null): string {
+  return fillVars((copy?.subject || ABANDONED_EMAIL_DEFAULTS.subject).trim() || ABANDONED_EMAIL_DEFAULTS.subject, campaignTitle, orgName)
+}
+
+// The recovery email the donor receives (per the campaign's editable copy).
+function recoveryEmailHtml(args: { campaignTitle: string; orgName: string; link: string; managerPhone: string; copy?: AbandonedEmailCopy | null }): string {
+  const { campaignTitle, orgName, link, managerPhone, copy } = args
+  const message = (copy?.message ?? ABANDONED_EMAIL_DEFAULTS.message).trim() || ABANDONED_EMAIL_DEFAULTS.message
+  const closing = (copy?.closing ?? ABANDONED_EMAIL_DEFAULTS.closing).trim()
+  const buttonLabel = (copy?.button_label || ABANDONED_EMAIL_DEFAULTS.button_label).trim() || ABANDONED_EMAIL_DEFAULTS.button_label
   const phoneLine = managerPhone
-    ? `<p>אם נתקלת בבעיה או שיש לך כל שאלה, תרגיש חופשי לשלוח לנו הודעה למספר טלפון <strong dir="ltr">${managerPhone}</strong> ואנו נעמוד לשירותך.</p>`
+    ? `<p>אם נתקלת בבעיה או שיש לך כל שאלה, תרגיש חופשי לשלוח לנו הודעה למספר טלפון <strong dir="ltr">${escapeHtml(managerPhone)}</strong> ואנו נעמוד לשירותך.</p>`
+    : ''
+  const imageBlock = copy?.image_url
+    ? `<p style="text-align:center;margin:0 0 20px;"><img src="${copy.image_url}" alt="" style="max-width:100%;border-radius:12px;"/></p>`
     : ''
   return `
-    <p>שלום וברכה,</p>
-    <p>תודה על בחירתך לתמוך ב<strong>${campaignTitle}</strong>! שמנו לב שתרומתך באתר לא הושלמה.</p>
-    <p>עזרתך חיונית, ותרומתך נמצאת במרחק לחיצת כפתור:</p>
+    ${imageBlock}
+    ${toParagraphs(message, campaignTitle, orgName)}
     <p style="text-align:center;margin:24px 0;">
-      <a href="${link}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;font-weight:bold;padding:14px 30px;border-radius:12px;font-size:16px;">להשלמת התרומה</a>
+      <a href="${link}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;font-weight:bold;padding:14px 30px;border-radius:12px;font-size:16px;">${escapeHtml(fillVars(buttonLabel, campaignTitle, orgName))}</a>
     </p>
     ${phoneLine}
-    <p>לנדיבותך יש השפעה אמיתית, ואנו מעריכים את מחויבותך.</p>
-    <p>בברכה,<br/>${orgName} ומערכת ׳כפול׳</p>`
+    ${closing ? toParagraphs(closing, campaignTitle, orgName) : ''}
+    <p>בברכה,<br/>${escapeHtml(orgName)} ומערכת ׳כפול׳</p>`
 }
 
 // The alert the campaign manager receives about an abandoned lead.
@@ -149,6 +179,7 @@ export async function notifyAbandonedIntents(supabase: SupabaseClient, campaignI
     : { data: null }
   const orgName = org?.name || camp?.title || 'הארגון'
   const campaignTitle = camp?.title || ''
+  const abandonedCopy = (camp?.settings as { abandoned_email?: AbandonedEmailCopy } | null)?.abandoned_email || null
 
   const waTemplate = process.env.WHATSAPP_ABANDON_TEMPLATE
   const pending = (intents || []).filter(i => {
@@ -199,8 +230,8 @@ export async function notifyAbandonedIntents(supabase: SupabaseClient, campaignI
         : `${baseUrl()}/${camp?.slug}`
       const ok = await sendPlusEmail(
         it.donor_email,
-        `תרומתך ל${campaignTitle} ממתינה להשלמה`,
-        recoveryEmailHtml({ campaignTitle, orgName, link, managerPhone }),
+        abandonedSubject(campaignTitle, orgName, abandonedCopy),
+        recoveryEmailHtml({ campaignTitle, orgName, link, managerPhone, copy: abandonedCopy }),
       )
       if (ok) { next.__emailed = true; changed = true; sent++ }
     }

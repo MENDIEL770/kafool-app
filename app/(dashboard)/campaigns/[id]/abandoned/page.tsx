@@ -4,6 +4,7 @@ import { Phone, MessageCircle, Mail, UserX } from 'lucide-react'
 import { intentCompleted } from '@/lib/abandoned'
 import SendPaymentLink from './SendPaymentLink'
 import DeleteLeadButton from './DeleteLeadButton'
+import AbandonedEmailEditor from './AbandonedEmailEditor'
 
 export const dynamic = 'force-dynamic'
 
@@ -30,8 +31,9 @@ export default async function AbandonedPage({ params }: { params: Promise<{ id: 
   const { id } = await params
   const supabase = await createClient()
   // access gate — the manager can only read their own campaign (RLS)
-  const { data: campaign } = await supabase.from('campaigns').select('id, title, slug').eq('id', id).single()
+  const { data: campaign } = await supabase.from('campaigns').select('id, title, slug, settings').eq('id', id).single()
   if (!campaign) redirect('/campaigns')
+  const abandonedCopy = (campaign.settings as { abandoned_email?: import('@/lib/abandoned').AbandonedEmailCopy } | null)?.abandoned_email || null
 
   // donation_intents is RLS-locked → read with the service client
   const admin = await createServiceClient()
@@ -107,6 +109,8 @@ export default async function AbandonedPage({ params }: { params: Promise<{ id: 
           <div className="text-xs text-gray-500 mt-0.5">אולי עדיין בתהליך (5 דק׳)</div>
         </div>
       </div>
+
+      <AbandonedEmailEditor campaignId={campaign.id} initial={abandonedCopy} />
 
       {rows.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center text-gray-400">
