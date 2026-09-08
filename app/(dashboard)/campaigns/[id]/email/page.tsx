@@ -37,6 +37,24 @@ export default function CampaignEmailPage() {
   const [formEmails, setFormEmails] = useState<Record<string, EmailTpl>>({})
   const [buttons, setButtons] = useState<ButtonRef[]>([])
   const [buttonEmails, setButtonEmails] = useState<Record<string, EmailTpl>>({})   // keyed by button amount
+  const [testEmail, setTestEmail] = useState('')
+  const [testing, setTesting] = useState(false)
+  const [testMsg, setTestMsg] = useState<{ ok: boolean; text: string } | null>(null)
+
+  async function sendTest() {
+    if (!testEmail.trim()) return
+    setTesting(true); setTestMsg(null)
+    try {
+      const r = await fetch(`/api/campaigns/${id}/test-email`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: testEmail.trim(), subject: def.subject, body: def.body, image: def.image }),
+      })
+      const d = await r.json().catch(() => ({}))
+      if (r.ok) setTestMsg({ ok: true, text: `נשלח מייל בדיקה ל-${testEmail.trim()} ✓` })
+      else setTestMsg({ ok: false, text: d.error || 'השליחה נכשלה' })
+    } catch { setTestMsg({ ok: false, text: 'השליחה נכשלה' }) }
+    setTesting(false)
+  }
 
   useEffect(() => {
     async function load() {
@@ -149,6 +167,19 @@ export default function CampaignEmailPage() {
               </label>
               {def.image && <button type="button" onClick={() => setDef(p => ({ ...p, image: '' }))} className="text-xs text-red-400 hover:text-red-600">הסר</button>}
             </div>
+          </div>
+
+          {/* send a test of this email */}
+          <div className="space-y-1 pt-3 border-t border-gray-100">
+            <Label>בדיקה — שליחת המייל לכתובת</Label>
+            <div className="flex flex-wrap items-center gap-2">
+              <Input type="email" dir="ltr" value={testEmail} onChange={e => setTestEmail(e.target.value)} placeholder="name@example.com" className="flex-1 min-w-[12rem]" />
+              <Button type="button" variant="outline" onClick={sendTest} disabled={testing || !testEmail.trim()} className="gap-2">
+                {testing ? 'שולח…' : 'שלח מייל בדיקה'}
+              </Button>
+            </div>
+            {testMsg && <p className={`text-xs ${testMsg.ok ? 'text-emerald-600' : 'text-red-600'}`}>{testMsg.text}</p>}
+            <p className="text-[11px] text-gray-400">נשלח עם התוכן הנוכחי במסך (גם לפני שמירה).</p>
           </div>
         </CardContent>
       </Card>
