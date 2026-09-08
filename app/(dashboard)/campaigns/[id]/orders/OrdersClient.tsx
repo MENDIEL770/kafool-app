@@ -217,6 +217,20 @@ export default function OrdersClient({ campaign, orders: initial }: { campaign: 
   const [filter, setFilter] = useState<string>('all')
   const [q, setQ] = useState('')
   const [newOpen, setNewOpen] = useState(false)
+  const [rcSend, setRcSend] = useState<Record<string, 'sending' | 'sent' | 'err'>>({})
+
+  // Email the receipt to the customer through the system (Resend), not the manager's mail app.
+  async function sendReceiptEmail(o: Order) {
+    setRcSend(m => ({ ...m, [o.id]: 'sending' }))
+    try {
+      const r = await fetch(`/api/campaigns/${campaign.id}/send-receipt`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ donationId: o.id }),
+      })
+      setRcSend(m => ({ ...m, [o.id]: r.ok ? 'sent' : 'err' }))
+      if (!r.ok) { const d = await r.json().catch(() => ({})); if (d.error) alert(d.error) }
+    } catch { setRcSend(m => ({ ...m, [o.id]: 'err' })) }
+  }
 
   async function patchCd(id: string, patch: Record<string, string>) {
     setOrders(os => os.map(o => o.id === id ? { ...o, custom_data: { ...(o.custom_data || {}), ...patch } } : o))
@@ -373,7 +387,15 @@ export default function OrdersClient({ campaign, orders: initial }: { campaign: 
                     <a href={`${waLink(o.donor_phone)}?text=${encodeURIComponent(rcMsg)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sm text-emerald-600 bg-white border border-emerald-200 rounded-lg px-2.5 py-1.5 hover:bg-emerald-50"><MessageCircle className="w-3.5 h-3.5" /> שלח בוואטסאפ</a>
                   )}
                   {o.donor_email && (
-                    <a href={`mailto:${o.donor_email}?subject=${encodeURIComponent('קבלה - ' + campaign.title)}&body=${encodeURIComponent(rcMsg)}`} className="inline-flex items-center gap-1 text-sm text-gray-600 bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 hover:bg-gray-50"><Mail className="w-3.5 h-3.5" /> שלח במייל</a>
+                    <button
+                      type="button"
+                      onClick={() => sendReceiptEmail(o)}
+                      disabled={rcSend[o.id] === 'sending' || rcSend[o.id] === 'sent'}
+                      className="inline-flex items-center gap-1 text-sm text-gray-600 bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 hover:bg-gray-50 disabled:opacity-60"
+                    >
+                      <Mail className="w-3.5 h-3.5" />
+                      {rcSend[o.id] === 'sending' ? 'שולח…' : rcSend[o.id] === 'sent' ? 'נשלח ✓' : rcSend[o.id] === 'err' ? 'שגיאה — נסה שוב' : 'שלח במייל'}
+                    </button>
                   )}
                 </div>
               )}
