@@ -17,18 +17,37 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const campaignId = (searchParams.get('campaignId') || '').trim()
   const tx = (searchParams.get('tx') || '').trim()
-  if (!campaignId || !tx) return NextResponse.json({ confirmed: false }, { status: 400 })
+  const phone = (searchParams.get('phone') || '').trim()
+  const amount = Number(searchParams.get('amount') || '')
+  // Either a transaction id, or a phone+amount (for Bit — no tx exists until the
+  // in-app payment settles and the callback records the order).
+  if (!campaignId || (!tx && !(phone && amount > 0))) return NextResponse.json({ confirmed: false }, { status: 400 })
 
   try {
     const supabase = await createServiceClient()
+    if (tx) {
+      const { data } = await supabase
+        .from('donations')
+        .select('id')
+        .eq('campaign_id', campaignId)
+        .eq('kesher_transaction_id', tx)
+        .eq('payment_status', 'completed')
+        .maybeSingle()
+      return NextResponse.json({ confirmed: !!data })
+    }
+    // Match a recently-recorded completed order by normalized phone + amount.
+    const norm = (p: unknown) => String(p ?? '').replace(/\D/g, '').replace(/^972/, '0').slice(-10)
+    const sinceIso = new Date(Date.now() - 45 * 60_000).toISOString()
     const { data } = await supabase
       .from('donations')
-      .select('id')
+      .select('id, donor_phone, amount')
       .eq('campaign_id', campaignId)
-      .eq('kesher_transaction_id', tx)
       .eq('payment_status', 'completed')
-      .maybeSingle()
-    return NextResponse.json({ confirmed: !!data })
+      .gt('created_at', sinceIso)
+      .limit(200)
+    const target = norm(phone)
+    const hit = (data || []).some(d => norm(d.donor_phone) === target && Math.round(Number(d.amount)) === Math.round(amount))
+    return NextResponse.json({ confirmed: hit })
   } catch {
     return NextResponse.json({ confirmed: false }, { status: 200 })
   }
