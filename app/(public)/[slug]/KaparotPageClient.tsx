@@ -4,11 +4,14 @@ import { useMemo, useState } from 'react'
 import DonationModal from './DonationModal'
 import { Banknote, BookOpen, HeartHandshake, Calendar, Coins, Users, Lock, ShieldCheck } from 'lucide-react'
 
-// ── Design tokens (approved mockup) ──────────────────────────────────────────
+// ── Design tokens — warm "boutique" palette: cream ground, sage headings, blush
+//    tints, a single rose CTA (inspired by mishpacha.org.il). `gold` is kept as
+//    the key name but now holds the sage accent used for headings/dividers/icons.
 const C = {
-  bg: '#faf6ee', text: '#1c2340', gold: '#b4882c', goldSoft: '#d4af5f', goldLight: '#f3e7c8',
-  border: '#e7e0d2', muted: '#6f6a5c', card: '#ffffff', parch1: '#f7efdf', parch2: '#efe3c8',
+  bg: '#fffbf2', text: '#413d38', gold: '#7f8a84', goldSoft: '#9fada5', goldLight: '#f9eee5',
+  border: '#ecdccf', muted: '#8a857c', card: '#ffffff', parch1: '#f9eee5', parch2: '#f1e4da',
 }
+const ACCENT = '#cc3366'   // rose CTA (matches the reference site's call-to-action)
 
 interface KaparotCfg {
   price_per_soul?: number; max_souls?: number; intro_html?: string
@@ -45,7 +48,6 @@ const FAQ = [
 export default function KaparotPageClient({ org, campaign, initialLang, donationUrl, paymentUrls, paymentProvider, nedarim }: Props) {
   const s = campaign.settings || {}
   const cfg: KaparotCfg = s.kaparot || {}
-  const primary = s.primary_color || C.gold
   const pricePerSoul = Number(cfg.price_per_soul) > 0 ? Number(cfg.price_per_soul) : 50
   const maxSouls = Number(cfg.max_souls) > 0 ? Number(cfg.max_souls) : 20
   const logo = cfg.chabad_logo_url || org.logo_url || ''
@@ -79,14 +81,14 @@ export default function KaparotPageClient({ org, campaign, initialLang, donation
 
   // ── Form card (shared between the hero and mobile) ─────────────────────────
   const FormCard = (
-    <div className="rounded-xl shadow-xl p-5 md:p-6" style={{ background: C.card, border: `1px solid ${C.border}` }}>
-      <h2 className="kap-h text-xl font-black text-center mb-1">ערכו את פדיון הכפרות שלכם</h2>
+    <div className="rounded-[28px] shadow-xl p-5 md:p-7" style={{ background: C.card, border: `1px solid ${C.border}` }}>
+      <h2 className="kap-h text-2xl text-center mb-1" style={{ color: C.gold }}>ערכו את פדיון הכפרות שלכם</h2>
       <p className="text-sm text-center mb-4" style={{ color: C.muted }}>כמה נפשות במשפחה?</p>
 
       <div className="flex items-center justify-center gap-4 mb-1">
-        <button type="button" onClick={() => setCount(souls - 1)} className="w-11 h-11 rounded-lg text-2xl leading-none text-white" style={{ background: C.gold }}>−</button>
-        <span className="w-16 text-center text-3xl font-black tabular-nums rounded-lg py-1" style={{ background: C.bg, color: C.text }}>{souls}</span>
-        <button type="button" onClick={() => setCount(souls + 1)} disabled={souls >= maxSouls} className="w-11 h-11 rounded-lg text-2xl leading-none text-white disabled:opacity-40" style={{ background: C.gold }}>+</button>
+        <button type="button" onClick={() => setCount(souls - 1)} className="w-11 h-11 rounded-full text-2xl leading-none text-white" style={{ background: C.gold }}>−</button>
+        <span className="w-16 text-center text-3xl font-black tabular-nums rounded-2xl py-1" style={{ background: C.goldLight, color: C.text }}>{souls}</span>
+        <button type="button" onClick={() => setCount(souls + 1)} disabled={souls >= maxSouls} className="w-11 h-11 rounded-full text-2xl leading-none text-white disabled:opacity-40" style={{ background: C.gold }}>+</button>
       </div>
       <p className="text-[11px] text-center mb-4" style={{ color: C.muted }}>(מינימום 1 · מקסימום {maxSouls})</p>
 
@@ -95,7 +97,7 @@ export default function KaparotPageClient({ org, campaign, initialLang, donation
           <div key={i}>
             <label className="text-xs font-bold block mb-1"><span style={{ color: C.gold }}>נפש {i + 1}:</span> שם ושם האם</label>
             <input value={nm} onChange={e => setNames(prev => prev.map((x, idx) => idx === i ? e.target.value : x))}
-              placeholder={i === 0 ? 'למשל: חנה בת רבקה' : 'שם ושם האם'} className="w-full rounded-lg border px-3 py-2.5 text-sm outline-none" style={{ borderColor: C.border }} />
+              placeholder={i === 0 ? 'למשל: חנה בת רבקה' : 'שם ושם האם'} className="w-full rounded-xl border px-3 py-2.5 text-sm outline-none" style={{ borderColor: C.border }} />
           </div>
         ))}
       </div>
@@ -104,21 +106,21 @@ export default function KaparotPageClient({ org, campaign, initialLang, donation
         <label className="block text-sm font-bold mb-1.5">הוספת סכום לצדקה (אופציונלי)</label>
         <div className="relative">
           <input type="number" inputMode="numeric" min={0} value={extra} onChange={e => setExtra(e.target.value.replace(/[^\d]/g, ''))}
-            placeholder="0" className="w-full rounded-lg border px-3 py-2.5 pl-8 text-sm outline-none" style={{ borderColor: C.border }} dir="ltr" />
+            placeholder="0" className="w-full rounded-xl border px-3 py-2.5 pl-8 text-sm outline-none" style={{ borderColor: C.border }} dir="ltr" />
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm" style={{ color: C.muted }}>₪</span>
         </div>
       </div>
 
-      <div className="flex items-center justify-between rounded-lg px-4 py-3 mb-3" style={{ background: C.goldLight }}>
+      <div className="flex items-center justify-between rounded-2xl px-4 py-3 mb-3" style={{ background: C.goldLight }}>
         <span className="font-bold">סה״כ לתשלום</span>
         <div className="text-left">
-          <span className="kap-h text-3xl font-black" style={{ color: C.gold }}>{ils(total)}</span>
+          <span className="kap-h text-3xl" style={{ color: ACCENT }}>{ils(total)}</span>
           <div className="text-[11px]" style={{ color: C.muted }}>{ils(pricePerSoul)} לנפש{extraAmount > 0 ? ` + ${ils(extraAmount)}` : ''}</div>
         </div>
       </div>
       <p className="text-[11px] text-center mb-4" style={{ color: C.muted }}>המוסיפים על סכום הפדיון כפי נדבת לבם — תבוא עליהם ברכה</p>
 
-      <button type="button" onClick={() => setModalOpen(true)} className="w-full inline-flex items-center justify-center gap-2 rounded-lg py-3.5 text-white font-bold shadow-lg" style={{ background: C.gold }}>
+      <button type="button" onClick={() => setModalOpen(true)} className="w-full inline-flex items-center justify-center gap-2 rounded-full py-4 text-white font-bold shadow-lg transition-transform hover:scale-[1.02]" style={{ background: ACCENT }}>
         <Lock className="w-4 h-4" /> המשך לתשלום מאובטח
       </button>
       <p className="text-[11px] text-center mt-2" style={{ color: C.muted }}>תשלום מאובטח בכרטיס אשראי · קבלה מוכרת למס תישלח למייל</p>
@@ -129,7 +131,7 @@ export default function KaparotPageClient({ org, campaign, initialLang, donation
     <div dir={initialLang === 'en' ? 'ltr' : 'rtl'} style={{ background: C.bg, color: C.text, minHeight: '100vh', fontFamily: "'Rubik', system-ui, sans-serif" }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800;900&family=Frank+Ruhl+Libre:wght@500;700&display=swap');
         /* All UI text in Rubik; only the prayer passages (nusach + declaration) stay serif. */
-        .kap-h{font-family:'Rubik',sans-serif;font-weight:900;letter-spacing:-.01em}
+        .kap-h{font-family:'Rubik',sans-serif;font-weight:700;letter-spacing:-.02em}
         .kap-serif{font-family:'Frank Ruhl Libre',Georgia,serif}
         .kap-over{font-family:'Rubik',sans-serif;font-weight:700;letter-spacing:.18em}`}</style>
 
@@ -153,9 +155,9 @@ export default function KaparotPageClient({ org, campaign, initialLang, donation
 
             {/* Info (right) */}
             <div className="order-2 md:order-2 md:pt-4">
-              <p className="kap-over text-xs mb-2" style={{ color: C.gold }}>תשפ״ז · 2026</p>
-              <h1 className="kap-h text-5xl md:text-6xl font-black leading-none">פדיון כפרות</h1>
-              <div className="w-20 h-1 rounded my-4" style={{ background: C.gold }} />
+              <p className="kap-over text-xs mb-2" style={{ color: ACCENT }}>תשפ״ז · 2026</p>
+              <h1 className="kap-h text-6xl md:text-7xl leading-[0.95]" style={{ color: C.gold }}>פדיון כפרות</h1>
+              <div className="w-20 h-1 rounded-full my-5" style={{ background: ACCENT }} />
               <p className="text-lg leading-relaxed font-semibold mb-4">לקראת יום הכיפורים נוהגים לערוך כפרות לכל אחד ואחת מבני הבית.</p>
 
               <div className="rounded-xl p-4 md:p-5" style={{ background: 'rgba(255,255,255,.75)', border: `1px solid ${C.border}` }}>
@@ -252,7 +254,7 @@ export default function KaparotPageClient({ org, campaign, initialLang, donation
         presetAmount={total} presetCustomData={presetCustomData}
         donationUrl={donationUrl} paymentUrls={paymentUrls} paymentProvider={paymentProvider} nedarim={nedarim}
         campaign={{ id: campaign.id, title: campaign.title, slug: campaign.slug }}
-        primaryColor={primary} buttonRadius={(s.button_radius as string) || 'rounded'} groups={[]} lang={initialLang}
+        primaryColor={ACCENT} buttonRadius={(s.button_radius as string) || 'rounded-full'} groups={[]} lang={initialLang}
         stripeEnabled={stripeEnabled} currencies={allowedCurrencies} defaultCurrency="ils" ilsRate={Number(s.stripe_ils_rate) || 3.7}
       />
     </div>
