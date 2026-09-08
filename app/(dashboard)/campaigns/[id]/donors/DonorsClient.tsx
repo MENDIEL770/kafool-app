@@ -211,6 +211,19 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
 
   // ── Export all donors to an Excel file ──
   const safeTitle = (campaign.title || 'קמפיין').replace(/[\\/:*?"<>|]/g, '_')
+  const [exportDialog, setExportDialog] = useState<null | 'donors' | 'fundraisers'>(null)
+  const [exportName, setExportName] = useState('')
+  const openExport = (type: 'donors' | 'fundraisers') => {
+    setExportName(type === 'donors' ? `תורמים - ${safeTitle}` : `מגייסים - ${safeTitle}`)
+    setExportDialog(type)
+  }
+  function confirmExport() {
+    const type = exportDialog
+    const name = (exportName.trim() || (type === 'donors' ? `תורמים - ${safeTitle}` : `מגייסים - ${safeTitle}`)).replace(/[\\/:*?"<>|]/g, '_')
+    setExportDialog(null)
+    if (type === 'donors') exportExcel(name)
+    else if (type === 'fundraisers') exportFundraisers(name)
+  }
   // A human-readable line describing the active amount filter (for the sheet subtitle).
   const amountFilterLabel = () => {
     if (minA && maxA) return ` · סכום ₪${minA.toLocaleString()}–₪${maxA.toLocaleString()}`
@@ -219,11 +232,11 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
     return ''
   }
 
-  async function exportExcel() {
+  async function exportExcel(fname: string) {
     const { exportStyledXlsx } = await import('@/lib/xlsx-export')
     const totalShown = sorted.reduce((s, d) => s + (d.amount || 0), 0)
     exportStyledXlsx<Donation>({
-      filename: `תורמים - ${safeTitle}`,
+      filename: fname,
       sheetName: 'תורמים',
       title: `תורמים · ${campaign.title || ''}`,
       subtitle: `${sorted.length.toLocaleString()} תורמים · סה״כ ₪${Math.round(totalShown).toLocaleString()}${amountFilterLabel()} · הופק ${new Date().toLocaleDateString('he-IL')}`,
@@ -249,7 +262,7 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
 
   // Fundraiser (group) rollup — total raised + donor count per group, honoring the
   // same amount filter as a MINIMUM on each fundraiser's total.
-  async function exportFundraisers() {
+  async function exportFundraisers(fname: string) {
     const { exportStyledXlsx } = await import('@/lib/xlsx-export')
     const agg = new Map<string, { name: string; count: number; total: number; hok: number }>()
     for (const d of donations) {
@@ -265,7 +278,7 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
     if (maxA) list = list.filter(g => g.total <= maxA)
     const grand = list.reduce((s, g) => s + g.total, 0)
     exportStyledXlsx<{ name: string; count: number; total: number; hok: number }>({
-      filename: `מגייסים - ${safeTitle}`,
+      filename: fname,
       sheetName: 'מגייסים',
       title: `מגייסים · ${campaign.title || ''}`,
       subtitle: `${list.length.toLocaleString()} מגייסים · סה״כ ₪${Math.round(grand).toLocaleString()}${amountFilterLabel()} · הופק ${new Date().toLocaleDateString('he-IL')}`,
@@ -554,6 +567,27 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
 
   return (
     <div className="space-y-6" dir="rtl">
+      {/* Export filename dialog */}
+      {exportDialog && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onMouseDown={() => setExportDialog(null)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 space-y-4" onMouseDown={e => e.stopPropagation()}>
+            <h3 className="font-bold text-gray-900 flex items-center gap-2"><Download className="w-4 h-4 text-blue-600" /> {exportDialog === 'donors' ? 'ייצוא תורמים' : 'ייצוא מגייסים'}</h3>
+            <div className="space-y-1">
+              <Label>שם הקובץ</Label>
+              <div className="flex items-center gap-2">
+                <Input value={exportName} onChange={e => setExportName(e.target.value)} autoFocus
+                  onKeyDown={e => { if (e.key === 'Enter') confirmExport() }} className="flex-1" />
+                <span className="text-sm text-gray-400 shrink-0">.xlsx</span>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2">
+              <button onClick={() => setExportDialog(null)} className="text-sm font-semibold text-gray-500 px-4 py-2 hover:text-gray-700">ביטול</button>
+              <Button onClick={confirmExport} className="gap-2"><Download className="w-4 h-4" /> ייצא</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -561,12 +595,12 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
           <p className="text-sm text-gray-500 mt-0.5">{campaign.title}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" onClick={exportExcel} disabled={sorted.length === 0} title="מייצא תורמים לפי הסינון הנוכחי" className="gap-2">
+          <Button variant="outline" onClick={() => openExport('donors')} disabled={sorted.length === 0} title="מייצא תורמים לפי הסינון הנוכחי" className="gap-2">
             <Download className="w-4 h-4" />
             ייצוא תורמים
           </Button>
           {groups.length > 0 && (
-            <Button variant="outline" onClick={exportFundraisers} title="ייצוא סיכום מגייסים (קבוצות) — מסונן לפי סכום" className="gap-2">
+            <Button variant="outline" onClick={() => openExport('fundraisers')} title="ייצוא סיכום מגייסים (קבוצות) — מסונן לפי סכום" className="gap-2">
               <Download className="w-4 h-4" />
               ייצוא מגייסים
             </Button>
