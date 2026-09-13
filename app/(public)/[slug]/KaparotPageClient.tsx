@@ -91,10 +91,12 @@ export default function KaparotPageClient({ org, campaign, initialLang, donation
 
   const btn = 'w-full inline-flex items-center justify-center gap-2 rounded-2xl py-4 font-bold text-base transition-transform hover:scale-[1.01]'
   const primaryBtn = `${btn} text-white`
-  const primaryBtnStyle = { background: accent, boxShadow: `0 10px 24px -8px ${accent}80` }
+  const primaryBtnStyle = { background: `linear-gradient(135deg, color-mix(in srgb, ${accent} 80%, #fff), ${accent})`, boxShadow: `0 14px 30px -10px ${accent}99, inset 0 1px 0 rgba(255,255,255,.28)` }
+  // premium, layered card surface reused across the steps
+  const cardStyle = { background: '#ffffff', border: '1px solid rgba(15,23,42,.06)', boxShadow: `0 1px 2px rgba(15,23,42,.04), 0 26px 64px -32px ${accent}4d, 0 10px 30px -24px rgba(15,23,42,.35)` }
 
   return (
-    <div dir={initialLang === 'en' ? 'ltr' : 'rtl'} style={{ background: C.bg, color: C.text, minHeight: '100vh', fontFamily: "'Assistant', system-ui, sans-serif" }}>
+    <div dir={initialLang === 'en' ? 'ltr' : 'rtl'} style={{ color: C.text, minHeight: '100vh', fontFamily: "'Assistant', system-ui, sans-serif", background: `radial-gradient(1100px 520px at 50% -8%, ${accent}14, transparent 60%), linear-gradient(180deg, #fbfcff, ${C.bg} 40%)` }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Rubik:wght@500;600;700;800&family=Assistant:wght@400;500;600;700&family=Frank+Ruhl+Libre:wght@500;700&display=swap');
         .kap-h{font-family:'Rubik','Assistant',sans-serif;font-weight:700;letter-spacing:-.02em;line-height:1.1}
         .kap-serif{font-family:'Frank Ruhl Libre',Georgia,serif}
@@ -114,9 +116,10 @@ export default function KaparotPageClient({ org, campaign, initialLang, donation
 
       <main className="max-w-2xl mx-auto px-5 pt-7 pb-14">
         {/* eyebrow + title */}
-        <div className="text-center mb-6">
-          <p className="kap-eyebrow text-xs mb-2" style={{ color: accent }}>פדיון כפרות · תשפ״ז</p>
-          <h1 className="kap-h text-4xl md:text-5xl" style={{ color: C.ink }}>פדיון כפרות אונליין</h1>
+        <div className="text-center mb-7">
+          <p className="kap-eyebrow text-xs mb-2.5" style={{ color: accent }}>פדיון כפרות · תשפ״ז</p>
+          <h1 className="kap-serif text-5xl md:text-6xl" style={{ color: C.ink, fontWeight: 700, letterSpacing: '-.01em' }}>פדיון כפרות אונליין</h1>
+          <div className="mx-auto mt-4 h-1 w-16 rounded-full" style={{ background: `linear-gradient(90deg, transparent, ${accent}, transparent)` }} />
         </div>
 
         {/* ── progress ── */}
@@ -140,7 +143,7 @@ export default function KaparotPageClient({ org, campaign, initialLang, donation
                     </div>
                     <span className="text-xs font-semibold hidden sm:inline" style={{ color: active ? C.ink : C.muted }}>{label}</span>
                   </button>
-                  {n < NUM_STEPS && <div className="w-5 sm:w-7 h-px" style={{ background: C.line }} />}
+                  {n < NUM_STEPS && <div className="w-5 sm:w-7 h-0.5 rounded-full transition-colors" style={{ background: step > n ? accent : C.line }} />}
                 </div>
               )
             })}
@@ -150,7 +153,7 @@ export default function KaparotPageClient({ org, campaign, initialLang, donation
         {/* ── STEP 1 — explanation ── */}
         {step === 1 && (
           <div className="kap-step">
-            <div className="rounded-3xl p-6 md:p-8" style={{ background: C.card, border: `1px solid ${C.line}`, boxShadow: '0 12px 40px -16px rgba(15,23,42,.15)' }}>
+            <div className="rounded-3xl p-6 md:p-8" style={cardStyle}>
               <h2 className="kap-h text-2xl text-center mb-1" style={{ color: C.ink }}>איך זה עובד?</h2>
               <p className="text-center text-sm mb-6" style={{ color: C.muted }}>שלושה צעדים פשוטים לפדיון הכפרות</p>
               <div className="space-y-3">
@@ -184,7 +187,7 @@ export default function KaparotPageClient({ org, campaign, initialLang, donation
         {/* ── STEP 2 — souls, names, amount ── */}
         {step === 2 && (
           <div className="kap-step">
-            <div className="rounded-3xl p-5 md:p-7" style={{ background: C.card, border: `1px solid ${C.line}`, boxShadow: '0 12px 40px -16px rgba(15,23,42,.15)' }}>
+            <div className="rounded-3xl p-5 md:p-7" style={cardStyle}>
               <h2 className="kap-h text-2xl mb-1" style={{ color: C.ink }}>עבור מי עורכים את הפדיון?</h2>
               <p className="text-sm mb-5" style={{ color: C.muted }}>הזינו את מספר הנפשות והשמות — הסכום יחושב אוטומטית.</p>
 
@@ -269,7 +272,7 @@ export default function KaparotPageClient({ org, campaign, initialLang, donation
         {/* ── STEP 4 — payment ── */}
         {step === 4 && (
           <div className="kap-step">
-            <div className="rounded-3xl p-6 md:p-8 text-center" style={{ background: C.card, border: `1px solid ${C.line}`, boxShadow: '0 12px 40px -16px rgba(15,23,42,.15)' }}>
+            <div className="rounded-3xl p-6 md:p-8 text-center" style={cardStyle}>
               <div className="mx-auto w-14 h-14 rounded-2xl flex items-center justify-center mb-4" style={{ background: C.accentSoft, color: accent }}><Lock className="w-6 h-6" /></div>
               <h2 className="kap-h text-2xl mb-1" style={{ color: C.ink }}>כמעט סיימתם 🕊️</h2>
               <p className="text-sm mb-5" style={{ color: C.muted }}>נותר רק להעביר את הפדיון לצדקה בתשלום מאובטח.</p>
