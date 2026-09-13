@@ -47,7 +47,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   // Prefer the campaign's uploaded social image, then the group's own image, then
   // the auto-generated campaign OG image.
   const ogImageUrl = s?.share_image || group?.image_url || `${BASE_URL}/${slug}/opengraph-image`
-  const url = `${BASE_URL}/${slug}/g/${groupSlug}`
+  const url = `${BASE_URL}/${slug}/${groupSlug}`
 
   return {
     title,

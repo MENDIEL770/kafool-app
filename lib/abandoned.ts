@@ -226,7 +226,7 @@ export async function notifyAbandonedIntents(supabase: SupabaseClient, campaignI
     // Donor recovery email — once per lead.
     if (!cd.__emailed && it.donor_email) {
       const link = it.group_slug
-        ? `${baseUrl()}/${camp?.slug}/g/${it.group_slug}`
+        ? `${baseUrl()}/${camp?.slug}/${it.group_slug}`
         : `${baseUrl()}/${camp?.slug}`
       const ok = await sendPlusEmail(
         it.donor_email,
@@ -264,7 +264,7 @@ export async function notifyAbandonedIntents(supabase: SupabaseClient, campaignI
     // {{2}}=link back). No-op until WHATSAPP_ABANDON_TEMPLATE + WhatsApp are set.
     if (!cd.__wa && waTemplate && it.phone) {
       const link = it.group_slug
-        ? `${baseUrl()}/${camp?.slug}/g/${it.group_slug}`
+        ? `${baseUrl()}/${camp?.slug}/${it.group_slug}`
         : `${baseUrl()}/${camp?.slug}`
       const r = await sendWhatsAppTemplate(it.phone, waTemplate, [campaignTitle, link])
       if (r.success) { next.__wa = true; changed = true; sent++ }

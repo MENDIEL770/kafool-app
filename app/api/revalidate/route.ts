@@ -16,7 +16,10 @@ export async function POST(req: NextRequest) {
   if (!slug) return NextResponse.json({ ok: false, error: 'missing slug' }, { status: 400 })
 
   revalidatePath(`/${slug}`)
-  if (groupSlug) revalidatePath(`/${slug}/g/${groupSlug}`)
+  if (groupSlug) {
+    revalidatePath(`/${slug}/${groupSlug}`)      // new short group URL
+    revalidatePath(`/${slug}/g/${groupSlug}`)    // legacy /g/ URL (still live)
+  }
 
   return NextResponse.json({ ok: true })
 }

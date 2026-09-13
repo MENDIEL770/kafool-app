@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
 
   // Send SMS to manager — use the campaign's custom template if set,
   // otherwise a built-in default. Placeholders: {שם} (manager name), {קישור} (group link).
-  const groupUrl = `https://kafool.com/${campaign.slug}/g/${slug}`
+  const groupUrl = `https://kafool.com/${campaign.slug}/${slug}`
   const apiKey = process.env.YEMOT_API_KEY
   if (apiKey && managerPhone) {
     const template = campaign.group_welcome_sms?.trim()

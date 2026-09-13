@@ -113,7 +113,7 @@ function DonorCard({ d, donorGroup, primaryColor, campaignSlug, liked, onToggleL
           </div>
           {donorGroup && (
             <a
-              href={`/${campaignSlug}/g/${donorGroup.slug}`}
+              href={`/${campaignSlug}/${donorGroup.slug}`}
               className="flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold hover:opacity-80 transition-opacity max-w-full w-fit"
               style={{ backgroundColor: `${primaryColor}1A`, color: primaryColor }}
             >
@@ -1236,7 +1236,7 @@ function CommunitySection({ donations, groups, primaryColor, campaignSlug, onCre
                 return (
                   <a
                     key={g.id}
-                    href={`/${campaignSlug}/g/${g.slug}`}
+                    href={`/${campaignSlug}/${g.slug}`}
                     className="group block bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-lg hover:-translate-y-1 transition-all duration-200"
                   >
                     {/* Image / avatar header */}

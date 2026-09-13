@@ -412,7 +412,7 @@ function BulkSmsModal({ groups, campaignInfo, onClose }: {
   const [previewGroup, setPreviewGroup] = useState<Group | null>(withPhone[0] || null)
 
   function groupLink(g: Group) {
-    return `https://kafool.com/${campaignInfo?.campaign_slug}/g/${g.slug}`
+    return `https://kafool.com/${campaignInfo?.campaign_slug}/${g.slug}`
   }
 
   function renderPreview(g: Group) {
@@ -515,7 +515,7 @@ function BulkSmsModal({ groups, campaignInfo, onClose }: {
 function GroupSmsButton({ group, campaignInfo }: { group: Group; campaignInfo: CampaignInfo | null }) {
   const [open, setOpen] = useState(false)
   const [msg, setMsg] = useState(
-    `שלום ${group.manager_name || group.name},\nהקישור לדף הקבוצה שלך:\nhttps://kafool.com/${campaignInfo?.campaign_slug}/g/${group.slug}\n\nבהצלחה!`
+    `שלום ${group.manager_name || group.name},\nהקישור לדף הקבוצה שלך:\nhttps://kafool.com/${campaignInfo?.campaign_slug}/${group.slug}\n\nבהצלחה!`
   )
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(false)
@@ -582,7 +582,7 @@ function WelcomeSmsModal({ campaignId, campaignInfo, initialValue, onClose, onSa
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
-  const sampleLink = `https://kafool.com/${campaignInfo?.campaign_slug || 'campaign'}/g/123`
+  const sampleLink = `https://kafool.com/${campaignInfo?.campaign_slug || 'campaign'}/123`
   const preview = text.replaceAll('{שם}', 'ראש הקבוצה').replaceAll('{קישור}', sampleLink)
 
   async function handleSave() {
@@ -989,7 +989,7 @@ export default function GroupsPage() {
 
         {visibleGroups.map((g) => {
           const pct = g.goal_amount > 0 ? Math.min(100, Math.round((g.raised_amount / g.goal_amount) * 100)) : 0
-          const groupUrl = campaignInfo ? `https://kafool.com/${campaignInfo.campaign_slug}/g/${g.slug}` : null
+          const groupUrl = campaignInfo ? `https://kafool.com/${campaignInfo.campaign_slug}/${g.slug}` : null
 
           return (
             <div key={g.id} className="bg-white border border-gray-200 rounded-2xl p-4 hover:border-gray-300 transition-colors">
@@ -1009,7 +1009,7 @@ export default function GroupsPage() {
                   {groupUrl && (
                     <a href={groupUrl} target="_blank" rel="noopener noreferrer"
                       className="inline-flex items-center gap-1 text-xs text-blue-500 hover:underline mt-1">
-                      {campaignInfo?.campaign_slug}/g/{g.slug}
+                      {campaignInfo?.campaign_slug}/{g.slug}
                       <ExternalLink className="w-3 h-3" />
                     </a>
                   )}
