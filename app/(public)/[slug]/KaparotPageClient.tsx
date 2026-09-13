@@ -41,25 +41,14 @@ const HOWTO = [
 // exists (onError → fallback), so the page auto-upgrades as assets are added.
 function Asset({ src, alt = '', className, style, fallback = null, onOk }: { src: string; alt?: string; className?: string; style?: React.CSSProperties; fallback?: React.ReactNode; onOk?: () => void }) {
   const [err, setErr] = useState(false)
+  const ref = useRef<HTMLImageElement>(null)
+  // Catch a 404 that already happened before React hydrated (SSR-rendered img).
+  useEffect(() => { const el = ref.current; if (el && el.complete && el.naturalWidth === 0) setErr(true) }, [])
   if (err) return <>{fallback}</>
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src={src} alt={alt} className={className} style={style} onError={() => setErr(true)} onLoad={onOk} />
+  return <img ref={ref} src={src} alt={alt} className={className} style={style} onError={() => setErr(true)} onLoad={onOk} />
 }
 
-// The illustrated hero banner (rooster over a Jerusalem skyline). Shows only when
-// the rooster art is present; pattern + skyline enrich it as they're added.
-function HeroBanner({ accent }: { accent: string }) {
-  const [show, setShow] = useState(true)
-  if (!show) return null
-  return (
-    <div className="relative rounded-3xl overflow-hidden mb-6 h-44 md:h-56" style={{ background: 'linear-gradient(180deg,#e8f1ff,#f6faff)' }}>
-      <Asset src="/kaparot/pattern.png" alt="" className="absolute inset-0 w-full h-full object-cover opacity-40" />
-      <Asset src="/kaparot/jerusalem.png" alt="" className="absolute bottom-0 inset-x-0 w-full object-contain opacity-80" style={{ maxHeight: '70%' }} />
-      <img src="/kaparot/rooster.png" alt="" onError={() => setShow(false)}
-        className="absolute bottom-0 left-1/2 -translate-x-1/2 h-full object-contain drop-shadow-xl" style={{ filter: 'drop-shadow(0 12px 20px rgba(15,23,42,.18))' }} />
-    </div>
-  )
-}
 const FAQ = [
   { icon: Calendar, q: 'מתי עורכים כפרות?', a: 'בעשרת ימי תשובה, ורבים עורכים בערב יום הכיפורים.' },
   { icon: Coins, q: 'כמה תורמים לנפש?', a: 'כערך תרנגול. הסכום נקבע ע״י בית חב״ד, וכל המוסיף — מוסיפים לו.' },
@@ -130,26 +119,28 @@ export default function KaparotPageClient({ org, campaign, initialLang, donation
         .kap-step{animation:kapIn .35s ease both}
         @media (prefers-reduced-motion:reduce){.kap-step{animation:none}}`}</style>
 
-      {/* ── header ── */}
-      <header className="border-b sticky top-0 z-10" style={{ borderColor: C.line, background: 'rgba(255,255,255,.9)', backdropFilter: 'blur(8px)' }}>
-        <div className="max-w-3xl mx-auto px-5 h-16 flex items-center justify-between">
-          {logo ? <img src={logo} alt={org.name} className="h-9 md:h-10 w-auto object-contain" /> : <span className="kap-h text-lg" style={{ color: C.ink }}>{org.name}</span>}
-          {yechi && <p className="text-[11px] md:text-xs font-semibold text-left leading-tight max-w-[190px]" style={{ color: C.muted }}>{yechi}</p>}
+      {/* ── full-bleed hero: sky banner (rooster + Jerusalem skyline slot in when present) ── */}
+      <section className="relative overflow-hidden" style={{ background: 'linear-gradient(180deg,#dbeafe 0%,#e9f2ff 45%,rgba(255,255,255,0) 100%)' }}>
+        <Asset src="/kaparot/pattern.png" alt="" className="absolute inset-0 w-full h-full object-cover opacity-30 pointer-events-none" />
+        <Asset src="/kaparot/jerusalem.png" alt="" className="absolute bottom-0 inset-x-0 w-full object-contain opacity-70 pointer-events-none" style={{ maxHeight: '55%' }} />
+        <div className="relative max-w-3xl mx-auto px-5 pt-4 pb-8">
+          {/* logo + yechi */}
+          <div className="flex items-start justify-between gap-4 mb-3">
+            {logo ? <img src={logo} alt={org.name} className="h-10 md:h-12 w-auto object-contain" /> : <span className="kap-h text-lg" style={{ color: C.ink }}>{org.name}</span>}
+            {yechi && <p className="text-[11px] md:text-xs font-semibold text-left leading-tight max-w-[190px]" style={{ color: C.muted }}>{yechi}</p>}
+          </div>
+          {/* rooster + title */}
+          <div className="text-center">
+            <Asset src="/kaparot/rooster.png" alt="" className="mx-auto mb-1 h-36 md:h-48 object-contain" style={{ filter: 'drop-shadow(0 14px 22px rgba(15,23,42,.22))' }} />
+            <p className="kap-eyebrow text-xs mb-2" style={{ color: accent }}>פדיון כפרות · תשפ״ז</p>
+            <h1 className="kap-serif text-5xl md:text-6xl" style={{ color: C.ink, fontWeight: 700, letterSpacing: '-.01em' }}>פדיון כפרות אונליין</h1>
+            <Asset src="/kaparot/ornament.png" alt="" className="mx-auto mt-4 h-4 md:h-5 object-contain"
+              fallback={<div className="mx-auto mt-4 h-1 w-16 rounded-full" style={{ background: `linear-gradient(90deg, transparent, ${accent}, transparent)` }} />} />
+          </div>
         </div>
-      </header>
+      </section>
 
-      <main className="max-w-2xl mx-auto px-5 pt-7 pb-14">
-        {/* hero banner (rooster over Jerusalem) — appears when the art is present */}
-        <HeroBanner accent={accent} />
-
-        {/* eyebrow + title */}
-        <div className="text-center mb-7">
-          <p className="kap-eyebrow text-xs mb-2.5" style={{ color: accent }}>פדיון כפרות · תשפ״ז</p>
-          <h1 className="kap-serif text-5xl md:text-6xl" style={{ color: C.ink, fontWeight: 700, letterSpacing: '-.01em' }}>פדיון כפרות אונליין</h1>
-          <Asset src="/kaparot/ornament.png" alt="" className="mx-auto mt-4 h-4 md:h-5 object-contain"
-            fallback={<div className="mx-auto mt-4 h-1 w-16 rounded-full" style={{ background: `linear-gradient(90deg, transparent, ${accent}, transparent)` }} />} />
-        </div>
-
+      <main className="max-w-2xl mx-auto px-5 pt-6 pb-14">
         {/* ── progress ── */}
         <div className="mb-8">
           <p className="text-center text-xs font-bold mb-3 kap-eyebrow" style={{ color: accent }}>
