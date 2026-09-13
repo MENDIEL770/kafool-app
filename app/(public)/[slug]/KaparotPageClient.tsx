@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import DonationModal from './DonationModal'
 import { Banknote, RotateCw, HeartHandshake, Lock, ShieldCheck, ArrowLeft, ArrowRight, Check, Calendar, Coins, Users } from 'lucide-react'
 
@@ -68,6 +68,14 @@ export default function KaparotPageClient({ org, campaign, initialLang, donation
   const extraAmount = Math.max(0, Number(extra) || 0)
   const total = souls * pricePerSoul + extraAmount
 
+  // Focus the newly added name field when the count grows.
+  const nameRefs = useRef<(HTMLInputElement | null)[]>([])
+  const prevSouls = useRef(1)
+  useEffect(() => {
+    if (souls > prevSouls.current) nameRefs.current[souls - 1]?.focus()
+    prevSouls.current = souls
+  }, [souls])
+
   const presetCustomData = useMemo(() => {
     const cd: Record<string, string> = {
       'מספר נפשות': String(souls),
@@ -119,15 +127,18 @@ export default function KaparotPageClient({ org, campaign, initialLang, donation
             {STEP_LABELS.map((label, i) => {
               const n = (i + 1) as 1 | 2 | 3 | 4
               const done = step > n, active = step === n
+              const reached = n <= step   // clickable to jump back to steps already reached
               return (
                 <div key={n} className="flex items-center gap-1.5">
-                  <div className="flex items-center gap-2">
+                  <button type="button" onClick={() => reached && goStep(n)} disabled={!reached}
+                    aria-label={`שלב ${n}: ${label}`}
+                    className={`flex items-center gap-2 ${reached ? 'cursor-pointer' : 'cursor-default'}`}>
                     <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-colors"
                       style={done || active ? { background: accent, color: '#fff' } : { background: C.soft, color: C.muted }}>
                       {done ? <Check className="w-3.5 h-3.5" /> : n}
                     </div>
                     <span className="text-xs font-semibold hidden sm:inline" style={{ color: active ? C.ink : C.muted }}>{label}</span>
-                  </div>
+                  </button>
                   {n < NUM_STEPS && <div className="w-5 sm:w-7 h-px" style={{ background: C.line }} />}
                 </div>
               )
@@ -188,7 +199,7 @@ export default function KaparotPageClient({ org, campaign, initialLang, donation
                 {names.map((nm, i) => (
                   <div key={i}>
                     <label className="text-xs font-semibold block mb-1" style={{ color: C.text }}>נפש {i + 1} — שם ושם האם</label>
-                    <input value={nm} onChange={e => setNames(prev => prev.map((x, idx) => idx === i ? e.target.value : x))}
+                    <input ref={el => { nameRefs.current[i] = el }} value={nm} onChange={e => setNames(prev => prev.map((x, idx) => idx === i ? e.target.value : x))}
                       placeholder={i === 0 ? 'למשל: חנה בת רבקה' : 'שם ושם האם'}
                       className="kap-input w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none" style={{ borderColor: C.line }} />
                   </div>
