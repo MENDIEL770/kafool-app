@@ -30,6 +30,7 @@ import {
   FlaskConical,
   Megaphone,
   Inbox,
+  Wrench,
 } from 'lucide-react'
 
 interface Profile {
@@ -52,6 +53,7 @@ const navItems = [
   { href: '/donor-pool', label: 'מאגר תורמים', icon: Users },
   { href: '/reports', label: 'דוחות', icon: BarChart3 },
   { href: '/sms', label: 'SMS ואוטומציות', icon: MessageSquare },
+  { href: '/tools', label: 'כלי עזר', icon: Wrench },
 ]
 
 
