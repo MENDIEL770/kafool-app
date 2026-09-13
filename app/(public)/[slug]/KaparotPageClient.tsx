@@ -32,10 +32,34 @@ const DEFAULT_YECHI = 'יחי אדוננו מורנו ורבינו מלך המש
 const NUSACH = 'בְּנֵי אָדָם יוֹשְׁבֵי חשֶׁךְ וְצַלְמָוֶת אֲסִירֵי עֳנִי וּבַרְזֶל: יוֹצִיאֵם מֵחשֶׁךְ וְצַלְמָוֶת וּמוֹסְרוֹתֵיהֶם יְנַתֵּק: אֱוִילִים מִדֶּרֶךְ פִּשְׁעָם וּמֵעֲוֹנֹתֵיהֶם יִתְעַנּוּ: כָּל אֹכֶל תְּתַעֵב נַפְשָׁם וַיַּגִּיעוּ עַד שַׁעֲרֵי מָוֶת: וַיִּזְעֲקוּ אֶל אַ-דֹנָי בַּצַּר לָהֶם מִמְּצוּקוֹתֵיהֶם יוֹשִׁיעֵם: יִשְׁלַח דְּבָרוֹ וְיִרְפָּאֵם וִימַלֵּט מִשְּׁחִיתוֹתָם: יוֹדוּ לַ־דֹנָי חַסְדּוֹ וְנִפְלְאוֹתָיו לִבְנֵי אָדָם: אִם יֵשׁ עָלָיו מַלְאָךְ מֵלִיץ אֶחָד מִנִּי אָלֶף. לְהַגִּיד לְאָדָם יָשְׁרוֹ: יְחֻנֶּנּוּ וַיֹּאמֶר פְּדָעֵהוּ מֵרֶדֶת שַׁחַת מָצָאתִי כֹפֶר:'
 const DECLARATION = 'זֶה חֲלִיפָתִי. זֶה תְּמוּרָתִי. זֶה כַּפָּרָתִי. זֶה הַכֶּסֶף יֵלֵךְ לִצְדָקָה, וַאֲנִי אֵלֵךְ לְחַיִּים טוֹבִים אֲרוּכִים וּלְשָׁלוֹם'
 const HOWTO = [
-  { icon: Banknote, title: 'קחו כסף מזומן', text: 'הכינו סכום כסף מזומן בבית — כערך תרנגול לכל אחד מבני הבית.' },
-  { icon: RotateCw, title: 'עשו עליו את הכפרות', text: 'מסובבים את הכסף שלוש פעמים מעל הראש ואומרים את הנוסח (נלמד בשלב 3).' },
-  { icon: HeartHandshake, title: 'תורמים כנגדו כאן', text: 'מזינים באתר את הסכום כנגד המזומן — והוא נתרם לצדקה, במקום התרנגול.' },
+  { icon: Banknote, asset: 'cash.png', title: 'קחו כסף מזומן', text: 'הכינו סכום כסף מזומן בבית — כערך תרנגול לכל אחד מבני הבית.' },
+  { icon: RotateCw, asset: 'rotate.png', title: 'עשו עליו את הכפרות', text: 'מסובבים את הכסף שלוש פעמים מעל הראש ואומרים את הנוסח (נלמד בשלב 3).' },
+  { icon: HeartHandshake, asset: 'charity.png', title: 'תורמים כנגדו כאן', text: 'מזינים באתר את הסכום כנגד המזומן — והוא נתרם לצדקה, במקום התרנגול.' },
 ]
+
+// Decorative assets live in /public/kaparot. Each renders only once its file
+// exists (onError → fallback), so the page auto-upgrades as assets are added.
+function Asset({ src, alt = '', className, style, fallback = null, onOk }: { src: string; alt?: string; className?: string; style?: React.CSSProperties; fallback?: React.ReactNode; onOk?: () => void }) {
+  const [err, setErr] = useState(false)
+  if (err) return <>{fallback}</>
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={src} alt={alt} className={className} style={style} onError={() => setErr(true)} onLoad={onOk} />
+}
+
+// The illustrated hero banner (rooster over a Jerusalem skyline). Shows only when
+// the rooster art is present; pattern + skyline enrich it as they're added.
+function HeroBanner({ accent }: { accent: string }) {
+  const [show, setShow] = useState(true)
+  if (!show) return null
+  return (
+    <div className="relative rounded-3xl overflow-hidden mb-6 h-44 md:h-56" style={{ background: 'linear-gradient(180deg,#e8f1ff,#f6faff)' }}>
+      <Asset src="/kaparot/pattern.png" alt="" className="absolute inset-0 w-full h-full object-cover opacity-40" />
+      <Asset src="/kaparot/jerusalem.png" alt="" className="absolute bottom-0 inset-x-0 w-full object-contain opacity-80" style={{ maxHeight: '70%' }} />
+      <img src="/kaparot/rooster.png" alt="" onError={() => setShow(false)}
+        className="absolute bottom-0 left-1/2 -translate-x-1/2 h-full object-contain drop-shadow-xl" style={{ filter: 'drop-shadow(0 12px 20px rgba(15,23,42,.18))' }} />
+    </div>
+  )
+}
 const FAQ = [
   { icon: Calendar, q: 'מתי עורכים כפרות?', a: 'בעשרת ימי תשובה, ורבים עורכים בערב יום הכיפורים.' },
   { icon: Coins, q: 'כמה תורמים לנפש?', a: 'כערך תרנגול. הסכום נקבע ע״י בית חב״ד, וכל המוסיף — מוסיפים לו.' },
@@ -115,11 +139,15 @@ export default function KaparotPageClient({ org, campaign, initialLang, donation
       </header>
 
       <main className="max-w-2xl mx-auto px-5 pt-7 pb-14">
+        {/* hero banner (rooster over Jerusalem) — appears when the art is present */}
+        <HeroBanner accent={accent} />
+
         {/* eyebrow + title */}
         <div className="text-center mb-7">
           <p className="kap-eyebrow text-xs mb-2.5" style={{ color: accent }}>פדיון כפרות · תשפ״ז</p>
           <h1 className="kap-serif text-5xl md:text-6xl" style={{ color: C.ink, fontWeight: 700, letterSpacing: '-.01em' }}>פדיון כפרות אונליין</h1>
-          <div className="mx-auto mt-4 h-1 w-16 rounded-full" style={{ background: `linear-gradient(90deg, transparent, ${accent}, transparent)` }} />
+          <Asset src="/kaparot/ornament.png" alt="" className="mx-auto mt-4 h-4 md:h-5 object-contain"
+            fallback={<div className="mx-auto mt-4 h-1 w-16 rounded-full" style={{ background: `linear-gradient(90deg, transparent, ${accent}, transparent)` }} />} />
         </div>
 
         {/* ── progress ── */}
@@ -161,8 +189,8 @@ export default function KaparotPageClient({ org, campaign, initialLang, donation
                   const Icon = h.icon
                   return (
                     <div key={i} className="flex items-start gap-4 rounded-2xl p-4" style={{ background: C.soft }}>
-                      <div className="flex-none w-11 h-11 rounded-2xl flex items-center justify-center relative" style={{ background: '#fff', color: accent, border: `1px solid ${C.line}` }}>
-                        <Icon className="w-5 h-5" strokeWidth={2} />
+                      <div className="flex-none w-12 h-12 rounded-2xl flex items-center justify-center relative" style={{ background: '#fff', color: accent, border: `1px solid ${C.line}` }}>
+                        <Asset src={`/kaparot/${h.asset}`} alt="" className="w-8 h-8 object-contain" fallback={<Icon className="w-5 h-5" strokeWidth={2} />} />
                         <span className="absolute -top-2 -right-2 w-5 h-5 rounded-full text-[11px] font-bold flex items-center justify-center text-white" style={{ background: accent }}>{i + 1}</span>
                       </div>
                       <div>
@@ -332,6 +360,7 @@ export default function KaparotPageClient({ org, campaign, initialLang, donation
           )}
         </div>
       </section>
+      <Asset src="/kaparot/jerusalem.png" alt="" className="w-full max-w-5xl mx-auto object-contain opacity-60 -mb-2" />
       <footer className="px-5 py-8 text-center text-xs" style={{ color: C.muted }}>מופעל באמצעות Kafool</footer>
 
       <DonationModal
