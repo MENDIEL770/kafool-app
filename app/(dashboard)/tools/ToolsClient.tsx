@@ -17,7 +17,7 @@ function QrTool() {
   const holder = useRef<HTMLDivElement>(null)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const qrRef = useRef<any>(null)
-  const [data, setData] = useState('https://www.kafool.com')
+  const [data, setData] = useState('')
   const [dotType, setDotType] = useState<DotType>('rounded')
   const [fg, setFg] = useState('#0f172a')
   const [transparent, setTransparent] = useState(false)
@@ -95,8 +95,8 @@ function QrTool() {
           </div>
 
           <div className="flex gap-2 pt-1">
-            <button type="button" onClick={() => download('png')} disabled={!ready} className="inline-flex items-center gap-1.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl px-4 py-2.5 disabled:opacity-50"><Download className="w-4 h-4" /> הורדה PNG</button>
-            <button type="button" onClick={() => download('svg')} disabled={!ready} className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-700 border border-gray-200 rounded-xl px-4 py-2.5 hover:bg-gray-50 disabled:opacity-50"><Download className="w-4 h-4" /> SVG</button>
+            <button type="button" onClick={() => download('png')} disabled={!ready || !data.trim()} className="inline-flex items-center gap-1.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl px-4 py-2.5 disabled:opacity-50"><Download className="w-4 h-4" /> הורדה PNG</button>
+            <button type="button" onClick={() => download('svg')} disabled={!ready || !data.trim()} className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-700 border border-gray-200 rounded-xl px-4 py-2.5 hover:bg-gray-50 disabled:opacity-50"><Download className="w-4 h-4" /> SVG</button>
           </div>
         </div>
 
