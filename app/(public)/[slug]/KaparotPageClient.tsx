@@ -67,6 +67,7 @@ export default function KaparotPageClient({ org, campaign, initialLang, donation
   }
   const extraAmount = Math.max(0, Number(extra) || 0)
   const total = souls * pricePerSoul + extraAmount
+  const allNamesFilled = names.every(n => n.trim().length > 0)   // must name every soul before continuing
 
   // Focus the newly added name field when the count grows.
   const nameRefs = useRef<(HTMLInputElement | null)[]>([])
@@ -223,9 +224,11 @@ export default function KaparotPageClient({ org, campaign, initialLang, donation
                 <span className="kap-h text-3xl" style={{ color: accent }}>{ils(total)}</span>
               </div>
 
-              <button type="button" onClick={() => goStep(3)} className={primaryBtn} style={primaryBtnStyle}>
+              <button type="button" onClick={() => allNamesFilled && goStep(3)} disabled={!allNamesFilled}
+                className={`${primaryBtn} disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed`} style={primaryBtnStyle}>
                 המשך לנוסח הכפרות <ArrowLeft className="w-4 h-4" />
               </button>
+              {!allNamesFilled && <p className="text-[11px] text-center mt-2" style={{ color: C.muted }}>יש למלא את שם כל הנפשות כדי להמשיך</p>}
               <button type="button" onClick={() => goStep(1)} className="mt-3 mx-auto flex items-center gap-1.5 text-sm font-semibold" style={{ color: C.muted }}>
                 <ArrowRight className="w-4 h-4" /> חזרה
               </button>
@@ -248,8 +251,8 @@ export default function KaparotPageClient({ org, campaign, initialLang, donation
               <p className="kap-serif text-xl md:text-2xl text-center" style={{ lineHeight: 1.95, color: C.ink }}>{NUSACH}</p>
 
               <div className="mt-6 rounded-2xl p-4" style={{ background: C.soft }}>
-                <p className="text-sm font-semibold text-center mb-2" style={{ color: C.text }}>מסובבים את הכסף שלוש פעמים מעל הראש, ובכל סיבוב אומרים:</p>
-                <p className="kap-serif text-base md:text-lg text-center" style={{ color: C.ink }}>&quot;{DECLARATION}&quot;</p>
+                <p className="text-sm font-semibold text-center mb-3" style={{ color: C.text }}>מסובבים את הכסף שלוש פעמים מעל הראש, ובכל סיבוב אומרים:</p>
+                <p className="kap-serif text-2xl md:text-3xl text-center" style={{ color: C.ink, fontWeight: 700, lineHeight: 1.7 }}>&quot;{DECLARATION}&quot;</p>
                 <p className="text-[11px] text-center mt-2" style={{ color: C.muted }}>כך שלוש פעמים לכל אחד מבני הבית</p>
               </div>
             </div>
