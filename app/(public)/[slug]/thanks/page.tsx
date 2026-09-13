@@ -32,6 +32,11 @@ export default async function ThanksPage({
 
   const primaryColor = (campaign.settings as { primary_color?: string })?.primary_color || '#2563eb'
   const thanks = (campaign.settings as { thanks?: { title?: string; message?: string; sub_text?: string; button_label?: string; button_url?: string } } | null)?.thanks
+  // Kaparot completion: "הכפרה הושלמה" + a blessing from the Chabad house (editable
+  // via settings.kaparot.blessing, otherwise a default that names the org).
+  const isKaparot = (campaign.settings as { page_type?: string })?.page_type === 'kaparot'
+  const kapBlessing = ((campaign.settings as { kaparot?: { blessing?: string } })?.kaparot?.blessing || '').trim()
+    || `צוות ${org.name} מאחל לך כתיבה וחתימה טובה,\nשנה טובה ומתוקה לך ולמשפחתך 🍎🍯`
   const logoUrl = (campaign as { logo_url?: string | null }).logo_url || org.logo_url || null
   const receiptUrl = sp.receiptLink || sp.receipturl || sp.receipt_url || sp.receiptUrl || null
   const transactionNumber = sp.transactionNumber || sp.NumTransaction || null
@@ -153,8 +158,8 @@ export default async function ThanksPage({
       pendingTx={pendingTx}
       initiallyConfirmed={initiallyConfirmed}
       logoUrl={logoUrl}
-      thanksTitle={thanks?.title || null}
-      thanksMessage={thanks?.message || null}
+      thanksTitle={thanks?.title || (isKaparot ? 'הכפרה הושלמה! 🕊️' : null)}
+      thanksMessage={thanks?.message || (isKaparot ? kapBlessing : null)}
       isOrder={(campaign.settings as { page_type?: string })?.page_type === 'products'}
       subText={thanks?.sub_text || null}
       buttonLabel={thanks?.button_label || null}
