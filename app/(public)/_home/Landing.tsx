@@ -438,44 +438,24 @@ function MiniDonationPage() {
 // Each feature is a plain block in the normal document flow — a screen mockup
 // beside its explanation. No pinning, no scroll-jacking; the visitor just scrolls
 // past them like any page (they alternate sides on desktop for rhythm).
+// Condensed: the platform features as one dense, minimalist card grid (instead
+// of a full-screen alternating row each) — much shorter, data concentrated.
 function FeatureStory({ title }: { title: string }) {
-  const n = FEATURES.length
   return (
-    <section className="px-5 py-11 sm:py-24">
+    <section className="px-5 py-12 sm:py-16">
       <div className="mx-auto w-full max-w-6xl">
-        <p className="mb-12 text-center text-sm font-black lg:text-right" style={{ color: BLUE }}>{title}</p>
-
-        <div className="space-y-20 sm:space-y-28">
+        <h2 className="mb-8 text-center text-2xl font-black tracking-tight sm:text-3xl" style={{ color: NAVY }}>{title}</h2>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map((f, i) => (
-            <div key={i} className="grid items-center gap-10 lg:grid-cols-2 lg:gap-10">
-              {/* screen mockup */}
-              <div className={i % 2 === 1 ? 'lg:order-2' : 'lg:order-1'}>
-                <div
-                  className="relative rounded-[22px] p-[10px] shadow-[0_50px_100px_-25px_rgba(16,42,86,0.5)]"
-                  style={{ background: 'linear-gradient(160deg,#2b3444,#0e1420)' }}
-                >
-                  <div className="relative overflow-hidden rounded-[12px] bg-white">
-                    <FeatureScreen i={i} />
-                  </div>
-                  <div className="pointer-events-none absolute inset-[10px] rounded-[12px]" style={{ background: 'linear-gradient(120deg,rgba(255,255,255,.18),transparent 45%)' }} />
-                </div>
-                <div className="mx-auto mt-2 h-[10px] w-[70%] rounded-b-[40px] bg-black/10 blur-[6px]" />
-              </div>
-
-              {/* explanation */}
-              <div className={i % 2 === 1 ? 'lg:order-1' : 'lg:order-2'}>
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl" style={{ background: `${BLUE}14` }}>
+            <Reveal key={i} delay={(i % 3) * 0.06}>
+              <div className="group h-full rounded-2xl border border-white/60 bg-white/75 p-6 backdrop-blur-xl shadow-[0_24px_60px_-34px_rgba(16,42,86,0.4)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_30px_70px_-30px_rgba(16,42,86,0.5)]">
+                <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl transition-transform duration-300 group-hover:scale-110" style={{ background: `${BLUE}14` }}>
                   <f.Icon className="h-5 w-5" style={{ color: BLUE }} strokeWidth={1.7} />
                 </div>
-                <div dir="ltr" className="mb-2 text-right text-[11px] font-black tracking-widest" style={{ color: BLUE }}>
-                  {String(i + 1).padStart(2, '0')} / {String(n).padStart(2, '0')}
-                </div>
-                <h3 className="text-[1.9rem] font-black leading-[1.15] tracking-tight sm:text-[2.4rem]" style={{ color: NAVY }}>
-                  {f.title}
-                </h3>
-                <p className="mt-3 max-w-sm text-base leading-relaxed text-slate-500">{f.text}</p>
+                <h3 className="text-lg font-black leading-snug tracking-tight" style={{ color: NAVY }}>{f.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-slate-500">{f.text}</p>
               </div>
-            </div>
+            </Reveal>
           ))}
         </div>
       </div>
