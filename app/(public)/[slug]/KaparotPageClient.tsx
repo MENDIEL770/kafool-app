@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import DonationModal from './DonationModal'
+import WhatsAppFab from '@/components/WhatsAppFab'
 import { Banknote, RotateCw, HeartHandshake, Lock, ShieldCheck, ArrowLeft, ArrowRight, Check, Calendar, Coins, Users } from 'lucide-react'
 
 // ── Design tokens — modern & clean: white ground, one confident blue accent,
@@ -362,6 +363,8 @@ export default function KaparotPageClient({ org, campaign, initialLang, donation
         primaryColor={accent} buttonRadius={(s.button_radius as string) || 'rounded-2xl'} groups={[]} lang={initialLang}
         stripeEnabled={stripeEnabled} currencies={allowedCurrencies} defaultCurrency="ils" ilsRate={Number(s.stripe_ils_rate) || 3.7}
       />
+
+      <WhatsAppFab phone={(s as { whatsapp_phone?: string }).whatsapp_phone} message={(s as { whatsapp_message?: string }).whatsapp_message} />
     </div>
   )
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Footer from '../_components/Footer'
+import WhatsAppFab from '@/components/WhatsAppFab'
 
 // ── Types (mirror the products editor) ───────────────────────────────────────
 interface QtyTier { qty: number; price: number }
@@ -185,6 +186,8 @@ export default function ProductSalesClient({ campaign, initialLang, paymentUrls,
           q={qty[detail] || 0} onQty={v => setQ(detail, v)} onClose={() => setDetail(null)}
         />
       )}
+
+      <WhatsAppFab phone={(s as { whatsapp_phone?: string }).whatsapp_phone} message={(s as { whatsapp_message?: string }).whatsapp_message} raised={products.length > 0} />
     </div>
   )
 }
