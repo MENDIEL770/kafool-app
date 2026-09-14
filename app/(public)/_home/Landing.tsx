@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import ContactForm from '../contact/ContactForm'
 import Image from 'next/image'
 import {
   motion, AnimatePresence, useInView, useMotionValue, useSpring, useTransform,
@@ -1097,6 +1098,21 @@ export default function Landing({ c, logos, campaigns = [] }: { c: LandingConten
             </div>
           </div>
         </Reveal>
+      </section>
+
+      {/* ── CONTACT ── */}
+      <section id="contact" className="px-5 py-14 scroll-mt-24">
+        <div className="mx-auto max-w-2xl">
+          <Reveal>
+            <h2 className="mb-2 text-center text-2xl font-black tracking-tight sm:text-3xl" style={{ color: NAVY }}>דברו איתנו</h2>
+            <p className="mb-8 text-center text-slate-500">השאירו פרטים ונחזור אליכם בהקדם</p>
+          </Reveal>
+          <Reveal delay={0.1}>
+            <div className="rounded-[28px] border border-white/60 bg-white/85 p-6 backdrop-blur-xl shadow-[0_30px_70px_-34px_rgba(16,42,86,0.4)] sm:p-8">
+              <ContactForm />
+            </div>
+          </Reveal>
+        </div>
       </section>
 
       {/* ── TRUST STRIP ── */}
