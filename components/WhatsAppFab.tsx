@@ -34,7 +34,7 @@ export default function WhatsAppFab({ phone, message, raised = false }: { phone?
       aria-label="צור קשר בוואטסאפ"
       style={{
         position: 'fixed',
-        left: '20px',
+        right: '20px',                       // right corner — the accessibility button owns the left
         bottom: raised ? '92px' : '20px',   // lift above a sticky bottom bar (e.g. cart)
         zIndex: 60,
         width: '56px',

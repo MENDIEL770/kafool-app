@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import PublicHeaderGate from './_components/PublicHeaderGate'
+import AccessibilityWidget from './_components/AccessibilityWidget'
 
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -20,6 +21,8 @@ export default async function PublicLayout({ children }: { children: React.React
     <>
       <PublicHeaderGate hiddenPages={hiddenPages} />
       {children}
+      {/* Always available on every public page (legal accessibility requirement) */}
+      <AccessibilityWidget />
     </>
   )
 }

@@ -145,7 +145,6 @@ function useT() {
 }
 import DonationModal from './DonationModal'
 import CreateGroupModal from './CreateGroupModal'
-import AccessibilityWidget from '../_components/AccessibilityWidget'
 import Footer from '../_components/Footer'
 
 /* ─── Types ─── */
@@ -2013,8 +2012,6 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
       <DonationToasts donations={donations} groups={groups} primaryColor={primaryColor} plans={donationPlans} />
 
       <PopupAd ad={(campaign.settings as { popup_ad?: { image_url?: string; link?: string | null } })?.popup_ad} campaignId={campaign.id} />
-      {/* מורם בתיאום עם שאר הכפתורים הצפים */}
-      <AccessibilityWidget offsetBottom={floatBottom} />
 
       <CreateGroupModal
         isOpen={createGroupOpen}

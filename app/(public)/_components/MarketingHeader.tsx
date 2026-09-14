@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import AccessibilityWidget from './AccessibilityWidget'
 import { Menu, X } from 'lucide-react'
 
 function KafoolLogo() {
@@ -151,7 +150,6 @@ export default function MarketingHeader({ hiddenPages = [] }: { hiddenPages?: st
         </div>
       )}
     </header>
-    <AccessibilityWidget />
     </>
   )
 }
