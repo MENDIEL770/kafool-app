@@ -948,8 +948,8 @@ export default function Landing({ c, logos, campaigns = [] }: { c: LandingConten
             </Reveal>
             <div className="mx-auto grid max-w-5xl grid-cols-1 gap-6 md:grid-cols-2">
               {campaigns.map((cam, i) => {
-                // Big landscape banner (≈750×480): prefer the wide cover, fall back to mobile.
-                const banner = cam.cover_image_url || cam.mobile_image_url
+                // Show the manager's mobile banner (fits the card better than the wide desktop cover).
+                const banner = cam.mobile_image_url || cam.cover_image_url
                 return (
                 <Reveal key={cam.slug} delay={i * 0.05}>
                   <a
@@ -978,81 +978,6 @@ export default function Landing({ c, logos, campaigns = [] }: { c: LandingConten
       {/* ── FEATURES — stacked feature blocks ── */}
       <FeatureStory title={c.features_title} />
 
-      {/* ── KAFOOL+ — telephony console for ambassadors ── */}
-      <section className="relative px-5 py-32">
-        {/* warm seam so the section reads as its own world */}
-        <div className="pointer-events-none absolute inset-0 -z-10" style={{ background: `radial-gradient(80% 55% at 50% 40%, ${AMBER}0f, transparent 70%)` }} />
-        <div className="mx-auto max-w-6xl">
-          <div className="mb-14 text-center">
-            <Reveal>
-              <span className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-white/60 bg-white/70 px-3.5 py-1.5 text-[11px] font-black backdrop-blur-xl" style={{ color: AMBER }}>
-                <Phone className="h-3 w-3" strokeWidth={2.2} />
-                Kafool+ · טלפניה לשגרירים ומגייסים
-              </span>
-            </Reveal>
-            <h2 className="mx-auto max-w-2xl text-3xl font-black leading-[1.15] tracking-tight sm:text-[2.6rem]" style={{ color: NAVY }}>
-              <MaskLineInView>השגריר לא מחפש למי להתקשר.</MaskLineInView>
-              <MaskLineInView delay={0.1}><span style={{ color: AMBER }}>המערכת מגישה לו.</span></MaskLineInView>
-            </h2>
-            <Reveal delay={0.2}>
-              <p className="mx-auto mt-5 max-w-xl text-[15px] leading-relaxed text-slate-500">
-                במקום רשימת אקסל מבולגנת — תור חכם שמסדר את התורמים לפי גודל התרומה בעבר. הגדולים ראשונים. השגריר רק לוחץ &quot;התקשר&quot; ומתקדם.
-              </p>
-            </Reveal>
-          </div>
-
-          <div className="grid items-center gap-16 lg:grid-cols-2">
-            <Reveal>
-              <AmbassadorConsole />
-            </Reveal>
-
-            <div className="space-y-3">
-              {PLUS_FLOW.map((f, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, x: 30 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true, margin: '-60px' }}
-                  transition={{ duration: 0.7, delay: i * 0.07, ease: EASE }}
-                >
-                  <SpotlightCard
-                    tint={AMBER}
-                    className="rounded-2xl border bg-white/60 backdrop-blur-xl transition-all duration-500 hover:-translate-y-1 hover:bg-white/90 hover:shadow-[0_26px_55px_-18px_rgba(245,158,11,0.35)]"
-                  >
-                    <div className="flex items-start gap-4 p-5" style={{ borderColor: 'rgba(255,255,255,.55)' }}>
-                      <motion.div
-                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
-                        style={{ background: `${f.tint}14` }}
-                        whileHover={{ scale: 1.12, rotate: -8 }}
-                        transition={{ type: 'spring', stiffness: 320, damping: 14 }}
-                      >
-                        <f.Icon className="h-[18px] w-[18px]" style={{ color: f.tint }} strokeWidth={1.7} />
-                      </motion.div>
-                      <div>
-                        <h3 className="text-[15px] font-black" style={{ color: NAVY }}>{f.title}</h3>
-                        <p className="mt-0.5 text-[13px] leading-relaxed text-slate-500">{f.text}</p>
-                      </div>
-                    </div>
-                  </SpotlightCard>
-                </motion.div>
-              ))}
-
-              <Reveal delay={0.3}>
-                <Magnetic strength={0.2}>
-                  <a
-                    href="https://plus.kafool.com/"
-                    className="group mt-6 inline-flex items-center gap-2 rounded-2xl px-6 py-3.5 text-sm font-black text-white shadow-[0_16px_36px_-10px_rgba(245,158,11,0.6)] transition-shadow hover:shadow-[0_22px_50px_-10px_rgba(245,158,11,0.75)]"
-                    style={{ background: AMBER }}
-                  >
-                    למערכת השגרירים Kafool+
-                    <ArrowLeft className="h-4 w-4 transition-transform duration-300 group-hover:-translate-x-1" />
-                  </a>
-                </Magnetic>
-              </Reveal>
-            </div>
-          </div>
-        </div>
-      </section>
 
       {/* ── CTA ── */}
       <section className="px-5 py-11">
