@@ -441,13 +441,13 @@ function MiniDonationPage() {
 function FeatureStory({ title }: { title: string }) {
   const n = FEATURES.length
   return (
-    <section className="px-5 py-16 sm:py-24">
+    <section className="px-5 py-11 sm:py-24">
       <div className="mx-auto w-full max-w-6xl">
         <p className="mb-12 text-center text-sm font-black lg:text-right" style={{ color: BLUE }}>{title}</p>
 
         <div className="space-y-20 sm:space-y-28">
           {FEATURES.map((f, i) => (
-            <div key={i} className="grid items-center gap-10 lg:grid-cols-2 lg:gap-14">
+            <div key={i} className="grid items-center gap-10 lg:grid-cols-2 lg:gap-10">
               {/* screen mockup */}
               <div className={i % 2 === 1 ? 'lg:order-2' : 'lg:order-1'}>
                 <div
@@ -787,8 +787,8 @@ export default function Landing({ c, logos, campaigns = [] }: { c: LandingConten
       <PremiumBackground />
 
       {/* ── HERO ── */}
-      <section ref={heroRef} className="relative px-5 pt-16 pb-28 sm:pt-24">
-        <div className="mx-auto grid max-w-6xl items-center gap-14 lg:grid-cols-2">
+      <section ref={heroRef} className="relative px-5 pt-10 pb-16 sm:pt-14">
+        <div className="mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-2">
           {/* copy */}
           <motion.div style={{ y: copyY, opacity: heroFade }}>
             <motion.p
@@ -911,9 +911,9 @@ export default function Landing({ c, logos, campaigns = [] }: { c: LandingConten
 
       {/* ── TRUST LOGOS (only when configured) ── */}
       {logos.length > 0 && (
-        <section className="px-5 py-16">
+        <section className="px-5 py-11">
           <Reveal>
-            <p className="mb-9 text-center text-sm font-bold text-slate-400">{c.trust_title}</p>
+            <p className="mb-6 text-center text-sm font-bold text-slate-400">{c.trust_title}</p>
             <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-center gap-x-14 gap-y-8">
               {logos.map((src, i) => (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -928,7 +928,7 @@ export default function Landing({ c, logos, campaigns = [] }: { c: LandingConten
       )}
 
       {/* ── STATS ── */}
-      <section className="px-5 py-10">
+      <section className="px-5 py-8">
         <Reveal>
           <div
             className="mx-auto grid max-w-5xl grid-cols-2 gap-px overflow-hidden rounded-[28px] border shadow-[0_30px_70px_-30px_rgba(16,42,86,0.3)] backdrop-blur-xl lg:grid-cols-4"
@@ -959,11 +959,11 @@ export default function Landing({ c, logos, campaigns = [] }: { c: LandingConten
 
       {/* ── SHOWCASE CAMPAIGNS (chosen by the super-admin) ── */}
       {campaigns.length > 0 && (
-        <section className="px-5 py-16">
+        <section className="px-5 py-11">
           <div className="mx-auto max-w-6xl">
             <Reveal>
               <h2 className="mb-3 text-center text-3xl font-black tracking-tight sm:text-4xl" style={{ color: NAVY }}>קמפיינים שגייסו איתנו</h2>
-              <p className="mb-10 text-center text-slate-500">הצצה לקמפיינים שרצו על כפול</p>
+              <p className="mb-6 text-center text-slate-500">הצצה לקמפיינים שרצו על כפול</p>
             </Reveal>
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {campaigns.map((cam, i) => {
@@ -1075,7 +1075,7 @@ export default function Landing({ c, logos, campaigns = [] }: { c: LandingConten
       </section>
 
       {/* ── CTA ── */}
-      <section className="px-5 py-16">
+      <section className="px-5 py-11">
         <Reveal>
           <div
             className="relative mx-auto max-w-5xl overflow-hidden rounded-[32px] px-8 py-16 text-center shadow-[0_40px_90px_-30px_rgba(78,123,239,0.6)]"
