@@ -69,7 +69,8 @@ export default function KaparotPageClient({ org, campaign, initialLang, donation
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1)
   const [souls, setSouls] = useState(1)
-  const [names, setNames] = useState<string[]>([''])
+  // Each soul is named as "<first name> בן/בת <mother's name>" (kaparot nusach).
+  const [names, setNames] = useState<{ first: string; mother: string }[]>([{ first: '', mother: '' }])
   const [extra, setExtra] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
 
@@ -77,24 +78,32 @@ export default function KaparotPageClient({ org, campaign, initialLang, donation
   const setCount = (n: number) => {
     const c = Math.max(1, Math.min(maxSouls, n))
     setSouls(c)
-    setNames(prev => { const next = prev.slice(0, c); while (next.length < c) next.push(''); return next })
+    setNames(prev => { const next = prev.slice(0, c); while (next.length < c) next.push({ first: '', mother: '' }); return next })
   }
+  const setName = (i: number, field: 'first' | 'mother', v: string) =>
+    setNames(prev => prev.map((x, idx) => idx === i ? { ...x, [field]: v } : x))
   const extraAmount = Math.max(0, Number(extra) || 0)
   const total = souls * pricePerSoul + extraAmount
-  const allNamesFilled = names.every(n => n.trim().length > 0)   // must name every soul before continuing
+  // Both the person's name and the mother's name are required before continuing.
+  const allNamesFilled = names.every(n => n.first.trim().length > 0 && n.mother.trim().length > 0)
 
-  // Focus the newly added name field when the count grows.
+  // Focus the first-name field: on entering step 2, and when a soul is added.
   const nameRefs = useRef<(HTMLInputElement | null)[]>([])
   const prevSouls = useRef(1)
   useEffect(() => {
     if (souls > prevSouls.current) nameRefs.current[souls - 1]?.focus()
     prevSouls.current = souls
   }, [souls])
+  useEffect(() => { if (step === 2) setTimeout(() => nameRefs.current[0]?.focus(), 60) }, [step])
 
   const presetCustomData = useMemo(() => {
+    const label = (n: { first: string; mother: string }, i: number) => {
+      const f = n.first.trim(), m = n.mother.trim()
+      return f && m ? `${f} בן/בת ${m}` : (f || m || `נפש ${i + 1}`)
+    }
     const cd: Record<string, string> = {
       'מספר נפשות': String(souls),
-      'שמות הנפשות': names.map((nm, i) => nm.trim() || `נפש ${i + 1}`).join(' · '),
+      'שמות הנפשות': names.map(label).join(' · '),
     }
     if (extraAmount > 0) cd['תוספת לצדקה'] = ils(extraAmount)
     return cd
@@ -219,13 +228,19 @@ export default function KaparotPageClient({ org, campaign, initialLang, donation
               </div>
               <p className="text-[11px] mb-5" style={{ color: C.muted }}>מינימום 1 · מקסימום {maxSouls}</p>
 
-              <div className="space-y-2.5 mb-5">
+              <div className="space-y-3 mb-5">
                 {names.map((nm, i) => (
                   <div key={i}>
-                    <label className="text-xs font-semibold block mb-1" style={{ color: C.text }}>נפש {i + 1} — שם ושם האם</label>
-                    <input ref={el => { nameRefs.current[i] = el }} value={nm} onChange={e => setNames(prev => prev.map((x, idx) => idx === i ? e.target.value : x))}
-                      placeholder={i === 0 ? 'למשל: חנה בת רבקה' : 'שם ושם האם'}
-                      className="kap-input w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none" style={{ borderColor: C.line }} />
+                    <label className="text-xs font-semibold block mb-1" style={{ color: C.text }}>נפש {i + 1}</label>
+                    <div className="flex items-center gap-2">
+                      <input ref={el => { nameRefs.current[i] = el }} value={nm.first} onChange={e => setName(i, 'first', e.target.value)}
+                        placeholder="שם פרטי מלא"
+                        className="kap-input flex-1 min-w-0 rounded-xl border px-3.5 py-2.5 text-sm outline-none" style={{ borderColor: C.line }} />
+                      <span className="text-sm font-semibold shrink-0" style={{ color: C.muted }}>בן / בת</span>
+                      <input value={nm.mother} onChange={e => setName(i, 'mother', e.target.value)}
+                        placeholder="שם האמא"
+                        className="kap-input flex-1 min-w-0 rounded-xl border px-3.5 py-2.5 text-sm outline-none" style={{ borderColor: C.line }} />
+                    </div>
                   </div>
                 ))}
               </div>
