@@ -940,34 +940,40 @@ export default function Landing({ c, logos, campaigns = [] }: { c: LandingConten
 
       {/* ── SHOWCASE CAMPAIGNS (chosen by the super-admin) ── */}
       {campaigns.length > 0 && (
-        <section className="px-5 py-11">
+        <section className="px-5 py-14 sm:py-20">
           <div className="mx-auto max-w-6xl">
             <Reveal>
-              <h2 className="mb-3 text-center text-3xl font-black tracking-tight sm:text-4xl" style={{ color: NAVY }}>קמפיינים שגייסו איתנו</h2>
-              <p className="mb-6 text-center text-slate-500">הצצה לקמפיינים שרצו על כפול</p>
+              <h2 className="text-center text-3xl font-black tracking-tight sm:text-5xl" style={{ color: NAVY }}>קמפיינים שגייסו איתנו</h2>
+              <p className="mx-auto mt-3 mb-12 max-w-md text-center text-lg text-slate-500 sm:mb-16">סיפורי הצלחה אמיתיים שרצו על כפול</p>
             </Reveal>
-            <div className="mx-auto grid max-w-5xl grid-cols-1 gap-6 md:grid-cols-2">
+            <div className="space-y-16 sm:space-y-24">
               {campaigns.map((cam, i) => {
-                // Show the manager's mobile banner (fits the card better than the wide desktop cover).
+                // The manager's mobile banner (fits the frame better than the wide desktop cover).
                 const banner = cam.mobile_image_url || cam.cover_image_url
+                const num = String(i + 1).padStart(2, '0')
+                const flip = i % 2 === 1
                 return (
-                <Reveal key={cam.slug} delay={i * 0.05}>
-                  <a
-                    href={`/${cam.slug}`}
-                    className="group block overflow-hidden rounded-3xl border border-white/60 bg-white/70 shadow-sm backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_26px_55px_-18px_rgba(16,42,86,0.35)]"
-                  >
-                    {/* 1080×1350 (4:5) frame — the banner fills it edge to edge */}
-                    <div className="relative aspect-[750/480] overflow-hidden bg-slate-100">
-                      {banner
-                        ? <img src={banner} alt={cam.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
-                        : <div className="flex h-full w-full items-center justify-center px-4 text-center text-sm font-bold text-slate-300">{cam.title}</div>}
-                    </div>
-                    <div className="flex items-center justify-between gap-2 p-4">
-                      <span className="line-clamp-1 font-black text-slate-800">{cam.title}</span>
-                      <ArrowLeft className="h-4 w-4 shrink-0 transition-transform duration-300 group-hover:-translate-x-1" style={{ color: BLUE }} />
-                    </div>
-                  </a>
-                </Reveal>
+                  <Reveal key={cam.slug} delay={0.05}>
+                    <a href={`/${cam.slug}`} className="group grid items-center gap-7 sm:gap-12 lg:grid-cols-2">
+                      {/* banner (750×480) */}
+                      <div className={flip ? 'lg:order-2' : ''}>
+                        <div className="relative aspect-[750/480] overflow-hidden rounded-[26px] border border-white/60 bg-slate-100 shadow-[0_36px_80px_-32px_rgba(16,42,86,0.5)]">
+                          {banner
+                            ? <img src={banner} alt={cam.title} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]" loading="lazy" />
+                            : <div className="flex h-full w-full items-center justify-center px-4 text-center text-sm font-bold text-slate-300">{cam.title}</div>}
+                        </div>
+                      </div>
+                      {/* number + title + link */}
+                      <div className={`${flip ? 'lg:order-1 lg:text-left' : ''} text-center lg:text-right`}>
+                        <div dir="ltr" className="text-6xl font-black leading-none tracking-tight sm:text-8xl" style={{ color: `${BLUE}26` }}>{num}</div>
+                        <h3 className="mt-3 text-2xl font-black leading-tight tracking-tight sm:text-4xl" style={{ color: NAVY }}>{cam.title}</h3>
+                        <span className="mt-5 inline-flex items-center gap-2 text-[15px] font-black transition-colors" style={{ color: BLUE }}>
+                          לצפייה בקמפיין
+                          <ArrowLeft className="h-4 w-4 transition-transform duration-300 group-hover:-translate-x-1.5" />
+                        </span>
+                      </div>
+                    </a>
+                  </Reveal>
                 )
               })}
             </div>
