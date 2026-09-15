@@ -103,11 +103,48 @@ export default async function ThanksPage({
       kesher_raw: sp,
     }
     if (receiptUrl) row.receipt_url = receiptUrl
-    const { error: upErr } = await supabaseService.from('donations').upsert(row, { onConflict: 'kesher_transaction_id' })
-    // אם עמודת receipt_url עדיין לא הורצה במיגרציה — ננסה שוב בלעדיה (הקבלה עדיין ב-kesher_raw).
-    if (upErr && /receipt_url/i.test(upErr.message)) {
-      delete row.receipt_url
-      await supabaseService.from('donations').upsert(row, { onConflict: 'kesher_transaction_id' })
+    type SavedRow = { id: string; custom_data: Record<string, unknown> | null }
+    let saved: SavedRow | null = null
+    {
+      const up = await supabaseService.from('donations').upsert(row, { onConflict: 'kesher_transaction_id' }).select('id, custom_data').single()
+      // אם עמודת receipt_url עדיין לא הורצה במיגרציה — ננסה שוב בלעדיה (הקבלה עדיין ב-kesher_raw).
+      if (up.error && /receipt_url/i.test(up.error.message)) {
+        delete row.receipt_url
+        const up2 = await supabaseService.from('donations').upsert(row, { onConflict: 'kesher_transaction_id' }).select('id, custom_data').single()
+        saved = (up2.data as SavedRow | null) || null
+      } else {
+        saved = (up.data as SavedRow | null) || null
+      }
+    }
+
+    // Custom form values (e.g. the redeemed souls on a kaparot page) live on the
+    // donor's intent, and are normally re-attached by the payment webhook. When
+    // the thank-you redirect records the donation first, the webhook then sees the
+    // row already exists and skips that step — so the fields would be lost. Fill
+    // them here from the matching recent intent when the row has none yet. Only
+    // fills empties (never overwrites), and drops reserved __ keys.
+    if (saved?.id && (!saved.custom_data || Object.keys(saved.custom_data).length === 0)) {
+      const sinceIso = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString()
+      const { data: intents } = await supabaseService
+        .from('donation_intents')
+        .select('phone, amount, custom_data, created_at')
+        .eq('campaign_id', campaign.id)
+        .gte('created_at', sinceIso)
+        .order('created_at', { ascending: false })
+        .limit(50)
+      const norm = (p?: string | null) => (p || '').replace(/\D/g, '').replace(/^0/, '972')
+      const wantPhone = norm(donorPhone)
+      const amt = Math.round(recordedAmount)
+      const match =
+        (intents || []).find(i => wantPhone && norm(i.phone as string) === wantPhone && Math.round(Number(i.amount) || 0) === amt)
+        || (intents || []).find(i => Math.round(Number(i.amount) || 0) === amt)
+      const cd = match?.custom_data as Record<string, unknown> | null
+      if (cd) {
+        const clean = Object.fromEntries(Object.entries(cd).filter(([k]) => !k.startsWith('__')))
+        if (Object.keys(clean).length > 0) {
+          await supabaseService.from('donations').update({ custom_data: clean }).eq('id', saved.id)
+        }
+      }
     }
 
     // raised_amount = סכום כל התרומות שהושלמו (ללא drift / ספירה כפולה)
