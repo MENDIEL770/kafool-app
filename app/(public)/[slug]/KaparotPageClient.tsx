@@ -66,6 +66,13 @@ export default function KaparotPageClient({ org, campaign, initialLang, donation
   const maxSouls = Number(cfg.max_souls) > 0 ? Number(cfg.max_souls) : 20
   const logo = cfg.chabad_logo_url || org.logo_url || ''
   const yechi = cfg.hero_declaration === '' ? '' : (cfg.hero_declaration || DEFAULT_YECHI)
+  // Designed top banner uploaded in Media (settings.banners / mobile_banners).
+  const firstBanner = (v?: { url: string; sort_order: number }[]) => (v && v.length ? [...v].sort((a, b) => a.sort_order - b.sort_order)[0].url : '')
+  const bset = s as { banners?: { url: string; sort_order: number }[]; mobile_banners?: { url: string; sort_order: number }[]; banners_en?: { url: string; sort_order: number }[]; mobile_banners_en?: { url: string; sort_order: number }[] }
+  const en = initialLang === 'en'
+  const bannerDesktop = firstBanner(en ? bset.banners_en : bset.banners) || firstBanner(bset.banners)
+  const bannerMobile = firstBanner(en ? bset.mobile_banners_en : bset.mobile_banners) || firstBanner(bset.mobile_banners) || bannerDesktop
+  const hasBanner = !!(bannerDesktop || bannerMobile)
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1)
   const [souls, setSouls] = useState(1)
@@ -139,13 +146,22 @@ export default function KaparotPageClient({ org, campaign, initialLang, donation
             {logo ? <img src={logo} alt={org.name} className="h-10 md:h-12 w-auto object-contain" /> : <span className="kap-h text-lg" style={{ color: C.ink }}>{org.name}</span>}
             {yechi && <p className="text-[11px] md:text-xs font-semibold text-left leading-tight max-w-[190px]" style={{ color: C.muted }}>{yechi}</p>}
           </div>
-          {/* rooster + title */}
+          {/* designed banner (from Media) — or the built-in rooster + title */}
           <div className="text-center">
-            <Asset src="/kaparot/rooster.png" alt="" className="mx-auto mb-1 h-36 md:h-48 object-contain" style={{ filter: 'drop-shadow(0 14px 22px rgba(15,23,42,.22))' }} />
-            <p className="kap-eyebrow text-xs mb-2" style={{ color: accent }}>פדיון כפרות · תשפ״ז</p>
-            <h1 className="kap-serif text-5xl md:text-6xl" style={{ color: C.ink, fontWeight: 700, letterSpacing: '-.01em' }}>פדיון כפרות אונליין</h1>
-            <Asset src="/kaparot/ornament.png" alt="" className="mx-auto mt-4 h-4 md:h-5 object-contain"
-              fallback={<div className="mx-auto mt-4 h-1 w-16 rounded-full" style={{ background: `linear-gradient(90deg, transparent, ${accent}, transparent)` }} />} />
+            {hasBanner ? (
+              <div className="overflow-hidden rounded-3xl border border-white/60 shadow-[0_24px_60px_-30px_rgba(15,23,42,.4)]">
+                {bannerMobile && bannerMobile !== bannerDesktop && <img src={bannerMobile} alt={campaign.title} className="block w-full sm:hidden" />}
+                <img src={bannerDesktop || bannerMobile} alt={campaign.title} className={`w-full ${bannerMobile && bannerMobile !== bannerDesktop ? 'hidden sm:block' : 'block'}`} />
+              </div>
+            ) : (
+              <>
+                <Asset src="/kaparot/rooster.png" alt="" className="mx-auto mb-1 h-36 md:h-48 object-contain" style={{ filter: 'drop-shadow(0 14px 22px rgba(15,23,42,.22))' }} />
+                <p className="kap-eyebrow text-xs mb-2" style={{ color: accent }}>פדיון כפרות · תשפ״ז</p>
+                <h1 className="kap-serif text-5xl md:text-6xl" style={{ color: C.ink, fontWeight: 700, letterSpacing: '-.01em' }}>פדיון כפרות אונליין</h1>
+                <Asset src="/kaparot/ornament.png" alt="" className="mx-auto mt-4 h-4 md:h-5 object-contain"
+                  fallback={<div className="mx-auto mt-4 h-1 w-16 rounded-full" style={{ background: `linear-gradient(90deg, transparent, ${accent}, transparent)` }} />} />
+              </>
+            )}
           </div>
         </div>
       </section>
