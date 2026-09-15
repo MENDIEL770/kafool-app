@@ -39,12 +39,28 @@ export default function KaparotSettingsPage() {
   const [flyerHeadline, setFlyerHeadline] = useState('')
   const [flyerSubtext, setFlyerSubtext] = useState('')
   const [flyerContact, setFlyerContact] = useState('')
+  // Record-into: funnel this kaparot page's donations into another campaign (+ group)
+  const [recordCampaignSlug, setRecordCampaignSlug] = useState('')
+  const [recordGroupSlug, setRecordGroupSlug] = useState('')
+  const [orgCampaigns, setOrgCampaigns] = useState<{ slug: string; title: string }[]>([])
+  const [targetGroups, setTargetGroups] = useState<{ slug: string; name: string }[]>([])
 
   useEffect(() => {
     async function load() {
-      const { data } = await supabase.from('campaigns').select('slug, settings').eq('id', id).single()
+      const { data } = await supabase.from('campaigns').select('slug, org_id, settings').eq('id', id).single()
       setSlug(data?.slug || '')
       const k = (data?.settings?.kaparot || {}) as Record<string, unknown>
+      const ri = (k.record_into || {}) as { campaign_slug?: string; group_slug?: string }
+      setRecordCampaignSlug(ri.campaign_slug || '')
+      setRecordGroupSlug(ri.group_slug || '')
+      // Other campaigns in this org (possible funnel targets — exclude this kaparot campaign itself)
+      if (data?.org_id) {
+        const { data: cams } = await supabase.from('campaigns')
+          .select('slug, title, settings').eq('org_id', data.org_id).neq('id', id).order('created_at', { ascending: false })
+        setOrgCampaigns((cams || [])
+          .filter(c => (c.settings as { page_type?: string })?.page_type !== 'kaparot')
+          .map(c => ({ slug: c.slug as string, title: c.title as string })))
+      }
       setPricePerSoul(String(k.price_per_soul ?? 50))
       setMaxSouls(String(k.max_souls ?? 20))
       setIntroHtml(String(k.intro_html || ''))
@@ -66,6 +82,20 @@ export default function KaparotSettingsPage() {
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
+
+  // When a funnel-target campaign is chosen, load its groups (to pick a group within it).
+  useEffect(() => {
+    if (!recordCampaignSlug) { setTargetGroups([]); return }
+    let alive = true
+    ;(async () => {
+      const { data: cam } = await supabase.from('campaigns').select('id').eq('slug', recordCampaignSlug).maybeSingle()
+      if (!cam?.id) { if (alive) setTargetGroups([]); return }
+      const { data: grps } = await supabase.from('groups').select('slug, name').eq('campaign_id', cam.id).order('name')
+      if (alive) setTargetGroups((grps || []).map(g => ({ slug: g.slug as string, name: g.name as string })))
+    })()
+    return () => { alive = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recordCampaignSlug])
 
   const logoRef = useRef<HTMLInputElement>(null)
   const emailImgRef = useRef<HTMLInputElement>(null)
@@ -93,6 +123,9 @@ export default function KaparotSettingsPage() {
         chabad_logo_url: logoUrl.trim() || null,
         hero_image_url: heroImage.trim() || null,
         hero_declaration: heroDeclaration.trim(),
+        record_into: recordCampaignSlug.trim()
+          ? { campaign_slug: recordCampaignSlug.trim(), group_slug: recordGroupSlug.trim() || null }
+          : null,
         email: {
           subject: emailSubject.trim() || null,
           body: emailBody.trim() || null,
@@ -128,6 +161,42 @@ export default function KaparotSettingsPage() {
             <div className="space-y-1"><Label>מחיר לנפש (₪)</Label><Input type="number" value={pricePerSoul} onChange={e => setPricePerSoul(e.target.value)} dir="ltr" /></div>
             <div className="space-y-1"><Label>מקסימום נפשות</Label><Input type="number" value={maxSouls} onChange={e => setMaxSouls(e.target.value)} dir="ltr" /></div>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">להיכן נכנס הכסף</CardTitle>
+          <p className="text-xs text-gray-400 mt-1">אפשר להפנות את התרומות מדף הכפרות לקמפיין קיים (הכסף והסכומים יתעדכנו שם). מומלץ גם לבחור קבוצה ייעודית בתוך אותו קמפיין כדי לעקוב בנפרד אחרי הכפרות. ריק = הכסף נשאר בקמפיין הכפרות הזה.</p>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="space-y-1">
+            <Label>קמפיין יעד</Label>
+            <select
+              value={recordCampaignSlug}
+              onChange={e => { setRecordCampaignSlug(e.target.value); setRecordGroupSlug('') }}
+              className="w-full h-10 rounded-md border border-gray-200 bg-white px-3 text-sm"
+            >
+              <option value="">— נשאר בקמפיין הכפרות —</option>
+              {orgCampaigns.map(c => <option key={c.slug} value={c.slug}>{c.title}</option>)}
+            </select>
+          </div>
+          {recordCampaignSlug && (
+            <div className="space-y-1">
+              <Label>קבוצה בתוך הקמפיין (מומלץ)</Label>
+              <select
+                value={recordGroupSlug}
+                onChange={e => setRecordGroupSlug(e.target.value)}
+                className="w-full h-10 rounded-md border border-gray-200 bg-white px-3 text-sm"
+              >
+                <option value="">— ללא קבוצה (ישירות לקמפיין) —</option>
+                {targetGroups.map(g => <option key={g.slug} value={g.slug}>{g.name}</option>)}
+              </select>
+              {targetGroups.length === 0
+                ? <p className="text-[11px] text-amber-600">לקמפיין היעד אין קבוצות. צרו קבוצה בשם ״כפרות״ בעמוד הקבוצות של אותו קמפיין ואז בחרו אותה כאן.</p>
+                : <p className="text-[11px] text-gray-400">כך תוכלו לראות בנפרד כמה גויס דרך הכפרות, בתוך הסך הכולל של הקמפיין.</p>}
+            </div>
+          )}
         </CardContent>
       </Card>
 

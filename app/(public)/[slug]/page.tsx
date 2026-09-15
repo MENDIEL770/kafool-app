@@ -199,6 +199,16 @@ export default async function PublicDonationPage({ params, searchParams }: { par
 
   // Kaparot (soul-redemption) page — its own layout + the shared DonationModal for payment.
   if ((campaign.settings as { page_type?: string })?.page_type === 'kaparot') {
+    // A kaparot campaign can funnel its donations into another campaign + group
+    // (money & totals land there). Same org → same payment pages.
+    let recordTarget: { id: string; slug: string; title: string; groupSlug?: string } | null = null
+    const recInto = (campaign.settings as { kaparot?: { record_into?: { campaign_slug?: string; group_slug?: string } } })?.kaparot?.record_into
+    if (recInto?.campaign_slug) {
+      const { data: tgt } = await supabase
+        .from('campaigns').select('id, title, slug')
+        .eq('slug', recInto.campaign_slug).eq('org_id', campaign.org_id).maybeSingle()
+      if (tgt) recordTarget = { id: (tgt as { id: string }).id, slug: (tgt as { slug: string }).slug, title: (tgt as { title: string }).title, groupSlug: recInto.group_slug || undefined }
+    }
     return (
       <KaparotPageClient
         org={org}
@@ -208,6 +218,7 @@ export default async function PublicDonationPage({ params, searchParams }: { par
         paymentUrls={paymentUrls}
         paymentProvider={paymentProvider}
         nedarim={nedarim}
+        recordTarget={recordTarget}
       />
     )
   }

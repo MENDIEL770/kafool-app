@@ -26,6 +26,9 @@ interface Props {
   org: Org; campaign: Campaign; initialLang?: 'he' | 'en'; donationUrl: string
   paymentUrls: { one_time: string; hok: string; bit: string; bank: string; one_time_en?: string; hok_en?: string }
   paymentProvider: string; nedarim: { mosad: string; apiValid: string; active: boolean } | null
+  // When set, donations record into another campaign + group (money & totals go
+  // there) instead of this kaparot campaign. Same org → same payment pages.
+  recordTarget?: { id: string; slug: string; title: string; groupSlug?: string } | null
 }
 
 const ils = (n: number) => '₪' + Math.round(n).toLocaleString('he-IL')
@@ -58,7 +61,7 @@ const FAQ = [
 const STEP_LABELS = ['הסבר', 'שמות וסכום', 'נוסח הכפרות', 'תשלום']
 const NUM_STEPS = STEP_LABELS.length
 
-export default function KaparotPageClient({ org, campaign, initialLang, donationUrl, paymentUrls, paymentProvider, nedarim }: Props) {
+export default function KaparotPageClient({ org, campaign, initialLang, donationUrl, paymentUrls, paymentProvider, nedarim, recordTarget }: Props) {
   const s = campaign.settings || {}
   const cfg: KaparotCfg = s.kaparot || {}
   const accent = s.primary_color || '#2563eb'
@@ -261,6 +264,13 @@ export default function KaparotPageClient({ org, campaign, initialLang, donation
                 ))}
               </div>
 
+              <button type="button" onClick={() => setCount(souls + 1)} disabled={souls >= maxSouls}
+                className="mb-6 -mt-1 inline-flex items-center gap-2 text-sm font-bold transition-opacity disabled:opacity-40"
+                style={{ color: accent }}>
+                <span className="flex h-7 w-7 items-center justify-center rounded-full text-lg leading-none text-white" style={{ background: accent }}>+</span>
+                הוסף נפש נוספת
+              </button>
+
               <div className="mb-5">
                 <label className="block text-xs font-semibold mb-1" style={{ color: C.text }}>רוצים להוסיף עוד לצדקה? (אופציונלי)</label>
                 <div className="relative">
@@ -325,7 +335,7 @@ export default function KaparotPageClient({ org, campaign, initialLang, donation
           <div className="kap-step">
             <div className="rounded-3xl p-6 md:p-8 text-center" style={cardStyle}>
               <div className="mx-auto w-14 h-14 rounded-2xl flex items-center justify-center mb-4" style={{ background: C.accentSoft, color: accent }}><Lock className="w-6 h-6" /></div>
-              <h2 className="kap-h text-2xl mb-1" style={{ color: C.ink }}>כמעט סיימתם 🕊️</h2>
+              <h2 className="kap-h text-2xl mb-1" style={{ color: C.ink }}>כמעט סיימתם</h2>
               <p className="text-sm mb-5" style={{ color: C.muted }}>נותר רק להעביר את הפדיון לצדקה בתשלום מאובטח.</p>
 
               <div className="rounded-2xl p-4 mb-5 text-right" style={{ background: C.soft }}>
@@ -384,13 +394,17 @@ export default function KaparotPageClient({ org, campaign, initialLang, donation
         </div>
       </section>
       <Asset src="/kaparot/jerusalem.png" alt="" className="w-full max-w-5xl mx-auto object-contain opacity-60 -mb-2" />
-      <footer className="px-5 py-8 text-center text-xs" style={{ color: C.muted }}>מופעל באמצעות Kafool</footer>
+      <footer className="px-5 py-8 text-center text-xs" style={{ color: C.muted }}>
+        מופעל באמצעות{' '}
+        <a href="https://www.kafool.com" target="_blank" rel="noopener noreferrer" className="font-bold hover:underline" style={{ color: accent }}>Kafool</a>
+      </footer>
 
       <DonationModal
         isOpen={modalOpen} onClose={() => setModalOpen(false)}
         presetAmount={total} presetCustomData={presetCustomData}
         donationUrl={donationUrl} paymentUrls={paymentUrls} paymentProvider={paymentProvider} nedarim={nedarim}
-        campaign={{ id: campaign.id, title: campaign.title, slug: campaign.slug }}
+        campaign={recordTarget ? { id: recordTarget.id, title: recordTarget.title, slug: recordTarget.slug } : { id: campaign.id, title: campaign.title, slug: campaign.slug }}
+        presetGroupSlug={recordTarget?.groupSlug}
         primaryColor={accent} buttonRadius={(s.button_radius as string) || 'rounded-2xl'} groups={[]} lang={initialLang}
         stripeEnabled={stripeEnabled} currencies={allowedCurrencies} defaultCurrency="ils" ilsRate={Number(s.stripe_ils_rate) || 3.7}
       />
