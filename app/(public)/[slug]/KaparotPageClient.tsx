@@ -55,7 +55,7 @@ function Asset({ src, alt = '', className, style, fallback = null, onOk }: { src
 
 const FAQ = [
   { icon: Calendar, q: 'מתי עורכים כפרות?', a: 'בעשרת ימי תשובה, ורבים עורכים בערב יום הכיפורים.' },
-  { icon: Coins, q: 'כמה תורמים לנפש?', a: 'כערך תרנגול. הסכום נקבע ע״י בית חב״ד, וכל המוסיף — מוסיפים לו.' },
+  { icon: Coins, q: 'כמה תורמים לנפש?', a: 'נהוג לפדות כערך תרנגול. הסכום לנפש נקבע ע״י בית חב״ד — וכל המוסיף, מוסיפים לו מן השמים.' },
   { icon: Users, q: 'עורכים עבור כל המשפחה?', a: 'כן. הורה מסובב עבור ילדיו ונעדרים, בלשון המתאימה.' },
 ]
 const STEP_LABELS = ['הסבר', 'שמות וסכום', 'נוסח הכפרות', 'תשלום']
@@ -114,10 +114,14 @@ export default function KaparotPageClient({ org, campaign, initialLang, donation
     const cd: Record<string, string> = {
       'מספר נפשות': String(souls),
       'שמות הנפשות': names.map(label).join(' · '),
+      // Origin marker (reserved __ key → dropped before storage). Lets the
+      // recording flow send the kaparot confirmation email using THIS campaign's
+      // kaparot settings, even when the donation is funneled into another campaign.
+      '__kaparot_origin': campaign.id,
     }
     if (extraAmount > 0) cd['תוספת לצדקה'] = ils(extraAmount)
     return cd
-  }, [souls, names, extraAmount])
+  }, [souls, names, extraAmount, campaign.id])
 
   const stripeEnabled = s.stripe_enabled === true
   const allowedCurrencies = Array.isArray(s.allowed_currencies) ? s.allowed_currencies : ['ils']

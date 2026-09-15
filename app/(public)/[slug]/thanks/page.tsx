@@ -120,10 +120,10 @@ export default async function ThanksPage({
     // Custom form values (e.g. the redeemed souls on a kaparot page) live on the
     // donor's intent, and are normally re-attached by the payment webhook. When
     // the thank-you redirect records the donation first, the webhook then sees the
-    // row already exists and skips that step — so the fields would be lost. Fill
-    // them here from the matching recent intent when the row has none yet. Only
-    // fills empties (never overwrites), and drops reserved __ keys.
-    if (saved?.id && (!saved.custom_data || Object.keys(saved.custom_data).length === 0)) {
+    // row already exists and skips that step — so the fields (and the kaparot
+    // confirmation email) would be lost. Recover them here from the matching
+    // recent intent.
+    if (saved?.id) {
       const sinceIso = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString()
       const { data: intents } = await supabaseService
         .from('donation_intents')
@@ -139,10 +139,44 @@ export default async function ThanksPage({
         (intents || []).find(i => wantPhone && norm(i.phone as string) === wantPhone && Math.round(Number(i.amount) || 0) === amt)
         || (intents || []).find(i => Math.round(Number(i.amount) || 0) === amt)
       const cd = match?.custom_data as Record<string, unknown> | null
-      if (cd) {
+
+      // Fill custom_data from the intent when the row has none yet (fills empties
+      // only, never overwrites; drops reserved __ keys).
+      if (cd && (!saved.custom_data || Object.keys(saved.custom_data).length === 0)) {
         const clean = Object.fromEntries(Object.entries(cd).filter(([k]) => !k.startsWith('__')))
         if (Object.keys(clean).length > 0) {
           await supabaseService.from('donations').update({ custom_data: clean }).eq('id', saved.id)
+        }
+      }
+
+      // Kaparot confirmation email — lists the redeemed souls. The origin kaparot
+      // campaign is carried on the intent (__kaparot_origin), so this fires even
+      // when the donation is funneled into a normal campaign. Only on a NEW record
+      // (isNew) so a page refresh doesn't re-send; the webhook won't duplicate it
+      // because it skips the already-recorded row.
+      const originId = cd && typeof cd.__kaparot_origin === 'string' ? cd.__kaparot_origin : null
+      if (isNew && originId && donorEmail) {
+        try {
+          const { data: kap } = await supabaseService
+            .from('campaigns').select('title, org_id, settings').eq('id', originId).single()
+          const kCfg = (kap?.settings as { kaparot?: { chabad_logo_url?: string; email?: { subject?: string; body?: string; image_url?: string } } } | null)?.kaparot || {}
+          const { data: kOrg } = kap?.org_id
+            ? await supabaseService.from('organizations').select('name, logo_url').eq('id', kap.org_id).single()
+            : { data: null }
+          const orgName = (kOrg as { name?: string })?.name || kap?.title || ''
+          const namesStr = String(cd?.['שמות הנפשות'] || '')
+          const names = namesStr ? namesStr.split(' · ') : []
+          const soulsCount = Number(cd?.['מספר נפשות']) || names.length || 1
+          const { renderKaparotHtml, sendHtmlEmail } = await import('@/lib/email')
+          const html = renderKaparotHtml({
+            orgName,
+            logoUrl: kCfg.chabad_logo_url || (kOrg as { logo_url?: string })?.logo_url || null,
+            souls: soulsCount, names, amount: recordedAmount,
+            customBody: kCfg.email?.body || null, imageUrl: kCfg.email?.image_url || null,
+          })
+          await sendHtmlEmail(donorEmail, kCfg.email?.subject?.trim() || `אישור פדיון כפרות — ${orgName}`, html)
+        } catch (e) {
+          console.error('kaparot email (thanks) error:', e)
         }
       }
     }
