@@ -144,10 +144,10 @@ export default function KaparotPageClient({ org, campaign, initialLang, donation
         <Asset src="/kaparot/pattern.png" alt="" className="absolute inset-0 w-full h-full object-cover opacity-30 pointer-events-none" />
         <Asset src="/kaparot/jerusalem.png" alt="" className="absolute bottom-0 inset-x-0 w-full object-contain opacity-70 pointer-events-none" style={{ maxHeight: '55%' }} />
         <div className="relative max-w-3xl mx-auto px-5 pt-4 pb-8">
-          {/* logo + yechi */}
-          <div className="flex items-start justify-between gap-4 mb-3">
+          {/* logo + yechi — centered on both mobile and desktop */}
+          <div className="flex flex-col items-center text-center gap-1.5 mb-3">
             {logo ? <img src={logo} alt={org.name} className="h-10 md:h-12 w-auto object-contain" /> : <span className="kap-h text-lg" style={{ color: C.ink }}>{org.name}</span>}
-            {yechi && <p className="text-[11px] md:text-xs font-semibold text-left leading-tight max-w-[190px]" style={{ color: C.muted }}>{yechi}</p>}
+            {yechi && <p className="text-[11px] md:text-xs font-semibold leading-tight max-w-[240px]" style={{ color: C.muted }}>{yechi}</p>}
           </div>
           {/* designed banner (from Media) — or the built-in rooster + title */}
           <div className="text-center">
