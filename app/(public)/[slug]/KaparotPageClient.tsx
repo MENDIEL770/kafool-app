@@ -53,10 +53,11 @@ function Asset({ src, alt = '', className, style, fallback = null, onOk }: { src
   return <img ref={ref} src={src} alt={alt} className={className} style={style} onError={() => setErr(true)} onLoad={onOk} />
 }
 
-const FAQ = [
-  { icon: Calendar, q: 'מתי עורכים כפרות?', a: 'בעשרת ימי תשובה, ורבים עורכים בערב יום הכיפורים.' },
-  { icon: Coins, q: 'כמה תורמים לנפש?', a: 'נהוג לפדות כערך תרנגול. הסכום לנפש נקבע ע״י בית חב״ד — וכל המוסיף, מוסיפים לו מן השמים.' },
-  { icon: Users, q: 'עורכים עבור כל המשפחה?', a: 'כן. הורה מסובב עבור ילדיו ונעדרים, בלשון המתאימה.' },
+// FAQ — the per-soul amount is the manager-defined price (settings.kaparot.price_per_soul).
+const buildFaq = (pricePerSoul: number) => [
+  { icon: Calendar, q: 'מתי עורכים כפרות?', a: 'כפרות נערכות בעשרת ימי תשובה, ומנהג רבים לערוך אותן בערב יום הכיפורים — עת רצון מיוחדת.' },
+  { icon: Coins, q: 'כמה תורמים עבור כל נפש?', a: `נהוג לפדות את הכפרות בשווי של תרנגול. ${ils(pricePerSoul)} לנפש, וכל המוסיף — מוסיפים לו מן השמים.` },
+  { icon: Users, q: 'האם עורכים כפרות עבור כל בני המשפחה?', a: 'בהחלט. הורה יכול לערוך כפרות עבור ילדיו וכן עבור בני משפחה שאינם נוכחים, תוך אמירת הנוסח בלשון המתאימה.' },
 ]
 const STEP_LABELS = ['הסבר', 'שמות וסכום', 'נוסח הכפרות', 'תשלום']
 const NUM_STEPS = STEP_LABELS.length
@@ -378,7 +379,7 @@ export default function KaparotPageClient({ org, campaign, initialLang, donation
         <div className="max-w-3xl mx-auto">
           <h2 className="kap-h text-xl md:text-2xl text-center mb-6" style={{ color: C.ink }}>שאלות נפוצות</h2>
           <div className="grid sm:grid-cols-3 gap-4">
-            {FAQ.map((f, i) => {
+            {buildFaq(pricePerSoul).map((f, i) => {
               const Icon = f.icon
               return (
                 <div key={i} className="rounded-2xl p-5" style={{ background: C.card, border: `1px solid ${C.line}` }}>
