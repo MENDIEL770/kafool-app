@@ -235,7 +235,7 @@ function SoonCard({ icon: Icon, title, desc }: { icon: LucideIcon; title: string
 }
 
 /* ─────────────────────────── Page ─────────────────────────── */
-export default function ToolsClient({ initialLinks, baseUrl }: { initialLinks: ShortLink[]; baseUrl: string }) {
+export default function ToolsClient({ initialLinks, baseUrl, isSuperAdmin = false }: { initialLinks: ShortLink[]; baseUrl: string; isSuperAdmin?: boolean }) {
   const [open, setOpen] = useState<Record<string, boolean>>({})
   const toggle = (k: string) => setOpen(o => ({ ...o, [k]: !o[k] }))
 
@@ -265,14 +265,19 @@ export default function ToolsClient({ initialLinks, baseUrl }: { initialLinks: S
         </ToolCard>
       </div>
 
-      {/* roadmap */}
+      {/* roadmap — shown only to the super-admin until these tools launch */}
+      {isSuperAdmin && (
       <div className="space-y-3">
-        <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wide px-1">בפיתוח — בקרוב בארגז הכלים</h2>
+        <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wide px-1 flex items-center gap-2">
+          בפיתוח — בקרוב בארגז הכלים
+          <span className="text-[10px] font-bold text-amber-600 bg-amber-50 rounded-full px-2 py-0.5 normal-case">גלוי למנהל בלבד</span>
+        </h2>
         <SoonCard icon={MessageCircle} title="בונה הודעת תפוצה" desc="הודעת WhatsApp/SMS מוכנה עם הקישור והטקסט — להעתקה ושליחה בקליק." />
         <SoonCard icon={ImageIcon} title="מחולל תמונת שיתוף" desc="תמונה מעוצבת לרשתות עם שם הקמפיין, היעד וההתקדמות." />
         <SoonCard icon={Calculator} title="מחשבון יעד וקצב גיוס" desc="כמה תורמים/סכום ליום צריך כדי להגיע ליעד עד תאריך שנקבע." />
         <SoonCard icon={Sparkles} title="בנק נוסחים לבקשת תרומה" desc="נוסחי פנייה מוכנים (וואטסאפ, מייל, פוסט) שאפשר להתאים ולהעתיק." />
       </div>
+      )}
     </div>
   )
 }

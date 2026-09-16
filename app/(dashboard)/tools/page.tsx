@@ -16,6 +16,13 @@ export default async function ToolsPage() {
     links = (data as ShortLink[]) || []
   } catch { links = [] }
 
+  // The "coming soon" roadmap is shown only to the super-admin for now.
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: profile } = user
+    ? await supabase.from('profiles').select('role').eq('id', user.id).single()
+    : { data: null }
+  const isSuperAdmin = profile?.role === 'super_admin'
+
   const baseUrl = (process.env.NEXT_PUBLIC_BASE_URL || 'https://www.kafool.com').replace(/\/$/, '')
-  return <ToolsClient initialLinks={links} baseUrl={baseUrl} />
+  return <ToolsClient initialLinks={links} baseUrl={baseUrl} isSuperAdmin={isSuperAdmin} />
 }
