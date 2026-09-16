@@ -1096,7 +1096,7 @@ export default function CampaignMediaClient({
 
               <div className="space-y-1">
                 <label className="text-sm font-medium text-gray-700">טקסט תצוגה מקדימה בשיתוף</label>
-                <p className="text-xs text-gray-400">הטקסט שמופיע מתחת לכותרת כששולחים את הקישור בוואטסאפ / פייסבוק וכו׳. אם ריק — יוצג ה"תיאור קצר" או טקסט אוטומטי.</p>
+                <p className="text-xs text-gray-400">הטקסט שמופיע מתחת לכותרת כששולחים את הקישור בוואטסאפ / פייסבוק וכו׳. אם ריק — לא יוצג טקסט מתחת לכותרת.</p>
                 <textarea
                   value={shareText}
                   onChange={e => setShareText(e.target.value)}

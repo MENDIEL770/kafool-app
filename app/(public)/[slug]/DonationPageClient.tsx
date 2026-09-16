@@ -1631,10 +1631,10 @@ function DonationToasts({ donations, groups, primaryColor, plans }: { donations:
               )
             })()}
             <div className="min-w-0 flex-1">
-              <p className="text-base font-black leading-tight" style={{ color: primaryColor }}>
-                {donationAmount(d)}
+              <p className="text-base font-black leading-tight flex items-baseline gap-6" style={{ color: primaryColor }}>
+                <span>{donationAmount(d)}</span>
                 {d.payment_type === 'hok' && d.monthly_amount && d.installments ? (
-                  <span className="text-[10px] font-semibold text-gray-400 ms-4" dir="ltr">₪{d.monthly_amount.toLocaleString()}×{d.installments}</span>
+                  <span className="text-[10px] font-semibold text-gray-400" dir="ltr">₪{d.monthly_amount.toLocaleString()}×{d.installments}</span>
                 ) : null}
               </p>
               <p className="text-sm font-bold text-gray-900 truncate leading-tight">{d.donor_name || t('anonymous')}</p>

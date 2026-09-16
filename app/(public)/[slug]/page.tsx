@@ -40,8 +40,11 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
   const title = `${campaign.title} | ${org?.name ?? 'Kafool'}`
   const s = campaign.settings as { tagline?: string; share_text?: string } | null
-  // manager-defined share text wins; else the tagline; else an auto description
-  const description = s?.share_text?.trim() || s?.tagline
+  // The SHARE-PREVIEW text (the line under the title in WhatsApp/Facebook cards)
+  // is ONLY the manager's share_text — blank by default when they leave it empty.
+  const shareText = s?.share_text?.trim() || ''
+  // The SEO meta description still falls back so search engines have something.
+  const description = shareText || s?.tagline
     || `תרמו לקמפיין "${campaign.title}" — ₪${(campaign.raised_amount || 0).toLocaleString()} גויסו עד כה`
   // Use the manager's uploaded social-share image if set; otherwise the auto-generated one.
   const customShare = (campaign.settings as { share_image?: string } | null)?.share_image
@@ -52,7 +55,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     description,
     openGraph: {
       title,
-      description,
+      description: shareText,
       url: `${BASE_URL}/${slug}`,
       siteName: 'Kafool',
       images: [{ url: ogImageUrl, width: 1200, height: 630, alt: campaign.title }],
@@ -62,7 +65,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     twitter: {
       card: 'summary_large_image',
       title,
-      description,
+      description: shareText,
       images: [ogImageUrl],
     },
   }
