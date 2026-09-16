@@ -2,11 +2,22 @@ import Link from 'next/link'
 
 const FOOTER_NAV = [
   {
+    title: 'הפתרונות שלנו',
+    links: [
+      { label: 'דפי גיוס תרומות', href: '/contact' },
+      { label: 'מכירת כרטיסים ומוצרים', href: '/contact' },
+      { label: 'פדיון כפרות אונליין', href: '/contact' },
+      { label: 'קמפיין שגרירים ומתרימים', href: '/contact' },
+      { label: 'ניהול קמפיין ואסטרטגיה', href: '/contact' },
+    ],
+  },
+  {
     title: 'פלטפורמה',
     links: [
       { label: 'אודות כפול', href: '/about' },
       { label: 'שאלות ותשובות', href: '/faq' },
-      { label: 'אני רוצה דף גיוס', href: '/contact' },
+      { label: 'העיצובים שלנו', href: '/design' },
+      { label: 'צור קשר', href: '/contact' },
     ],
   },
   {
@@ -54,10 +65,10 @@ export default function Footer() {
     <footer className="bg-gray-900 text-white" dir="rtl">
       {/* Main footer */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-10">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-10">
 
           {/* Brand column */}
-          <div className="md:col-span-1 space-y-4">
+          <div className="col-span-2 md:col-span-3 lg:col-span-1 space-y-4">
             <KafoolFooterLogo />
             <p className="text-gray-400 text-sm leading-relaxed">
               פלטפורמה לניהול קמפייני גיוס תרומות — עיצוב, תשלום וניהול במקום אחד.
@@ -100,11 +111,7 @@ export default function Footer() {
       <div className="border-t border-gray-800">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-500">
           <span>© {year} Kafool — כל הזכויות שמורות</span>
-          <div className="flex items-center gap-4">
-            <Link href="/accessibility" className="hover:text-gray-300 transition-colors">הצהרת נגישות</Link>
-            <Link href="/privacy" className="hover:text-gray-300 transition-colors">פרטיות</Link>
-            <Link href="/terms" className="hover:text-gray-300 transition-colors">תנאי שימוש</Link>
-          </div>
+          <span className="text-gray-600">גיוס תרומות · מכירות · כפרות · שגרירים — הכל במקום אחד</span>
         </div>
       </div>
     </footer>

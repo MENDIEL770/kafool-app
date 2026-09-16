@@ -13,7 +13,7 @@ const SOURCE_OPTIONS = [
   'אחר',
 ]
 
-const SUBJECT_OPTIONS = ['הקמת דף גיוס', 'עיצוב', 'אחר']
+const SUBJECT_OPTIONS = ['הקמת דף גיוס', 'ניהול קמפיין ואסטרטגיה', 'עיצוב', 'אחר']
 
 export default function ContactForm() {
   const [form, setForm] = useState({

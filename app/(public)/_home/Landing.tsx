@@ -9,7 +9,7 @@ import {
   useScroll, useMotionTemplate, animate,
 } from 'framer-motion'
 import {
-  ArrowLeft, Play, LayoutDashboard, Users, CreditCard, BarChart3,
+  ArrowLeft, LayoutDashboard, Users, CreditCard, BarChart3,
   Palette, ShieldCheck, Zap, HeadphonesIcon, Wallet, Sparkles,
   Phone, ListOrdered, Link2, Handshake, Clock, Trophy, Star,
   UserX, Mail, Code2,
@@ -127,13 +127,19 @@ function MaskLine({ children, delay = 0 }: { children: React.ReactNode; delay?: 
 }
 
 function MaskLineInView({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
+  // Reveal on scroll, but never leave the content hidden: if the in-view trigger
+  // misfires (it can, e.g. on programmatic scroll), a short fallback forces it in.
+  const ref = useRef<HTMLSpanElement>(null)
+  const inView = useInView(ref, { once: true, margin: '-60px' })
+  const [forced, setForced] = useState(false)
+  useEffect(() => { const t = setTimeout(() => setForced(true), 1400); return () => clearTimeout(t) }, [])
+  const show = inView || forced
   return (
-    <span className="block overflow-hidden pb-[0.12em]">
+    <span ref={ref} className="block overflow-hidden pb-[0.12em]">
       <motion.span
         className="block"
         initial={{ y: '110%' }}
-        whileInView={{ y: '0%' }}
-        viewport={{ once: true, margin: '-60px' }}
+        animate={{ y: show ? '0%' : '110%' }}
         transition={{ duration: 1, delay, ease: EASE }}
       >
         {children}
@@ -717,7 +723,7 @@ const PLUS_FLOW = [
 
 const TRUST_ITEMS = [
   { Icon: Zap, title: 'הקמה מהירה', text: 'תוך דקות ספורות' },
-  { Icon: Wallet, title: 'ללא עלות הקמה', text: 'משלמים רק על הצלחה' },
+  { Icon: Wallet, title: 'תשלום קבוע מראש', text: 'ללא עמלות סליקה' },
   { Icon: HeadphonesIcon, title: 'תמיכה אישית', text: 'צוות מקצועי זמין לכם' },
   { Icon: ShieldCheck, title: 'אבטחה ברמה גבוהה', text: 'הנתונים שלכם מוגנים' },
 ]
@@ -815,12 +821,12 @@ export default function Landing({ c, logos, campaigns = [] }: { c: LandingConten
               </Magnetic>
               <Magnetic strength={0.22}>
                 <Link
-                  href="/design"
+                  href="#showcase"
                   className="group inline-flex items-center justify-center gap-2 rounded-2xl border border-white/60 bg-white/70 px-7 py-4 text-[15px] font-bold text-slate-700 shadow-sm backdrop-blur-xl transition-colors hover:bg-white"
                 >
-                  צפה בדמו
+                  לקמפיינים שעבדו איתנו
                   <span className="flex h-5 w-5 items-center justify-center rounded-full transition-transform duration-300 group-hover:scale-110" style={{ background: `${BLUE}18` }}>
-                    <Play className="h-2.5 w-2.5" style={{ color: BLUE }} />
+                    <ArrowLeft className="h-2.5 w-2.5" style={{ color: BLUE }} />
                   </span>
                 </Link>
               </Magnetic>
@@ -940,7 +946,7 @@ export default function Landing({ c, logos, campaigns = [] }: { c: LandingConten
 
       {/* ── SHOWCASE CAMPAIGNS (chosen by the super-admin) ── */}
       {campaigns.length > 0 && (
-        <section className="px-5 py-14 sm:py-20">
+        <section id="showcase" className="px-5 py-14 sm:py-20 scroll-mt-24">
           <div className="mx-auto max-w-6xl">
             <Reveal>
               <h2 className="text-center text-3xl font-black tracking-tight sm:text-5xl" style={{ color: NAVY }}>קמפיינים שגייסו איתנו</h2>
@@ -1020,9 +1026,9 @@ export default function Landing({ c, logos, campaigns = [] }: { c: LandingConten
                   </Link>
                 </Magnetic>
                 <Magnetic strength={0.22}>
-                  <Link href="/design" className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/40 px-8 py-4 text-[15px] font-bold text-white transition-colors hover:bg-white/10">
-                    צפה בדמו
-                    <Play className="h-3.5 w-3.5" />
+                  <Link href="#showcase" className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/40 px-8 py-4 text-[15px] font-bold text-white transition-colors hover:bg-white/10">
+                    לקמפיינים שעבדו איתנו
+                    <ArrowLeft className="h-3.5 w-3.5" />
                   </Link>
                 </Magnetic>
               </div>

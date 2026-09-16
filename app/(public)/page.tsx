@@ -19,10 +19,10 @@ const HOME_DEFAULTS: LandingContent = {
   hero_sub: 'כפול בהשפעה. כפול בתוצאה.',
   hero_text:
     'כפול היא פלטפורמת גיוס התרומות המתקדמת לעמותות, בתי חב״ד, מוסדות חינוך וקהילות — לגייס יותר, לנהל בקלות ולהשפיע באמת.',
-  stats_raised: '₪42M+',
-  stats_campaigns: '1,800+',
+  stats_raised: 'מיליוני ₪',
+  stats_campaigns: 'עשרות',
   stats_success: '96%',
-  stats_donors: '2M+',
+  stats_donors: 'אלפים',
   trust_title: 'אלפי עמותות וקהילות בוחרות בכפול',
   features_title: 'מערכת מתקדמת שחוסכת זמן ומביאה תוצאות',
   cta_title: 'מוכנים להכפיל את ההשפעה שלכם?',
