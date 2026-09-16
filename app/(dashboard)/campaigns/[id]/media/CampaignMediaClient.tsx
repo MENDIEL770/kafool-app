@@ -6,7 +6,6 @@ import { uploadImage, uploadVideo, MAX_VIDEO_BYTES } from '@/lib/image-client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { buttonVariants } from '@/components/ui/button'
-import RichTextEditor from '@/components/RichTextEditor'
 import {
   Upload, ImageIcon, Trash2, X, Monitor, Smartphone,
   LayoutGrid, Plus, Check, ArrowRight, Eye, Palette, Image, Ruler, ChevronUp, ChevronDown, Video, BookOpen, Copy, Link2
@@ -490,9 +489,6 @@ export default function CampaignMediaClient({
   const [primaryColor, setPrimaryColor] = useState<string>(
     (initialSettings.primary_color as string) || '#2563eb'
   )
-  const [aboutText, setAboutText] = useState<string>(
-    (initialSettings.about_text as string) || ''
-  )
   const [savingBanner, setSavingBanner] = useState(false)
   const [savedBanner, setSavedBanner] = useState(false)
   const [bannerVideoButton, setBannerVideoButton] = useState<boolean>((initialSettings.banner_video_button as boolean) ?? true)
@@ -760,7 +756,6 @@ export default function CampaignMediaClient({
       share_text: shareText.trim() || null,
       popup_ad: popupImage ? { image_url: popupImage, link: popupLink.trim() || null } : null,
       primary_color: primaryColor,
-      about_text: aboutText || null,
     }
     // keep cover_image_url in sync (first banner) for fallback + previews
     await supabase.from('campaigns').update({ settings, cover_image_url: banners[0] || null }).eq('id', campaignId)
@@ -1159,14 +1154,6 @@ export default function CampaignMediaClient({
                         style={{ backgroundColor: c }} />
                     ))}
                   </div>
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-gray-700">טקסט אודות / תיאור</label>
-                <p className="text-xs text-gray-400">מופיע במקטע "אודות". אפשר להדגיש, לצבוע, לשנות גודל, ליישר ולהוסיף קישורים</p>
-                <div className="mt-1">
-                  <RichTextEditor value={aboutText} onChange={setAboutText} placeholder="כתוב כאן את תיאור הקמפיין..." />
                 </div>
               </div>
 

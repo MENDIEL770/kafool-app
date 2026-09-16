@@ -213,12 +213,10 @@ export default function CampaignSettingsPage() {
 
     await supabase.from('campaigns').update({
       title: form.title,
-      description: form.description || null,
       goal_amount: Number(form.goal_amount) || 0,
       bonus_goal_amount: form.bonus_goal_amount ? Number(form.bonus_goal_amount) : null,
       settings: {
         ...existing?.settings,
-        primary_color: form.primary_color,
         tagline: form.tagline || null,
         about_text: form.about_text || null,
         about_text_en: form.about_text_en || null,
@@ -319,10 +317,6 @@ export default function CampaignSettingsPage() {
               <p className="text-[11px] text-gray-400">משפט קצר שמופיע בצד שמאל של ה-Header הדביק בדף הציבורי</p>
             </div>
 
-            <div className="space-y-1">
-              <Label>תיאור</Label>
-              <Textarea value={form.description} onChange={(e) => set('description', e.target.value)} rows={3} />
-            </div>
             <div className="space-y-1">
               <Label>טקסט אודות</Label>
               <RichTextEditor value={form.about_text} onChange={(html) => set('about_text', html)} placeholder="ספרו על הקמפיין... אפשר להדגיש, לצבוע, לשנות גודל, ליישר ולהוסיף קישורים" />
@@ -839,19 +833,7 @@ export default function CampaignSettingsPage() {
           <CardHeader><CardTitle className="text-base">עיצוב</CardTitle></CardHeader>
           <CardContent className="space-y-5">
 
-            {/* צבע ראשי */}
-            <div className="space-y-1">
-              <Label>צבע ראשי</Label>
-              <div className="flex items-center gap-3">
-                <input
-                  type="color"
-                  value={form.primary_color}
-                  onChange={(e) => set('primary_color', e.target.value)}
-                  className="w-10 h-10 rounded cursor-pointer border border-gray-200"
-                />
-                <span className="text-sm text-gray-500 font-mono">{form.primary_color}</span>
-              </div>
-            </div>
+            {/* הצבע הראשי נקבע בעמוד "מדיה" (ליד תצוגת הבאנר) — כאן רק סגנון הכפתורים */}
 
             {/* עיצוב כפתורים */}
             <div className="space-y-2">
