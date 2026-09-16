@@ -8,7 +8,12 @@ const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 })
 
-const MODEL = 'llama-3.3-70b-versatile'
+// Groq model for the admin agent. Override with the GROQ_MODEL env var without a
+// redeploy. Default is llama-3.1-8b-instant — available on every Groq account
+// and tool-calling capable. For stronger reasoning set GROQ_MODEL to a bigger
+// tool-capable model your key has access to, e.g. 'llama-3.3-70b-versatile',
+// 'openai/gpt-oss-120b', or 'moonshotai/kimi-k2-instruct'.
+const MODEL = process.env.GROQ_MODEL || 'llama-3.1-8b-instant'
 
 // ─── Tool definitions (OpenAI format — Groq compatible) ───────────────────────
 
