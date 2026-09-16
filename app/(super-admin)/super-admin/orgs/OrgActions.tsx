@@ -3,10 +3,11 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { LogIn, Send, ChevronDown, KeyRound, Target, Megaphone, SlidersHorizontal, X, Check, Snowflake, Lock } from 'lucide-react'
+import { LogIn, Send, ChevronDown, KeyRound, Target, Megaphone, SlidersHorizontal, X, Check, Snowflake, Lock, Trash2 } from 'lucide-react'
 
-export default function OrgActions({ orgId, status, slug, ownerEmail, hasFundraising = true }: {
+export default function OrgActions({ orgId, orgName = '', status, slug, ownerEmail, hasFundraising = true }: {
   orgId: string
+  orgName?: string
   status: string
   slug: string
   ownerEmail?: string
@@ -17,6 +18,7 @@ export default function OrgActions({ orgId, status, slug, ownerEmail, hasFundrai
   const [sending, setSending] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   async function updateStatus(newStatus: 'active' | 'suspended') {
     setLoading(true)
@@ -92,7 +94,31 @@ export default function OrgActions({ orgId, status, slug, ownerEmail, hasFundrai
     }
   }
 
-  const busy = loading || sending
+  // Permanently delete the org + all its data (cascade). Double-guarded: the
+  // super-admin must type the org's exact name, and the server re-verifies it.
+  async function deleteOrg() {
+    const typed = window.prompt(
+      `⚠️ פעולה בלתי הפיכה!\n\nמחיקת הארגון "${orgName}" תמחק לצמיתות את כל הקמפיינים, התרומות, הקבוצות והנתונים שלו.\n\nכדי לאשר — הקלד את שם הארגון בדיוק:`
+    )
+    if (typed == null) return
+    if (typed.trim() !== orgName.trim()) { alert('השם שהוקלד אינו תואם. המחיקה בוטלה.'); return }
+    setDeleting(true)
+    const res = await fetch('/api/super-admin/orgs/delete', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orgId, confirmName: typed.trim() }),
+    })
+    const data = await res.json().catch(() => ({}))
+    setDeleting(false)
+    if (res.ok) {
+      setSettingsOpen(false)
+      alert(`הארגון "${data.name || orgName}" נמחק לצמיתות.`)
+      router.refresh()
+    } else {
+      alert(data.error || 'המחיקה נכשלה')
+    }
+  }
+
+  const busy = loading || sending || deleting
 
   return (
     <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
@@ -275,6 +301,16 @@ export default function OrgActions({ orgId, status, slug, ownerEmail, hasFundrai
               <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50/60 p-3.5">
                 <p className="text-xs font-bold text-gray-400 mb-1">תוספים בתשלום</p>
                 <p className="text-[11px] text-gray-400">פיצ׳רים מתקדמים (יתווספו בהמשך) ינוהלו מכאן — הפעלה/כיבוי וחיוב לכל מנהל.</p>
+              </div>
+
+              {/* Danger zone — permanent delete */}
+              <div className="rounded-xl border border-red-200 bg-red-50/60 p-3.5">
+                <p className="text-xs font-bold text-red-600 mb-1">אזור מסוכן</p>
+                <p className="text-[11px] text-gray-500 mb-2.5">מחיקת החשבון תמחק לצמיתות את הארגון וכל הקמפיינים, התרומות והנתונים שלו. לא ניתן לשחזר.</p>
+                <button onClick={deleteOrg} disabled={busy}
+                  className="flex items-center gap-1.5 text-sm px-3.5 py-2 rounded-xl bg-red-600 text-white hover:bg-red-700 font-semibold disabled:opacity-40">
+                  <Trash2 className="w-4 h-4" /> {deleting ? 'מוחק…' : 'מחק חשבון לצמיתות'}
+                </button>
               </div>
             </div>
           </div>

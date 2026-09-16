@@ -9,16 +9,10 @@ export default async function SuperAdminOrgsPage() {
 
   if (profile?.role !== 'super_admin') redirect('/dashboard')
 
-  const [{ data: orgsRaw }, { data: leads }] = await Promise.all([
-    supabase
-      .from('organizations')
-      .select('*')
-      .order('created_at', { ascending: false }),
-    supabase
-      .from('sales_leads')
-      .select('*')
-      .order('created_at', { ascending: false }),
-  ])
+  const { data: orgsRaw } = await supabase
+    .from('organizations')
+    .select('*')
+    .order('created_at', { ascending: false })
 
   // owner_id references auth.users (not profiles), so there is no PostgREST
   // relationship to embed — fetch the owner profiles separately and attach them.
@@ -52,5 +46,5 @@ export default async function SuperAdminOrgsPage() {
     donationCount: donationCount || 0,
   }
 
-  return <OrgsLeadsView orgs={orgs} leads={leads ?? []} raisedByOrg={raisedByOrg} stats={stats} />
+  return <OrgsLeadsView orgs={orgs} raisedByOrg={raisedByOrg} stats={stats} />
 }

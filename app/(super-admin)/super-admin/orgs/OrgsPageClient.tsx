@@ -197,7 +197,7 @@ export default function OrgsPageClient({ orgs, raisedByOrg = {}, stats: platform
 
                     {/* Actions */}
                     <td className="px-5 py-4">
-                      <OrgActions orgId={org.id} status={org.status} slug={org.slug} hasFundraising={org.has_fundraising !== false} />
+                      <OrgActions orgId={org.id} orgName={org.name} status={org.status} slug={org.slug} hasFundraising={org.has_fundraising !== false} />
                     </td>
                   </tr>
                 )
