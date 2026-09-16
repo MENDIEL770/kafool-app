@@ -407,6 +407,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ reply: msg.content || 'אין תשובה' })
   } catch (err) {
     console.error('[Agent Error]', err)
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    const raw = String(err)
+    // A clearer, actionable message for the most common setup failures.
+    let friendly = raw
+    if (/model_not_found|does not exist or you do not have access/i.test(raw)) {
+      friendly = `נראה שמפתח ה-Groq (GROQ_API_KEY) אינו תקף או שאין לחשבון גישה למודלים. בדקו/החליפו את המפתח ב-Vercel, ואפשר להגדיר מודל דרך GROQ_MODEL. (${MODEL})`
+    } else if (/invalid api key|401|unauthorized/i.test(raw)) {
+      friendly = 'מפתח ה-Groq (GROQ_API_KEY) שגוי או פג תוקף — יש להחליפו בהגדרות הסביבה ב-Vercel.'
+    } else if (!process.env.GROQ_API_KEY) {
+      friendly = 'לא הוגדר מפתח GROQ_API_KEY בסביבה.'
+    }
+    return NextResponse.json({ error: friendly }, { status: 500 })
   }
 }
