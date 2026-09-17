@@ -144,6 +144,9 @@ export default async function ThanksPage({
       // only, never overwrites; drops reserved __ keys).
       if (cd && (!saved.custom_data || Object.keys(saved.custom_data).length === 0)) {
         const clean = Object.fromEntries(Object.entries(cd).filter(([k]) => !k.startsWith('__')))
+        // Persist how the donation came in (credit / Bit / bank / הו"ק).
+        const rawMethod = String(cd.__method || '') || (isHok ? 'hok' : '')
+        if (rawMethod && !clean.payment_method) clean.payment_method = rawMethod
         if (Object.keys(clean).length > 0) {
           await supabaseService.from('donations').update({ custom_data: clean }).eq('id', saved.id)
         }

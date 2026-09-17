@@ -181,10 +181,20 @@ const STATUSES = [
 const statusOf = (o: Order) => (o.custom_data?.fulfillment_status || 'new')
 const statusMeta = (k: string) => STATUSES.find(s => s.key === k) || STATUSES[0]
 
+// Friendly Hebrew labels for the stored method keys (auto + manual flows).
+const METHOD_LABELS: Record<string, string> = {
+  one_time: 'אשראי', credit: 'אשראי', card: 'אשראי',
+  bit: 'ביט', hok: 'הוראת קבע', bank: 'העברה בנקאית', transfer: 'העברה בנקאית',
+  cash: 'מזומן', stripe: 'כרטיס אשראי (חו״ל)', other: 'אחר',
+}
 // How the buyer paid — recorded on the order as 'אמצעי תשלום' (or inferred).
 function payMethodOf(o: Order): string {
   const cd = o.custom_data || {}
-  return cd['אמצעי תשלום'] || cd['Payment method'] || (cd.payment_method === 'stripe' ? 'כרטיס אשראי (חו״ל)' : cd.payment_method ? String(cd.payment_method) : (o.kesher_transaction_id ? 'סליקה' : '—'))
+  if (cd['אמצעי תשלום']) return String(cd['אמצעי תשלום'])
+  if (cd['Payment method']) return String(cd['Payment method'])
+  const pm = cd.payment_method ? String(cd.payment_method) : ''
+  if (pm) return METHOD_LABELS[pm] || pm
+  return o.kesher_transaction_id ? 'סליקה' : '—'
 }
 const payStatusOf = (o: Order) => o.payment_status === 'completed' ? { label: 'שולם', cls: 'bg-emerald-50 text-emerald-700' } : { label: 'ממתין', cls: 'bg-amber-50 text-amber-700' }
 

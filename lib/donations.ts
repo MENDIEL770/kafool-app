@@ -62,6 +62,11 @@ export async function attachCustomData(
         const clean = Object.fromEntries(
           Object.entries(match.custom_data as Record<string, unknown>).filter(([k]) => !k.startsWith('__'))
         )
+        // Persist the donor's chosen method (credit / Bit / bank / הו"ק) so the
+        // orders view can show how the donation came in. Never overwrite one that
+        // was already set (e.g. a manual order).
+        const rawMethod = String((match.custom_data as Record<string, unknown>).__method || '')
+        if (rawMethod && !clean.payment_method) clean.payment_method = rawMethod
         await supabase.from('donations').update({ custom_data: clean }).eq('id', args.donationId)
       }
       // Only trust the intent's email template on a STRONG (phone+amount) match.
