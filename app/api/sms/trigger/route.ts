@@ -38,6 +38,7 @@ export async function POST(req: NextRequest) {
       amount: String(amount || 0),
       campaign_title: campaign.title || '',
       dedication: dedication || '',
+      phone: donor_phone || '',
     }
 
     let sent = 0

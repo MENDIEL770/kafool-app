@@ -189,6 +189,21 @@ async function handle(body: Record<string, unknown>): Promise<string> {
       if (inserted) {
         const { attachCustomData } = await import('@/lib/donations')
         await attachCustomData(supabase, { donationId: inserted.id, campaignId, phone: donorPhone, amount, donorEmail })
+
+        // Donor confirmation SMS. Critical for Bit: the donor pays inside the Bit
+        // app and never returns to /thanks (which is what fires this for cards),
+        // so without this a Bit donor never gets a "we got it" message. Fires the
+        // same donation_completed automation; only on this fresh insert, so a card
+        // donor who also lands on /thanks isn't double-messaged.
+        if (donorPhone) {
+          try {
+            const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://www.kafool.com'
+            await fetch(`${baseUrl}/api/sms/trigger`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ campaign_id: campaignId, amount, donor_phone: donorPhone, donor_name: donorName }),
+            })
+          } catch (e) { console.error('donor confirmation SMS (webhook) failed:', e) }
+        }
       }
     }
     const { recomputeCampaignRaised } = await import('@/lib/donations')

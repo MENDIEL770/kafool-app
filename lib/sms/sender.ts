@@ -9,8 +9,21 @@ interface SmsResult {
   error?: string
 }
 
+// Fill placeholders in an SMS template. Supports both the Hebrew double-brace
+// tokens the automation editor inserts ({{שם}}, {{סכום}}, {{קמפיין}}, {{טלפון}},
+// {{הקדשה}}) and legacy single-brace ASCII keys ({donor_name}). Unknown tokens
+// are dropped (so a donor never sees a raw {{...}} in the message).
 export function renderTemplate(template: string, vars: Record<string, string>): string {
-  return template.replace(/\{(\w+)\}/g, (_, key) => vars[key] ?? `{${key}}`)
+  const alias: Record<string, string> = {
+    'שם': 'donor_name', 'סכום': 'amount', 'קמפיין': 'campaign_title',
+    'הקדשה': 'dedication', 'טלפון': 'phone', 'donor_phone': 'phone',
+  }
+  return template.replace(/\{\{?\s*([^{}]+?)\s*\}\}?/g, (_m, raw) => {
+    const key = String(raw).trim()
+    const mapped = alias[key] || key
+    const val = vars[key] ?? vars[mapped]
+    return val != null ? val : ''
+  })
 }
 
 export async function sendSms(options: SmsOptions): Promise<SmsResult> {
