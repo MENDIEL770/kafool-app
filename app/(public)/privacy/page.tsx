@@ -2,7 +2,7 @@ import Link from 'next/link'
 
 export const metadata = { title: 'מדיניות פרטיות — Kafool' }
 
-const CONTACT_EMAIL = 'mendielharar@gmail.com'
+const CONTACT_EMAIL = 'admin@kafool.com'
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (

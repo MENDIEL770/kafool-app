@@ -2,7 +2,7 @@ import Link from 'next/link'
 
 export const metadata = { title: 'הצהרת נגישות — Kafool' }
 
-const CONTACT_EMAIL = 'mendielharar@gmail.com'
+const CONTACT_EMAIL = 'admin@kafool.com'
 const CONTACT_PHONE = '0535035770'
 
 export default function AccessibilityPage() {

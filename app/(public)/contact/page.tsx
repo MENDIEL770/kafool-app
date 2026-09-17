@@ -11,7 +11,7 @@ interface ContactSettings {
 
 const CONTACT_DEFAULTS: ContactSettings = {
   phone: '0535035770',
-  email: 'kafoolapp@gmail.com',
+  email: 'admin@kafool.com',
   hours: "ימים א'–ה', 09:00–18:00",
 }
 
