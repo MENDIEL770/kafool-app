@@ -13,7 +13,7 @@ const C = {
 }
 
 interface KaparotCfg {
-  price_per_soul?: number; max_souls?: number; intro_html?: string
+  price_per_soul?: number; price_options?: number[]; max_souls?: number; intro_html?: string
   chabad_logo_url?: string; about_text?: string; hero_image_url?: string; hero_declaration?: string; blessing?: string
 }
 interface Campaign {
@@ -67,6 +67,12 @@ export default function KaparotPageClient({ org, campaign, initialLang, donation
   const cfg: KaparotCfg = s.kaparot || {}
   const accent = s.primary_color || '#2563eb'
   const pricePerSoul = Number(cfg.price_per_soul) > 0 ? Number(cfg.price_per_soul) : 50
+  // Per-soul amount options (manager-defined buttons). Deduped, positive, and the
+  // default (price_per_soul) always included. Buttons show only when there's >1.
+  const priceOptions = Array.from(new Set([
+    ...(Array.isArray(cfg.price_options) ? cfg.price_options.map(Number).filter(n => n > 0) : []),
+    pricePerSoul,
+  ])).sort((a, b) => a - b)
   const maxSouls = Number(cfg.max_souls) > 0 ? Number(cfg.max_souls) : 20
   const logo = cfg.chabad_logo_url || org.logo_url || ''
   const yechi = cfg.hero_declaration === '' ? '' : (cfg.hero_declaration || DEFAULT_YECHI)
@@ -80,6 +86,8 @@ export default function KaparotPageClient({ org, campaign, initialLang, donation
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1)
   const [souls, setSouls] = useState(1)
+  // Selected per-soul amount — defaults to the manager's default (price_per_soul).
+  const [pricePer, setPricePer] = useState(pricePerSoul)
   // Each soul is named as "<first name> בן/בת <mother's name>" (kaparot nusach).
   const [names, setNames] = useState<{ first: string; mother: string }[]>([{ first: '', mother: '' }])
   const [extra, setExtra] = useState('')
@@ -94,7 +102,7 @@ export default function KaparotPageClient({ org, campaign, initialLang, donation
   const setName = (i: number, field: 'first' | 'mother', v: string) =>
     setNames(prev => prev.map((x, idx) => idx === i ? { ...x, [field]: v } : x))
   const extraAmount = Math.max(0, Number(extra) || 0)
-  const total = souls * pricePerSoul + extraAmount
+  const total = souls * pricePer + extraAmount
   // Both the person's name and the mother's name are required before continuing.
   const allNamesFilled = names.every(n => n.first.trim().length > 0 && n.mother.trim().length > 0)
 
@@ -252,6 +260,24 @@ export default function KaparotPageClient({ org, campaign, initialLang, donation
               </div>
               <p className="text-[11px] mb-5" style={{ color: C.muted }}>מינימום 1 · מקסימום {maxSouls}</p>
 
+              {priceOptions.length > 1 && (
+                <div className="mb-5">
+                  <label className="text-xs font-semibold block mb-1.5" style={{ color: C.muted }}>סכום לנפש</label>
+                  <div className="flex flex-wrap gap-2">
+                    {priceOptions.map(p => {
+                      const on = p === pricePer
+                      return (
+                        <button key={p} type="button" onClick={() => setPricePer(p)}
+                          className="px-4 py-2 rounded-xl text-sm font-bold border transition-transform hover:scale-[1.03]"
+                          style={on ? { background: accent, color: '#fff', borderColor: accent } : { background: '#fff', color: C.ink, borderColor: C.line }}>
+                          {ils(p)}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-3 mb-5">
                 {names.map((nm, i) => (
                   <div key={i}>
@@ -288,7 +314,7 @@ export default function KaparotPageClient({ org, campaign, initialLang, donation
               <div className="flex items-end justify-between rounded-2xl px-4 py-3.5 mb-5" style={{ background: C.accentSoft }}>
                 <div>
                   <div className="text-xs font-semibold" style={{ color: C.muted }}>סה״כ לפדיון</div>
-                  <div className="text-[11px]" style={{ color: C.muted }}>{souls} × {ils(pricePerSoul)}{extraAmount > 0 ? ` + ${ils(extraAmount)} לצדקה` : ''}</div>
+                  <div className="text-[11px]" style={{ color: C.muted }}>{souls} × {ils(pricePer)}{extraAmount > 0 ? ` + ${ils(extraAmount)} לצדקה` : ''}</div>
                 </div>
                 <span className="kap-h text-3xl" style={{ color: accent }}>{ils(total)}</span>
               </div>
@@ -345,8 +371,8 @@ export default function KaparotPageClient({ org, campaign, initialLang, donation
 
               <div className="rounded-2xl p-4 mb-5 text-right" style={{ background: C.soft }}>
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm" style={{ color: C.muted }}>{souls} נפשות × {ils(pricePerSoul)}</span>
-                  <span className="text-sm font-semibold" style={{ color: C.ink }}>{ils(souls * pricePerSoul)}</span>
+                  <span className="text-sm" style={{ color: C.muted }}>{souls} נפשות × {ils(pricePer)}</span>
+                  <span className="text-sm font-semibold" style={{ color: C.ink }}>{ils(souls * pricePer)}</span>
                 </div>
                 {extraAmount > 0 && (
                   <div className="flex items-center justify-between mb-1">

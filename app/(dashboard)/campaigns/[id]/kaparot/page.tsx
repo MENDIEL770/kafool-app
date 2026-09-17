@@ -25,6 +25,9 @@ export default function KaparotSettingsPage() {
   const [heroDeclaration, setHeroDeclaration] = useState('')
 
   const [pricePerSoul, setPricePerSoul] = useState('50')
+  // Extra per-soul amounts offered as buttons on the public page (the default is
+  // pricePerSoul; these are the additional choices). Empty = single price, no buttons.
+  const [extraPrices, setExtraPrices] = useState<string[]>([])
   const [maxSouls, setMaxSouls] = useState('20')
   const [introHtml, setIntroHtml] = useState('')
   const [aboutText, setAboutText] = useState('')
@@ -53,7 +56,10 @@ export default function KaparotSettingsPage() {
           .filter(c => (c.settings as { page_type?: string })?.page_type !== 'kaparot')
           .map(c => ({ slug: c.slug as string, title: c.title as string })))
       }
-      setPricePerSoul(String(k.price_per_soul ?? 50))
+      const defPrice = Number(k.price_per_soul ?? 50)
+      setPricePerSoul(String(defPrice))
+      const opts = Array.isArray(k.price_options) ? (k.price_options as unknown[]).map(Number).filter(n => n > 0) : []
+      setExtraPrices(opts.filter(n => n !== defPrice).map(String))
       setMaxSouls(String(k.max_souls ?? 20))
       setIntroHtml(String(k.intro_html || ''))
       setAboutText(String(k.about_text || ''))
@@ -104,6 +110,12 @@ export default function KaparotSettingsPage() {
       kaparot: {
         ...((cur?.settings as { kaparot?: object })?.kaparot || {}),
         price_per_soul: Math.max(1, Number(pricePerSoul) || 50),
+        // Full set of per-soul button amounts (default included, deduped, sorted).
+        price_options: (() => {
+          const def = Math.max(1, Number(pricePerSoul) || 50)
+          const extras = extraPrices.map(s => Math.round(Number(s))).filter(n => n > 0 && n !== def)
+          return Array.from(new Set([def, ...extras])).sort((a, b) => a - b)
+        })(),
         max_souls: Math.min(100, Math.max(1, Number(maxSouls) || 20)),
         intro_html: introHtml.trim() || null,
         about_text: aboutText.trim() || null,
@@ -137,10 +149,29 @@ export default function KaparotSettingsPage() {
 
       <Card>
         <CardHeader><CardTitle className="text-base">מחיר וכמות</CardTitle></CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1"><Label>מחיר לנפש (₪)</Label><Input type="number" value={pricePerSoul} onChange={e => setPricePerSoul(e.target.value)} dir="ltr" /></div>
+            <div className="space-y-1"><Label>מחיר לנפש — ברירת מחדל (₪)</Label><Input type="number" value={pricePerSoul} onChange={e => setPricePerSoul(e.target.value)} dir="ltr" /></div>
             <div className="space-y-1"><Label>מקסימום נפשות</Label><Input type="number" value={maxSouls} onChange={e => setMaxSouls(e.target.value)} dir="ltr" /></div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>סכומים נוספים לבחירה לנפש (כפתורים)</Label>
+            <p className="text-[11px] text-gray-400 -mt-0.5">אם תוסיף סכומים כאן, התורם יראה כפתורי בחירה לסכום לנפש. ברירת המחדל שנבחרה מראש היא ״מחיר לנפש״ שלמעלה. ריק = סכום קבוע אחד ללא כפתורים.</p>
+            <div className="space-y-2">
+              {extraPrices.map((p, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <Input type="number" value={p} dir="ltr" placeholder="₪ לנפש"
+                    onChange={e => setExtraPrices(arr => arr.map((x, idx) => idx === i ? e.target.value : x))} />
+                  <button type="button" onClick={() => setExtraPrices(arr => arr.filter((_, idx) => idx !== i))}
+                    className="shrink-0 text-xs text-red-400 hover:text-red-600 px-2 py-2">הסר</button>
+                </div>
+              ))}
+              <button type="button" onClick={() => setExtraPrices(arr => [...arr, ''])}
+                className="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-700">
+                + הוסף סכום
+              </button>
+            </div>
           </div>
         </CardContent>
       </Card>
