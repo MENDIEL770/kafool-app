@@ -60,6 +60,12 @@ export default function ProductSalesClient({ campaign, initialLang, paymentUrls,
   const [qty, setQty] = useState<Record<number, number>>({})
   const setQ = (i: number, v: number) => setQty(q => ({ ...q, [i]: Math.max(0, v) }))
 
+  // Lift the global accessibility button above the pinned cart bar (when present).
+  useEffect(() => {
+    if (products.length > 0) document.documentElement.style.setProperty('--kafool-fab-bottom', '5.75rem')
+    return () => { document.documentElement.style.removeProperty('--kafool-fab-bottom') }
+  }, [products.length])
+
   const lines = products.map((p, i) => ({ p, i, q: qty[i] || 0 })).filter(l => l.q > 0)
   const subtotal = lines.reduce((sum, l) => sum + lineTotal(l.p, l.q), 0)
   const shipCost = subtotal <= 0 ? 0

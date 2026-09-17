@@ -77,7 +77,7 @@ export default function AccessibilityWidget({ offsetBottom = '1rem' }: { offsetB
         .a11y-font, .a11y-font * { font-family: Arial, sans-serif !important; }
       `}</style>
 
-      <div ref={panelRef} style={{ position: 'fixed', left: '1rem', bottom: offsetBottom, zIndex: 55, width: '3rem' }} dir="rtl">
+      <div ref={panelRef} style={{ position: 'fixed', left: '1rem', bottom: `var(--kafool-fab-bottom, ${offsetBottom})`, zIndex: 55, width: '3rem', transition: 'bottom .2s' }} dir="rtl">
         {/* Panel — absolute so it never widens the container and shifts the button */}
         {open && (
           <div

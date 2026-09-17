@@ -1847,6 +1847,13 @@ export default function DonationPageClient({ org, campaign, donations: initialDo
     return () => window.removeEventListener('scroll', fn)
   }, [])
   const floatBottom = barVisible ? '5.75rem' : '1.25rem'
+  // Publish the current safe bottom offset so the global accessibility button
+  // (rendered in the public layout) lifts above the fixed donate bar instead of
+  // being hidden behind it. Cleared on unmount so other pages keep their default.
+  useEffect(() => {
+    document.documentElement.style.setProperty('--kafool-fab-bottom', floatBottom)
+    return () => { document.documentElement.style.removeProperty('--kafool-fab-bottom') }
+  }, [floatBottom])
 
   // Active custom donor-detail form (default applied to all buttons for now).
   const cfSettings = campaign.settings as { custom_forms?: { id: string; name: string; fields: { id: string; label: string; type: string; required: boolean; options?: string[] }[] }[]; default_custom_form_id?: string }
