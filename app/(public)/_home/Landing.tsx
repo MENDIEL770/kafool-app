@@ -753,6 +753,13 @@ export interface HomeCampaign {
 }
 
 export default function Landing({ c, logos, campaigns = [] }: { c: LandingContent; logos: string[]; campaigns?: HomeCampaign[] }) {
+  // Smooth-scroll to the showcase section (or the contact form if there are no
+  // showcase campaigns) — a plain hash link didn't reliably scroll here.
+  const scrollToShowcase = (e: React.MouseEvent) => {
+    e.preventDefault()
+    const el = document.getElementById('showcase') || document.getElementById('contact')
+    el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
   const stats = [
     { Icon: Sparkles, value: c.stats_raised, label: 'גויסו עד היום', color: BLUE },
     { Icon: CreditCard, value: c.stats_campaigns, label: 'קמפיינים מצליחים', color: NAVY },
@@ -820,15 +827,16 @@ export default function Landing({ c, logos, campaigns = [] }: { c: LandingConten
                 </Link>
               </Magnetic>
               <Magnetic strength={0.22}>
-                <Link
+                <a
                   href="#showcase"
-                  className="group inline-flex items-center justify-center gap-2 rounded-2xl border border-white/60 bg-white/70 px-7 py-4 text-[15px] font-bold text-slate-700 shadow-sm backdrop-blur-xl transition-colors hover:bg-white"
+                  onClick={scrollToShowcase}
+                  className="group inline-flex items-center justify-center gap-2 rounded-2xl border border-white/60 bg-white/70 px-7 py-4 text-[15px] font-bold text-slate-700 shadow-sm backdrop-blur-xl transition-colors hover:bg-white cursor-pointer"
                 >
                   לקמפיינים שעבדו איתנו
                   <span className="flex h-5 w-5 items-center justify-center rounded-full transition-transform duration-300 group-hover:scale-110" style={{ background: `${BLUE}18` }}>
                     <ArrowLeft className="h-2.5 w-2.5" style={{ color: BLUE }} />
                   </span>
-                </Link>
+                </a>
               </Magnetic>
             </motion.div>
           </motion.div>
@@ -861,7 +869,7 @@ export default function Landing({ c, logos, campaigns = [] }: { c: LandingConten
                   <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
                 </div>
                 <div>
-                  <div className="text-[10px] font-bold text-emerald-500">יעד הושלם! 🎉</div>
+                  <div className="text-[10px] font-bold text-emerald-500">יעד הושלם!</div>
                   <div className="text-sm font-black" style={{ color: NAVY }}>₪413,122</div>
                   <div className="text-[10px] text-slate-400">תודה לכל התורמים</div>
                 </div>
@@ -1026,10 +1034,10 @@ export default function Landing({ c, logos, campaigns = [] }: { c: LandingConten
                   </Link>
                 </Magnetic>
                 <Magnetic strength={0.22}>
-                  <Link href="#showcase" className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/40 px-8 py-4 text-[15px] font-bold text-white transition-colors hover:bg-white/10">
+                  <a href="#showcase" onClick={scrollToShowcase} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/40 px-8 py-4 text-[15px] font-bold text-white transition-colors hover:bg-white/10 cursor-pointer">
                     לקמפיינים שעבדו איתנו
                     <ArrowLeft className="h-3.5 w-3.5" />
-                  </Link>
+                  </a>
                 </Magnetic>
               </div>
             </div>
