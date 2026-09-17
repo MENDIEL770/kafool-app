@@ -13,7 +13,8 @@ const BUCKET = 'campaign-media'
 export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024 // 10MB per image
 export const MAX_VIDEO_BYTES = 100 * 1024 * 1024 // 100MB per campaign video
 
-/** Downscale an image to fit within maxDim and re-encode as JPEG. */
+/** Downscale an image to fit within maxDim. PNGs are re-encoded as PNG so
+ *  transparency is preserved (e.g. a transparent logo); everything else → JPEG. */
 export async function compressImage(file: File, maxDim = 1920, quality = 0.85): Promise<File> {
   // Skip non-raster / vector / animated formats and already-small files.
   if (!file.type.startsWith('image/') || file.type === 'image/gif' || file.type === 'image/svg+xml') return file
@@ -34,9 +35,13 @@ export async function compressImage(file: File, maxDim = 1920, quality = 0.85): 
     if (!ctx) { bitmap.close?.(); return file }
     ctx.drawImage(bitmap, 0, 0, width, height)
     bitmap.close?.()
-    const blob = await new Promise<Blob | null>(res => canvas.toBlob(res, 'image/jpeg', quality))
+    // Keep PNG as PNG (preserves the alpha channel); re-encode others as JPEG.
+    const isPng = file.type === 'image/png'
+    const outType = isPng ? 'image/png' : 'image/jpeg'
+    const outExt = isPng ? '.png' : '.jpg'
+    const blob = await new Promise<Blob | null>(res => canvas.toBlob(res, outType, isPng ? undefined : quality))
     if (!blob) return file
-    return new File([blob], file.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' })
+    return new File([blob], file.name.replace(/\.\w+$/, '') + outExt, { type: outType })
   } catch {
     return file
   }
