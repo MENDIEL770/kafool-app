@@ -225,3 +225,18 @@
     font-size: 16px !important;
   }
 }
+
+/* Password fields use a custom eye toggle — hide the browsers' own reveal /
+   credential-autofill icons so there's no second control jumping to the edge. */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none;
+}
+input::-webkit-credentials-auto-fill-button,
+input::-webkit-strong-password-auto-fill-button,
+input::-webkit-caps-lock-indicator {
+  visibility: hidden;
+  pointer-events: none;
+  width: 0;
+  margin: 0;
+}

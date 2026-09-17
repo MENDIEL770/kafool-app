@@ -102,7 +102,7 @@ export default function LoginPage() {
                   type="button"
                   onClick={() => setShowPw(v => !v)}
                   title={showPw ? 'הסתר סיסמה' : 'הצג סיסמה'}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 z-10 text-slate-400 hover:text-slate-200"
                 >
                   {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>

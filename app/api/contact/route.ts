@@ -53,12 +53,19 @@ export async function POST(request: Request) {
     const apiKey = process.env.YEMOT_API_KEY
     if (apiKey) {
       const wa = waLink(phone)
+      // A campaign-open request (from the dashboard) carries source
+      // "campaign-request:<type>" — give it a distinct, obvious SMS header.
+      const isCampaignRequest = (source || '').startsWith('campaign-request')
+      const typeLabel = ({ donation: 'קמפיין רגיל', kaparot: 'דף כפרות', products: 'דף מכירות' } as Record<string, string>)[(source || '').split(':')[1]] || ''
+      const header = isCampaignRequest
+        ? `🆕 בקשת דף גיוס חדש${typeLabel ? ` — ${typeLabel}` : ''}`
+        : 'ליד חדש בכפול'
       const sms = [
-        'ליד חדש בכפול',
+        header,
         `שם: ${full_name}`,
         phone ? `טלפון: ${phone}` : null,
         email ? `מייל: ${email}` : null,
-        subject ? `נושא: ${subject}` : null,
+        !isCampaignRequest && subject ? `נושא: ${subject}` : null,
         `הודעה: ${message}`,
         wa ? `ווטסאפ: ${wa}` : null,
       ].filter(Boolean).join('\n')
