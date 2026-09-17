@@ -31,18 +31,30 @@ function PremiumBackground() {
     <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden" aria-hidden>
       <div className="absolute inset-0 bg-[#F8FAFC]" />
 
-      {/* ambient lights */}
-      <div
+      {/* ambient lights — slowly drifting + breathing so the page feels alive */}
+      <motion.div
         className="absolute -top-[20%] -right-[10%] h-[70vh] w-[70vh] rounded-full blur-[130px]"
-        style={{ background: `radial-gradient(circle, ${BLUE}38, transparent 70%)` }}
+        style={{ background: `radial-gradient(circle, ${BLUE}42, transparent 70%)` }}
+        animate={{ x: [0, 40, -20, 0], y: [0, 30, 10, 0], scale: [1, 1.12, 1.04, 1] }}
+        transition={{ duration: 26, repeat: Infinity, ease: 'easeInOut' }}
       />
-      <div
+      <motion.div
         className="absolute top-[35%] -left-[15%] h-[60vh] w-[60vh] rounded-full blur-[140px]"
-        style={{ background: `radial-gradient(circle, ${CORAL}30, transparent 70%)` }}
+        style={{ background: `radial-gradient(circle, ${CORAL}36, transparent 70%)` }}
+        animate={{ x: [0, -30, 25, 0], y: [0, -25, 20, 0], scale: [1, 1.15, 0.95, 1] }}
+        transition={{ duration: 32, repeat: Infinity, ease: 'easeInOut' }}
       />
-      <div
-        className="absolute bottom-[-15%] right-[20%] h-[50vh] w-[50vh] rounded-full blur-[130px]"
-        style={{ background: `radial-gradient(circle, ${BLUE}22, transparent 70%)` }}
+      <motion.div
+        className="absolute bottom-[-15%] right-[20%] h-[55vh] w-[55vh] rounded-full blur-[130px]"
+        style={{ background: `radial-gradient(circle, ${BLUE}2a, transparent 70%)` }}
+        animate={{ x: [0, 30, -25, 0], y: [0, -20, 15, 0], scale: [1, 1.1, 1, 1] }}
+        transition={{ duration: 29, repeat: Infinity, ease: 'easeInOut' }}
+      />
+      <motion.div
+        className="absolute top-[10%] left-[30%] h-[40vh] w-[40vh] rounded-full blur-[120px]"
+        style={{ background: `radial-gradient(circle, #7c3aed22, transparent 70%)` }}
+        animate={{ x: [0, -35, 20, 0], y: [0, 25, -15, 0], scale: [1, 1.18, 1.02, 1], opacity: [0.7, 1, 0.8, 0.7] }}
+        transition={{ duration: 35, repeat: Infinity, ease: 'easeInOut' }}
       />
 
       {/* huge blurred infinity — heavily diffused so it reads as ambient light,
