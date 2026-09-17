@@ -88,7 +88,18 @@ export default function LoginPage() {
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-300">סיסמה</label>
-              <div className="relative">
+              {/* Eye is a flex sibling (not absolute) so it can never jump or be
+                  covered — and the browser's own reveal icon is hidden in CSS. */}
+              <div className="flex items-center bg-slate-800 border border-slate-700 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-blue-500 transition-all">
+                <button
+                  type="button"
+                  onClick={() => setShowPw(v => !v)}
+                  title={showPw ? 'הסתר סיסמה' : 'הצג סיסמה'}
+                  aria-label={showPw ? 'הסתר סיסמה' : 'הצג סיסמה'}
+                  className="shrink-0 ps-3.5 pe-1 py-3 text-slate-400 hover:text-slate-200"
+                >
+                  {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
                 <input
                   type={showPw ? 'text' : 'password'}
                   value={password}
@@ -96,16 +107,8 @@ export default function LoginPage() {
                   placeholder="••••••••"
                   required
                   dir="ltr"
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-11 pr-4 py-3 text-white placeholder-slate-500 text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  className="flex-1 min-w-0 bg-transparent border-0 outline-none py-3 pe-4 text-white placeholder-slate-500 text-sm"
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPw(v => !v)}
-                  title={showPw ? 'הסתר סיסמה' : 'הצג סיסמה'}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 z-10 text-slate-400 hover:text-slate-200"
-                >
-                  {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
               </div>
             </div>
 
