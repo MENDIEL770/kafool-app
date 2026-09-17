@@ -31,6 +31,7 @@ import {
   Megaphone,
   Inbox,
   Wrench,
+  Webhook,
 } from 'lucide-react'
 
 interface Profile {
@@ -68,6 +69,7 @@ const superAdminItems = [
   { href: '/super-admin/orgs', label: 'ניהול ארגונים', icon: Building2 },
   { href: '/super-admin/cms', label: 'ניהול תוכן', icon: FileText },
   { href: '/super-admin/portfolio', label: 'עיצובים / תיק עבודות', icon: ImageIcon },
+  { href: '/super-admin/webhooks', label: 'ניתוח וובהוקים', icon: Webhook },
   { href: '/super-admin/tools', label: 'כלי עזר', icon: Wrench },
   { href: '/media-guide', label: 'מדריך מדיה', icon: ImageIcon },
 ]
