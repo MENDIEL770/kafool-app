@@ -438,6 +438,10 @@ export default function KaparotPageClient({ org, campaign, initialLang, donation
         presetGroupSlug={recordTarget?.groupSlug}
         primaryColor={accent} buttonRadius={(s.button_radius as string) || 'rounded-2xl'} groups={[]} lang={initialLang}
         stripeEnabled={stripeEnabled} currencies={allowedCurrencies} defaultCurrency="ils" ilsRate={Number(s.stripe_ils_rate) || 3.7}
+        disabledMethods={(s as { payment?: { disabled?: string[] } }).payment?.disabled || []}
+        bankDetails={(s as { bank_details?: { account_name?: string | null; bank?: string | null; branch?: string | null; account_number?: string | null; note?: string | null } | null }).bank_details || null}
+        hokMonthsMode={(s as { hok_months_mode?: 'list' | 'range' }).hok_months_mode === 'range' ? 'range' : 'list'}
+        hokDefaultMonths={Number((s as { hok_default_months?: number }).hok_default_months) || 12}
       />
 
       <WhatsAppFab phone={(s as { whatsapp_phone?: string }).whatsapp_phone} message={(s as { whatsapp_message?: string }).whatsapp_message} />
