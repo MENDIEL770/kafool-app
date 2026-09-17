@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { getClientOrgId } from '@/lib/tenancy-client'
 import Link from 'next/link'
 import { Star, Plus, ExternalLink, Clock } from 'lucide-react'
+import RequestCampaignDialog from './RequestCampaignDialog'
 
 interface Campaign {
   id: string
@@ -55,6 +56,7 @@ export default function CampaignsPage() {
   const [loading, setLoading] = useState(true)
   const [orgName, setOrgName] = useState<string>('')   // when a super-admin views a specific org
   const [isSuper, setIsSuper] = useState(false)        // only the manager may open new pages
+  const [requestOpen, setRequestOpen] = useState(false) // org-manager "request a new page" dialog
 
   useEffect(() => {
     setDefaultId(localStorage.getItem(DEFAULT_KEY) || '')
@@ -115,7 +117,7 @@ export default function CampaignsPage() {
             <p className="text-xs text-gray-400 mt-0.5">★ קמפיין ברירת מחדל מסומן</p>
           ) : null}
         </div>
-        {isSuper && (
+        {isSuper ? (
           <Link
             href="/campaigns/new"
             className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2.5 rounded-xl transition-colors"
@@ -123,8 +125,17 @@ export default function CampaignsPage() {
             <Plus className="w-4 h-4" />
             קמפיין חדש
           </Link>
+        ) : (
+          <button
+            onClick={() => setRequestOpen(true)}
+            className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2.5 rounded-xl transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            פתיחת דף גיוס חדש
+          </button>
         )}
       </div>
+      {requestOpen && <RequestCampaignDialog onClose={() => setRequestOpen(false)} />}
 
       {loading && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -138,10 +149,14 @@ export default function CampaignsPage() {
         <div className="text-center py-20 text-gray-400">
           <div className="text-5xl mb-4"></div>
           <p className="font-medium">אין קמפיינים עדיין</p>
-          {isSuper && (
+          {isSuper ? (
             <Link href="/campaigns/new" className="mt-4 inline-flex items-center gap-2 bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors">
               <Plus className="w-4 h-4" /> צור קמפיין ראשון
             </Link>
+          ) : (
+            <button onClick={() => setRequestOpen(true)} className="mt-4 inline-flex items-center gap-2 bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors">
+              <Plus className="w-4 h-4" /> פתיחת דף גיוס חדש
+            </button>
           )}
         </div>
       )}
