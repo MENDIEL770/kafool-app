@@ -12,11 +12,12 @@ export async function POST() {
   const orgId = profile?.org_id
   if (!orgId) return NextResponse.json({ error: 'no org' }, { status: 400 })
 
-  let green: { id?: string; token?: string } | undefined
+  let config: Record<string, unknown> = {}
   try {
     const { data: org } = await supabase.from('organizations').select('whatsapp_config').eq('id', orgId).maybeSingle()
-    green = (org as { whatsapp_config?: { green?: { id?: string; token?: string } } } | null)?.whatsapp_config?.green
+    config = ((org as { whatsapp_config?: Record<string, unknown> } | null)?.whatsapp_config) || {}
   } catch { return NextResponse.json({ error: 'הרץ תחילה את המיגרציה whatsapp_config' }, { status: 400 }) }
+  const green = config.green as { id?: string; token?: string } | undefined
 
   if (green?.id && green?.token) return NextResponse.json({ ok: true, hasInstance: true, partner: partnerEnabled() })
 
@@ -25,7 +26,8 @@ export async function POST() {
   const inst = await partnerCreateInstance()
   if (!inst) return NextResponse.json({ error: 'יצירת החיבור נכשלה (GreenAPI). נסו שוב.' }, { status: 500 })
 
-  const whatsapp_config = { provider: 'green', green: { id: inst.id, token: inst.token } }
+  // Merge — never drop the usage/service ledger already stored.
+  const whatsapp_config = { ...config, provider: 'green', green: { id: inst.id, token: inst.token } }
   const { error } = await supabase.from('organizations').update({ whatsapp_config }).eq('id', orgId)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true, hasInstance: true, partner: true })

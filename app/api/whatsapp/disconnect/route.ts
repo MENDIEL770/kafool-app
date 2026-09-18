@@ -11,15 +11,19 @@ export async function POST() {
   const orgId = profile?.org_id
   if (!orgId) return NextResponse.json({ error: 'no org' }, { status: 400 })
 
+  let config: Record<string, unknown> = {}
   try {
     const { data: org } = await supabase.from('organizations').select('whatsapp_config').eq('id', orgId).maybeSingle()
-    const green = (org as { whatsapp_config?: { green?: { id?: string; token?: string } } } | null)?.whatsapp_config?.green
+    config = ((org as { whatsapp_config?: Record<string, unknown> } | null)?.whatsapp_config) || {}
+    const green = config.green as { id?: string; token?: string } | undefined
     if (green?.id && green?.token) {
       await instanceLogout(green.id, green.token)
       if (partnerEnabled()) await partnerDeleteInstance(green.id)
     }
   } catch { /* ignore */ }
 
-  await supabase.from('organizations').update({ whatsapp_config: null }).eq('id', orgId)
+  // Drop the connection but KEEP the service/usage ledger for billing history.
+  const whatsapp_config = { ...config, provider: null, green: null }
+  await supabase.from('organizations').update({ whatsapp_config }).eq('id', orgId)
   return NextResponse.json({ ok: true })
 }

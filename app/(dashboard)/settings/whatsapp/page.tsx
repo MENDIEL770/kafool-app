@@ -22,6 +22,25 @@ export default function OrgWhatsAppPage() {
   const [to, setTo] = useState('')
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null)
+  // paid service (activation + usage)
+  const [svc, setSvc] = useState<{ active: boolean; expiresAt: string | null; days: number; rate: number; cost: number } | null>(null)
+  const [svcBusy, setSvcBusy] = useState(false)
+  const [days, setDays] = useState(3)
+
+  const loadSvc = useCallback(async () => {
+    try { const r = await fetch('/api/whatsapp/service').then(x => x.json()); if (!r.error) setSvc(r) } catch { /* ignore */ }
+  }, [])
+
+  async function toggleSvc(action: 'activate' | 'deactivate') {
+    setSvcBusy(true)
+    try {
+      const r = await fetch('/api/whatsapp/service', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, days }),
+      }).then(x => x.json())
+      if (r && !r.error) setSvc(r)
+    } catch { /* ignore */ }
+    setSvcBusy(false)
+  }
 
   // Poll QR + state; returns true once connected (authorized).
   const refresh = useCallback(async (): Promise<'connected' | 'qr' | 'none'> => {
@@ -46,6 +65,9 @@ export default function OrgWhatsAppPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Load usage/activation once connected.
+  useEffect(() => { if (status === 'connected') loadSvc() }, [status, loadSvc])
+
   // While a QR is showing, poll until the number is scanned/authorized.
   const timer = useRef<ReturnType<typeof setInterval> | null>(null)
   useEffect(() => {
@@ -68,8 +90,12 @@ export default function OrgWhatsAppPage() {
   async function saveManual() {
     if (!orgId) return
     setBusy(true); setErr(null)
+    // Merge — keep any existing service/usage ledger.
+    const { data: org } = await supabase.from('organizations').select('whatsapp_config').eq('id', orgId).maybeSingle()
+    const existing = (org as { whatsapp_config?: Record<string, unknown> } | null)?.whatsapp_config || {}
     const whatsapp_config = idInstance.trim() && apiToken.trim()
-      ? { provider: 'green', green: { id: idInstance.trim(), token: apiToken.trim() } } : null
+      ? { ...existing, provider: 'green', green: { id: idInstance.trim(), token: apiToken.trim() } }
+      : { ...existing, provider: null, green: null }
     const { error } = await supabase.from('organizations').update({ whatsapp_config }).eq('id', orgId)
     setBusy(false)
     if (error) { setErr('השמירה נכשלה: ' + error.message); return }
@@ -148,6 +174,38 @@ export default function OrgWhatsAppPage() {
             </div>
             <button onClick={disconnect} disabled={busy} className="inline-flex items-center gap-1.5 text-sm text-red-500 hover:text-red-700 font-semibold"><Unlink className="w-4 h-4" /> ניתוק</button>
           </div>
+
+          {/* Paid add-on: activate sending for a period, with usage + cost */}
+          {svc && (
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="font-bold text-gray-800">שליחת וואטסאפ בקמפיין</h2>
+                  <p className="text-xs text-gray-400">{svc.active ? `פעיל — ייכבה אוטומטית ב-${svc.expiresAt ? new Date(svc.expiresAt).toLocaleString('he-IL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''}` : 'כבוי — לא נשלחות הודעות כרגע'}</p>
+                </div>
+                <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${svc.active ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>{svc.active ? 'פעיל' : 'כבוי'}</span>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <label className="text-xs text-gray-500">משך:</label>
+                <select value={days} onChange={e => setDays(Number(e.target.value))} className="rounded-xl border border-gray-200 px-3 py-2 text-sm">
+                  {[1, 3, 7, 14, 30].map(d => <option key={d} value={d}>{d} ימים</option>)}
+                </select>
+                {svc.active ? (
+                  <>
+                    <button onClick={() => toggleSvc('activate')} disabled={svcBusy} className="bg-blue-50 text-blue-700 border border-blue-100 hover:bg-blue-100 text-sm font-bold px-4 py-2 rounded-xl disabled:opacity-50">הארכה</button>
+                    <button onClick={() => toggleSvc('deactivate')} disabled={svcBusy} className="bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 text-sm font-bold px-4 py-2 rounded-xl disabled:opacity-50">כיבוי עכשיו</button>
+                  </>
+                ) : (
+                  <button onClick={() => toggleSvc('activate')} disabled={svcBusy} className="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold px-4 py-2 rounded-xl disabled:opacity-50">הפעלת שליחה</button>
+                )}
+              </div>
+              <div className="rounded-xl bg-gray-50 border border-gray-100 p-3 text-sm flex items-center justify-between">
+                <span className="text-gray-500">שימוש עד כה: <b className="text-gray-800">{svc.days} ימים</b> · ₪{svc.rate} ליום</span>
+                <span className="font-black text-gray-900">לתשלום: ₪{svc.cost.toLocaleString('he-IL')}</span>
+              </div>
+            </div>
+          )}
+
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
             <h2 className="font-bold text-gray-800 mb-1">בדיקת חיבור</h2>
             <p className="text-xs text-gray-400 mb-3">שלחו הודעת בדיקה למספר שלכם.</p>

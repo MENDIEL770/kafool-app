@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { sendThankYouEmail, renderKaparotHtml, sendHtmlEmail } from './email'
 import { sendYemotSms } from './sms/yemot'
 import { sendWhatsAppTemplate, sendWhatsAppText, whatsappEnabled, type WaConfig } from './whatsapp'
+import { serviceActive, type WaService } from './whatsapp-service'
 import { syncDonationToKafoolPlus } from './kafool-plus'
 
 // A campaign's raised_amount is always defined as the sum of its COMPLETED
@@ -103,13 +104,17 @@ export async function attachCustomData(
     // and a heads-up to the group's manager, from the ORG's own WhatsApp number
     // (organizations.whatsapp_config), falling back to the platform env.
     let waCfg: WaConfig | null = null
+    let waSvc: WaService | null = null
     if (waAllowed && c?.org_id) {
       try {
         const { data: orgWa } = await supabase.from('organizations').select('whatsapp_config').eq('id', c.org_id).maybeSingle()
-        waCfg = ((orgWa as { whatsapp_config?: WaConfig } | null)?.whatsapp_config) || null
+        const wc = (orgWa as { whatsapp_config?: (WaConfig & { service?: WaService }) } | null)?.whatsapp_config || null
+        waCfg = wc
+        waSvc = wc?.service || null
       } catch { /* column not migrated yet → env fallback */ }
     }
-    if (waAllowed && whatsappEnabled(waCfg)) {
+    // Send only while the manager has the paid WhatsApp add-on switched ON.
+    if (waAllowed && whatsappEnabled(waCfg) && serviceActive(waSvc)) {
       const amt = `₪${Math.round(args.amount).toLocaleString('he-IL')}`
       // Load the donation's donor name + group in one go.
       const { data: don } = await supabase

@@ -1,0 +1,48 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
+import { activateService, deactivateService, serviceStatus, type WaService } from '@/lib/whatsapp-service'
+
+async function loadOrg(req?: unknown) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
+  const { data: profile } = await supabase.from('profiles').select('org_id').eq('id', user.id).single()
+  const orgId = profile?.org_id
+  if (!orgId) return { error: NextResponse.json({ error: 'no org' }, { status: 400 }) }
+  let config: Record<string, unknown> = {}
+  try {
+    const { data: org } = await supabase.from('organizations').select('whatsapp_config').eq('id', orgId).maybeSingle()
+    config = ((org as { whatsapp_config?: Record<string, unknown> } | null)?.whatsapp_config) || {}
+  } catch { return { error: NextResponse.json({ error: 'הרץ תחילה את המיגרציה whatsapp_config' }, { status: 400 }) }
+  }
+  return { supabase, orgId, config }
+}
+
+// GET → current activation status + running usage/cost.
+export async function GET() {
+  const r = await loadOrg()
+  if ('error' in r) return r.error
+  return NextResponse.json(serviceStatus(r.config.service as WaService | undefined))
+}
+
+// POST { action: 'activate' | 'deactivate', days? } → toggle, preserving the
+// rest of whatsapp_config (connection stays intact).
+export async function POST(req: NextRequest) {
+  const r = await loadOrg()
+  if ('error' in r) return r.error
+  const { supabase, orgId, config } = r
+  const { action, days } = await req.json()
+  const cur = (config.service as WaService | undefined) || null
+
+  const service = action === 'activate'
+    ? activateService(cur, Number(days) || 3)
+    : action === 'deactivate'
+      ? deactivateService(cur)
+      : null
+  if (!service) return NextResponse.json({ error: 'invalid action' }, { status: 400 })
+
+  const whatsapp_config = { ...config, service }
+  const { error } = await supabase.from('organizations').update({ whatsapp_config }).eq('id', orgId)
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json(serviceStatus(service))
+}
