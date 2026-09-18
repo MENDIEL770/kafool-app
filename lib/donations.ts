@@ -81,8 +81,13 @@ export async function attachCustomData(
 
   // Thank-you notifications after a confirmed donation.
   try {
-    const { data: c } = await supabase.from('campaigns').select('settings, title, org_id').eq('id', args.campaignId).single()
+    const { data: c } = await supabase.from('campaigns').select('slug, settings, title, org_id').eq('id', args.campaignId).single()
     const campaignTitle = c?.title || ''
+    // WhatsApp is being piloted — only these campaign slugs actually send for now
+    // (default: just "test"). Widen via WHATSAPP_ENABLED_SLUGS (comma-separated),
+    // or set it to "*" to enable for everyone.
+    const waSlugs = (process.env.WHATSAPP_ENABLED_SLUGS || 'test').split(',').map(s => s.trim()).filter(Boolean)
+    const waAllowed = waSlugs.includes('*') || waSlugs.includes((c as { slug?: string })?.slug || '')
     const cSettings = (c?.settings as { page_type?: string; manager_phone?: string; order_contact_phone?: string; kaparot?: { chabad_logo_url?: string; email?: { subject?: string; body?: string; image_url?: string } } } | null) || {}
     const isKaparot = cSettings.page_type === 'kaparot'
     const isProducts = cSettings.page_type === 'products'
@@ -98,13 +103,13 @@ export async function attachCustomData(
     // and a heads-up to the group's manager, from the ORG's own WhatsApp number
     // (organizations.whatsapp_config), falling back to the platform env.
     let waCfg: WaConfig | null = null
-    if (c?.org_id) {
+    if (waAllowed && c?.org_id) {
       try {
         const { data: orgWa } = await supabase.from('organizations').select('whatsapp_config').eq('id', c.org_id).maybeSingle()
         waCfg = ((orgWa as { whatsapp_config?: WaConfig } | null)?.whatsapp_config) || null
       } catch { /* column not migrated yet → env fallback */ }
     }
-    if (whatsappEnabled(waCfg)) {
+    if (waAllowed && whatsappEnabled(waCfg)) {
       const amt = `₪${Math.round(args.amount).toLocaleString('he-IL')}`
       // Load the donation's donor name + group in one go.
       const { data: don } = await supabase
