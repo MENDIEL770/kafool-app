@@ -17,6 +17,21 @@ const GRAPH_VERSION = 'v21.0'
 export type WaProvider = 'green' | 'ultramsg' | 'meta'
 export interface WaResult { success: boolean; error?: string }
 
+// Per-organization WhatsApp config (stored in organizations.whatsapp_config).
+// Any org may connect its own number; when absent we fall back to the platform
+// env config, so one shared number still works too.
+export interface WaConfig {
+  provider?: WaProvider | null
+  green?: { id?: string; token?: string; host?: string } | null
+  ultramsg?: { instance?: string; token?: string } | null
+  meta?: { token?: string; phoneId?: string } | null
+}
+
+type Resolved =
+  | { provider: 'green'; id: string; token: string; host: string }
+  | { provider: 'ultramsg'; instance: string; token: string }
+  | { provider: 'meta'; token: string; phoneId: string }
+
 /** Israeli/local number → WhatsApp E.164 digits (no +). 0501234567 → 972501234567. */
 export function toWaNumber(phone: string): string {
   const d = (phone || '').replace(/\D/g, '')
@@ -25,38 +40,53 @@ export function toWaNumber(phone: string): string {
   return d
 }
 
-/** The active provider (explicit env wins, else auto-detected), or null. */
-export function whatsappProvider(): WaProvider | null {
+// Resolve a concrete provider + credentials: the org's own config wins; else the
+// platform env. Only returns a provider whose required credentials are present.
+function resolve(cfg?: WaConfig | null): Resolved | null {
+  if (cfg) {
+    const p = (cfg.provider || '').toLowerCase()
+    if ((p === 'green' || (!p && cfg.green)) && cfg.green?.id && cfg.green?.token)
+      return { provider: 'green', id: cfg.green.id, token: cfg.green.token, host: (cfg.green.host || 'https://api.green-api.com').replace(/\/$/, '') }
+    if ((p === 'ultramsg' || (!p && cfg.ultramsg)) && cfg.ultramsg?.instance && cfg.ultramsg?.token)
+      return { provider: 'ultramsg', instance: cfg.ultramsg.instance, token: cfg.ultramsg.token }
+    if ((p === 'meta' || (!p && cfg.meta)) && cfg.meta?.token && cfg.meta?.phoneId)
+      return { provider: 'meta', token: cfg.meta.token, phoneId: cfg.meta.phoneId }
+  }
+  // Platform env fallback.
   const explicit = (process.env.WHATSAPP_PROVIDER || '').toLowerCase()
-  if (explicit === 'green' || explicit === 'ultramsg' || explicit === 'meta') return explicit
-  if (process.env.GREENAPI_ID_INSTANCE && process.env.GREENAPI_API_TOKEN) return 'green'
-  if (process.env.ULTRAMSG_INSTANCE && process.env.ULTRAMSG_TOKEN) return 'ultramsg'
-  if (process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID) return 'meta'
+  if ((explicit === 'green' || !explicit) && process.env.GREENAPI_ID_INSTANCE && process.env.GREENAPI_API_TOKEN)
+    return { provider: 'green', id: process.env.GREENAPI_ID_INSTANCE, token: process.env.GREENAPI_API_TOKEN, host: (process.env.GREENAPI_HOST || 'https://api.green-api.com').replace(/\/$/, '') }
+  if ((explicit === 'ultramsg' || !explicit) && process.env.ULTRAMSG_INSTANCE && process.env.ULTRAMSG_TOKEN)
+    return { provider: 'ultramsg', instance: process.env.ULTRAMSG_INSTANCE, token: process.env.ULTRAMSG_TOKEN }
+  if ((explicit === 'meta' || !explicit) && process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID)
+    return { provider: 'meta', token: process.env.WHATSAPP_TOKEN, phoneId: process.env.WHATSAPP_PHONE_NUMBER_ID }
   return null
 }
 
-export function whatsappEnabled(): boolean {
-  return whatsappProvider() !== null
+/** The active provider for this config (org, else env), or null. */
+export function whatsappProvider(cfg?: WaConfig | null): WaProvider | null {
+  return resolve(cfg)?.provider ?? null
+}
+
+export function whatsappEnabled(cfg?: WaConfig | null): boolean {
+  return resolve(cfg) !== null
 }
 
 /**
- * Send a free-text WhatsApp message. Works with the QR providers (green /
- * ultramsg). The official Meta API cannot send arbitrary free text to a user
- * outside a 24h service window, so on `meta` this returns an error — use
- * sendWhatsAppTemplate there instead.
+ * Send a free-text WhatsApp message via the resolved provider (org config first,
+ * else platform env). Works with the QR providers (green / ultramsg). The
+ * official Meta API can't send arbitrary free text outside a 24h window, so on
+ * `meta` this returns an error — use sendWhatsAppTemplate there instead.
  */
-export async function sendWhatsAppText(to: string, message: string): Promise<WaResult> {
-  const provider = whatsappProvider()
-  if (!provider) return { success: false, error: 'not configured' }
+export async function sendWhatsAppText(to: string, message: string, cfg?: WaConfig | null): Promise<WaResult> {
+  const r = resolve(cfg)
+  if (!r) return { success: false, error: 'not configured' }
   const wa = toWaNumber(to)
   if (wa.length < 11) return { success: false, error: 'invalid phone' }
 
   try {
-    if (provider === 'green') {
-      const host = (process.env.GREENAPI_HOST || 'https://api.green-api.com').replace(/\/$/, '')
-      const id = process.env.GREENAPI_ID_INSTANCE!
-      const token = process.env.GREENAPI_API_TOKEN!
-      const res = await fetch(`${host}/waInstance${id}/sendMessage/${token}`, {
+    if (r.provider === 'green') {
+      const res = await fetch(`${r.host}/waInstance${r.id}/sendMessage/${r.token}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chatId: `${wa}@c.us`, message }),
       })
@@ -64,12 +94,10 @@ export async function sendWhatsAppText(to: string, message: string): Promise<WaR
       return { success: true }
     }
 
-    if (provider === 'ultramsg') {
-      const instance = process.env.ULTRAMSG_INSTANCE!
-      const token = process.env.ULTRAMSG_TOKEN!
-      const res = await fetch(`https://api.ultramsg.com/${instance}/messages/chat`, {
+    if (r.provider === 'ultramsg') {
+      const res = await fetch(`https://api.ultramsg.com/${r.instance}/messages/chat`, {
         method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ token, to: wa, body: message }),
+        body: new URLSearchParams({ token: r.token, to: wa, body: message }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok || (data as { error?: string }).error) return { success: false, error: (data as { error?: string }).error || `HTTP ${res.status}` }

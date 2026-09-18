@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { sendThankYouEmail, renderKaparotHtml, sendHtmlEmail } from './email'
 import { sendYemotSms } from './sms/yemot'
-import { sendWhatsAppTemplate, sendWhatsAppText, whatsappEnabled } from './whatsapp'
+import { sendWhatsAppTemplate, sendWhatsAppText, whatsappEnabled, type WaConfig } from './whatsapp'
 import { syncDonationToKafoolPlus } from './kafool-plus'
 
 // A campaign's raised_amount is always defined as the sum of its COMPLETED
@@ -95,8 +95,16 @@ export async function attachCustomData(
     }
 
     // WhatsApp free-text notifications (QR provider) — a thank-you to the donor
-    // and a heads-up to the group's manager. No-op unless a provider is set up.
-    if (whatsappEnabled()) {
+    // and a heads-up to the group's manager, from the ORG's own WhatsApp number
+    // (organizations.whatsapp_config), falling back to the platform env.
+    let waCfg: WaConfig | null = null
+    if (c?.org_id) {
+      try {
+        const { data: orgWa } = await supabase.from('organizations').select('whatsapp_config').eq('id', c.org_id).maybeSingle()
+        waCfg = ((orgWa as { whatsapp_config?: WaConfig } | null)?.whatsapp_config) || null
+      } catch { /* column not migrated yet → env fallback */ }
+    }
+    if (whatsappEnabled(waCfg)) {
       const amt = `₪${Math.round(args.amount).toLocaleString('he-IL')}`
       // Load the donation's donor name + group in one go.
       const { data: don } = await supabase
@@ -104,7 +112,7 @@ export async function attachCustomData(
       const donorName = (don as { donor_name?: string })?.donor_name || ''
       if (args.phone && !waTemplate) {
         const hi = donorName ? `שלום ${donorName},` : 'שלום,'
-        await sendWhatsAppText(args.phone, `${hi}\nתרומתך על סך ${amt} לקמפיין "${campaignTitle}" התקבלה בהצלחה. תודה רבה! 🙏`).catch(() => {})
+        await sendWhatsAppText(args.phone, `${hi}\nתרומתך על סך ${amt} לקמפיין "${campaignTitle}" התקבלה בהצלחה. תודה רבה! 🙏`, waCfg).catch(() => {})
       }
       const groupId = (don as { group_id?: string | null })?.group_id
       if (groupId) {
@@ -112,7 +120,7 @@ export async function attachCustomData(
         const mgrPhone = (grp as { manager_phone?: string })?.manager_phone
         if (mgrPhone) {
           const grpName = (grp as { name?: string })?.name || ''
-          await sendWhatsAppText(mgrPhone, `תרומה חדשה בקבוצה "${grpName}" 🎉\nסכום: ${amt}${donorName ? `\nתורם/ת: ${donorName}` : ''}\nקמפיין: ${campaignTitle}`).catch(() => {})
+          await sendWhatsAppText(mgrPhone, `תרומה חדשה בקבוצה "${grpName}" 🎉\nסכום: ${amt}${donorName ? `\nתורם/ת: ${donorName}` : ''}\nקמפיין: ${campaignTitle}`, waCfg).catch(() => {})
         }
       }
     }

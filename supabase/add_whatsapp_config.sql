@@ -1,0 +1,11 @@
+-- Per-organization WhatsApp connection. Each manager connects their own number
+-- (e.g. a GreenAPI instance) so donor/group-manager messages go out from the
+-- org's own WhatsApp. Shape (all optional):
+--   { "provider": "green" | "ultramsg" | "meta",
+--     "green":    { "id": "...", "token": "...", "host": "https://api.green-api.com" },
+--     "ultramsg": { "instance": "...", "token": "..." },
+--     "meta":     { "token": "...", "phoneId": "..." } }
+-- Absent = fall back to the platform-wide env config (if any).
+-- Additive + nullable, like the other per-org payment settings. No RLS change:
+-- organizations is already org-scoped for writes and readable by the owner.
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS whatsapp_config jsonb;

@@ -62,6 +62,7 @@ const navItems = [
 const settingsItems = [
   { href: '/team', label: 'צוות', icon: UserCog },
   { href: '/settings/kesher', label: 'חיבור לתשלום', icon: CreditCard },
+  { href: '/settings/whatsapp', label: 'חיבור וואטסאפ', icon: MessageCircle },
   { href: '/settings', label: 'הגדרות', icon: Settings },
 ]
 
