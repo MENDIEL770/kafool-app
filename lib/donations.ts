@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { sendThankYouEmail, renderKaparotHtml, sendHtmlEmail } from './email'
 import { sendYemotSms } from './sms/yemot'
-import { sendWhatsAppTemplate } from './whatsapp'
+import { sendWhatsAppTemplate, sendWhatsAppText, whatsappEnabled } from './whatsapp'
 import { syncDonationToKafoolPlus } from './kafool-plus'
 
 // A campaign's raised_amount is always defined as the sum of its COMPLETED
@@ -87,11 +87,34 @@ export async function attachCustomData(
     const isKaparot = cSettings.page_type === 'kaparot'
     const isProducts = cSettings.page_type === 'products'
 
-    // WhatsApp thank-you (Meta Cloud API) — sent when configured + we have a phone.
-    // Template body should take {{1}} = campaign name, {{2}} = amount.
+    // WhatsApp thank-you via the official Meta template (only when a template is
+    // configured — i.e. the Meta provider path).
     const waTemplate = process.env.WHATSAPP_THANKS_TEMPLATE
     if (waTemplate && args.phone) {
       await sendWhatsAppTemplate(args.phone, waTemplate, [campaignTitle, `₪${Math.round(args.amount)}`])
+    }
+
+    // WhatsApp free-text notifications (QR provider) — a thank-you to the donor
+    // and a heads-up to the group's manager. No-op unless a provider is set up.
+    if (whatsappEnabled()) {
+      const amt = `₪${Math.round(args.amount).toLocaleString('he-IL')}`
+      // Load the donation's donor name + group in one go.
+      const { data: don } = await supabase
+        .from('donations').select('donor_name, group_id').eq('id', args.donationId).maybeSingle()
+      const donorName = (don as { donor_name?: string })?.donor_name || ''
+      if (args.phone && !waTemplate) {
+        const hi = donorName ? `שלום ${donorName},` : 'שלום,'
+        await sendWhatsAppText(args.phone, `${hi}\nתרומתך על סך ${amt} לקמפיין "${campaignTitle}" התקבלה בהצלחה. תודה רבה! 🙏`).catch(() => {})
+      }
+      const groupId = (don as { group_id?: string | null })?.group_id
+      if (groupId) {
+        const { data: grp } = await supabase.from('groups').select('name, manager_phone').eq('id', groupId).maybeSingle()
+        const mgrPhone = (grp as { manager_phone?: string })?.manager_phone
+        if (mgrPhone) {
+          const grpName = (grp as { name?: string })?.name || ''
+          await sendWhatsAppText(mgrPhone, `תרומה חדשה בקבוצה "${grpName}" 🎉\nסכום: ${amt}${donorName ? `\nתורם/ת: ${donorName}` : ''}\nקמפיין: ${campaignTitle}`).catch(() => {})
+        }
+      }
     }
 
     // Product order confirmation SMS to the buyer (org name + contact number).
