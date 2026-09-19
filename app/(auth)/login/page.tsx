@@ -107,7 +107,7 @@ export default function LoginPage() {
                   placeholder="••••••••"
                   required
                   dir="ltr"
-                  className="flex-1 min-w-0 bg-transparent border-0 outline-none py-3 pe-4 text-white placeholder-slate-500 text-sm"
+                  className="flex-1 min-w-0 bg-transparent border-0 outline-none py-3 px-4 text-white placeholder-slate-500 text-sm"
                 />
               </div>
             </div>
