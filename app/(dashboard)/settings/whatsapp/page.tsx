@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { getClientOrgId } from '@/lib/tenancy-client'
 import { MessageCircle, CheckCircle2, Send, Check, Loader2, QrCode, Unlink } from 'lucide-react'
+import WaMessagesEditor from './WaMessagesEditor'
 
 type Status = 'loading' | 'idle' | 'connecting' | 'qr' | 'connected' | 'manual'
 
@@ -38,6 +39,8 @@ export default function OrgWhatsAppPage() {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, days }),
       }).then(x => x.json())
       if (r && !r.error) setSvc(r)
+      // Turning off deletes the instance server-side → reflect as disconnected.
+      if (action === 'deactivate') { setStatus('idle'); setQr(null) }
     } catch { /* ignore */ }
     setSvcBusy(false)
   }
@@ -233,6 +236,9 @@ export default function OrgWhatsAppPage() {
           {err && <div className="text-sm text-red-600">{err}</div>}
         </div>
       )}
+
+      {/* Message templates — editable regardless of connection state */}
+      {status !== 'loading' && <WaMessagesEditor />}
     </div>
   )
 }
