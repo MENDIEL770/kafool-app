@@ -113,6 +113,44 @@ export async function sendWhatsAppText(to: string, message: string, cfg?: WaConf
 }
 
 /**
+ * Send a media file (image/PDF by public URL) with an optional caption. Falls
+ * back to a plain text send when no media URL is given, or when the provider
+ * can't do media. QR providers only.
+ */
+export async function sendWhatsAppMedia(to: string, caption: string, mediaUrl: string | null | undefined, cfg?: WaConfig | null): Promise<WaResult> {
+  if (!mediaUrl) return sendWhatsAppText(to, caption, cfg)
+  const r = resolve(cfg)
+  if (!r) return { success: false, error: 'not configured' }
+  const wa = toWaNumber(to)
+  if (wa.length < 11) return { success: false, error: 'invalid phone' }
+  const fileName = (() => { try { return decodeURIComponent(new URL(mediaUrl).pathname.split('/').pop() || 'file') } catch { return 'file' } })()
+
+  try {
+    if (r.provider === 'green') {
+      const res = await fetch(`${r.host}/waInstance${r.id}/sendFileByUrl/${r.token}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chatId: `${wa}@c.us`, urlFile: mediaUrl, fileName, caption }),
+      })
+      if (!res.ok) return { success: false, error: `HTTP ${res.status}: ${await res.text().catch(() => '')}` }
+      return { success: true }
+    }
+    if (r.provider === 'ultramsg') {
+      const res = await fetch(`https://api.ultramsg.com/${r.instance}/messages/image`, {
+        method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ token: r.token, to: wa, image: mediaUrl, caption }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || (data as { error?: string }).error) return { success: false, error: (data as { error?: string }).error || `HTTP ${res.status}` }
+      return { success: true }
+    }
+    return sendWhatsAppText(to, caption, cfg)
+  } catch (e) {
+    console.error('sendWhatsAppMedia error:', e)
+    return { success: false, error: String(e) }
+  }
+}
+
+/**
  * Send an approved WhatsApp TEMPLATE via the official Meta Cloud API.
  * `bodyParams` fill the template body's {{1}}, {{2}}… in order.
  */

@@ -17,6 +17,7 @@ export function renderTemplate(template: string, vars: Record<string, string>): 
   const alias: Record<string, string> = {
     'שם': 'donor_name', 'סכום': 'amount', 'קמפיין': 'campaign_title',
     'הקדשה': 'dedication', 'טלפון': 'phone', 'donor_phone': 'phone',
+    'קישור': 'link', 'קבוצה': 'group',
   }
   return template.replace(/\{\{?\s*([^{}]+?)\s*\}\}?/g, (_m, raw) => {
     const key = String(raw).trim()

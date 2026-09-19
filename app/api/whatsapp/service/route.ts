@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { activateService, deactivateService, serviceStatus, type WaService } from '@/lib/whatsapp-service'
+import { instanceLogout, partnerDeleteInstance, partnerEnabled } from '@/lib/whatsapp-greenapi'
 
 async function loadOrg(req?: unknown) {
   const supabase = await createClient()
@@ -41,7 +42,19 @@ export async function POST(req: NextRequest) {
       : null
   if (!service) return NextResponse.json({ error: 'invalid action' }, { status: 400 })
 
-  const whatsapp_config = { ...config, service }
+  let nextConfig: Record<string, unknown> = { ...config, service }
+  // Turning OFF also deletes the GreenAPI instance so billing ($0.4/day while the
+  // instance exists) stops immediately. The usage ledger is kept for the invoice;
+  // reconnecting later just needs a fresh QR scan.
+  if (action === 'deactivate') {
+    const green = config.green as { id?: string; token?: string } | undefined
+    if (green?.id && green?.token) {
+      await instanceLogout(green.id, green.token)
+      if (partnerEnabled()) await partnerDeleteInstance(green.id)
+    }
+    nextConfig = { ...nextConfig, provider: null, green: null }
+  }
+  const whatsapp_config = nextConfig
   const { error } = await supabase.from('organizations').update({ whatsapp_config }).eq('id', orgId)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(serviceStatus(service))

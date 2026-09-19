@@ -1,8 +1,10 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { sendThankYouEmail, renderKaparotHtml, sendHtmlEmail } from './email'
 import { sendYemotSms } from './sms/yemot'
-import { sendWhatsAppTemplate, sendWhatsAppText, whatsappEnabled, type WaConfig } from './whatsapp'
+import { sendWhatsAppTemplate, sendWhatsAppMedia, whatsappEnabled, type WaConfig } from './whatsapp'
 import { serviceActive, type WaService } from './whatsapp-service'
+import { messageFor, type WaMessages } from './whatsapp-messages'
+import { renderTemplate } from './sms/sender'
 import { syncDonationToKafoolPlus } from './kafool-plus'
 
 // A campaign's raised_amount is always defined as the sum of its COMPLETED
@@ -105,32 +107,40 @@ export async function attachCustomData(
     // (organizations.whatsapp_config), falling back to the platform env.
     let waCfg: WaConfig | null = null
     let waSvc: WaService | null = null
+    let waMessages: WaMessages | undefined
     if (waAllowed && c?.org_id) {
       try {
         const { data: orgWa } = await supabase.from('organizations').select('whatsapp_config').eq('id', c.org_id).maybeSingle()
-        const wc = (orgWa as { whatsapp_config?: (WaConfig & { service?: WaService }) } | null)?.whatsapp_config || null
+        const wc = (orgWa as { whatsapp_config?: (WaConfig & { service?: WaService; messages?: WaMessages }) } | null)?.whatsapp_config || null
         waCfg = wc
         waSvc = wc?.service || null
+        waMessages = wc?.messages
       } catch { /* column not migrated yet → env fallback */ }
     }
     // Send only while the manager has the paid WhatsApp add-on switched ON.
     if (waAllowed && whatsappEnabled(waCfg) && serviceActive(waSvc)) {
-      const amt = `₪${Math.round(args.amount).toLocaleString('he-IL')}`
-      // Load the donation's donor name + group in one go.
+      const base = process.env.NEXT_PUBLIC_BASE_URL || 'https://www.kafool.com'
+      const link = `${base}/${(c as { slug?: string })?.slug || ''}`
       const { data: don } = await supabase
         .from('donations').select('donor_name, group_id').eq('id', args.donationId).maybeSingle()
       const donorName = (don as { donor_name?: string })?.donor_name || ''
+      const vars = { donor_name: donorName || 'תורם', amount: String(Math.round(args.amount)), campaign_title: campaignTitle, link }
+
+      // Donor thank-you (chosen template + optional media). Skipped when a Meta
+      // template is configured, to avoid a duplicate message.
       if (args.phone && !waTemplate) {
-        const hi = donorName ? `שלום ${donorName},` : 'שלום,'
-        await sendWhatsAppText(args.phone, `${hi}\nתרומתך על סך ${amt} לקמפיין "${campaignTitle}" התקבלה בהצלחה. תודה רבה! 🙏`, waCfg).catch(() => {})
+        const m = messageFor(waMessages, 'donation_success')
+        await sendWhatsAppMedia(args.phone, renderTemplate(m.text, vars), m.media_url, waCfg).catch(() => {})
       }
+      // Group-manager heads-up.
       const groupId = (don as { group_id?: string | null })?.group_id
       if (groupId) {
         const { data: grp } = await supabase.from('groups').select('name, manager_phone').eq('id', groupId).maybeSingle()
         const mgrPhone = (grp as { manager_phone?: string })?.manager_phone
         if (mgrPhone) {
-          const grpName = (grp as { name?: string })?.name || ''
-          await sendWhatsAppText(mgrPhone, `תרומה חדשה בקבוצה "${grpName}" 🎉\nסכום: ${amt}${donorName ? `\nתורם/ת: ${donorName}` : ''}\nקמפיין: ${campaignTitle}`, waCfg).catch(() => {})
+          const m = messageFor(waMessages, 'group_manager')
+          const gvars = { ...vars, group: (grp as { name?: string })?.name || '' }
+          await sendWhatsAppMedia(mgrPhone, renderTemplate(m.text, gvars), m.media_url, waCfg).catch(() => {})
         }
       }
     }
