@@ -202,6 +202,35 @@ export async function attachCustomData(
   })
 }
 
+/**
+ * Send the donor a "donation failed" WhatsApp (chosen template + optional media),
+ * with a retry link. Gated exactly like the success path: pilot slug allow-list,
+ * a configured provider, and the add-on switched on. Best-effort / no-op.
+ */
+export async function notifyDonationFailedWhatsApp(
+  supabase: SupabaseClient,
+  args: { campaignId: string; phone: string | null; donorName?: string | null; amount: number },
+): Promise<void> {
+  if (!args.phone) return
+  try {
+    const { data: c } = await supabase.from('campaigns').select('slug, title, org_id').eq('id', args.campaignId).single()
+    if (!c) return
+    const waSlugs = (process.env.WHATSAPP_ENABLED_SLUGS || 'test').split(',').map(s => s.trim()).filter(Boolean)
+    if (!(waSlugs.includes('*') || waSlugs.includes((c as { slug?: string }).slug || ''))) return
+    if (!c.org_id) return
+    let wc: (WaConfig & { service?: WaService; messages?: WaMessages }) | null = null
+    try {
+      const { data: orgWa } = await supabase.from('organizations').select('whatsapp_config').eq('id', c.org_id).maybeSingle()
+      wc = (orgWa as { whatsapp_config?: (WaConfig & { service?: WaService; messages?: WaMessages }) } | null)?.whatsapp_config || null
+    } catch { return }
+    if (!whatsappEnabled(wc) || !serviceActive(wc?.service || null)) return
+    const base = process.env.NEXT_PUBLIC_BASE_URL || 'https://www.kafool.com'
+    const vars = { donor_name: args.donorName || 'תורם', amount: String(Math.round(args.amount)), campaign_title: c.title || '', link: `${base}/${(c as { slug?: string }).slug || ''}` }
+    const m = messageFor(wc?.messages, 'donation_failed')
+    await sendWhatsAppMedia(args.phone, renderTemplate(m.text, vars), m.media_url, wc).catch(() => {})
+  } catch (e) { console.error('notifyDonationFailedWhatsApp error:', e) }
+}
+
 /** Recompute campaign.raised_amount (and every affected group) from donations. */
 export async function recomputeCampaignRaised(
   supabase: SupabaseClient,

@@ -202,6 +202,18 @@ export default async function ThanksPage({
         }),
       }).catch(() => {})
     }
+  } else if (sp.errorCode && (sp.dp || '').trim()) {
+    // Explicit payment failure returned to /thanks — let the donor know (WhatsApp)
+    // with a retry link, if the org's WhatsApp add-on is active.
+    const { createServiceClient } = await import('@/lib/supabase/server')
+    const { notifyDonationFailedWhatsApp } = await import('@/lib/donations')
+    const svc = await createServiceClient()
+    await notifyDonationFailedWhatsApp(svc, {
+      campaignId: campaign.id,
+      phone: (sp.dp || '').trim(),
+      donorName: (sp.dn || '').trim() || null,
+      amount: (Number(sp.total ?? sp.Sum ?? 0)) / 100,
+    }).catch(() => {})
   }
 
   // Has a completed donation for this transaction already landed? If so the
