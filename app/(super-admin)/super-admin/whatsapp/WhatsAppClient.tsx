@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { MessageCircle, CheckCircle2, XCircle, Send } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { MessageCircle, CheckCircle2, XCircle, Send, Check, SlidersHorizontal } from 'lucide-react'
 
 const PROVIDER_LABEL: Record<string, string> = {
   green: 'GreenAPI', ultramsg: 'UltraMsg', meta: 'Meta Cloud API (רשמי)',
@@ -11,6 +11,29 @@ export default function WhatsAppClient({ provider }: { provider: string | null }
   const [to, setTo] = useState('')
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null)
+  // Platform pricing / idle settings
+  const [rate, setRate] = useState('')
+  const [idleDays, setIdleDays] = useState('')
+  const [savingCfg, setSavingCfg] = useState(false)
+  const [savedCfg, setSavedCfg] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/super-admin/whatsapp/settings').then(r => r.json()).then(d => {
+      if (d && !d.error) { setRate(String(d.dailyRate)); setIdleDays(String(d.idleDeleteDays)) }
+    }).catch(() => {})
+  }, [])
+
+  async function saveCfg() {
+    setSavingCfg(true)
+    try {
+      const r = await fetch('/api/super-admin/whatsapp/settings', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ daily_rate: Number(rate), idle_delete_days: Number(idleDays) }),
+      }).then(x => x.json())
+      if (r && !r.error) { setRate(String(r.dailyRate)); setIdleDays(String(r.idleDeleteDays)); setSavedCfg(true); setTimeout(() => setSavedCfg(false), 2000) }
+    } catch { /* ignore */ }
+    setSavingCfg(false)
+  }
 
   async function sendTest() {
     if (!to.trim()) return
@@ -43,6 +66,25 @@ export default function WhatsAppClient({ provider }: { provider: string | null }
           <div className="font-bold text-gray-900">{provider ? `מחובר · ${PROVIDER_LABEL[provider] || provider}` : 'לא מחובר'}</div>
           <div className="text-xs text-gray-500">{provider ? 'הודעות וואטסאפ יישלחו אוטומטית בסיום תרומה.' : 'הגדירו את משתני הסביבה כדי להפעיל (ראו למטה).'}</div>
         </div>
+      </div>
+
+      {/* Pricing / idle settings */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <h2 className="font-bold text-gray-800 flex items-center gap-2 mb-1"><SlidersHorizontal className="w-4 h-4 text-gray-400" /> תמחור ומחיקה אוטומטית</h2>
+        <p className="text-xs text-gray-400 mb-3">המחיר שיוצג למנהלים לכל יום שליחה, וכמה ימי חוסר-שימוש עד שמספר לא פעיל יימחק אוטומטית (כדי לא לשלם עליו).</p>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-gray-600">מחיר ליום (₪)</label>
+            <input type="number" value={rate} onChange={e => setRate(e.target.value)} dir="ltr" className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-400" />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-gray-600">מחיקה אוטומטית אחרי (ימי חוסר-שימוש)</label>
+            <input type="number" value={idleDays} onChange={e => setIdleDays(e.target.value)} dir="ltr" className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-400" />
+          </div>
+        </div>
+        <button onClick={saveCfg} disabled={savingCfg} className="mt-3 inline-flex items-center gap-2 bg-gray-900 text-white text-sm font-bold px-4 py-2.5 rounded-xl disabled:opacity-50">
+          {savedCfg ? <><Check className="w-4 h-4" /> נשמר!</> : savingCfg ? 'שומר…' : 'שמירת הגדרות'}
+        </button>
       </div>
 
       {/* Test send */}

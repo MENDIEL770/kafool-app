@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { activateService, deactivateService, serviceStatus, type WaService } from '@/lib/whatsapp-service'
 import { instanceLogout, partnerDeleteInstance, partnerEnabled } from '@/lib/whatsapp-greenapi'
+import { getWhatsappSettings } from '@/lib/whatsapp-settings'
 
 async function loadOrg(req?: unknown) {
   const supabase = await createClient()
@@ -35,12 +36,19 @@ export async function POST(req: NextRequest) {
   const { action, days } = await req.json()
   const cur = (config.service as WaService | undefined) || null
 
-  const service = action === 'activate'
+  let service = action === 'activate'
     ? activateService(cur, Number(days) || 3)
     : action === 'deactivate'
       ? deactivateService(cur)
       : null
   if (!service) return NextResponse.json({ error: 'invalid action' }, { status: 400 })
+
+  // Stamp the current platform daily price when turning on, so the invoice uses
+  // the rate that was in effect at activation time.
+  if (action === 'activate') {
+    const { dailyRate } = await getWhatsappSettings(supabase)
+    service = { ...service, daily_rate: dailyRate }
+  }
 
   let nextConfig: Record<string, unknown> = { ...config, service }
   // Turning OFF also deletes the GreenAPI instance so billing ($0.4/day while the

@@ -27,7 +27,7 @@ export async function POST() {
   if (!inst) return NextResponse.json({ error: 'יצירת החיבור נכשלה (GreenAPI). נסו שוב.' }, { status: 500 })
 
   // Merge — never drop the usage/service ledger already stored.
-  const whatsapp_config = { ...config, provider: 'green', green: { id: inst.id, token: inst.token } }
+  const whatsapp_config = { ...config, provider: 'green', green: { id: inst.id, token: inst.token }, connected_at: new Date().toISOString() }
   const { error } = await supabase.from('organizations').update({ whatsapp_config }).eq('id', orgId)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true, hasInstance: true, partner: true })
