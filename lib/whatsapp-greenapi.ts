@@ -27,6 +27,28 @@ export async function partnerCreateInstance(): Promise<{ id: string; token: stri
   } catch (e) { console.error('greenapi createInstance error:', e); return null }
 }
 
+// Harden a fresh instance to "send-only": disable every incoming/outgoing
+// webhook so GreenAPI does not queue or expose the customer's conversations.
+// We only ever call sendMessage — this makes that guarantee explicit at the
+// instance level too. Best-effort (the instance reboots on settings change).
+export async function instanceSetSendOnly(id: string, token: string): Promise<void> {
+  try {
+    await fetch(`${BASE}/waInstance${id}/setSettings/${token}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        incomingWebhook: 'no',
+        pollMessageWebhook: 'no',
+        stateWebhook: 'no',
+        outgoingWebhook: 'no',
+        outgoingMessageWebhook: 'no',
+        outgoingAPIMessageWebhook: 'no',
+        markIncomingMessagesReaded: 'no',
+        keepOnlineStatus: 'no',
+      }),
+    })
+  } catch (e) { console.error('greenapi setSettings error:', e) }
+}
+
 /** Delete an instance from the partner account (on disconnect). */
 export async function partnerDeleteInstance(idInstance: string): Promise<void> {
   const pt = process.env.GREENAPI_PARTNER_TOKEN

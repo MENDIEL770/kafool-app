@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { getClientOrgId } from '@/lib/tenancy-client'
-import { MessageCircle, CheckCircle2, Send, Check, Loader2, QrCode, Unlink } from 'lucide-react'
+import { MessageCircle, CheckCircle2, Send, Check, Loader2, QrCode, Unlink, ShieldCheck } from 'lucide-react'
 import WaMessagesEditor from './WaMessagesEditor'
 
 type Status = 'loading' | 'idle' | 'connecting' | 'qr' | 'connected' | 'manual'
@@ -137,6 +137,14 @@ export default function OrgWhatsAppPage() {
           חיבור וואטסאפ
         </h1>
         <p className="text-sm text-gray-500 mt-1">חברו את הוואטסאפ שלכם — ההודעות לתורמים ולמנהלי הקבוצות יישלחו מהמספר שלכם.</p>
+      </div>
+
+      {/* Privacy assurance */}
+      <div className="rounded-2xl border border-blue-100 bg-blue-50/60 p-4 flex items-start gap-3">
+        <ShieldCheck className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+        <div className="text-xs text-gray-600 leading-relaxed">
+          <span className="font-bold text-gray-800">הפרטיות שלכם שמורה.</span> החיבור משמש <b>אך ורק לשליחת הודעות יוצאות</b> — כפול אינה קוראת, שומרת או ניגשת לשיחות שלכם, והחיבור מוגדר כ<b>״שליחה בלבד״</b> (לא מקבל הודעות נכנסות). אתם בשליטה מלאה: אפשר לנתק בכל רגע מכאן, או מהוואטסאפ בטלפון (הגדרות → מכשירים מקושרים). מומלץ לחבר מספר עסקי/ייעודי ולא מספר פרטי.
+        </div>
       </div>
 
       {status === 'loading' && <div className="text-sm text-gray-400 flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> טוען…</div>}

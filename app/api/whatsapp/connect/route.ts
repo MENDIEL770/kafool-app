@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { partnerEnabled, partnerCreateInstance } from '@/lib/whatsapp-greenapi'
+import { partnerEnabled, partnerCreateInstance, instanceSetSendOnly } from '@/lib/whatsapp-greenapi'
 
 // Ensure the caller's org has a GreenAPI instance — creating one via the partner
 // API when none exists — so the dashboard can render its QR. No GreenAPI signup.
@@ -25,6 +25,9 @@ export async function POST() {
 
   const inst = await partnerCreateInstance()
   if (!inst) return NextResponse.json({ error: 'יצירת החיבור נכשלה (GreenAPI). נסו שוב.' }, { status: 500 })
+
+  // Harden to send-only immediately (don't receive/expose the customer's chats).
+  await instanceSetSendOnly(inst.id, inst.token)
 
   // Merge — never drop the usage/service ledger already stored.
   const whatsapp_config = { ...config, provider: 'green', green: { id: inst.id, token: inst.token }, connected_at: new Date().toISOString() }
