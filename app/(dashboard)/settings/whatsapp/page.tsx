@@ -195,7 +195,9 @@ export default function OrgWhatsAppPage() {
           <div className="mx-auto w-56 h-56 rounded-2xl border border-gray-100 bg-gray-50 flex items-center justify-center overflow-hidden">
             {qr ? <img src={qr} alt="QR" className="w-full h-full object-contain" /> : <Loader2 className="w-6 h-6 animate-spin text-gray-300" />}
           </div>
-          <p className="text-xs text-gray-400 flex items-center justify-center gap-1.5"><Loader2 className="w-3 h-3 animate-spin" /> ממתין לסריקה… (מתעדכן אוטומטית)</p>
+          <p className="text-xs text-gray-400 flex items-center justify-center gap-1.5">
+            <Loader2 className="w-3 h-3 animate-spin" /> {qr ? 'ממתין לסריקה… (הקוד מתעדכן אוטומטית)' : 'מכינים את החיבור… (עד כדקה-שתיים)'}
+          </p>
           <button onClick={disconnect} className="text-xs text-gray-400 hover:text-gray-600">ביטול</button>
         </div>
       )}

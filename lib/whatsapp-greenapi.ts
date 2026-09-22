@@ -70,10 +70,14 @@ export async function instanceState(id: string, token: string): Promise<string> 
   } catch { return 'unknown' }
 }
 
-/** Returns the current state and, when not yet authorized, a QR (base64 PNG). */
+/** Returns the current state and, when awaiting scan, a QR (base64 PNG).
+ * Per GreenAPI: a fresh instance takes up to ~5 min to initialize; only once the
+ * state is 'notAuthorized' should the QR be requested — other states mean it's
+ * still starting up, so we return the state without a QR (the UI shows "preparing"). */
 export async function instanceQr(id: string, token: string): Promise<{ state: string; qr?: string }> {
   const state = await instanceState(id, token)
   if (state === 'authorized') return { state }
+  if (state !== 'notAuthorized') return { state } // still initializing — QR not ready yet
   try {
     const res = await fetch(`${BASE}/waInstance${id}/qr/${token}`)
     const d = await res.json().catch(() => null) as { type?: string; message?: string } | null
