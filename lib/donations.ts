@@ -1,8 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { sendThankYouEmail, renderKaparotHtml, sendHtmlEmail } from './email'
 import { sendYemotSms } from './sms/yemot'
-import { sendWhatsAppTemplate, sendWhatsAppMedia, whatsappEnabled, type WaConfig } from './whatsapp'
+import { sendWhatsAppTemplate, whatsappEnabled, type WaConfig } from './whatsapp'
 import { serviceActive, type WaService } from './whatsapp-service'
+import { queueOrSendWhatsApp } from './whatsapp-outbox'
 import { messageFor, type WaMessages } from './whatsapp-messages'
 import { renderTemplate } from './sms/sender'
 import { syncDonationToKafoolPlus } from './kafool-plus'
@@ -129,7 +130,7 @@ export async function attachCustomData(
       // template is configured, to avoid a duplicate message.
       if (args.phone && !waTemplate) {
         const m = messageFor(waMessages, 'donation_success')
-        await sendWhatsAppMedia(args.phone, renderTemplate(m.text, vars), m.media_url, waCfg).catch(() => {})
+        await queueOrSendWhatsApp(supabase, { orgId: c!.org_id!, to: args.phone, message: renderTemplate(m.text, vars), mediaUrl: m.media_url, cfg: waCfg })
       }
       // Group-manager heads-up.
       const groupId = (don as { group_id?: string | null })?.group_id
@@ -139,7 +140,7 @@ export async function attachCustomData(
         if (mgrPhone) {
           const m = messageFor(waMessages, 'group_manager')
           const gvars = { ...vars, group: (grp as { name?: string })?.name || '' }
-          await sendWhatsAppMedia(mgrPhone, renderTemplate(m.text, gvars), m.media_url, waCfg).catch(() => {})
+          await queueOrSendWhatsApp(supabase, { orgId: c!.org_id!, to: mgrPhone, message: renderTemplate(m.text, gvars), mediaUrl: m.media_url, cfg: waCfg })
         }
       }
     }
@@ -226,7 +227,7 @@ export async function notifyDonationFailedWhatsApp(
     const base = process.env.NEXT_PUBLIC_BASE_URL || 'https://www.kafool.com'
     const vars = { donor_name: args.donorName || 'תורם', amount: String(Math.round(args.amount)), campaign_title: c.title || '', link: `${base}/${(c as { slug?: string }).slug || ''}` }
     const m = messageFor(wc?.messages, 'donation_failed')
-    await sendWhatsAppMedia(args.phone, renderTemplate(m.text, vars), m.media_url, wc).catch(() => {})
+    await queueOrSendWhatsApp(supabase, { orgId: c.org_id, to: args.phone, message: renderTemplate(m.text, vars), mediaUrl: m.media_url, cfg: wc })
   } catch (e) { console.error('notifyDonationFailedWhatsApp error:', e) }
 }
 
