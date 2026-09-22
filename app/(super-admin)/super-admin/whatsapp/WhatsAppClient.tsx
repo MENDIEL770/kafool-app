@@ -11,27 +11,39 @@ export default function WhatsAppClient({ provider }: { provider: string | null }
   const [to, setTo] = useState('')
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null)
-  // Platform pricing / idle settings
+  // Platform pricing / idle settings + global on/off
   const [rate, setRate] = useState('')
   const [idleDays, setIdleDays] = useState('')
+  const [featureOn, setFeatureOn] = useState(true)
   const [savingCfg, setSavingCfg] = useState(false)
   const [savedCfg, setSavedCfg] = useState(false)
+  const [togglingFeature, setTogglingFeature] = useState(false)
 
   useEffect(() => {
     fetch('/api/super-admin/whatsapp/settings').then(r => r.json()).then(d => {
-      if (d && !d.error) { setRate(String(d.dailyRate)); setIdleDays(String(d.idleDeleteDays)) }
+      if (d && !d.error) { setRate(String(d.dailyRate)); setIdleDays(String(d.idleDeleteDays)); setFeatureOn(d.featureEnabled !== false) }
     }).catch(() => {})
   }, [])
 
+  async function postSettings(patch: { daily_rate?: number; idle_delete_days?: number; feature_enabled?: boolean }) {
+    const r = await fetch('/api/super-admin/whatsapp/settings', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ daily_rate: Number(rate), idle_delete_days: Number(idleDays), feature_enabled: featureOn, ...patch }),
+    }).then(x => x.json())
+    if (r && !r.error) { setRate(String(r.dailyRate)); setIdleDays(String(r.idleDeleteDays)); setFeatureOn(r.featureEnabled !== false) }
+    return r
+  }
+
+  async function toggleFeature() {
+    const next = !featureOn
+    setTogglingFeature(true); setFeatureOn(next)
+    await postSettings({ feature_enabled: next }).catch(() => setFeatureOn(!next))
+    setTogglingFeature(false)
+  }
+
   async function saveCfg() {
     setSavingCfg(true)
-    try {
-      const r = await fetch('/api/super-admin/whatsapp/settings', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ daily_rate: Number(rate), idle_delete_days: Number(idleDays) }),
-      }).then(x => x.json())
-      if (r && !r.error) { setRate(String(r.dailyRate)); setIdleDays(String(r.idleDeleteDays)); setSavedCfg(true); setTimeout(() => setSavedCfg(false), 2000) }
-    } catch { /* ignore */ }
+    try { const r = await postSettings({}); if (r && !r.error) { setSavedCfg(true); setTimeout(() => setSavedCfg(false), 2000) } } catch { /* ignore */ }
     setSavingCfg(false)
   }
 
@@ -59,7 +71,19 @@ export default function WhatsAppClient({ provider }: { provider: string | null }
         <p className="text-sm text-gray-400 mt-1">שליחת תודות ותזכורות בוואטסאפ לתורמים ולמנהלי קבוצות.</p>
       </div>
 
-      {/* Status */}
+      {/* Global on/off for the whole feature */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center justify-between gap-4">
+        <div>
+          <h2 className="font-bold text-gray-900">חיבור וואטסאפ — הפעלה לכל הלקוחות</h2>
+          <p className="text-xs text-gray-400 mt-0.5">{featureOn ? 'פעיל — מנהלי הקמפיינים רואים ויכולים לחבר וואטסאפ.' : 'כבוי — האפשרות מוסתרת מכל הלקוחות.'}</p>
+        </div>
+        <button onClick={toggleFeature} disabled={togglingFeature} role="switch" aria-checked={featureOn}
+          className={`relative w-14 h-8 rounded-full transition-colors shrink-0 disabled:opacity-50 ${featureOn ? 'bg-emerald-500' : 'bg-gray-300'}`}>
+          <span className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow transition-all ${featureOn ? 'left-1' : 'left-7'}`} />
+        </button>
+      </div>
+
+      {/* Connection status (platform default) */}
       <div className={`rounded-2xl border p-4 flex items-center gap-3 ${provider ? 'bg-emerald-50 border-emerald-100' : 'bg-amber-50 border-amber-100'}`}>
         {provider ? <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0" /> : <XCircle className="w-6 h-6 text-amber-600 shrink-0" />}
         <div>

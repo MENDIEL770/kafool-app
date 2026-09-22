@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { getWhatsappSettings } from './whatsapp-settings'
 
 // WhatsApp availability. LAUNCHED — open to everyone by default. Set
 // WHATSAPP_PILOT_ORGS (comma-separated org IDs and/or slugs) only if you want to
@@ -28,5 +29,7 @@ export async function callerWhatsappPilot(supabase: SupabaseClient): Promise<{ o
     const { data: org } = await supabase.from('organizations').select('slug').eq('id', orgId).maybeSingle()
     slug = (org as { slug?: string } | null)?.slug || null
   } catch { /* ignore */ }
-  return { orgId, pilot: isWhatsappPilot(orgId, slug) }
+  // Global super-admin kill switch (page_content) AND the env allow-list.
+  const { featureEnabled } = await getWhatsappSettings(supabase)
+  return { orgId, pilot: featureEnabled && isWhatsappPilot(orgId, slug) }
 }

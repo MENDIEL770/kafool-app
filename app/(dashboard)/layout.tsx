@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getContext } from '@/lib/tenancy'
 import Sidebar from '@/components/layout/Sidebar'
 import { isWhatsappPilot } from '@/lib/whatsapp-pilot'
+import { getWhatsappSettings } from '@/lib/whatsapp-settings'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -33,9 +34,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
     contextOrgStatus = o?.status
     scopeOrgSlug = o?.slug ?? null
   }
-  // WhatsApp is in pilot — only allow-listed orgs see the connection feature.
+  // Show the WhatsApp link only when the global switch is on AND the org is allowed.
   const scopeOrgId = (ctx.isSuperAdmin && ctx.orgId) ? ctx.orgId : profile.org_id
-  const showWhatsapp = isWhatsappPilot(scopeOrgId, scopeOrgSlug)
+  const { featureEnabled: waFeatureOn } = await getWhatsappSettings(supabase)
+  const showWhatsapp = waFeatureOn && isWhatsappPilot(scopeOrgId, scopeOrgSlug)
 
   // Org must be active (super-admins exempt)
   if (!ctx.isSuperAdmin && contextOrgStatus !== 'active') {

@@ -19,11 +19,12 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const g = await requireSuperAdmin(); if ('error' in g) return g.error
-  const { daily_rate, idle_delete_days } = await req.json()
+  const { daily_rate, idle_delete_days, feature_enabled } = await req.json()
   const svc = await createServiceClient()
   const rows = [
     { page: 'whatsapp_settings', key: 'daily_rate', value: String(Math.max(0, Number(daily_rate) || 0)) },
     { page: 'whatsapp_settings', key: 'idle_delete_days', value: String(Math.max(1, Number(idle_delete_days) || 3)) },
+    { page: 'whatsapp_settings', key: 'feature_enabled', value: feature_enabled === false ? 'false' : 'true' },
   ]
   const { error } = await svc.from('page_content').upsert(rows, { onConflict: 'page,key' })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

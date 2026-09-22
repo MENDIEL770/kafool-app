@@ -37,8 +37,9 @@ export async function POST(req: NextRequest) {
   const { action, days } = await req.json()
   // Activation is pilot-gated; deactivation is always allowed (so an org can
   // always turn off / stop billing).
-  if (action === 'activate' && !isWhatsappPilot(orgId, null)) {
-    return NextResponse.json({ error: 'הפיצ׳ר בבדיקה — עדיין לא זמין לחשבון זה.' }, { status: 403 })
+  const settings = await getWhatsappSettings(supabase)
+  if (action === 'activate' && (!settings.featureEnabled || !isWhatsappPilot(orgId, null))) {
+    return NextResponse.json({ error: 'חיבור וואטסאפ אינו זמין כרגע.' }, { status: 403 })
   }
   const cur = (config.service as WaService | undefined) || null
 
@@ -52,8 +53,7 @@ export async function POST(req: NextRequest) {
   // Stamp the current platform daily price when turning on, so the invoice uses
   // the rate that was in effect at activation time.
   if (action === 'activate') {
-    const { dailyRate } = await getWhatsappSettings(supabase)
-    service = { ...service, daily_rate: dailyRate }
+    service = { ...service, daily_rate: settings.dailyRate }
   }
 
   let nextConfig: Record<string, unknown> = { ...config, service }
