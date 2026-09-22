@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Pencil, Trash2, X, Check, Plus, Search, FileSpreadsheet, Upload, Download, ChevronDown, Copy, ClipboardList, FileText, MessageCircle } from 'lucide-react'
+import { Pencil, Trash2, X, Check, Plus, Search, FileSpreadsheet, Upload, Download, ChevronDown, Copy, ClipboardList, FileText, MessageCircle, RotateCcw } from 'lucide-react'
 
 // One parsed row from the uploaded spreadsheet
 interface ImportRow {
@@ -394,6 +394,21 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
     setDonations(next)
     await syncTotals(next, groupId ? [groupId] : [])
     setSelected(s => { const n = new Set(s); n.delete(id); return n })
+  }
+
+  // Refund a Kesher credit-card donation (real CreditTransaction via API), then
+  // mark it refunded so it drops out of the total.
+  async function refundDonation(id: string, groupId: string | null) {
+    if (!confirm('לבצע זיכוי (החזר כספי) לתורם דרך קשר?\nהכסף יוחזר לכרטיס, והתרומה תסומן כ״הוחזר״.')) return
+    const res = await fetch(`/api/campaigns/${campaign.id}/refund`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ donationId: id }),
+    })
+    const d = await res.json().catch(() => ({}))
+    if (!res.ok) { alert(d.error || 'הזיכוי נכשל'); return }
+    const next = donations.map(x => x.id === id ? { ...x, payment_status: 'refunded' } : x)
+    setDonations(next)
+    await syncTotals(next, groupId ? [groupId] : [])
+    alert('הזיכוי בוצע בהצלחה.')
   }
 
   // ── בחירה מרובה ──
@@ -1148,8 +1163,8 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
                         ) })()}
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${d.payment_status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                          {d.payment_status === 'completed' ? 'הושלם' : d.payment_status}
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${d.payment_status === 'completed' ? 'bg-green-100 text-green-700' : d.payment_status === 'refunded' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}`}>
+                          {d.payment_status === 'completed' ? 'הושלם' : d.payment_status === 'refunded' ? 'הוחזר' : d.payment_status}
                         </span>
                       </td>
                       <td className="px-4 py-3">
@@ -1162,6 +1177,9 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
                               )}
                             </>
                           ) : null })()}
+                          {d.payment_status === 'completed' && d.kesher_transaction_id && (
+                            <button onClick={() => refundDonation(d.id, d.group_id)} title="זיכוי / החזר לתורם (קשר)" className="p-1.5 rounded hover:bg-orange-50 text-orange-400 transition-colors"><RotateCcw className="w-3.5 h-3.5" /></button>
+                          )}
                           <button onClick={() => startEdit(d)} className="p-1.5 rounded hover:bg-blue-50 text-blue-400 transition-colors"><Pencil className="w-3.5 h-3.5" /></button>
                           <button onClick={() => deleteDonation(d.id, d.group_id)} className="p-1.5 rounded hover:bg-red-50 text-red-400 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
                         </div>

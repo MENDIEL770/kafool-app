@@ -153,3 +153,27 @@ export async function getLinkToken(
 
   return { token, iframeUrl }
 }
+
+/* ─── CreditTransaction (זיכוי / refund of a credit-card transaction) ─── */
+export interface KesherRefundResult { success: boolean; code?: number; description?: string; error?: string }
+
+/**
+ * Refund (credit) a Kesher credit-card transaction by its original transaction
+ * number. Uses the org's full-API credentials; requires them (the legacy static
+ * link mode can't refund via API — do it in the Kesher dashboard).
+ */
+export async function refundKesherTransaction(campaignId: string, transactionNum: string): Promise<KesherRefundResult> {
+  const credentials = await getKesherCredentials(campaignId)
+  if (!credentials) return { success: false, error: 'לא נמצאו פרטי חיבור לקשר עבור קמפיין זה.' }
+  if (!credentials.username) return { success: false, error: 'זיכוי אוטומטי דורש חיבור API מלא לקשר. בצעו את הזיכוי בממשק קשר.' }
+  try {
+    const r = await callKesher(credentials, 'CreditTransaction', { transactionNum: String(transactionNum) }) as Record<string, unknown>
+    const rr = (r?.RequestResult as Record<string, unknown>) || r
+    const code = (rr?.Code ?? r?.Code) as number | undefined
+    const status = rr?.Status === true || r?.Status === true || code === 0
+    const description = String(rr?.Description || r?.Description || '')
+    return status ? { success: true, code, description } : { success: false, code, description, error: description || 'הזיכוי נדחה על ידי קשר' }
+  } catch (e) {
+    return { success: false, error: String(e) }
+  }
+}
