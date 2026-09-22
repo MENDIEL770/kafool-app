@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getContext } from '@/lib/tenancy'
 import Sidebar from '@/components/layout/Sidebar'
+import { isWhatsappPilot } from '@/lib/whatsapp-pilot'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -25,11 +26,16 @@ export default async function DashboardLayout({ children }: { children: React.Re
   // Resolve the org currently in scope (own org, or the one a super admin entered)
   let contextOrgName: string | null = (profile as { organizations?: { name: string } }).organizations?.name ?? null
   let contextOrgStatus: string | undefined = (profile as { organizations?: { status: string } }).organizations?.status
+  let scopeOrgSlug: string | null = (profile as { organizations?: { slug: string } }).organizations?.slug ?? null
   if (ctx.isSuperAdmin && ctx.orgId) {
-    const { data: o } = await supabase.from('organizations').select('name, status').eq('id', ctx.orgId).single()
+    const { data: o } = await supabase.from('organizations').select('name, status, slug').eq('id', ctx.orgId).single()
     contextOrgName = o?.name ?? null
     contextOrgStatus = o?.status
+    scopeOrgSlug = o?.slug ?? null
   }
+  // WhatsApp is in pilot — only allow-listed orgs see the connection feature.
+  const scopeOrgId = (ctx.isSuperAdmin && ctx.orgId) ? ctx.orgId : profile.org_id
+  const showWhatsapp = isWhatsappPilot(scopeOrgId, scopeOrgSlug)
 
   // Org must be active (super-admins exempt)
   if (!ctx.isSuperAdmin && contextOrgStatus !== 'active') {
@@ -45,7 +51,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      <Sidebar profile={profile} contextOrgName={contextOrgName} viewingOtherOrg={ctx.isSuperAdmin && !!ctx.orgId} />
+      <Sidebar profile={profile} contextOrgName={contextOrgName} viewingOtherOrg={ctx.isSuperAdmin && !!ctx.orgId} showWhatsapp={showWhatsapp} />
       <main className="flex-1 min-w-0 p-4 lg:p-6 pt-[4.5rem] lg:pt-6 overflow-x-hidden">{children}</main>
     </div>
   )

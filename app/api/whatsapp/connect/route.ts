@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { partnerEnabled, partnerCreateInstance, instanceSetSendOnly } from '@/lib/whatsapp-greenapi'
+import { callerWhatsappPilot } from '@/lib/whatsapp-pilot'
 
 // Ensure the caller's org has a GreenAPI instance — creating one via the partner
 // API when none exists — so the dashboard can render its QR. No GreenAPI signup.
@@ -8,9 +9,9 @@ export async function POST() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const { data: profile } = await supabase.from('profiles').select('org_id').eq('id', user.id).single()
-  const orgId = profile?.org_id
+  const { orgId, pilot } = await callerWhatsappPilot(supabase)
   if (!orgId) return NextResponse.json({ error: 'no org' }, { status: 400 })
+  if (!pilot) return NextResponse.json({ error: 'הפיצ׳ר בבדיקה — עדיין לא זמין לחשבון זה.' }, { status: 403 })
 
   let config: Record<string, unknown> = {}
   try {

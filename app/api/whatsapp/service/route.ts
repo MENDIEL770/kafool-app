@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { activateService, deactivateService, serviceStatus, type WaService } from '@/lib/whatsapp-service'
 import { instanceLogout, partnerDeleteInstance, partnerEnabled } from '@/lib/whatsapp-greenapi'
 import { getWhatsappSettings } from '@/lib/whatsapp-settings'
+import { isWhatsappPilot } from '@/lib/whatsapp-pilot'
 
 async function loadOrg(req?: unknown) {
   const supabase = await createClient()
@@ -34,6 +35,11 @@ export async function POST(req: NextRequest) {
   if ('error' in r) return r.error
   const { supabase, orgId, config } = r
   const { action, days } = await req.json()
+  // Activation is pilot-gated; deactivation is always allowed (so an org can
+  // always turn off / stop billing).
+  if (action === 'activate' && !isWhatsappPilot(orgId, null)) {
+    return NextResponse.json({ error: 'הפיצ׳ר בבדיקה — עדיין לא זמין לחשבון זה.' }, { status: 403 })
+  }
   const cur = (config.service as WaService | undefined) || null
 
   let service = action === 'activate'

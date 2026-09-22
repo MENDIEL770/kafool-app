@@ -6,7 +6,7 @@ import { getClientOrgId } from '@/lib/tenancy-client'
 import { MessageCircle, CheckCircle2, Send, Check, Loader2, QrCode, Unlink, ShieldCheck } from 'lucide-react'
 import WaMessagesEditor from './WaMessagesEditor'
 
-type Status = 'loading' | 'idle' | 'connecting' | 'qr' | 'connected' | 'manual'
+type Status = 'loading' | 'disabled' | 'idle' | 'connecting' | 'qr' | 'connected' | 'manual'
 
 export default function OrgWhatsAppPage() {
   const supabase = createClient()
@@ -23,6 +23,9 @@ export default function OrgWhatsAppPage() {
   const [to, setTo] = useState('')
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null)
+  // privacy consent (required before connecting)
+  const [agreed, setAgreed] = useState(false)
+  const [policyOpen, setPolicyOpen] = useState(false)
   // paid service (activation + usage)
   const [svc, setSvc] = useState<{ active: boolean; expiresAt: string | null; days: number; rate: number; cost: number } | null>(null)
   const [svcBusy, setSvcBusy] = useState(false)
@@ -58,6 +61,9 @@ export default function OrgWhatsAppPage() {
 
   useEffect(() => {
     (async () => {
+      // Pilot gate — the feature is hidden for non-allow-listed orgs.
+      const en = await fetch('/api/whatsapp/enabled').then(r => r.json()).catch(() => ({ enabled: false }))
+      if (!en.enabled) { setStatus('disabled'); return }
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
       const { data: profile } = await supabase.from('profiles').select('org_id, role').eq('id', user.id).single()
@@ -80,6 +86,7 @@ export default function OrgWhatsAppPage() {
   }, [status, refresh])
 
   async function connect() {
+    if (!agreed) { setErr('יש לאשר את מדיניות הפרטיות לפני החיבור'); return }
     setBusy(true); setErr(null)
     try {
       const r = await fetch('/api/whatsapp/connect', { method: 'POST' }).then(x => x.json())
@@ -92,6 +99,7 @@ export default function OrgWhatsAppPage() {
 
   async function saveManual() {
     if (!orgId) return
+    if (!agreed && idInstance.trim() && apiToken.trim()) { setErr('יש לאשר את מדיניות הפרטיות לפני החיבור'); return }
     setBusy(true); setErr(null)
     // Merge — keep any existing service/usage ledger.
     const { data: org } = await supabase.from('organizations').select('whatsapp_config').eq('id', orgId).maybeSingle()
@@ -129,6 +137,18 @@ export default function OrgWhatsAppPage() {
 
   const field = 'w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-400'
 
+  if (status === 'disabled') {
+    return (
+      <div className="max-w-2xl mx-auto" dir="rtl">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center space-y-3">
+          <div className="mx-auto w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center"><MessageCircle className="w-7 h-7" /></div>
+          <h1 className="text-xl font-black text-gray-900">חיבור וואטסאפ — בקרוב</h1>
+          <p className="text-sm text-gray-500">הפיצ׳ר בשלב בדיקות ויושק בקרוב. תודה על הסבלנות!</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="max-w-2xl mx-auto space-y-5" dir="rtl">
       <div>
@@ -139,11 +159,12 @@ export default function OrgWhatsAppPage() {
         <p className="text-sm text-gray-500 mt-1">חברו את הוואטסאפ שלכם — ההודעות לתורמים ולמנהלי הקבוצות יישלחו מהמספר שלכם.</p>
       </div>
 
-      {/* Privacy assurance */}
+      {/* Privacy assurance + policy button */}
       <div className="rounded-2xl border border-blue-100 bg-blue-50/60 p-4 flex items-start gap-3">
         <ShieldCheck className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
         <div className="text-xs text-gray-600 leading-relaxed">
-          <span className="font-bold text-gray-800">הפרטיות שלכם שמורה.</span> החיבור משמש <b>אך ורק לשליחת הודעות יוצאות</b> — כפול אינה קוראת, שומרת או ניגשת לשיחות שלכם, והחיבור מוגדר כ<b>״שליחה בלבד״</b> (לא מקבל הודעות נכנסות). אתם בשליטה מלאה: אפשר לנתק בכל רגע מכאן, או מהוואטסאפ בטלפון (הגדרות → מכשירים מקושרים). מומלץ לחבר מספר עסקי/ייעודי ולא מספר פרטי.
+          <span className="font-bold text-gray-800">הפרטיות שלכם שמורה.</span> לצוות כפול <b>אין כל גישה</b> לצ׳אט הוואטסאפ, לאנשי הקשר או להיסטוריית ההודעות — החיבור משמש <b>אך ורק לשליחת הודעות יוצאות</b>.
+          <button type="button" onClick={() => setPolicyOpen(true)} className="text-blue-600 font-semibold hover:underline mr-1">קראו את מדיניות הפרטיות המלאה ←</button>
         </div>
       </div>
 
@@ -155,7 +176,11 @@ export default function OrgWhatsAppPage() {
           <div className="mx-auto w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center"><QrCode className="w-7 h-7" /></div>
           <h2 className="font-bold text-gray-900">חברו את הוואטסאפ שלכם</h2>
           <p className="text-sm text-gray-500">לחצו כדי לקבל קוד QR — תסרקו אותו עם מכשיר הטלפון שלכם (וואטסאפ → מכשירים מקושרים), וזהו.</p>
-          <button onClick={connect} disabled={busy} className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-5 py-2.5 rounded-xl disabled:opacity-50">
+          <label className="flex items-start gap-2 text-sm text-gray-600 text-right max-w-md mx-auto cursor-pointer">
+            <input type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)} className="w-4 h-4 accent-emerald-600 mt-0.5 shrink-0" />
+            <span>קראתי ואני מאשר/ת את <button type="button" onClick={e => { e.preventDefault(); setPolicyOpen(true) }} className="text-blue-600 font-semibold hover:underline">מדיניות הפרטיות</button> וחיבור המספר דרך GREEN-API.</span>
+          </label>
+          <button onClick={connect} disabled={busy || !agreed} className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-5 py-2.5 rounded-xl disabled:opacity-50">
             {busy ? <><Loader2 className="w-4 h-4 animate-spin" /> מכין…</> : <><MessageCircle className="w-4 h-4" /> התחברות לוואטסאפ</>}
           </button>
           {err && <div className="text-sm text-red-600">{err}</div>}
@@ -238,7 +263,11 @@ export default function OrgWhatsAppPage() {
           <p className="text-xs text-gray-400">צרו instance ב-<a href="https://green-api.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">green-api.com</a>, סרקו QR, והדביקו כאן את הפרטים.</p>
           <div className="space-y-1"><label className="text-xs font-semibold text-gray-600">idInstance</label><input value={idInstance} onChange={e => setIdInstance(e.target.value)} dir="ltr" className={field} /></div>
           <div className="space-y-1"><label className="text-xs font-semibold text-gray-600">apiTokenInstance</label><input value={apiToken} onChange={e => setApiToken(e.target.value)} dir="ltr" className={field} /></div>
-          <button onClick={saveManual} disabled={busy} className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold px-4 py-2.5 rounded-xl disabled:opacity-50">
+          <label className="flex items-start gap-2 text-sm text-gray-600 cursor-pointer">
+            <input type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)} className="w-4 h-4 accent-emerald-600 mt-0.5 shrink-0" />
+            <span>קראתי ואני מאשר/ת את <button type="button" onClick={e => { e.preventDefault(); setPolicyOpen(true) }} className="text-blue-600 font-semibold hover:underline">מדיניות הפרטיות</button> וחיבור המספר דרך GREEN-API.</span>
+          </label>
+          <button onClick={saveManual} disabled={busy || !agreed} className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold px-4 py-2.5 rounded-xl disabled:opacity-50">
             {saved ? <><Check className="w-4 h-4" /> נשמר!</> : busy ? 'שומר…' : 'שמירה'}
           </button>
           {err && <div className="text-sm text-red-600">{err}</div>}
@@ -247,6 +276,34 @@ export default function OrgWhatsAppPage() {
 
       {/* Message templates — editable regardless of connection state */}
       {status !== 'loading' && <WaMessagesEditor />}
+
+      {/* Privacy policy modal */}
+      {policyOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" onClick={() => setPolicyOpen(false)}>
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-auto" onClick={e => e.stopPropagation()} dir="rtl">
+            <div className="flex items-center justify-between p-5 border-b border-gray-100 sticky top-0 bg-white">
+              <h2 className="font-black text-gray-900 flex items-center gap-2"><ShieldCheck className="w-5 h-5 text-blue-600" /> מדיניות פרטיות — חיבור וואטסאפ</h2>
+              <button onClick={() => setPolicyOpen(false)} className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-400">✕</button>
+            </div>
+            <div className="p-5 space-y-3 text-sm text-gray-700 leading-relaxed">
+              <p><b>לצוות כפול אין כל גישה לצ׳אט הוואטסאפ שלכם</b> — לא לשיחות, לא לאנשי הקשר ולא להיסטוריית ההודעות. איננו קוראים, שומרים או צופים בתוכן כלשהו.</p>
+              <p><b>למה משמש החיבור:</b> אך ורק לשליחת הודעות יוצאות שאתם מגדירים (תודה לתורם, עדכון למנהל קבוצה וכד׳), למי שתרם בקמפיין שלכם.</p>
+              <p><b>איך זה עובד טכנית:</b> החיבור מתבצע באמצעות שירות צד-שלישי, <b>GREEN-API</b>, בסריקת קוד QR עם מכשיר הטלפון שלכם — בדיוק כמו WhatsApp Web (״מכשיר מקושר״). המספר, אנשי הקשר וההודעות נשארים אצלכם בלבד.</p>
+              <p><b>שליחה בלבד:</b> אנו מגדירים את החיבור כך ש<b>לא מתקבלות/מעובדות הודעות נכנסות</b> — רק שליחה.</p>
+              <p><b>שליטה מלאה:</b> תוכלו לנתק את החיבור בכל רגע — מכאן (כפתור ״ניתוק״) או ישירות מהוואטסאפ בטלפון (הגדרות → מכשירים מקושרים → הסרה). הניתוק מיידי.</p>
+              <p><b>המלצה:</b> חברו מספר עסקי/ייעודי לקמפיינים, ולא מספר וואטסאפ אישי.</p>
+              <p className="text-xs text-gray-400">באישור מדיניות זו אתם מסכימים לחיבור מספר הוואטסאפ שלכם לשירות דרך GREEN-API, בכפוף לאמור לעיל.</p>
+            </div>
+            <div className="p-5 border-t border-gray-100 flex items-center justify-between gap-3 sticky bottom-0 bg-white">
+              <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                <input type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)} className="w-4 h-4 accent-emerald-600" />
+                קראתי ואני מאשר/ת
+              </label>
+              <button onClick={() => setPolicyOpen(false)} className="bg-gray-900 text-white text-sm font-bold px-5 py-2.5 rounded-xl">סגירה</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

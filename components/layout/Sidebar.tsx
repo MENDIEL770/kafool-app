@@ -45,6 +45,7 @@ interface Props {
   profile: Profile
   contextOrgName?: string | null   // org currently in scope (super admin may view another org)
   viewingOtherOrg?: boolean        // super admin "entered" a specific org
+  showWhatsapp?: boolean           // WhatsApp is in pilot — show its link only for allow-listed orgs
 }
 
 const DEFAULT_CAMPAIGN_KEY = 'kafool_default_campaign'
@@ -139,7 +140,7 @@ function NavLink({
   )
 }
 
-export default function Sidebar({ profile, contextOrgName, viewingOtherOrg }: Props) {
+export default function Sidebar({ profile, contextOrgName, viewingOtherOrg, showWhatsapp }: Props) {
   const pathname = usePathname()
   const router = useRouter()
   const isSuperAdmin = profile.role === 'super_admin'
@@ -264,7 +265,7 @@ export default function Sidebar({ profile, contextOrgName, viewingOtherOrg }: Pr
             הגדרות
           </div>
         </div>
-        {settingsItems.map((item) => (
+        {settingsItems.filter(item => item.href !== '/settings/whatsapp' || showWhatsapp).map((item) => (
           <NavLink
             key={item.href}
             href={item.href}
