@@ -250,7 +250,7 @@ export default function OrgWhatsAppPage() {
                 </select>
                 {svc.active ? (
                   <>
-                    <button onClick={() => toggleSvc('activate')} disabled={svcBusy} className="bg-blue-50 text-blue-700 border border-blue-100 hover:bg-blue-100 text-sm font-bold px-4 py-2 rounded-xl disabled:opacity-50">הארכה</button>
+                    <button onClick={() => toggleSvc('activate')} disabled={svcBusy} className="bg-blue-50 text-blue-700 border border-blue-100 hover:bg-blue-100 text-sm font-bold px-4 py-2 rounded-xl disabled:opacity-50">שמור שינויים</button>
                     <button onClick={() => toggleSvc('deactivate')} disabled={svcBusy} className="bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 text-sm font-bold px-4 py-2 rounded-xl disabled:opacity-50">כיבוי עכשיו</button>
                   </>
                 ) : (
