@@ -162,12 +162,15 @@ export interface KesherRefundResult { success: boolean; code?: number; descripti
  * number. Uses the org's full-API credentials; requires them (the legacy static
  * link mode can't refund via API — do it in the Kesher dashboard).
  */
-export async function refundKesherTransaction(campaignId: string, transactionNum: string): Promise<KesherRefundResult> {
+export async function refundKesherTransaction(campaignId: string, transactionNum: string, amount?: number): Promise<KesherRefundResult> {
   const credentials = await getKesherCredentials(campaignId)
   if (!credentials) return { success: false, error: 'לא נמצאו פרטי חיבור לקשר עבור קמפיין זה.' }
   if (!credentials.username) return { success: false, error: 'זיכוי אוטומטי דורש חיבור API מלא לקשר. בצעו את הזיכוי בממשק קשר.' }
   try {
-    const r = await callKesher(credentials, 'CreditTransaction', { transactionNum: String(transactionNum) }) as Record<string, unknown>
+    // amount omitted → full refund; a value → partial credit (Kesher `sum`).
+    const payload: Record<string, unknown> = { transactionNum: String(transactionNum) }
+    if (typeof amount === 'number' && amount > 0) payload.sum = amount
+    const r = await callKesher(credentials, 'CreditTransaction', payload) as Record<string, unknown>
     const rr = (r?.RequestResult as Record<string, unknown>) || r
     const code = (rr?.Code ?? r?.Code) as number | undefined
     const status = rr?.Status === true || r?.Status === true || code === 0

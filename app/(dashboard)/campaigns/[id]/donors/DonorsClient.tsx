@@ -398,17 +398,25 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
 
   // Refund a Kesher credit-card donation (real CreditTransaction via API), then
   // mark it refunded so it drops out of the total.
-  async function refundDonation(id: string, groupId: string | null) {
-    if (!confirm('לבצע זיכוי (החזר כספי) לתורם דרך קשר?\nהכסף יוחזר לכרטיס, והתרומה תסומן כ״הוחזר״.')) return
+  async function refundDonation(id: string, groupId: string | null, maxAmount: number) {
+    const input = window.prompt(
+      `זיכוי (החזר כספי) לתורם דרך קשר.\nהכסף יוחזר לכרטיס.\n\nסכום ההחזר (₪) — ברירת מחדל: החזר מלא (₪${maxAmount}).\nלהחזר חלקי הזינו סכום קטן יותר:`,
+      String(maxAmount)
+    )
+    if (input == null) return
+    const amount = Math.min(Math.max(0, Number(input) || 0), maxAmount)
+    if (!(amount > 0)) { alert('סכום לא תקין'); return }
     const res = await fetch(`/api/campaigns/${campaign.id}/refund`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ donationId: id }),
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ donationId: id, amount }),
     })
     const d = await res.json().catch(() => ({}))
     if (!res.ok) { alert(d.error || 'הזיכוי נכשל'); return }
-    const next = donations.map(x => x.id === id ? { ...x, payment_status: 'refunded' } : x)
+    const next = donations.map(x => x.id === id
+      ? (d.fully ? { ...x, payment_status: 'refunded' } : { ...x, amount: d.newAmount, custom_data: { ...(x.custom_data || {}), refunded_amount: String(d.totalRefunded) } })
+      : x)
     setDonations(next)
     await syncTotals(next, groupId ? [groupId] : [])
-    alert('הזיכוי בוצע בהצלחה.')
+    alert(d.fully ? 'הזיכוי המלא בוצע בהצלחה.' : `הזיכוי החלקי (₪${d.refundAmount}) בוצע. נותר ₪${d.newAmount}.`)
   }
 
   // ── בחירה מרובה ──
@@ -1163,9 +1171,12 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
                         ) })()}
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${d.payment_status === 'completed' ? 'bg-green-100 text-green-700' : d.payment_status === 'refunded' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}`}>
-                          {d.payment_status === 'completed' ? 'הושלם' : d.payment_status === 'refunded' ? 'הוחזר' : d.payment_status}
-                        </span>
+                        {(() => {
+                          const partial = d.payment_status === 'completed' && Number((d.custom_data as Record<string, string> | null)?.refunded_amount) > 0
+                          const cls = d.payment_status === 'completed' ? (partial ? 'bg-orange-50 text-orange-700' : 'bg-green-100 text-green-700') : d.payment_status === 'refunded' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'
+                          const label = d.payment_status === 'refunded' ? 'הוחזר' : partial ? `הוחזר חלקית (₪${(d.custom_data as Record<string, string>).refunded_amount})` : d.payment_status === 'completed' ? 'הושלם' : d.payment_status
+                          return <span className={`text-xs px-2 py-0.5 rounded-full ${cls}`}>{label}</span>
+                        })()}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex gap-1">
@@ -1178,7 +1189,7 @@ export default function DonorsClient({ campaign, donations: initial, groups, pla
                             </>
                           ) : null })()}
                           {d.payment_status === 'completed' && d.kesher_transaction_id && (
-                            <button onClick={() => refundDonation(d.id, d.group_id)} title="זיכוי / החזר לתורם (קשר)" className="p-1.5 rounded hover:bg-orange-50 text-orange-400 transition-colors"><RotateCcw className="w-3.5 h-3.5" /></button>
+                            <button onClick={() => refundDonation(d.id, d.group_id, d.amount)} title="זיכוי / החזר לתורם (קשר) — מלא או חלקי" className="p-1.5 rounded hover:bg-orange-50 text-orange-400 transition-colors"><RotateCcw className="w-3.5 h-3.5" /></button>
                           )}
                           <button onClick={() => startEdit(d)} className="p-1.5 rounded hover:bg-blue-50 text-blue-400 transition-colors"><Pencil className="w-3.5 h-3.5" /></button>
                           <button onClick={() => deleteDonation(d.id, d.group_id)} className="p-1.5 rounded hover:bg-red-50 text-red-400 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
