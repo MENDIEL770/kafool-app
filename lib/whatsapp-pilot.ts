@@ -1,15 +1,15 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 
-// WhatsApp is in pilot: only organizations listed in WHATSAPP_PILOT_ORGS (comma-
-// separated org IDs and/or slugs) can see or use the connection feature. Empty =
-// OFF for everyone. Set to "*" to open it to all (launch).
+// WhatsApp availability. LAUNCHED — open to everyone by default. Set
+// WHATSAPP_PILOT_ORGS (comma-separated org IDs and/or slugs) only if you want to
+// RESTRICT it back to specific orgs; "*" or empty = available to all.
 export function whatsappPilotList(): string[] {
   return (process.env.WHATSAPP_PILOT_ORGS || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean)
 }
 
 export function isWhatsappPilot(orgId?: string | null, orgSlug?: string | null): boolean {
   const list = whatsappPilotList()
-  if (!list.length) return false
+  if (!list.length) return true // launched — open to all
   if (list.includes('*')) return true
   const id = (orgId || '').toLowerCase()
   const slug = (orgSlug || '').toLowerCase()

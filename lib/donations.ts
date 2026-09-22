@@ -86,10 +86,9 @@ export async function attachCustomData(
   try {
     const { data: c } = await supabase.from('campaigns').select('slug, settings, title, org_id').eq('id', args.campaignId).single()
     const campaignTitle = c?.title || ''
-    // WhatsApp is being piloted — only these campaign slugs actually send for now
-    // (default: just "test"). Widen via WHATSAPP_ENABLED_SLUGS (comma-separated),
-    // or set it to "*" to enable for everyone.
-    const waSlugs = (process.env.WHATSAPP_ENABLED_SLUGS || 'test').split(',').map(s => s.trim()).filter(Boolean)
+    // WhatsApp sending is launched — all campaigns by default. Set
+    // WHATSAPP_ENABLED_SLUGS (comma-separated slugs) only to RESTRICT it.
+    const waSlugs = (process.env.WHATSAPP_ENABLED_SLUGS || '*').split(',').map(s => s.trim()).filter(Boolean)
     const waAllowed = waSlugs.includes('*') || waSlugs.includes((c as { slug?: string })?.slug || '')
     const cSettings = (c?.settings as { page_type?: string; manager_phone?: string; order_contact_phone?: string; kaparot?: { chabad_logo_url?: string; email?: { subject?: string; body?: string; image_url?: string } } } | null) || {}
     const isKaparot = cSettings.page_type === 'kaparot'
@@ -215,7 +214,7 @@ export async function notifyDonationFailedWhatsApp(
   try {
     const { data: c } = await supabase.from('campaigns').select('slug, title, org_id').eq('id', args.campaignId).single()
     if (!c) return
-    const waSlugs = (process.env.WHATSAPP_ENABLED_SLUGS || 'test').split(',').map(s => s.trim()).filter(Boolean)
+    const waSlugs = (process.env.WHATSAPP_ENABLED_SLUGS || '*').split(',').map(s => s.trim()).filter(Boolean)
     if (!(waSlugs.includes('*') || waSlugs.includes((c as { slug?: string }).slug || ''))) return
     if (!c.org_id) return
     let wc: (WaConfig & { service?: WaService; messages?: WaMessages }) | null = null
