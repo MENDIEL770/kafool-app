@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { whatsappProvider } from '@/lib/whatsapp'
+import { partnerEnabled } from '@/lib/whatsapp-greenapi'
 import WhatsAppClient from './WhatsAppClient'
 
 export const dynamic = 'force-dynamic'
@@ -15,7 +15,7 @@ export default async function SuperAdminWhatsAppPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-6" dir="rtl">
       <div className="max-w-2xl mx-auto">
-        <WhatsAppClient provider={whatsappProvider()} />
+        <WhatsAppClient partner={partnerEnabled()} />
       </div>
     </div>
   )

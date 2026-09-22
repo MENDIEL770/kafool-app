@@ -77,6 +77,16 @@ export default function OrgWhatsAppPage() {
   // Load usage/activation once connected.
   useEffect(() => { if (status === 'connected') loadSvc() }, [status, loadSvc])
 
+  // Countdown while the instance is still initializing (QR not ready yet).
+  const [prep, setPrep] = useState(300)
+  useEffect(() => {
+    if (status !== 'qr' || qr) return
+    setPrep(300)
+    const t = setInterval(() => setPrep(p => Math.max(0, p - 1)), 1000)
+    return () => clearInterval(t)
+  }, [status, qr])
+  const mmss = `${Math.floor(prep / 60)}:${String(prep % 60).padStart(2, '0')}`
+
   // While a QR is showing, poll until the number is scanned/authorized.
   const timer = useRef<ReturnType<typeof setInterval> | null>(null)
   useEffect(() => {
@@ -192,12 +202,22 @@ export default function OrgWhatsAppPage() {
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 text-center space-y-3">
           <h2 className="font-bold text-gray-900">סרקו את הקוד</h2>
           <p className="text-sm text-gray-500">פתחו וואטסאפ בטלפון → <span className="font-semibold">הגדרות → מכשירים מקושרים → קישור מכשיר</span>, וסרקו:</p>
-          <div className="mx-auto w-56 h-56 rounded-2xl border border-gray-100 bg-gray-50 flex items-center justify-center overflow-hidden">
-            {qr ? <img src={qr} alt="QR" className="w-full h-full object-contain" /> : <Loader2 className="w-6 h-6 animate-spin text-gray-300" />}
+          <div className="mx-auto w-56 h-56 rounded-2xl border border-gray-100 bg-gray-50 flex flex-col items-center justify-center overflow-hidden gap-2">
+            {qr ? <img src={qr} alt="QR" className="w-full h-full object-contain" /> : (
+              <>
+                <Loader2 className="w-7 h-7 animate-spin text-gray-300" />
+                <span className="text-2xl font-black tabular-nums text-gray-700">{mmss}</span>
+              </>
+            )}
           </div>
-          <p className="text-xs text-gray-400 flex items-center justify-center gap-1.5">
-            <Loader2 className="w-3 h-3 animate-spin" /> {qr ? 'ממתין לסריקה… (הקוד מתעדכן אוטומטית)' : 'מכינים את החיבור… (עד כדקה-שתיים)'}
-          </p>
+          {qr ? (
+            <p className="text-xs text-gray-400 flex items-center justify-center gap-1.5"><Loader2 className="w-3 h-3 animate-spin" /> ממתין לסריקה… (הקוד מתעדכן אוטומטית)</p>
+          ) : (
+            <div className="text-xs text-gray-500 space-y-1">
+              <p className="font-semibold text-amber-700">מכינים את החיבור המאובטח — עלול להימשך עד כ-5 דקות.</p>
+              <p>אנא אל תסגרו את הדף. <span className="text-gray-400">(אפשר גם לצאת ולחזור — החיבור ימשיך ברקע.)</span></p>
+            </div>
+          )}
           <button onClick={disconnect} className="text-xs text-gray-400 hover:text-gray-600">ביטול</button>
         </div>
       )}
