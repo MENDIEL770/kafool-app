@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Hero from './_components/Hero'
+import Pain from './_components/Pain'
 import HomeRuntime from './_components/HomeRuntime'
 
 export const metadata: Metadata = {
@@ -11,6 +12,7 @@ export default function HomePage() {
   return (
     <main>
       <Hero />
+      <Pain />
       <HomeRuntime />
     </main>
   )
