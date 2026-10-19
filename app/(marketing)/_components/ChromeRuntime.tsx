@@ -85,7 +85,8 @@ export default function ChromeRuntime() {
     menu?.querySelectorAll<HTMLElement>('[data-close]').forEach(b => (b.onclick = closeMenu))
     md?.querySelectorAll<HTMLElement>('[data-mclose]').forEach(b => (b.onclick = closeMd))
 
-    // sticky bar appears once the hero is scrolled past (and the intro is done)
+    // Home: the bar appears once the hero is scrolled past. Inner pages have no
+    // .hero (their pg-hero leaves top room for it), so the bar stays fixed on top.
     const hero = document.querySelector('.hero')
     let barIo: IntersectionObserver | null = null
     if (bar && hero) {
@@ -96,6 +97,8 @@ export default function ChromeRuntime() {
         bar.setAttribute('aria-hidden', String(!show))
       }, { rootMargin: '-80px 0px 0px 0px' })
       barIo.observe(hero)
+    } else if (bar) {
+      bar.classList.add('show'); bar.removeAttribute('inert'); bar.setAttribute('aria-hidden', 'false')
     }
 
     const onKey = (e: KeyboardEvent) => {
@@ -109,21 +112,38 @@ export default function ChromeRuntime() {
       const m = t.closest('[data-modal]')
       if (m) { e.preventDefault(); const inMenu = !!menu?.contains(m); if (inMenu) closeMenu(); setTimeout(openMd, inMenu ? 300 : 0); return }
       const g = t.closest('[data-go]') as HTMLAnchorElement | null
-      if (g && g.getAttribute('href')?.startsWith('#')) {
+      const href = g?.getAttribute('href')
+      if (g && href?.startsWith('#')) {
         e.preventDefault(); const inMenu = !!menu?.contains(g); if (inMenu) closeMenu()
-        setTimeout(() => go(g.getAttribute('href') as string), inMenu ? 320 : 0)
+        setTimeout(() => {
+          // Target on this page → smooth-scroll; otherwise (inner pages) go home.
+          if (document.querySelector(href)) go(href)
+          else location.href = '/' + (href === '#top' ? '' : href)
+        }, inMenu ? 320 : 0)
       }
     }
     document.addEventListener('click', onDocClick)
 
     const form = document.getElementById('md-f') as HTMLFormElement | null
-    const onSubmit = (e: Event) => {
+    const onSubmit = async (e: Event) => {
       e.preventDefault()
+      const nameEl = document.getElementById('md-name') as HTMLInputElement | null
+      const name = (nameEl?.value || '').trim()
+      if (!name) { nameEl?.focus(); return }
+      const phone = (form?.querySelector('[name="phone"]') as HTMLInputElement | null)?.value.trim() || ''
+      const msg = (form?.querySelector('[name="msg"]') as HTMLTextAreaElement | null)?.value.trim() || ''
       const b = document.getElementById('md-sub') as HTMLButtonElement | null
       if (b) { b.disabled = true; b.textContent = 'שולח…' }
-      const n = ((document.getElementById('md-name') as HTMLInputElement | null)?.value || '').trim().split(' ')[0]
-      const okp = document.getElementById('ok-p'); if (okp) okp.textContent = 'תודה' + (n ? ', ' + n : '') + '! נחזור אליכם בהקדם כדי לתכנן את הקמפיין.'
-      setTimeout(() => md?.classList.add('done'), 700)
+      const first = name.split(' ')[0]
+      const okp = document.getElementById('ok-p'); if (okp) okp.textContent = 'תודה' + (first ? ', ' + first : '') + '! נחזור אליכם בהקדם כדי לתכנן את הקמפיין.'
+      // Save the lead (contact_submissions) + SMS the admin, via the existing API.
+      try {
+        await fetch('/api/contact', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ full_name: name, phone: phone || undefined, message: msg || 'פתיחת קמפיין מדף הבית', source: 'campaign-request' }),
+        })
+      } catch { /* network hiccup — still thank the user */ }
+      setTimeout(() => md?.classList.add('done'), 400)
     }
     form?.addEventListener('submit', onSubmit)
 

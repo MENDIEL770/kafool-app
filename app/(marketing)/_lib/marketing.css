@@ -884,11 +884,13 @@ p{text-wrap:pretty}
 @media (prefers-reduced-motion:reduce){.z-reel{transition:none;transform:translateY(calc(-.8em * 39))}.z-copy>*,.z-pv li{opacity:1;transform:none;transition:none}}
 
 /* ---------- primary CTA button (brand pill + white circular arrow badge) ---------- */
-.pill.cta{background:var(--brand);color:#fff;font-weight:600;gap:.75rem;padding:.4rem;padding-inline-end:1.5rem;min-height:3.25rem}
+/* padding-inline-START (= the text side in RTL) carries the extra room, so the
+   badge hugs the left rounded end — centered in the corner, flush, not floating. */
+.pill.cta{background:var(--brand);color:#fff;font-weight:600;gap:.6rem;padding:.35rem;padding-inline-start:1.5rem;min-height:3.25rem}
 .pill.cta .cta-ic{width:2.45rem;height:2.45rem;flex:none;border-radius:var(--r-pill);background:#fff;color:var(--brand);display:grid;place-items:center;transition:transform .35s var(--e-spring)}
 .pill.cta .cta-ic svg{width:1.15rem;height:1.15rem}
 .pill.cta:active{transform:scale(.97)}
-.pill.cta.lg{min-height:3.75rem;font-size:1.125rem;padding-inline-end:1.75rem}
+.pill.cta.lg{min-height:3.75rem;font-size:1.125rem;padding-inline-start:1.75rem}
 .pill.cta.lg .cta-ic{width:2.85rem;height:2.85rem}
 @media (hover:hover) and (pointer:fine){
   .pill.cta:hover{background:#34509e}

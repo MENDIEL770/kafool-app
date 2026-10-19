@@ -80,10 +80,23 @@ export default function InnerRuntime() {
         f.classList.toggle('err', bad); inp.setAttribute('aria-invalid', String(bad)); return !bad
       }
       form.querySelectorAll<HTMLElement>('[data-req],[data-em]').forEach(f => (f.querySelector('input,textarea') as HTMLElement)?.addEventListener('blur', () => check(f)))
-      form.addEventListener('submit', e => {
+      const val = (id: string) => ((document.getElementById(id) as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null)?.value || '').trim()
+      form.addEventListener('submit', async e => {
         e.preventDefault()
         const fs = [...form.querySelectorAll<HTMLElement>('[data-req],[data-em]')], ok = fs.map(check).every(Boolean)
         if (!ok) { (form.querySelector('.err input,.err textarea') as HTMLElement | null)?.focus(); return }
+        const chips = [...form.querySelectorAll('.chips button[aria-pressed="true"]')].map(b => b.textContent?.trim()).filter(Boolean)
+        const heard = val('cf-h')
+        const subject = [chips.join(', '), heard ? `(איך שמעו: ${heard})` : ''].filter(Boolean).join(' ')
+        const btn = form.querySelector('.ct-send') as HTMLButtonElement | null
+        if (btn) btn.disabled = true
+        // Save the lead (contact_submissions) + SMS the admin, via the existing API.
+        try {
+          await fetch('/api/contact', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ full_name: val('cf-n'), phone: val('cf-p') || undefined, email: val('cf-e') || undefined, subject: subject || undefined, message: val('cf-m'), source: 'טופס יצירת קשר' }),
+          })
+        } catch { /* network hiccup — still confirm to the user */ }
         document.getElementById('ct-f')?.classList.add('sent')
       })
     }
