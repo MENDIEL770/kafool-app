@@ -7,12 +7,9 @@ import MarketingHeader from './MarketingHeader'
 // informational pages. Campaign donation pages ([slug], /donate, /thanks, /g/...)
 // render their own dedicated header and accessibility widget, so we must NOT add
 // the marketing header on top of them — otherwise the header/widget appear twice.
+// The home + about/design/faq/contact now live in the (marketing) route group
+// with their own chrome, so only the legal pages here still use this header.
 const MARKETING_PATHS = [
-  '/',            // the landing page (exact match only — campaign slugs never equal '/')
-  '/about',
-  '/design',
-  '/faq',
-  '/contact',
   '/privacy',
   '/terms',
   '/accessibility',
