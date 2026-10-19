@@ -80,7 +80,7 @@ export function Footer() {
     <footer className="ftr" id="contact-cta" style={{ margin: '0 .5rem .5rem' }}>
       <div className="f-cta">
         <div><span className="eyebrow lt">מתחילים</span><p className="big lines" data-rv><span className="ln"><span style={{ '--i': 0 }}>מוכנים</span></span><span className="ln"><span style={{ '--i': 1 }}>לקמפיין הבא?</span></span></p></div>
-        <button type="button" className="pill cta" data-modal data-iv style={{ '--dl': '150ms', '--y': '20px' }}>
+        <button type="button" className="pill cta lg" data-modal data-iv style={{ '--dl': '150ms', '--y': '20px' }}>
           <span>פתחו קמפיין</span>
           <span className="cta-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M16 16 8 8M8 14V8h6" /></svg></span>
         </button>

@@ -1,10 +1,19 @@
 'use client'
 
+import { usePathname } from 'next/navigation'
+import { useEffect } from 'react'
 import KafoolIntro from './KafoolIntro'
 
-// Renders the logo intro loader and, when it finishes (or is skipped), fires a
-// window event that ChromeRuntime listens for to release the gated hero reveals.
-// KafoolIntro removes itself after its own exit animation.
+// The logo intro plays only on the main site entry (home "/"). On the inner
+// pages it's skipped — we just fire kf:ready so any gated reveals release.
 export default function IntroGate() {
+  const pathname = usePathname()
+  const isHome = pathname === '/'
+
+  useEffect(() => {
+    if (!isHome) { try { window.dispatchEvent(new Event('kf:ready')) } catch { /* ignore */ } }
+  }, [isHome])
+
+  if (!isHome) return null
   return <KafoolIntro onDone={() => { try { window.dispatchEvent(new Event('kf:ready')) } catch { /* ignore */ } }} />
 }
