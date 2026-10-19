@@ -492,6 +492,9 @@ p{text-wrap:pretty}
 @media (max-width:639px){.bar-logo{font-size:1rem}}
 .bar-r{display:flex;gap:.375rem;align-items:center}
 .pill.sm{padding:.625rem 1.125rem;min-height:2.75rem;font-size:.875rem}
+/* compact the sticky-bar CTA + burger so the header isn't chunky */
+.bar-r .pill{min-height:2.3rem;padding:.35rem .95rem;font-size:.8125rem;gap:.4rem}
+.bar-r .burger{width:2.3rem;height:2.3rem}
 .burger.dark{background:var(--surface)}.burger.dark i{background:var(--ink)}
 @media (hover:hover) and (pointer:fine){.burger.dark:hover{background:var(--hairline)}}
 .dots button{min-width:2.75rem;min-height:2.75rem}
