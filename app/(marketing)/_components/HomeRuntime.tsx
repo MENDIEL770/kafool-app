@@ -68,16 +68,12 @@ export default function HomeRuntime() {
       const panel = document.getElementById('pain-panel')
       const big = document.getElementById('pain-big')
       if (sec && stage && panel && big) {
-        const bT = big.querySelector('b') as HTMLElement
-        const bS = big.querySelector('span') as HTMLElement
         const cards = [...document.querySelectorAll<HTMLElement>('#pain-cards .pc')]
         const nEl = document.getElementById('pain-n') as HTMLElement
         const lEl = document.getElementById('pain-l') as HTMLElement
         const endEl = document.getElementById('pain-end') as HTMLElement
         const CHD = [[.30, .16, -9], [.72, .10, 7], [.18, .46, 6], [.78, .42, -8], [.34, .80, 8], [.70, .78, -5]]
         const CHM = [[.40, .08, -6], [.60, .25, 5], [.38, .42, -4], [.62, .59, 6], [.40, .76, -5], [.60, .93, 4]]
-        const TIT = cards.map(c => c.querySelector('.pc-t b')?.textContent || '')
-        const PRO = cards.map(c => (c.querySelector('.pc-s .a')?.textContent || '').trim())
         const g = gsap
         const setCount = (left: number) => { nEl.textContent = String(left); lEl.textContent = left === 0 ? 'כאבי ראש. הכל בטיפול.' : (left === 1 ? 'כאב ראש פתוח' : 'כאבי ראש פתוחים') }
 
@@ -109,38 +105,33 @@ export default function HomeRuntime() {
           finalState(); addEventListener('resize', finalState)
           cleanups.push(() => removeEventListener('resize', finalState))
         } else {
-          const say = (cls: string, t: string, sub: string, html?: boolean) => () => { big!.className = 'pain-big ' + cls; if (html) bT.innerHTML = t; else bT.textContent = t; bS.textContent = sub }
           const veil = document.getElementById('pain-veil') as HTMLElement
           let cur: ReturnType<typeof g.timeline> | null = null
           let vis = false
           function build() {
-            reset(); g.set(veil, { opacity: 0 }); const G = geo()
+            reset(); g.set([big!, veil], { opacity: 0 }); const G = geo()
             const tl = g.timeline({ paused: true, onComplete: () => { tl.kill(); cur = build(); if (vis) cur.play() } })
-            const pop = (t: number) => { tl.to(veil, { opacity: 1, duration: .15, ease: 'none' }, t); tl.fromTo(big!, { opacity: 0, scale: 1.25, x: 0, y: 0 }, { opacity: 1, scale: 1, duration: .26, ease: 'expo.out' }, t) }
-            const shrinkTo = (t: number, P: { cx: number; cy: number }, d?: number, sc?: number) => {
-              d = d || .32; tl.to(veil, { opacity: 0, duration: d * .7, ease: 'power1.in' }, t)
-              tl.to(big!, { x: P.cx - G.W / 2, y: P.cy - G.H / 2, scale: sc || .2, duration: d, ease: 'power3.in' }, t); tl.to(big!, { opacity: 0, duration: .08, ease: 'none' }, t + d - .06)
-            }
-            let t = .2
+            // Cards rest in their clean rows from the start — a calm fade/slide in,
+            // no huge popping text, no chaos. Clear before → after.
+            cards.forEach((c, i) => g.set(c, { x: G.row[i].x, y: G.row[i].y, rotation: 0, opacity: 0, scale: .96 }))
+            g.set(panel!, { opacity: 0, scale: .94 })
+            let t = .3
+            // 1) the headaches appear one by one (red); counter 0 → 5
             cards.forEach((c, i) => {
-              const R = G.row[i]
-              tl.call(say('p', TIT[i], PRO[i]), undefined, t); pop(t)
-              shrinkTo(t + .44, R)
-              tl.set(c, { x: R.x, y: R.y, rotation: 0 }, t)
-              tl.fromTo(c, { opacity: 0, scale: .8 }, { opacity: 1, scale: 1, duration: .32, ease: 'back.out(2.4)' }, t + .72)
-              tl.call(() => setCount(i + 1), undefined, t + .74)
-              t += .8
+              tl.fromTo(c, { opacity: 0, y: G.row[i].y + 16, scale: .96 }, { opacity: 1, y: G.row[i].y, scale: 1, duration: .5, ease: 'expo.out' }, t)
+              tl.call(() => setCount(i + 1), undefined, t + .12)
+              t += .5
             })
-            tl.to(panel!, { opacity: 1, scale: 1, duration: .5, ease: 'expo.out' }, t + .1)
-            cards.forEach((c, i) => tl.call(() => { c.classList.add('solved'); setCount(cards.length - 1 - i) }, undefined, t + .35 + i * .15))
-            t += .35 + cards.length * .15 + .3
-            tl.call(say('e', 'הכל <em>במקום אחד!</em>', '', true), undefined, t); pop(t)
-            shrinkTo(t + .85, G.end, .36, Math.min(1, parseFloat(getComputedStyle(endEl).fontSize) / (parseFloat(getComputedStyle(bT).fontSize) || 1)))
-            tl.call(() => sec!.classList.add('done'), undefined, t + 1.18)
-            t += 1.3
-            tl.to([cards, panel!], { opacity: 0, duration: .5, ease: 'power2.in' }, t + 3)
-            tl.to(endEl, { opacity: 0, duration: .4 }, t + 3).set(endEl, { clearProps: 'opacity' }, t + 3.6)
-            tl.to({}, { duration: .1 }, t + 3.6)
+            t += .8
+            // 2) kafool takes them: panel fades in behind, rows flip to green ✓; counter 5 → 0
+            tl.to(panel!, { opacity: 1, scale: 1, duration: .6, ease: 'expo.out' }, t)
+            cards.forEach((c, i) => tl.call(() => { c.classList.add('solved'); setCount(cards.length - 1 - i) }, undefined, t + .4 + i * .18))
+            tl.call(() => sec!.classList.add('done'), undefined, t + .4 + cards.length * .18 + .25)
+            t += .4 + cards.length * .18 + .6
+            // 3) hold on the solved state ("הכל במקום אחד!" shows via .done), then fade and loop
+            tl.to({}, { duration: 3.6 }, t)
+            tl.to([cards, panel!], { opacity: 0, duration: .6, ease: 'power2.in' }, t + 3.6)
+            tl.to({}, { duration: .3 })
             return tl
           }
           const pio = new IntersectionObserver(es => { vis = es[0].isIntersecting; if (!cur && vis) cur = build(); if (cur) vis ? cur.play() : cur.pause() }, { threshold: .35 })
