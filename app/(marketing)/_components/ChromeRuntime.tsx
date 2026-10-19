@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import { stopScroll, startScroll } from '../_lib/scrollLock'
 
 // Ported from the reference's vanilla script: scroll-reveals, the intro gate,
 // menu + contact modal, the sticky bar, and smooth in-page scrolling. Runs once
@@ -19,9 +20,6 @@ export default function ChromeRuntime() {
     }
     grid(); addEventListener('resize', grid)
 
-    let locks = 0
-    const stopScroll = () => { locks++; root.style.overflow = 'hidden' }
-    const startScroll = () => { locks = Math.max(0, locks - 1); if (!locks) root.style.removeProperty('overflow') }
     const go = (hash: string) => { const el = hash && document.querySelector(hash); if (el) el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth' }) }
 
     // reveals

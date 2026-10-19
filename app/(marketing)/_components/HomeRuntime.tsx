@@ -6,6 +6,7 @@ import gsap from 'gsap'
 // Hero background photos (extracted from the reference) — crossfade every 5.5s.
 const HERO_IMGS = ['/marketing/hero-1.jpg', '/marketing/hero-2.jpg', '/marketing/hero-3.jpg']
 const FOCUS = ['32% 50%', '29% 52%', '52% 18%']
+const BANNERS: Record<string, string> = { einav: '/marketing/einav.jpg', skaya: '/marketing/skaya.jpg', ogen: '/marketing/ogen.jpg' }
 
 type Pt = { x: number; y: number; cx: number; cy: number; r?: number }
 
@@ -47,6 +48,17 @@ export default function HomeRuntime() {
         }
       }
       cleanups.push(() => { if (timer) clearInterval(timer); anims.forEach(an => an.cancel()) })
+
+      // Campaign banner images (replace the branded fallback card).
+      document.querySelectorAll<HTMLElement>('[data-ban]').forEach(a => {
+        const src = BANNERS[a.dataset.ban || '']
+        if (!src) return
+        const box = a.querySelector('.im'); if (!box) return
+        box.innerHTML = ''
+        const bg = new window.Image(); bg.src = src; bg.alt = ''; bg.className = 'bg'; bg.setAttribute('aria-hidden', 'true')
+        const im = new window.Image(); im.src = src; im.alt = 'הבאנר של הקמפיין'; im.className = 'fg'; im.loading = 'lazy'
+        box.append(bg, im)
+      })
     }
 
     // ---------- pain → order: autoplay, every message big first ----------
