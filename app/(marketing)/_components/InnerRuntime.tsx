@@ -32,18 +32,41 @@ export default function InnerRuntime() {
       const lb = document.getElementById('lb') as HTMLElement | null
       const lbIm = document.getElementById('lb-im') as HTMLElement | null
       if (lb && lbIm) {
-        let li = -1
-        const vis = () => cards.filter(c => !c.classList.contains('out'))
-        const lbShow = (c: HTMLElement) => {
-          li = +(c.dataset.i || 0)
-          const img = c.querySelector('img'), ph = c.querySelector('.ds-ph')
-          lbIm.innerHTML = ''; lbIm.append(img && img.classList.contains('ld') ? Object.assign(new window.Image(), { src: (img as HTMLImageElement).src, alt: img.alt }) : (ph as HTMLElement).cloneNode(true))
+        // A click opens the project's full image set: main image + a thumbnail
+        // strip; thumbnails / arrows / swipe move between the project's images.
+        const thumbs = document.getElementById('lb-thumbs') as HTMLElement | null
+        let gImgs: string[] = []
+        let gIdx = 0
+        const showImg = (i: number) => {
+          if (!gImgs.length) return
+          gIdx = (i + gImgs.length) % gImgs.length
+          lbIm.innerHTML = ''
+          lbIm.append(Object.assign(new window.Image(), { src: gImgs[gIdx], alt: '' }))
+          if (!reduce) gsap.fromTo(lbIm, { opacity: 0 }, { opacity: 1, duration: .3 })
+          thumbs?.querySelectorAll('button').forEach((b, k) => b.setAttribute('aria-current', String(k === gIdx)))
+        }
+        const renderThumbs = () => {
+          if (!thumbs) return
+          thumbs.innerHTML = ''
+          if (gImgs.length < 2) { thumbs.hidden = true; return }
+          thumbs.hidden = false
+          gImgs.forEach((u, k) => {
+            const b = document.createElement('button'); b.type = 'button'; b.setAttribute('aria-current', String(k === 0))
+            b.append(Object.assign(new window.Image(), { src: u, alt: '' }))
+            b.addEventListener('click', () => showImg(k))
+            thumbs.append(b)
+          })
+        }
+        const lbOpen = (c: HTMLElement) => {
+          try { gImgs = (JSON.parse(c.dataset.images || '[]') as string[]).filter(Boolean) } catch { gImgs = [] }
+          if (!gImgs.length) { const img = c.querySelector('img') as HTMLImageElement | null; gImgs = img?.src ? [img.src] : [] }
+          gIdx = 0
           ;(document.getElementById('lb-t') as HTMLElement).textContent = c.querySelector('.ds-cap b')?.textContent || ''
           ;(document.getElementById('lb-c') as HTMLElement).textContent = c.dataset.cat || ''
           const a = document.getElementById('lb-a') as HTMLAnchorElement, link = c.dataset.link; a.hidden = !link; if (link) a.href = 'https://www.kafool.com' + link
-        }
-        const lbOpen = (c: HTMLElement) => {
-          lbShow(c); lb.hidden = false; stopScroll()
+          lb.querySelectorAll<HTMLElement>('.lb-nav').forEach(n => (n.hidden = gImgs.length < 2))
+          renderThumbs(); showImg(0)
+          lb.hidden = false; stopScroll()
           if (!reduce) { gsap.fromTo(lb.querySelector('.lb-bg'), { opacity: 0 }, { opacity: 1, duration: .3 }); gsap.fromTo(lb.querySelector('.lb-p'), { opacity: 0, scale: .94, y: 16 }, { opacity: 1, scale: 1, y: 0, duration: .5, ease: 'expo.out' }) }
           ;(lb.querySelector('.lb-x') as HTMLElement).focus({ preventScroll: true })
         }
@@ -52,7 +75,7 @@ export default function InnerRuntime() {
           const done = () => { lb.hidden = true; startScroll() }
           if (!reduce) { gsap.to(lb.querySelector('.lb-p'), { opacity: 0, scale: .96, duration: .2, ease: 'power2.in' }); gsap.to(lb.querySelector('.lb-bg'), { opacity: 0, duration: .25, onComplete: done }) } else done()
         }
-        const lbStep = (d: number) => { const v = vis(), k = v.findIndex(c => +(c.dataset.i || 0) === li); const n = v[(k + d + v.length) % v.length]; if (!n) return; lbShow(n); if (!reduce) gsap.fromTo(lbIm, { opacity: 0, x: d * -24 }, { opacity: 1, x: 0, duration: .4, ease: 'expo.out' }) }
+        const lbStep = (d: number) => { if (gImgs.length < 2) return; showImg(gIdx + d) }
         cards.forEach(c => c.addEventListener('click', () => lbOpen(c)))
         lb.querySelectorAll('[data-lbx]').forEach(b => b.addEventListener('click', lbClose))
         lb.querySelectorAll<HTMLElement>('[data-lbn]').forEach(b => b.addEventListener('click', () => lbStep(+(b.dataset.lbn || 0))))
