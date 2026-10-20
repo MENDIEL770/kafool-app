@@ -180,3 +180,45 @@ export async function refundKesherTransaction(campaignId: string, transactionNum
     return { success: false, error: String(e) }
   }
 }
+
+/* ─── SendBitTransaction (direct Bit deep-link, to open the Bit app immediately) ─── */
+export interface KesherBitResult { success: boolean; url?: string; numTransaction?: string; error?: string; raw?: unknown }
+
+/**
+ * Ask Kesher to create a Bit payment and return the app deep-link (BitUrl, or
+ * BitOutput for "ביט גמא"), so we can open the Bit app on the donor's phone
+ * instead of waiting for Kesher's SMS. Requires full-API credentials + the
+ * project number. Amount is passed in SHEKELS; Kesher wants agorot (Total).
+ * The caller falls back to the hosted SMS flow if this fails.
+ */
+export async function sendBitTransaction(campaignId: string, amountShekels: number, phone: string): Promise<KesherBitResult> {
+  const credentials = await getKesherCredentials(campaignId)
+  if (!credentials) return { success: false, error: 'לא נמצאו פרטי חיבור לקשר עבור קמפיין זה.' }
+  if (!credentials.username) return { success: false, error: 'תשלום ביט ישיר דורש חיבור API מלא לקשר.' }
+  if (!credentials.projectNumber) return { success: false, error: 'חסר מספר פרויקט (ProjectNumber) בהגדרות קשר.' }
+  const digits = (phone || '').replace(/\D/g, '')
+  if (digits.length < 9) return { success: false, error: 'מספר טלפון לא תקין.' }
+  if (!(amountShekels > 0)) return { success: false, error: 'סכום לא תקין.' }
+  try {
+    // Total is in agorot; Currency 1 = ILS (as the rest of the Kesher integration uses).
+    const payload: Record<string, unknown> = {
+      Total: Math.round(amountShekels * 100),
+      Phone: digits,
+      Currency: 1,
+      ProjectNumber: credentials.projectNumber,
+    }
+    const r = await callKesher(credentials, 'SendBitTransaction', payload) as Record<string, unknown>
+    const rr = (r?.RequestResult as Record<string, unknown>) || r
+    const ok = rr?.Status === true || r?.Status === true
+    const url = (r?.BitUrl || r?.BitOutput || rr?.BitUrl || rr?.BitOutput) as string | undefined
+    const numTransaction = (r?.NumTransaction || rr?.NumTransaction) as string | undefined
+    if (!ok || !url) {
+      console.error('SendBitTransaction rejected:', JSON.stringify(r))
+      return { success: false, error: String(rr?.Description || r?.Description || 'קשר דחה את הבקשה'), numTransaction, raw: r }
+    }
+    return { success: true, url, numTransaction }
+  } catch (e) {
+    console.error('sendBitTransaction error:', e)
+    return { success: false, error: String(e) }
+  }
+}

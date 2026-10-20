@@ -188,8 +188,10 @@ export default function DonationModal({
   const [stripeError, setStripeError] = useState<string | null>(null)
   // CardCom hosted page — server-created URL loaded in an iframe (₪ only).
   const isCardcom = paymentProvider === 'cardcom' && !isForeign
+  const isNedarim = paymentProvider === 'nedarim'
   const [cardcomUrl, setCardcomUrl] = useState<string | null>(null)
   const [cardcomError, setCardcomError] = useState<string | null>(null)
+  const [bitBusy, setBitBusy] = useState(false)
   const fetchClientSecret = useCallback(() => Promise.resolve(clientSecret || ''), [clientSecret])
 
   // The donor can always choose one-time vs monthly (הו"ק); a plan's configured
@@ -470,6 +472,22 @@ export default function DonationModal({
     } catch {
       setCardcomError(en ? 'Something went wrong, please try again' : 'אירעה שגיאה, נסו שוב')
     }
+  }
+
+  // Kesher Bit on mobile: ask Kesher for the Bit app deep-link and open it
+  // directly, instead of waiting for the SMS. Any failure → the hosted SMS flow.
+  async function startBit() {
+    setBitBusy(true)
+    try {
+      const res = await fetch('/api/donations/bit-link', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ campaignId: campaign.id, amount: finalAmount, phone: form.phone }),
+      })
+      const d = await res.json().catch(() => ({}))
+      if (res.ok && d?.url) { window.location.href = d.url as string; return }
+    } catch { /* fall through */ }
+    setBitBusy(false)
+    setStep('payment') // fallback: Kesher hosted page (sends the Bit link by SMS)
   }
 
   // Switching currency converts the amount by the LIVE ₪ rate, both ways: value in
@@ -948,12 +966,14 @@ export default function DonationModal({
                 onClick={() => {
                   persistDonor()
                   // Foreign currency → Stripe embedded checkout; ₪ (incl. Bit/bank)
-                  // → the provider's page in the in-modal iframe.
+                  // → the provider's page in the in-modal iframe. Kesher Bit on a
+                  // phone → open the Bit app directly via SendBitTransaction.
                   if (isForeign) startStripe()
                   else if (isCardcom) startCardcom()
+                  else if (paymentMethod === 'bit' && !isNedarim && typeof navigator !== 'undefined' && /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) startBit()
                   else setStep('payment')
                 }}
-                disabled={!canProceed}
+                disabled={!canProceed || bitBusy}
                 className={`w-full py-4 font-black text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all ${buttonRadius}`}
                 style={{ backgroundColor: paymentMethod === 'bit' ? '#0A2E36' : primaryColor, color: paymentMethod === 'bit' ? '#37E5E0' : '#fff' }}
               >
