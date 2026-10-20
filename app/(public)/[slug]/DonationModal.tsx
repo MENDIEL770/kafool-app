@@ -1054,24 +1054,14 @@ export default function DonationModal({
             return (
               <div className="flex flex-col">
                 {paymentMethod === 'bit' && (
-                  <div className="mx-4 mt-2 mb-3 rounded-2xl px-4 py-4 text-center shadow-md sticky top-0 z-20" style={{ backgroundColor: '#0A2E36', color: '#fff' }}>
-                    <div className="flex justify-center mb-3">
-                      <div className="bg-white rounded-xl p-2 shadow-sm">
-                        <BitLogo className="w-12 h-12 rounded-lg" />
-                      </div>
+                  <div className="mx-4 mt-2 mb-2 rounded-xl px-3 py-2.5 flex items-center gap-2.5 shadow-sm" style={{ backgroundColor: '#0A2E36', color: '#fff' }}>
+                    <div className="bg-white rounded-lg p-1 shrink-0">
+                      <BitLogo className="w-7 h-7 rounded" />
                     </div>
-                    <p className="text-xl sm:text-2xl font-black leading-snug">
-                      {en ? 'A payment link will be sent to you by SMS' : 'קישור לתשלום יישלח אליך ב-SMS'}
-                    </p>
-                    <p className="mt-2.5 text-lg sm:text-xl font-black leading-relaxed" style={{ color: '#37E5E0' }}>
+                    <p className="text-xs leading-snug text-right">
                       {en
-                        ? 'Open the link and complete the payment in the Bit app'
-                        : 'היכנסו לקישור שנשלח והשלימו את התשלום באפליקציית ביט'}
-                    </p>
-                    <p className="mt-2.5 text-sm sm:text-base font-bold leading-relaxed" style={{ color: '#d7fbfa' }}>
-                      {en
-                        ? 'Your donation is recorded only after the Bit payment is completed ✓'
-                        : 'רק לאחר השלמת התשלום בביט — התרומה תיכנס לאתר ✓'}
+                        ? 'A payment link is sent by SMS — open it and pay in the Bit app. Recorded only after payment ✓'
+                        : <>קישור לתשלום יישלח ב‑SMS — היכנסו אליו והשלימו בביט. <span style={{ color: '#37E5E0' }}>התרומה נכנסת רק לאחר התשלום ✓</span></>}
                     </p>
                   </div>
                 )}
