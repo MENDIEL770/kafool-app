@@ -9,7 +9,7 @@ const CARDS: Card[] = [
     icon: <svg className="ic" viewBox="0 0 24 24" {...S}><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1.5" /></svg> },
   { title: 'כתיבת תוכן', pro: 'טיוטה מס׳ 7, עדיין לא זה', sol: 'כותבים את התוכן בשבילכם',
     icon: <svg className="ic" viewBox="0 0 24 24" {...S}><path d="M4 20h4L19 9l-4-4L4 16z" /><path d="M13.5 6.5l4 4" /></svg> },
-  { title: 'לרדוף אחרי מעצב', pro: '3 הודעות, אין תשובה', sol: 'עיצוב מותאם, בלי לרדוף',
+  { title: 'לרדוף אחרי מעצב', pro: '3 הודעות, אין תשובה', sol: 'שירות מלא ממעצב צמוד משלנו',
     icon: <svg className="ic" viewBox="0 0 24 24" {...S}><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.5-.8 1.5-1.5 0-.9-.6-1.3-.6-2.1 0-.9.7-1.4 1.6-1.4H17a4 4 0 0 0 4-4c0-4.9-4-9-9-9z" /><circle cx="7.5" cy="11" r="1" /><circle cx="10" cy="7" r="1" /><circle cx="14.5" cy="7" r="1" /></svg> },
   { title: 'אתר', pro: 'מי בונה? כמה זה יעלה?', sol: 'דף גיוס מוכן ומעוצב',
     icon: <svg className="ic" viewBox="0 0 24 24" {...S}><rect x="3" y="4" width="18" height="16" rx="2.5" /><path d="M3 9h18M7 6.5h.01M10 6.5h.01" /></svg> },
