@@ -17,30 +17,24 @@ const CARDS: Card[] = [
     icon: <svg className="ic" viewBox="0 0 24 24" {...S}><rect x="3" y="6" width="18" height="13" rx="2.5" /><path d="M3 10h18M7 15h4" /></svg> },
 ]
 
-const Check = () => (
-  <svg className="ic" viewBox="0 0 24 24" {...S}><path d="M5 13l4 4L19 7" /></svg>
-)
+const Check = () => <svg className="ic" viewBox="0 0 24 24" {...S}><path d="M5 13l4 4L19 7" /></svg>
 
 export default function Pain() {
   return (
     <section className="pain" id="pain" aria-labelledby="pain-t">
-      <div className="pain-stick">
+      <div className="pain-wrap">
         <div className="pain-copy">
           <span className="eyebrow">בלי כפול / עם כפול</span>
           <h2 className="h2" id="pain-t">כל כאבי הראש<br />של מנהל קמפיין.</h2>
+          <p className="pain-lead">אסטרטגיה, תוכן, עיצוב, אתר וסליקה — חמישה כאבי ראש שהופכים ל<span>פתרון אחד.</span></p>
           <div className="pain-count" aria-live="polite"><b className="tnum" id="pain-n">5</b><span id="pain-l">כאבי ראש פתוחים</span></div>
-          <p className="pain-end" id="pain-end">הכל <span>במקום אחד!</span></p>
           <Cta className="pain-cta" data-modal>אני רוצה דף גיוס</Cta>
-          <p className="pain-hint" id="pain-hint">גללו וראו אותם מסתדרים</p>
         </div>
-        <div className="pain-stage" id="pain-stage">
-          <div className="pain-veil" id="pain-veil" />
-          <div className="pain-big" id="pain-big" aria-hidden="true"><b /><span /></div>
-          <div className="pain-panel" id="pain-panel">
-            <div className="pp-h">
-              <span className="pp-logo dk"><Wordmark /></span>
-              <span className="pp-st"><i />הכל בטיפול</span>
-            </div>
+
+        <div className="pain-panel" id="pain-panel">
+          <div className="pp-h">
+            <span className="pp-logo dk"><Wordmark /></span>
+            <span className="pp-st"><i />הכל בטיפול</span>
           </div>
           <ul className="pain-cards" id="pain-cards">
             {CARDS.map((c, i) => (
