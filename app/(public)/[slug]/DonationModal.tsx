@@ -188,7 +188,6 @@ export default function DonationModal({
   const [stripeError, setStripeError] = useState<string | null>(null)
   // CardCom hosted page — server-created URL loaded in an iframe (₪ only).
   const isCardcom = paymentProvider === 'cardcom' && !isForeign
-  const isNedarim = paymentProvider === 'nedarim'
   const [cardcomUrl, setCardcomUrl] = useState<string | null>(null)
   const [cardcomError, setCardcomError] = useState<string | null>(null)
   const [bitBusy, setBitBusy] = useState(false)
@@ -474,20 +473,16 @@ export default function DonationModal({
     }
   }
 
-  // Kesher Bit on mobile: ask Kesher for the Bit app deep-link and open it
-  // directly, instead of waiting for the SMS. Any failure → the hosted SMS flow.
-  async function startBit() {
+  // Bit on a phone: redirect the WHOLE browser to the provider's hosted Bit page
+  // (not an iframe). There the page runs in the top-level mobile context, detects
+  // the phone, and opens the Bit app directly — an iframe is blocked from
+  // navigating to the bit:// deep-link, which is why it fell back to the SMS.
+  // After payment the page returns to our /thanks via the successurl.
+  function startBit() {
+    const url = buildPaymentUrl()
     setBitBusy(true)
-    try {
-      const res = await fetch('/api/donations/bit-link', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ campaignId: campaign.id, amount: finalAmount, phone: form.phone }),
-      })
-      const d = await res.json().catch(() => ({}))
-      if (res.ok && d?.url) { window.location.href = d.url as string; return }
-    } catch { /* fall through */ }
-    setBitBusy(false)
-    setStep('payment') // fallback: Kesher hosted page (sends the Bit link by SMS)
+    // persistDonor() already fired on click — let the intent save land first.
+    setTimeout(() => { window.location.href = url }, 250)
   }
 
   // Switching currency converts the amount by the LIVE ₪ rate, both ways: value in
@@ -970,7 +965,7 @@ export default function DonationModal({
                   // phone → open the Bit app directly via SendBitTransaction.
                   if (isForeign) startStripe()
                   else if (isCardcom) startCardcom()
-                  else if (paymentMethod === 'bit' && !isNedarim && typeof navigator !== 'undefined' && /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) startBit()
+                  else if (paymentMethod === 'bit' && typeof navigator !== 'undefined' && /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) startBit()
                   else setStep('payment')
                 }}
                 disabled={!canProceed || bitBusy}

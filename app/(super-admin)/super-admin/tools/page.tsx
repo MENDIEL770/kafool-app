@@ -3,7 +3,6 @@ import { redirect } from 'next/navigation'
 import ToolsClient from '@/app/(dashboard)/tools/ToolsClient'
 import { type ShortLink } from '@/app/(dashboard)/tools/page'
 import RecoverHoksAdmin from './RecoverHoksAdmin'
-import BitTestAdmin from './BitTestAdmin'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,7 +30,6 @@ export default async function SuperAdminToolsPage() {
       <div className="max-w-4xl mx-auto">
         <ToolsClient initialLinks={links} baseUrl={baseUrl} isSuperAdmin />
         <RecoverHoksAdmin />
-        <BitTestAdmin />
       </div>
     </div>
   )
