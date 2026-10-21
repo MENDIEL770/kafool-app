@@ -75,7 +75,7 @@ export default async function DesignsPage() {
         <div className="lb-p">
           <div className="lb-im" id="lb-im" />
           <div className="lb-thumbs" id="lb-thumbs" />
-          <div className="lb-cap"><b id="lb-t" /><span className="ds-tag" id="lb-c" /><a className="pill light sm" id="lb-a" target="_blank" rel="noopener">לפרויקט המלא</a></div>
+          <div className="lb-cap"><b id="lb-t" /><span className="ds-tag" id="lb-c" /></div>
         </div>
       </div>
       <InnerRuntime />

@@ -63,7 +63,6 @@ export default function InnerRuntime() {
           gIdx = 0
           ;(document.getElementById('lb-t') as HTMLElement).textContent = c.querySelector('.ds-cap b')?.textContent || ''
           ;(document.getElementById('lb-c') as HTMLElement).textContent = c.dataset.cat || ''
-          const a = document.getElementById('lb-a') as HTMLAnchorElement, link = c.dataset.link; a.hidden = !link; if (link) a.href = 'https://www.kafool.com' + link
           lb.querySelectorAll<HTMLElement>('.lb-nav').forEach(n => (n.hidden = gImgs.length < 2))
           renderThumbs(); showImg(0)
           lb.hidden = false; stopScroll()
