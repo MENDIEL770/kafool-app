@@ -95,7 +95,7 @@ export function Footer() {
         <nav aria-label="פלטפורמה"><p className="f-h">פלטפורמה</p><div className="f-l"><a href="/about">אודות</a><a href="/design">העיצובים שלנו</a><a href="/faq">שאלות ותשובות</a><a href="/contact">צור קשר</a></div></nav>
         <nav aria-label="מנהלי קמפיין"><p className="f-h">למנהלי קמפיין</p><div className="f-l"><a href="/login">כניסה למערכת</a><a href="/register">פתיחת חשבון</a><a href="/dashboard">דשבורד</a></div></nav>
       </div>
-      <div className="f-bot"><span>© 2026 כפול. כל הזכויות שמורות.</span><nav><a href="/privacy">פרטיות</a><a href="/terms">תנאי שימוש</a><a href="/accessibility">נגישות</a><button type="button" id="replay" style={{ textDecoration: 'underline' }}>הפעל את הפתיחה שוב</button></nav></div>
+      <div className="f-bot"><span>© 2026 כפול. כל הזכויות שמורות.</span><nav><a href="/privacy">פרטיות</a><a href="/terms">תנאי שימוש</a><a href="/accessibility">נגישות</a></nav></div>
     </footer>
   )
 }

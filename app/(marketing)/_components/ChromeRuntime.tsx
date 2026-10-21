@@ -147,17 +147,12 @@ export default function ChromeRuntime() {
     }
     form?.addEventListener('submit', onSubmit)
 
-    const replay = document.getElementById('replay')
-    const onReplay = () => location.reload()
-    replay?.addEventListener('click', onReplay)
-
     return () => {
       removeEventListener('resize', grid)
       removeEventListener('keydown', onKey)
       window.removeEventListener('kf:ready', onReady)
       document.removeEventListener('click', onDocClick)
       form?.removeEventListener('submit', onSubmit)
-      replay?.removeEventListener('click', onReplay)
       io.disconnect(); barIo?.disconnect()
     }
   }, [])
