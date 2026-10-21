@@ -216,7 +216,7 @@ export async function sendBitTransaction(campaignId: string, amountShekels: numb
       console.error('SendBitTransaction rejected:', JSON.stringify(r))
       return { success: false, error: String(rr?.Description || r?.Description || 'קשר דחה את הבקשה'), numTransaction, raw: r }
     }
-    return { success: true, url, numTransaction }
+    return { success: true, url, numTransaction, raw: r }
   } catch (e) {
     console.error('sendBitTransaction error:', e)
     return { success: false, error: String(e) }
