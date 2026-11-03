@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Rubik } from 'next/font/google'
+import Image from 'next/image'
 import './services.css'
 import { Mark, NavLogo, WaIcon } from './_svg'
 import Quiz from './Quiz'
@@ -89,14 +90,18 @@ export default function ServicesPage() {
         <h2 className="rv" style={{ margin: '0 0 clamp(40px,6vw,72px)', fontSize: 'clamp(32px,5vw,60px)', lineHeight: 1.12, fontWeight: 500 }}>קמפיינים שעשינו ביחד</h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(240px, 100%), 1fr))', gap: 'clamp(40px,5vw,64px)' }}>
           {[
-            { href: 'https://www.kafool.com/ogen', n: '587K', name: 'חב״ד שירגאו', cls: 'rv' },
-            { href: 'https://www.kafool.com/einav', n: '460K', name: 'חב״ד ענב', cls: 'rv d1' },
-            { href: 'https://www.kafool.com/skaya', n: '168K', name: 'חב״ד סקיה', cls: 'rv d2' },
+            { href: 'https://www.kafool.com/ogen', img: '/marketing/ogen.jpg', w: 1600, h: 1024, n: '587K', name: 'חב״ד שירגאו', title: 'קובעים עוגן בשירגאו', bg: '#E0573F', cls: 'rv' },
+            { href: 'https://www.kafool.com/einav', img: '/marketing/einav.jpg', w: 1600, h: 900, n: '460K', name: 'חב״ד ענב', title: 'לבנה שבונה בית', bg: '#14204A', cls: 'rv d1' },
+            { href: 'https://www.kafool.com/skaya', img: '/marketing/skaya.jpg', w: 750, h: 480, n: '168K', name: 'חב״ד סקיה', title: 'חותמים לשנה טובה', bg: '#3E5DB3', cls: 'rv d2' },
           ].map((c) => (
             <div className={c.cls} key={c.href}>
-              <a className="card" href={c.href} style={{ display: 'block', textDecoration: 'none' }}>
-                <div style={{ fontSize: 'clamp(56px,7vw,84px)', lineHeight: 1.05, fontWeight: 500, color: '#3E5DB3' }}><span className="count">{c.n}</span></div>
-                <div style={{ marginTop: 10, fontSize: 20 }}>{c.name}</div>
+              <a className="card camp" href={c.href} style={{ background: c.bg }}>
+                <Image src={c.img} width={c.w} height={c.h} alt={'הבאנר של הקמפיין ' + c.title} sizes="(max-width: 760px) 100vw, 340px" style={{ display: 'block', width: '100%', height: 'auto', aspectRatio: '25 / 16', objectFit: 'cover' }} />
+                <span style={{ display: 'block', padding: '18px 22px 22px', color: '#FFFFFF', textAlign: 'right' }}>
+                  <span style={{ display: 'block', fontSize: 'clamp(40px,4.6vw,52px)', lineHeight: 1.05, fontWeight: 500 }}><span className="count">{c.n}</span></span>
+                  <span style={{ display: 'block', marginTop: 6, fontSize: 18 }}>{c.title}</span>
+                  <span style={{ display: 'block', fontSize: 15, color: 'rgba(255,255,255,.8)' }}>{c.name}</span>
+                </span>
               </a>
             </div>
           ))}

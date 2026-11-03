@@ -148,6 +148,8 @@
 @media (hover: hover) { .pill:hover { filter: brightness(1.08); } }
 .pill:active { transform: scale(.97); transition: transform .1s ease-out; }
 .card { transition: transform .3s cubic-bezier(.2,.8,.2,1); }
+.camp { display: block; overflow: hidden; border-radius: 28px; text-decoration: none; box-shadow: 0 18px 44px rgba(20,32,74,.14); }
+@media (hover: hover) { a.camp:hover { transform: translateY(-4px); } }
 a.card:active { transform: scale(.985); transition: transform .1s ease-out; }
 
 /* Steps as one continuous line */
