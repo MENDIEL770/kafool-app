@@ -3,15 +3,19 @@
 import { useEffect } from 'react'
 
 // Ported from the prototype's componentDidMount: scroll-reveals, the count-up
-// numbers, the timeline fill, and the active nav link. Runs against the rendered
-// .kp DOM. Everything is progressive — the content is fully visible even if this
-// never runs (reduced-motion / JS off): .rv starts hidden only once .anim-ready
-// is added here.
+// numbers and the timeline fill. Runs against the rendered .kp DOM. Everything
+// is progressive — the content is fully visible even if this never runs
+// (reduced-motion / JS off): .rv starts hidden only once .anim-ready is added.
+//
+// Kept off the scroll path on purpose: reveals use IntersectionObserver, and the
+// timeline is updated at most once per frame, reading all positions before
+// writing anything (no forced layouts while scrolling).
 export default function ServicesRuntime() {
   useEffect(() => {
     const root = document.querySelector('.kp') as HTMLElement | null
     if (!root) return
     const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (reduce) return
 
     const runCount = (el: Element) => {
       const node = el.firstChild
@@ -33,42 +37,62 @@ export default function ServicesRuntime() {
       requestAnimationFrame(tick)
     }
 
-    const update = () => {
-      if (!reduce) {
-        root.classList.add('anim-ready')
-        const limit = window.innerHeight * 1.15
-        root.querySelectorAll<HTMLElement>('.rv:not(.in)').forEach((el) => {
-          const reach = el.classList.contains('late') ? window.innerHeight * 0.88 : limit
-          if (el.getBoundingClientRect().top < reach) {
-            el.classList.add('in')
-            el.querySelectorAll('.count').forEach((c) => runCount(c))
-          }
-        })
+    root.classList.add('anim-ready')
+
+    // Scroll reveals. Regular items come in a bit before they reach the screen;
+    // "late" ones (the system cards) only once they're well inside it.
+    const reveal = (entries: IntersectionObserverEntry[], obs: IntersectionObserver) => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue
+        e.target.classList.add('in')
+        e.target.querySelectorAll('.count').forEach((c) => runCount(c))
+        obs.unobserve(e.target)
       }
-      const steps = root.querySelectorAll<HTMLElement>('.tl')
-      const track = root.querySelector('.tl-track') as HTMLElement | null
-      const fill = root.querySelector('.tl-fill') as HTMLElement | null
-      if (!reduce && steps.length && track && fill) {
-        const marker = Math.min(window.innerHeight * 0.62, 620)
-        const first = steps[0].getBoundingClientRect().top + 16
-        const last = steps[steps.length - 1].getBoundingClientRect().top + 16
-        const span = Math.max(last - first, 1)
+    }
+    const early = new IntersectionObserver(reveal, { rootMargin: '0px 0px 15% 0px' })
+    const late = new IntersectionObserver(reveal, { rootMargin: '0px 0px -12% 0px' })
+    root.querySelectorAll<HTMLElement>('.rv').forEach((el) => (el.classList.contains('late') ? late : early).observe(el))
+
+    // Timeline: a line that fills as you scroll past the steps.
+    const steps = Array.from(root.querySelectorAll<HTMLElement>('.tl'))
+    const track = root.querySelector('.tl-track') as HTMLElement | null
+    const fill = root.querySelector('.tl-fill') as HTMLElement | null
+    const wrap = root.querySelector('.tl-wrap') as HTMLElement | null
+    let near = false
+    let frame = 0
+    let lastSpan = -1
+    const updateTimeline = () => {
+      frame = 0
+      if (!steps.length || !track || !fill) return
+      // read
+      const marker = Math.min(window.innerHeight * 0.62, 620)
+      const tops = steps.map((s) => s.getBoundingClientRect().top + 16)
+      const span = Math.max(tops[tops.length - 1] - tops[0], 1)
+      const progress = Math.max(0, Math.min((marker - tops[0]) / span, 1))
+      // write
+      if (Math.abs(span - lastSpan) > 0.5) {
         track.style.bottom = 'auto'
         track.style.height = span + 'px'
-        const progress = Math.max(0, Math.min((marker - first) / span, 1))
-        fill.style.transform = 'scaleY(' + progress + ')'
-        steps.forEach((step) => step.classList.toggle('reached', step.getBoundingClientRect().top + 16 <= marker))
+        lastSpan = span
       }
-      const line = Math.min(window.innerHeight * 0.4, 320)
-      let current = ''
-      root.querySelectorAll<HTMLElement>('section[id]').forEach((s) => { if (s.getBoundingClientRect().top <= line) current = s.id })
-      root.querySelectorAll<HTMLAnchorElement>('.nav-link').forEach((a) => a.classList.toggle('on', a.getAttribute('href') === '#' + current))
+      fill.style.transform = 'scaleY(' + progress + ')'
+      steps.forEach((s, i) => s.classList.toggle('reached', tops[i] <= marker))
     }
+    const schedule = () => { if (near && !frame) frame = requestAnimationFrame(updateTimeline) }
+    const nearObs = wrap
+      ? new IntersectionObserver(([e]) => { near = e.isIntersecting; if (near) schedule() }, { rootMargin: '50% 0px 50% 0px' })
+      : null
+    if (wrap && nearObs) nearObs.observe(wrap)
+    updateTimeline()
 
-    update()
-    const timer = setInterval(update, 150)
-    window.addEventListener('scroll', update, { passive: true, capture: true })
-    return () => { clearInterval(timer); window.removeEventListener('scroll', update, { capture: true } as EventListenerOptions) }
+    window.addEventListener('scroll', schedule, { passive: true })
+    window.addEventListener('resize', schedule, { passive: true })
+    return () => {
+      early.disconnect(); late.disconnect(); nearObs?.disconnect()
+      if (frame) cancelAnimationFrame(frame)
+      window.removeEventListener('scroll', schedule)
+      window.removeEventListener('resize', schedule)
+    }
   }, [])
 
   return null

@@ -45,6 +45,7 @@
 .run { stroke-dasharray: 900 2671; animation: loopRun 18s linear infinite; }
 @keyframes loopRun { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -3571; } }
 .glow { position: absolute; border-radius: 50%; pointer-events: none; }
+.kp .count { font-variant-numeric: tabular-nums; }
 .mark { display: block; width: 42px; height: auto; margin-bottom: 18px; }
 .mark.center { margin-right: auto; margin-left: auto; }
 .mark .run { animation: none; }
@@ -136,6 +137,12 @@
   .anim-ready .feat-icon * { transition-delay: .35s !important; }
 }
 
+/* Price lists: explicit dots (the app's base CSS strips list markers) */
+.plist { padding: 0; list-style: none; }
+.plist li { position: relative; padding-right: 22px; line-height: 1.45; }
+.plist li + li { margin-top: 8px; }
+.plist li::before { content: ""; position: absolute; right: 3px; top: .58em; width: 7px; height: 7px; border-radius: 50%; background: #FF7A63; }
+
 /* Buttons */
 .pill { transition: transform .25s cubic-bezier(.2,.8,.2,1), filter .15s ease; }
 @media (hover: hover) { .pill:hover { filter: brightness(1.08); } }
@@ -146,7 +153,7 @@ a.card:active { transform: scale(.985); transition: transform .1s ease-out; }
 /* Steps as one continuous line */
 .tl-wrap { position: relative; }
 .tl-track { position: absolute; top: 16px; bottom: 48px; right: 9px; width: 2px; background: #C9D2EE; overflow: hidden; }
-.tl-fill { width: 100%; height: 100%; background: #FF7A63; transform-origin: top center; transition: transform .15s linear; }
+.tl-fill { width: 100%; height: 100%; background: #FF7A63; transform-origin: top center; }
 .tl { position: relative; padding-right: 44px; padding-bottom: clamp(56px,9vw,112px); transition: opacity .35s ease; }
 .tl.last { padding-bottom: 0; }
 .tl-node { position: absolute; top: 6px; right: 0; width: 20px; height: 20px; box-sizing: border-box; border-radius: 50%; border: 2px solid #FF7A63; background: #FF7A63; transition: background-color .25s ease, border-color .25s ease, transform .3s cubic-bezier(.2,.8,.2,1); }

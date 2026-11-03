@@ -61,10 +61,12 @@ export default function ServicesPage() {
         <div className="glow" aria-hidden="true" style={{ width: 700, height: 700, left: -180, bottom: -320, background: 'radial-gradient(closest-side, rgba(62,93,179,.7), rgba(62,93,179,0))' }} />
         <div className="glow" aria-hidden="true" style={{ width: 620, height: 620, right: -160, top: -300, background: 'radial-gradient(closest-side, rgba(255,122,99,.14), rgba(255,122,99,0))' }} />
         <svg className="field" viewBox="0 0 1400 760" preserveAspectRatio="xMidYMid slice" fill="none" aria-hidden="true">
-          <defs><filter id="soft-hero" filterUnits="userSpaceOnUse" x="-900" y="-500" width="1800" height="1000"><feGaussianBlur stdDeviation="24" /></filter></defs>
+          {/* No SVG blur here: re-blurring a moving stroke every frame is what made
+              the page stutter. Two stacked soft strokes give a similar glow. */}
           <g transform="translate(700 390) scale(.98)" strokeLinejoin="round">
             <path d="M146.7 174.8A272 272 0 1 0 146.7 -174.8L-146.7 174.8A272 272 0 1 1 -146.7 -174.8Z" stroke="#FFFFFF" strokeOpacity=".035" strokeWidth="100" />
-            <path className="run" filter="url(#soft-hero)" d="M146.7 174.8A272 272 0 1 0 146.7 -174.8L-146.7 174.8A272 272 0 1 1 -146.7 -174.8Z" stroke="#FF7A63" strokeOpacity=".32" strokeWidth="90" strokeLinecap="round" />
+            <path className="run" d="M146.7 174.8A272 272 0 1 0 146.7 -174.8L-146.7 174.8A272 272 0 1 1 -146.7 -174.8Z" stroke="#FF7A63" strokeOpacity=".08" strokeWidth="140" strokeLinecap="round" />
+            <path className="run" d="M146.7 174.8A272 272 0 1 0 146.7 -174.8L-146.7 174.8A272 272 0 1 1 -146.7 -174.8Z" stroke="#FF7A63" strokeOpacity=".16" strokeWidth="80" strokeLinecap="round" />
           </g>
         </svg>
         <div style={{ position: 'relative', maxWidth: 880, boxSizing: 'border-box', padding: 'clamp(112px,14vw,140px) 24px clamp(64px,9vw,96px)' }}>
@@ -191,7 +193,7 @@ export default function ServicesPage() {
                   <h3 style={{ margin: 0, fontSize: 'clamp(22px,2.4vw,28px)', fontWeight: 500 }}>{row.t}</h3>
                   <div style={{ flex: 'none', fontSize: 'clamp(22px,2.4vw,28px)', fontWeight: 500, color: '#3E5DB3' }}>{row.p}</div>
                 </div>
-                <ul style={{ margin: '12px 0 0', padding: '0 20px 0 0', fontSize: 17 }}>{row.items.map((it, i) => <li key={i}>{it}</li>)}</ul>
+                <ul className="plist" style={{ margin: '12px 0 0', fontSize: 17 }}>{row.items.map((it, i) => <li key={i}>{it}</li>)}</ul>
               </div>
             ))}
           </div>
