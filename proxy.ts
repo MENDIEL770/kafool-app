@@ -7,6 +7,7 @@ const RESERVED_FIRST_SEG = new Set([
   'dashboard', 'campaigns', 'callers', 'war-room', 'reports', 'sms', 'donor-pool',
   'settings', 'super-admin', 'login', 'register', 'api', 'onboarding', 'leads',
   'about', 'contact', 'faq', 'privacy', 'terms', 'accessibility', 'join', 'design',
+  'services', 'report',
 ])
 
 export async function proxy(request: NextRequest) {

@@ -71,6 +71,7 @@ const superAdminItems = [
   { href: '/super-admin/agent', label: 'סוכן AI', icon: Bot },
   { href: '/super-admin/orgs', label: 'ניהול ארגונים', icon: Building2 },
   { href: '/super-admin/submissions', label: 'פניות ובקשות', icon: Inbox },
+  { href: '/super-admin/readiness', label: 'בדיקות מוכנות', icon: BarChart3 },
   { href: '/super-admin/whatsapp', label: 'חיבור וואטסאפ', icon: MessageCircle },
   { href: '/super-admin/cms', label: 'ניהול תוכן', icon: FileText },
   { href: '/super-admin/portfolio', label: 'עיצובים / תיק עבודות', icon: ImageIcon },
