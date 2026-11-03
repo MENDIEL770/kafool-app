@@ -5,8 +5,17 @@
   --r-card:1.5rem; --r-card-lg:2rem; --r-pill:62.5rem; --r-xl:.75rem;
   --e-expo:cubic-bezier(.16,1,.3,1); --e-quart:cubic-bezier(.25,1,.5,1); --e-io:cubic-bezier(.65,0,.35,1); --e-spring:cubic-bezier(.22,1,.36,1);
 }
+/* Element resets live in the base layer: unlayered, they beat every Tailwind
+   utility on the page (e.g. the accessibility widget lost its colour/padding). */
+@layer base{
 *,*::before,*::after{box-sizing:border-box}
 *{margin:0;padding:0}
+img{display:block;max-width:100%}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;touch-action:manipulation;-webkit-user-select:none;user-select:none}
+input,textarea{font:inherit;font-size:max(16px,.875rem)}
+ul{list-style:none}
+}
 html{font-size:16px;-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
 @media (max-width:1920px){html{font-size:.833333vw}}
 @media (max-width:1440px){html{font-size:1.111111vw}}
@@ -14,11 +23,6 @@ html{font-size:16px;-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:tr
 @media (max-width:640px){html{font-size:100%}}
 html.lenis,html.lenis body{height:auto}.lenis.lenis-smooth{scroll-behavior:auto!important}.lenis.lenis-stopped{overflow:hidden}
 body{min-height:100vh;background:var(--background);color:var(--foreground);font-family:'Rubik',system-ui,sans-serif;overflow-x:clip}
-img{display:block;max-width:100%}
-a{color:inherit;text-decoration:none}
-button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;touch-action:manipulation;-webkit-user-select:none;user-select:none}
-input,textarea{font:inherit;font-size:max(16px,.875rem)}
-ul{list-style:none}
 :focus-visible{outline:2px solid var(--brand-light);outline-offset:2px}
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
 main{width:100%;overflow-x:clip;padding:.5rem}
