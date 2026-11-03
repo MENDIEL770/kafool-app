@@ -17,13 +17,32 @@ export const metadata: Metadata = {
 
 const navH: React.CSSProperties = { boxSizing: 'border-box', width: 'min(1040px, calc(100% - 32px))', margin: '16px auto 0', padding: '7px 20px 7px 7px', borderRadius: 1000, color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }
 
+const pillBase: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', minHeight: 54, padding: '0 30px', borderRadius: 1000, fontSize: 17, fontWeight: 500, textDecoration: 'none' }
+
+// Mid-page jump buttons between sections, so a reader never has to scroll back
+// up to find the next step.
+function Cta({ links, dark = false, pad = '0 24px' }: { links: { href: string; label: string }[]; dark?: boolean; pad?: string }) {
+  return (
+    <div className="rv" style={{ display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'center', padding: pad }}>
+      {links.map((l, i) => (
+        <a key={l.href} className="pill" href={l.href} style={{
+          ...pillBase,
+          ...(i === 0
+            ? (dark ? { background: '#FFFFFF', color: '#14204A' } : { background: '#14204A', color: '#FFFFFF' })
+            : (dark ? { background: 'rgba(255,255,255,.12)', color: '#FFFFFF' } : { background: 'transparent', color: '#14204A', boxShadow: 'inset 0 0 0 1.5px #C4CAD8' })),
+        }}>{l.label}</a>
+      ))}
+    </div>
+  )
+}
+
 export default function ServicesPage() {
   return (
-    <div className={'kp ' + rubik.variable} dir="rtl" id="top">
+    <div className={'kp ' + rubik.variable} dir="rtl" id="top" style={{ position: 'relative' }}>
       <ServicesRuntime />
 
-      {/* Floating translucent nav */}
-      <div style={{ position: 'sticky', top: 16, zIndex: 20, height: 0 }}>
+      {/* Top nav — sits over the hero and scrolls away with it */}
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20 }}>
         <nav className="glass" aria-label="ניווט ראשי" style={navH}>
           <a href="#top" aria-label="כפול, לראש הדף" style={{ display: 'block' }}><NavLogo /></a>
           <div className="nav-links" style={{ display: 'flex', gap: 2 }}>
@@ -80,6 +99,7 @@ export default function ServicesPage() {
             </div>
           ))}
         </div>
+        <Cta pad="clamp(48px,7vw,72px) 0 0" links={[{ href: '#check', label: 'כמה הקמפיין שלכם מוכן? לבדיקה' }, { href: '#prices', label: 'לשירותים ולמחירים' }]} />
       </section>
 
       {/* Steps */}
@@ -107,6 +127,7 @@ export default function ServicesPage() {
             </ol>
           </div>
         </div>
+        <Cta pad="clamp(40px,6vw,64px) 0 0" links={[{ href: '#contact', label: 'בואו נתחיל בשיחת היכרות' }, { href: WA, label: 'שלחו לנו וואטסאפ' }]} />
       </section>
 
       {/* System */}
@@ -138,6 +159,7 @@ export default function ServicesPage() {
               שליחת אישור תרומה מסודר לאחר השלמת תרומה
             </li>
           </ul>
+          <Cta dark pad="clamp(48px,7vw,72px) 0 0" links={[{ href: '#check', label: 'לבדיקת המוכנות שלכם' }, { href: '#prices', label: 'מה כלול וכמה זה עולה' }]} />
         </div>
       </section>
 
