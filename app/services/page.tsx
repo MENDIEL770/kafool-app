@@ -88,19 +88,20 @@ export default function ServicesPage() {
       <section id="campaigns" aria-label="קמפיינים שליווינו" style={{ maxWidth: 1080, margin: '0 auto', boxSizing: 'border-box', padding: 'clamp(80px,12vw,152px) 24px clamp(40px,6vw,72px)', textAlign: 'center' }}>
         <Mark center />
         <h2 className="rv" style={{ margin: '0 0 clamp(40px,6vw,72px)', fontSize: 'clamp(32px,5vw,60px)', lineHeight: 1.12, fontWeight: 500 }}>קמפיינים שעשינו ביחד</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(240px, 100%), 1fr))', gap: 'clamp(40px,5vw,64px)' }}>
+        <div className="camps">
           {[
-            { href: 'https://www.kafool.com/ogen', img: '/marketing/ogen.jpg', w: 1600, h: 1024, n: '587K', name: 'חב״ד שירגאו', title: 'קובעים עוגן בשירגאו', bg: '#E0573F', cls: 'rv' },
-            { href: 'https://www.kafool.com/einav', img: '/marketing/einav.jpg', w: 1600, h: 900, n: '460K', name: 'חב״ד ענב', title: 'לבנה שבונה בית', bg: '#14204A', cls: 'rv d1' },
-            { href: 'https://www.kafool.com/skaya', img: '/marketing/skaya.jpg', w: 750, h: 480, n: '168K', name: 'חב״ד סקיה', title: 'חותמים לשנה טובה', bg: '#3E5DB3', cls: 'rv d2' },
+            { href: 'https://www.kafool.com/einav', img: '/marketing/einav.jpg', w: 1600, h: 900, title: 'לבנה שבונה בית', sub: 'משכן קבע לבית חב״ד ענב', bg: '#14204A', cls: 'rv' },
+            { href: 'https://www.kafool.com/skaya', img: '/marketing/skaya.jpg', w: 750, h: 480, title: 'חותמים לשנה טובה', sub: 'שותפות קבע בבית חב״ד סקיה, אור יהודה', bg: '#3E5DB3', cls: 'rv d1' },
+            { href: 'https://www.kafool.com/ogen', img: '/marketing/ogen.jpg', w: 1600, h: 1024, title: 'קובעים עוגן בשירגאו', sub: 'קונים את השטח לבית חב״ד בשירגאו', bg: '#E0573F', cls: 'rv d2' },
           ].map((c) => (
             <div className={c.cls} key={c.href}>
               <a className="card camp" href={c.href} style={{ background: c.bg }}>
-                <Image src={c.img} width={c.w} height={c.h} alt={'הבאנר של הקמפיין ' + c.title} sizes="(max-width: 760px) 100vw, 340px" style={{ display: 'block', width: '100%', height: 'auto', aspectRatio: '25 / 16', objectFit: 'cover' }} />
-                <span style={{ display: 'block', padding: '18px 22px 22px', color: '#FFFFFF', textAlign: 'right' }}>
-                  <span style={{ display: 'block', fontSize: 'clamp(40px,4.6vw,52px)', lineHeight: 1.05, fontWeight: 500 }}><span className="count">{c.n}</span></span>
-                  <span style={{ display: 'block', marginTop: 6, fontSize: 18 }}>{c.title}</span>
-                  <span style={{ display: 'block', fontSize: 15, color: 'rgba(255,255,255,.8)' }}>{c.name}</span>
+                <span style={{ display: 'block', overflow: 'hidden' }}>
+                  <Image src={c.img} width={c.w} height={c.h} alt={'הבאנר של הקמפיין ' + c.title} sizes="(max-width: 640px) 100vw, 340px" style={{ display: 'block', width: '100%', height: 'auto' }} />
+                </span>
+                <span className="cap">
+                  <span><b>{c.title}</b><small>{c.sub}</small></span>
+                  <span className="go" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M7 17 17 7M8 7h9v9" /></svg></span>
                 </span>
               </a>
             </div>

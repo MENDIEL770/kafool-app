@@ -148,8 +148,18 @@
 @media (hover: hover) { .pill:hover { filter: brightness(1.08); } }
 .pill:active { transform: scale(.97); transition: transform .1s ease-out; }
 .card { transition: transform .3s cubic-bezier(.2,.8,.2,1); }
-.camp { display: block; overflow: hidden; border-radius: 28px; text-decoration: none; box-shadow: 0 18px 44px rgba(20,32,74,.14); }
-@media (hover: hover) { a.camp:hover { transform: translateY(-4px); } }
+/* Campaign banners — same card as the home page */
+.camps { display: grid; grid-template-columns: 1fr; gap: 20px; }
+@media (min-width: 640px) { .camps { grid-template-columns: repeat(3, 1fr); align-items: end; } .camps > :nth-child(2) { margin-bottom: 32px; } .camps > :nth-child(3) { margin-bottom: 64px; } }
+.camp { display: block; overflow: hidden; border-radius: 24px; text-decoration: none; box-shadow: 0 24px 48px -28px rgba(14,20,48,.5); }
+.kp a.camp { color: #FFFFFF; }
+.camp img { transition: transform .7s cubic-bezier(.2,.8,.2,1); }
+.camp .cap { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 16px 18px 18px; text-align: right; }
+.camp .cap b { display: block; font-size: 16px; font-weight: 600; line-height: 1.3; }
+.camp .cap small { display: block; font-size: 13px; opacity: .75; line-height: 1.4; }
+.camp .go { width: 36px; height: 36px; border-radius: 999px; background: #FFFFFF; color: #14204A; display: grid; place-items: center; flex: none; transition: transform .35s cubic-bezier(.2,.8,.2,1); }
+.camp .go svg { width: 14px; height: 14px; transform: scaleX(-1); }
+@media (hover: hover) { a.camp:hover { transform: translateY(-6px); } a.camp:hover img { transform: scale(1.03); } a.camp:hover .go { transform: rotate(-45deg); } }
 a.card:active { transform: scale(.985); transition: transform .1s ease-out; }
 
 /* Steps as one continuous line */
